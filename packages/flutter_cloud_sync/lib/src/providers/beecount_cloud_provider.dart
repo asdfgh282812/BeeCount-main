@@ -418,6 +418,24 @@ class BeeCountCloudProvider implements CloudProvider {
     );
   }
 
+  /// 上传账户头像 — user-global,不绑 ledger,跟 [uploadCategoryIcon] 同款。
+  Future<BeeCountCloudAttachmentUploadResult> uploadAccountAvatar({
+    required Uint8List bytes,
+    required String fileName,
+    String? mimeType,
+  }) async {
+    final storage = _storage;
+    if (storage == null) {
+      throw CloudConfigurationException(
+          'BeeCount Cloud storage is not initialized.');
+    }
+    return storage.uploadAccountAvatar(
+      bytes: bytes,
+      fileName: fileName,
+      mimeType: mimeType,
+    );
+  }
+
   Future<Uint8List> downloadAttachment({required String fileId}) async {
     final storage = _storage;
     if (storage == null) {
@@ -2492,6 +2510,48 @@ class BeeCountCloudStorageService implements CloudStorageService {
     return BeeCountCloudAttachmentUploadResult.fromJson(payload);
   }
 
+  /// 上传账户头像(user-global,不绑 ledger)。
+  ///
+  /// 走专用 endpoint `/attachments/account-avatars/upload`,server 端按
+  /// (user_id, sha256) 去重,落库 attachment_files 行的 ledger_id=NULL、
+  /// attachment_kind='account_avatar'。跟 [uploadCategoryIcon] 同一套模式。
+  Future<BeeCountCloudAttachmentUploadResult> uploadAccountAvatar({
+    required Uint8List bytes,
+    required String fileName,
+    String? mimeType,
+  }) async {
+    if (bytes.isEmpty) {
+      throw CloudStorageException('Account avatar upload failed: empty file');
+    }
+    var token = await auth.requireAccessToken();
+    var response = await _accountAvatarMultipartRequest(
+      bytes: bytes,
+      fileName: fileName,
+      mimeType: mimeType,
+      token: token,
+    );
+    if (response.statusCode == 401) {
+      final refreshed = await auth.tryRefreshSession();
+      if (!refreshed) {
+        throw CloudNotAuthenticatedException(
+            'Session expired, please login again.');
+      }
+      token = await auth.requireAccessToken();
+      response = await _accountAvatarMultipartRequest(
+        bytes: bytes,
+        fileName: fileName,
+        mimeType: mimeType,
+        token: token,
+      );
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw CloudStorageException(
+          'Account avatar upload failed: ${_extractErrorMessage(response)}');
+    }
+    final payload = _decodeJsonObject(response.body);
+    return BeeCountCloudAttachmentUploadResult.fromJson(payload);
+  }
+
   Future<Uint8List> downloadAttachment({required String fileId}) async {
     final response = await _authedRequest(
       method: 'GET',
@@ -3434,6 +3494,32 @@ class BeeCountCloudStorageService implements CloudStorageService {
     String? mimeType,
   }) async {
     final uri = Uri.parse('$baseUrl$apiPrefix/attachments/category-icons/upload');
+    final request = http.MultipartRequest('POST', uri);
+    request.headers['Authorization'] = 'Bearer $token';
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: fileName,
+      ),
+    );
+    if (mimeType != null && mimeType.trim().isNotEmpty) {
+      request.fields['mime_type'] = mimeType.trim();
+    }
+    final streamed = await _httpClient.send(request);
+    return http.Response.fromStream(streamed);
+  }
+
+  /// 账户头像上传的 multipart 请求。跟 [_categoryIconMultipartRequest] 的
+  /// 差别:走 `/attachments/account-avatars/upload`。
+  Future<http.Response> _accountAvatarMultipartRequest({
+    required Uint8List bytes,
+    required String fileName,
+    required String token,
+    String? mimeType,
+  }) async {
+    final uri =
+        Uri.parse('$baseUrl$apiPrefix/attachments/account-avatars/upload');
     final request = http.MultipartRequest('POST', uri);
     request.headers['Authorization'] = 'Bearer $token';
     request.files.add(

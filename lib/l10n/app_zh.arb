@@ -1338,6 +1338,7 @@
   "cloudConfigureBeeCountCloudTitle": "配置 BeeCount Cloud",
   "cloudBeeCountCloudUrlLabel": "服务器地址",
   "cloudBeeCountCloudUrlHint": "https://your-server.com",
+  "cloudBeeCountCloudSsoLoginHint": "保存后点「登录」，会打开浏览器完成登录，不需要在这里输入账号密码。",
   "cloudBeeCountCloudApiPrefixLabel": "API 前缀",
   "cloudBeeCountCloudApiPrefixHint": "/api/v1",
   "cloudBeeCountCloudEmailLabel": "邮箱",
@@ -1674,7 +1675,7 @@
   "cloudTutorialStep2Title": "第二步:获取账号",
   "cloudTutorialStep2Desc": "BeeCount Cloud 不支持自助注册(避免公网服务被滥用)。自己部署的同学:首次启动 Docker 日志里会打印随机管理员账号密码,直接用。加入他人服务器的同学:让管理员在 Web 后台 →「用户」里帮你添加账号。",
   "cloudTutorialStep3Title": "第三步:登录并开启同步",
-  "cloudTutorialStep3Desc": "App 里选「BeeCount Cloud」,填服务器地址 + 管理员给你的账号,登录。首次会全量上传你本地所有账本数据,之后每次编辑实时推送。",
+  "cloudTutorialStep3Desc": "App 里选「BeeCount Cloud」,只需填服务器地址并保存(不用输入账号密码)。接着点「登录」,会打开系统浏览器跳到服务器登录页,用第二步拿到的账号完成登录(服务器开了 2FA 也在浏览器里验证),成功后自动跳回 App。首次登录会全量上传你本地所有账本数据,之后每次编辑实时推送。",
   "cloudTutorialStep4Title": "第四步:其他设备登录",
   "cloudTutorialStep4Desc": "手机、平板、Web 三端用同一账号登录,数据即刻互通。修改几秒内互相感知。",
   "cloudTutorialTipTitle": "小贴士",
@@ -2305,6 +2306,18 @@
   "accountCardLastFourHint": "例如：1234",
   "accountNote": "备注",
   "accountNoteHint": "添加备注信息",
+  "accountAvatarTitle": "账户头像",
+  "accountAvatarTapToSelect": "点击选择图片",
+  "accountAvatarTapToChange": "点击更换图片",
+  "accountAvatarCrop": "裁剪头像",
+  "accountParentTitle": "主账户",
+  "accountParentNone": "无(独立账户)",
+  "accountParentBadge": "隶属于 {parentName}",
+  "@accountParentBadge": {
+    "placeholders": {
+      "parentName": {"type": "String"}
+    }
+  },
   "accountMetaInfo": "账户信息",
   "accountBalanceTrend": "余额趋势",
   "accountCategoryBreakdown": "分类统计",
@@ -2646,5 +2659,30 @@
   "currencyLSL": "莱索托洛蒂",
   "currencySZL": "斯威士兰里兰吉尼",
   "currencyMGA": "马达加斯加阿里亚里",
-  "currencyMRU": "毛里塔尼亚乌吉亚"
+  "currencyMRU": "毛里塔尼亚乌吉亚",
+  "accountDetailTabTransactions": "交易明细",
+  "accountDetailTabInfo": "账户信息",
+  "accountSubAccountsLabel": "子账户",
+  "accountSubAccountsCount": "{count}组账户",
+  "@accountSubAccountsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "accountMainCurrencyLabel": "主币种",
+  "accountGroupLabel": "账户分组",
+  "accountAutoPayLabel": "自动扣缴",
+  "accountAutoPayNone": "无",
+  "accountLowCreditAlertLabel": "可用额度不足提醒",
+  "accountIncludeInNetWorthLabel": "纳入总余额",
+  "billingSummaryNewSpending": "新增花费",
+  "billingSummaryPriorBalance": "上期欠款",
+  "billingSummaryAmountDue": "应缴金额",
+  "billingSummaryAmountPaid": "已缴金额",
+  "billingSummaryInstallments": "账单分期",
+  "billingSummaryReconciledCount": "对账笔数",
+  "billingSummaryRemaining": "剩余账款",
+  "billingSummaryPaidOff": "已缴清"
 }

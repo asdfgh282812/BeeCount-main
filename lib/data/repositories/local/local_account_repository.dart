@@ -95,6 +95,8 @@ class LocalAccountRepository implements AccountRepository {
     String? cardLastFour,
     String? note,
     String? syncId,
+    String? parentAccountId,
+    String? avatarPath,
   }) async {
     // 撞同名抛 DuplicateNameException(name 全局唯一)。静默路径(import /
     // app-link 等)请改用 [upsertAccount]。
@@ -131,6 +133,8 @@ class LocalAccountRepository implements AccountRepository {
         cardLastFour: d.Value(cardLastFour),
         note: d.Value(note),
         syncId: d.Value(syncId ?? _uuid.v4()),
+        parentAccountId: d.Value(parentAccountId),
+        avatarPath: d.Value(avatarPath),
       );
 
       final id = await db.into(db.accounts).insert(companion);
@@ -182,6 +186,10 @@ class LocalAccountRepository implements AccountRepository {
     String? note,
     bool clearMetadataFields = false,
     bool? hidden,
+    String? parentAccountId,
+    bool clearParentAccount = false,
+    String? avatarPath,
+    bool clearAvatar = false,
   }) async {
     await (db.update(db.accounts)..where((a) => a.id.equals(id))).write(
       AccountsCompanion(
@@ -196,6 +204,12 @@ class LocalAccountRepository implements AccountRepository {
         cardLastFour: clearMetadataFields ? const d.Value(null) : (cardLastFour != null ? d.Value(cardLastFour) : const d.Value.absent()),
         note: clearMetadataFields ? const d.Value(null) : (note != null ? d.Value(note) : const d.Value.absent()),
         hidden: hidden == null ? const d.Value.absent() : d.Value(hidden),
+        parentAccountId: clearParentAccount
+            ? const d.Value(null)
+            : (parentAccountId != null ? d.Value(parentAccountId) : const d.Value.absent()),
+        avatarPath: clearAvatar
+            ? const d.Value(null)
+            : (avatarPath != null ? d.Value(avatarPath) : const d.Value.absent()),
       ),
     );
   }
@@ -259,11 +273,19 @@ class LocalAccountRepository implements AccountRepository {
 
     double balance = account.initialBalance;
     final sharedIds = await _sharedLedgerIds();
+    // 账户余额只该反映「已经发生」的交易——周期性交易可以预先生成未来日期
+    // 的记录(例如下个月才扣款的订阅),在它真正发生前不该计入当前余额/
+    // 信用卡欠款,否则资产页金额会比实际偏高。跟 server 端
+    // routers/read/workspace.py 的 `happened_at <= now` 口径对齐(该处注释
+    // 记录了同一个使用者反馈:信用卡显示的消费金额不该连未来的都算进去)。
+    final now = DateTime.now();
 
     // 收入和支出(排除共享账本)
     final normalTxs = await (db.select(db.transactions)
           ..where((t) =>
-              t.accountId.equals(accountId) & t.ledgerId.isNotIn(sharedIds)))
+              t.accountId.equals(accountId) &
+              t.ledgerId.isNotIn(sharedIds) &
+              t.happenedAt.isSmallerOrEqualValue(now)))
         .get();
 
     for (final t in normalTxs) {
@@ -284,7 +306,8 @@ class LocalAccountRepository implements AccountRepository {
           ..where((t) =>
               t.toAccountId.equals(accountId) &
               t.type.equals('transfer') &
-              t.ledgerId.isNotIn(sharedIds)))
+              t.ledgerId.isNotIn(sharedIds) &
+              t.happenedAt.isSmallerOrEqualValue(now)))
         .get();
 
     for (final t in transfersIn) {
@@ -305,12 +328,15 @@ class LocalAccountRepository implements AccountRepository {
       return account.initialBalance;
     }
 
-    // 获取所有交易(排除共享账本)
+    // 获取所有交易(排除共享账本)。happenedAt <= now:同 [getAccountBalance]
+    // 注释,不把未来才发生的周期性交易算进当前余额。
     final sharedIds = await _sharedLedgerIds();
+    final now = DateTime.now();
     final transactions = await (db.select(db.transactions)
           ..where((t) =>
               (t.accountId.equals(accountId) | t.toAccountId.equals(accountId)) &
-              t.ledgerId.isNotIn(sharedIds)))
+              t.ledgerId.isNotIn(sharedIds) &
+              t.happenedAt.isSmallerOrEqualValue(now)))
         .get();
 
     double balance = account.initialBalance;
@@ -338,10 +364,14 @@ class LocalAccountRepository implements AccountRepository {
 
   @override
   Future<double> getAccountBalanceInLedger(int accountId, int ledgerId) async {
+    // happenedAt <= now:同 [getAccountBalance] 注释,不把未来才发生的周期
+    // 性交易算进当前余额。
+    final now = DateTime.now();
     final transactions = await (db.select(db.transactions)
           ..where((t) =>
               (t.accountId.equals(accountId) | t.toAccountId.equals(accountId)) &
-              t.ledgerId.equals(ledgerId)))
+              t.ledgerId.equals(ledgerId) &
+              t.happenedAt.isSmallerOrEqualValue(now)))
         .get();
 
     double balance = 0.0;
@@ -647,23 +677,60 @@ class LocalAccountRepository implements AccountRepository {
 
   @override
   Future<List<Transaction>> getAccountTransactions(
-    int accountId, {int limit = 50, int offset = 0, String? flow}) async {
+    int accountId, {
+    int limit = 50,
+    int offset = 0,
+    String? flow,
+    List<int>? extraAccountIds,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    // 主帳戶(合併帳單分組)聚合視圖:accountId + extraAccountIds 一起按
+    // IN (...) 查,跟单账户走同一条 SQL,只是集合大小不同。
+    final ids = [accountId, ...?extraAccountIds];
+    final idPlaceholders = List.generate(ids.length, (i) => '?${i + 1}').join(', ');
     // flow 过滤按资金流向:支出视图含转出,收入视图含转入,null 为全部
     final where = switch (flow) {
-      'expense' => "account_id = ?1 AND type IN ('expense', 'transfer')",
+      'expense' => "account_id IN ($idPlaceholders) AND type IN ('expense', 'transfer')",
       'income' =>
-        "(type = 'income' AND account_id = ?1) OR (type = 'transfer' AND to_account_id = ?1)",
-      _ => 'account_id = ?1 OR to_account_id = ?1',
+        "(type = 'income' AND account_id IN ($idPlaceholders)) OR (type = 'transfer' AND to_account_id IN ($idPlaceholders))",
+      _ => 'account_id IN ($idPlaceholders) OR to_account_id IN ($idPlaceholders)',
     };
+    // numbered ?N 占位符可以在同一条 SQL 里重复出现(account_id IN 一次、
+    // to_account_id IN 一次),两处都复用同一批变量,不用重复绑定。
+    final idVariables = ids.map((id) => d.Variable.withInt(id)).toList();
+
+    // 帳單週期篩選(信用卡「交易明細」tab):happened_at 落库是 epoch 秒。
+    var nextIndex = ids.length + 1;
+    final dateVariables = <d.Variable>[];
+    var dateWhere = '';
+    if (startDate != null) {
+      dateWhere += ' AND happened_at >= ?$nextIndex';
+      dateVariables.add(d.Variable.withInt(startDate.millisecondsSinceEpoch ~/ 1000));
+      nextIndex++;
+    }
+    if (endDate != null) {
+      // endDate 视为「含整个自然日」,不管调用方传的是不是当天 00:00:00,
+      // 都补到 23:59:59 再比较,避免当天下午的交易被判成「週期外」。
+      final endOfDay =
+          DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
+      dateWhere += ' AND happened_at <= ?$nextIndex';
+      dateVariables.add(d.Variable.withInt(endOfDay.millisecondsSinceEpoch ~/ 1000));
+      nextIndex++;
+    }
+    final limitIndex = nextIndex;
+    final offsetIndex = nextIndex + 1;
+
     final results = await db.customSelect(
       '''
       SELECT * FROM transactions
-      WHERE ($where) AND $_kExcludeJoinedSharedLedgerSql
+      WHERE ($where) AND $_kExcludeJoinedSharedLedgerSql$dateWhere
       ORDER BY happened_at DESC
-      LIMIT ?2 OFFSET ?3
+      LIMIT ?$limitIndex OFFSET ?$offsetIndex
       ''',
       variables: [
-        d.Variable.withInt(accountId),
+        ...idVariables,
+        ...dateVariables,
         d.Variable.withInt(limit),
         d.Variable.withInt(offset),
       ],

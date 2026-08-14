@@ -282,6 +282,77 @@ extension SyncEngineAttachmentsExt on SyncEngine {
     return false;
   }
 
+  /// 处理 `_applyAccountChange` 入队的账户头像下载任务。跟
+  /// [drainCustomIconQueue] 同款机制(并发度、失败回 queue 重试),只是落地
+  /// 表换成 accounts。
+  Future<int> drainAccountAvatarQueue() async {
+    if (pendingAccountAvatarJobs.isEmpty) return 0;
+    final jobs = List<AccountAvatarDownloadJob>.from(pendingAccountAvatarJobs);
+    pendingAccountAvatarJobs.clear();
+    final pool = _AttachmentSemaphore(4);
+    final failed = <AccountAvatarDownloadJob>[];
+    final results = await Future.wait(jobs.map((job) async {
+      await pool.acquire();
+      try {
+        final ok = await _downloadAccountAvatarWithRetry(job);
+        if (!ok) failed.add(job);
+        return ok;
+      } finally {
+        pool.release();
+      }
+    }));
+    if (failed.isNotEmpty) {
+      pendingAccountAvatarJobs.addAll(failed);
+      logger.warning('SyncEngine',
+          '账户头像下载失败 ${failed.length}/${jobs.length},回 queue 等下次 drain 重试');
+    }
+    final ok = results.where((r) => r).length;
+    if (ok > 0) {
+      logger.info('SyncEngine', '账户头像下载完成: $ok/${jobs.length}');
+    }
+    return ok;
+  }
+
+  Future<bool> _downloadAccountAvatarWithRetry(
+      AccountAvatarDownloadJob job) async {
+    final iconSvc = CustomIconService();
+    Object? lastError;
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        final existing = await (db.select(db.accounts)
+              ..where((a) => a.id.equals(job.accountId)))
+            .getSingleOrNull();
+        if (existing == null) return false;
+        if ((existing.avatarPath ?? '').contains(job.cloudFileId)) {
+          try {
+            final abs = await iconSvc.resolveIconPath(existing.avatarPath!);
+            if (await File(abs).exists()) return true;
+          } catch (_) {}
+        }
+        final bytes = await provider.downloadAttachment(fileId: job.cloudFileId);
+        final ext = _detectIconExtension(bytes);
+        // 头像跟分类自定义图标共用 custom_icons/ 目录 —— cloudFileId 是全局
+        // 唯一 UUID(server attachment_files.id),不会跟分类图标文件重名。
+        final iconDir = await iconSvc.getIconDirectory();
+        final safeName = '${job.cloudFileId.replaceAll('/', '_')}$ext';
+        final absPath = '${iconDir.path}/$safeName';
+        await File(absPath).writeAsBytes(bytes);
+        final relPath = 'custom_icons/$safeName';
+        await (db.update(db.accounts)..where((a) => a.id.equals(job.accountId)))
+            .write(AccountsCompanion(avatarPath: d.Value(relPath)));
+        return true;
+      } catch (e) {
+        lastError = e;
+        if (attempt < 2) {
+          await Future.delayed(Duration(seconds: 1 << attempt));
+        }
+      }
+    }
+    logger.warning('SyncEngine',
+        '账户头像下载失败 fileId=${job.cloudFileId}: $lastError');
+    return false;
+  }
+
   /// 获取附件本地文件路径
   Future<File?> _getAttachmentFile(String fileName) async {
     try {

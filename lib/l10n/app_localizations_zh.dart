@@ -3472,6 +3472,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudBeeCountCloudUrlHint => 'https://your-server.com';
 
   @override
+  String get cloudBeeCountCloudSsoLoginHint =>
+      '保存后点「登录」，会打开浏览器完成登录，不需要在这里输入账号密码。';
+
+  @override
   String get cloudBeeCountCloudApiPrefixLabel => 'API 前缀';
 
   @override
@@ -4537,7 +4541,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cloudTutorialStep3Desc =>
-      'App 里选「BeeCount Cloud」,填服务器地址 + 管理员给你的账号,登录。首次会全量上传你本地所有账本数据,之后每次编辑实时推送。';
+      'App 里选「BeeCount Cloud」,只需填服务器地址并保存(不用输入账号密码)。接着点「登录」,会打开系统浏览器跳到服务器登录页,用第二步拿到的账号完成登录(服务器开了 2FA 也在浏览器里验证),成功后自动跳回 App。首次登录会全量上传你本地所有账本数据,之后每次编辑实时推送。';
 
   @override
   String get cloudTutorialStep4Title => '第四步:其他设备登录';
@@ -6476,6 +6480,29 @@ class AppLocalizationsZh extends AppLocalizations {
   String get accountNoteHint => '添加备注信息';
 
   @override
+  String get accountAvatarTitle => '账户头像';
+
+  @override
+  String get accountAvatarTapToSelect => '点击选择图片';
+
+  @override
+  String get accountAvatarTapToChange => '点击更换图片';
+
+  @override
+  String get accountAvatarCrop => '裁剪头像';
+
+  @override
+  String get accountParentTitle => '主账户';
+
+  @override
+  String get accountParentNone => '无(独立账户)';
+
+  @override
+  String accountParentBadge(String parentName) {
+    return '隶属于 $parentName';
+  }
+
+  @override
   String get accountMetaInfo => '账户信息';
 
   @override
@@ -7615,6 +7642,62 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get currencyMRU => '毛里塔尼亚乌吉亚';
+
+  @override
+  String get accountDetailTabTransactions => '交易明细';
+
+  @override
+  String get accountDetailTabInfo => '账户信息';
+
+  @override
+  String get accountSubAccountsLabel => '子账户';
+
+  @override
+  String accountSubAccountsCount(int count) {
+    return '$count组账户';
+  }
+
+  @override
+  String get accountMainCurrencyLabel => '主币种';
+
+  @override
+  String get accountGroupLabel => '账户分组';
+
+  @override
+  String get accountAutoPayLabel => '自动扣缴';
+
+  @override
+  String get accountAutoPayNone => '无';
+
+  @override
+  String get accountLowCreditAlertLabel => '可用额度不足提醒';
+
+  @override
+  String get accountIncludeInNetWorthLabel => '纳入总余额';
+
+  @override
+  String get billingSummaryNewSpending => '新增花费';
+
+  @override
+  String get billingSummaryPriorBalance => '上期欠款';
+
+  @override
+  String get billingSummaryAmountDue => '应缴金额';
+
+  @override
+  String get billingSummaryAmountPaid => '已缴金额';
+
+  @override
+  String get billingSummaryInstallments => '账单分期';
+
+  @override
+  String get billingSummaryReconciledCount => '对账笔数';
+
+  @override
+  String get billingSummaryRemaining => '剩余账款';
+
+  @override
+  String get billingSummaryPaidOff => '已缴清';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -11085,6 +11168,10 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get cloudBeeCountCloudUrlHint => 'https://your-server.com';
 
   @override
+  String get cloudBeeCountCloudSsoLoginHint =>
+      '儲存後點「登入」，會開啟瀏覽器完成登入，不需要在這裡輸入帳號密碼。';
+
+  @override
   String get cloudBeeCountCloudApiPrefixLabel => 'API 前綴';
 
   @override
@@ -12150,7 +12237,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get cloudTutorialStep3Desc =>
-      'App 內選「BeeCount Cloud」,填伺服器位址 + 管理員給你的帳號,登入。首次會全量上傳你本機所有帳本資料,之後每次編輯即時推送。';
+      'App 內選「BeeCount Cloud」,只需填伺服器位址並儲存(不用輸入帳號密碼)。接著點「登入」,會開啟系統瀏覽器導向伺服器登入頁,用第二步取得的帳號完成登入(伺服器開了 2FA 也在瀏覽器裡驗證),成功後自動跳回 App。首次登入會全量上傳你本機所有帳本資料,之後每次編輯即時推送。';
 
   @override
   String get cloudTutorialStep4Title => '第四步:其他裝置登入';
@@ -14089,6 +14176,29 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get accountNoteHint => '新增備註資訊';
 
   @override
+  String get accountAvatarTitle => '帳戶頭像';
+
+  @override
+  String get accountAvatarTapToSelect => '點擊選擇圖片';
+
+  @override
+  String get accountAvatarTapToChange => '點擊更換圖片';
+
+  @override
+  String get accountAvatarCrop => '裁剪頭像';
+
+  @override
+  String get accountParentTitle => '主帳戶';
+
+  @override
+  String get accountParentNone => '無(獨立帳戶)';
+
+  @override
+  String accountParentBadge(String parentName) {
+    return '隸屬於 $parentName';
+  }
+
+  @override
   String get accountMetaInfo => '帳戶資訊';
 
   @override
@@ -15228,4 +15338,60 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get currencyMRU => '毛里塔尼亞烏吉亞';
+
+  @override
+  String get accountDetailTabTransactions => '交易明細';
+
+  @override
+  String get accountDetailTabInfo => '帳戶資訊';
+
+  @override
+  String get accountSubAccountsLabel => '子帳戶';
+
+  @override
+  String accountSubAccountsCount(int count) {
+    return '$count組帳戶';
+  }
+
+  @override
+  String get accountMainCurrencyLabel => '主幣種';
+
+  @override
+  String get accountGroupLabel => '帳戶分組';
+
+  @override
+  String get accountAutoPayLabel => '自動扣繳';
+
+  @override
+  String get accountAutoPayNone => '無';
+
+  @override
+  String get accountLowCreditAlertLabel => '可用額度不足提醒';
+
+  @override
+  String get accountIncludeInNetWorthLabel => '納入總餘額';
+
+  @override
+  String get billingSummaryNewSpending => '新增花費';
+
+  @override
+  String get billingSummaryPriorBalance => '上期欠款';
+
+  @override
+  String get billingSummaryAmountDue => '應繳金額';
+
+  @override
+  String get billingSummaryAmountPaid => '已繳金額';
+
+  @override
+  String get billingSummaryInstallments => '帳單分期';
+
+  @override
+  String get billingSummaryReconciledCount => '對帳筆數';
+
+  @override
+  String get billingSummaryRemaining => '剩餘帳款';
+
+  @override
+  String get billingSummaryPaidOff => '已繳清';
 }

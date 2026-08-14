@@ -240,10 +240,6 @@ class _BeeCountCloudSyncPageState extends ConsumerState<BeeCountCloudSyncPage> {
 
   Widget _buildAccountSection(BuildContext context, CloudUser? user) {
     final l10n = AppLocalizations.of(context);
-    final cfg = ref.watch(activeCloudConfigProvider).valueOrNull;
-    final cachedEmail = cfg?.beecountCloudEmail ?? '';
-    final cachedPassword = cfg?.beecountCloudPassword ?? '';
-    final hasCredentials = cachedEmail.isNotEmpty && cachedPassword.isNotEmpty;
 
     if (user != null) {
       return AppListTile(
@@ -252,37 +248,8 @@ class _BeeCountCloudSyncPageState extends ConsumerState<BeeCountCloudSyncPage> {
       );
     }
 
-    // 未登录 + 有保存的邮密 → 显示"重新登录"按钮,点击直接调 signInWithEmail
-    if (hasCredentials) {
-      return AppListTile(
-        leading: Icons.refresh,
-        title: l10n.cloudReloginTitle,
-        subtitle: cachedEmail,
-        onTap: () async {
-          final provider =
-              ref.read(beecountCloudProviderInstance).valueOrNull;
-          if (provider == null) {
-            if (mounted) showToast(context, l10n.cloudReloginFailed);
-            return;
-          }
-          try {
-            await provider.auth.signInWithEmail(
-              email: cachedEmail,
-              password: cachedPassword,
-            );
-            if (!mounted) return;
-            showToast(context, l10n.cloudReloginSuccess);
-            ref.read(syncStatusRefreshProvider.notifier).state++;
-            ref.read(statsRefreshProvider.notifier).state++;
-          } catch (e) {
-            if (!mounted) return;
-            showToast(context, '${l10n.cloudReloginFailed}: $e');
-          }
-        },
-      );
-    }
-
-    // 没凭证 → 跳传统登录页
+    // 未登录 → 跳登录页。BeeCount Cloud 登录页(login_page.dart)只走浏览器
+    // SSO,不再有邮箱密码兜底的"重新登录"——密码登录 server 端已经直接 403。
     return AppListTile(
       leading: Icons.login,
       title: l10n.mineLoginTitle,

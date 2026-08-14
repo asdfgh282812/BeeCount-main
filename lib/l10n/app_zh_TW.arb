@@ -781,6 +781,7 @@
   "cloudConfigureBeeCountCloudTitle": "設定 BeeCount Cloud",
   "cloudBeeCountCloudUrlLabel": "伺服器地址",
   "cloudBeeCountCloudUrlHint": "https://your-server.com",
+  "cloudBeeCountCloudSsoLoginHint": "儲存後點「登入」，會開啟瀏覽器完成登入，不需要在這裡輸入帳號密碼。",
   "cloudBeeCountCloudApiPrefixLabel": "API 前綴",
   "cloudBeeCountCloudApiPrefixHint": "/api/v1",
   "cloudBeeCountCloudEmailLabel": "電子郵件",
@@ -972,7 +973,7 @@
   "cloudTutorialStep2Title": "第二步:取得帳號",
   "cloudTutorialStep2Desc": "BeeCount Cloud 不支援自助註冊(避免公網服務被濫用)。自行部署:Docker 首次啟動日誌會印出隨機管理員帳密,直接用。加入他人伺服器:請管理員在 Web 後台 →「使用者」裡為你建立帳號。",
   "cloudTutorialStep3Title": "第三步:登入並開啟同步",
-  "cloudTutorialStep3Desc": "App 內選「BeeCount Cloud」,填伺服器位址 + 管理員給你的帳號,登入。首次會全量上傳你本機所有帳本資料,之後每次編輯即時推送。",
+  "cloudTutorialStep3Desc": "App 內選「BeeCount Cloud」,只需填伺服器位址並儲存(不用輸入帳號密碼)。接著點「登入」,會開啟系統瀏覽器導向伺服器登入頁,用第二步取得的帳號完成登入(伺服器開了 2FA 也在瀏覽器裡驗證),成功後自動跳回 App。首次登入會全量上傳你本機所有帳本資料,之後每次編輯即時推送。",
   "cloudTutorialStep4Title": "第四步:其他裝置登入",
   "cloudTutorialStep4Desc": "手機、平板、Web 三端用同一帳號登入,資料即刻互通。修改數秒內互相感知。",
   "cloudTutorialTipTitle": "小提示",
@@ -2541,6 +2542,18 @@
   "accountCardLastFourHint": "例如：1234",
   "accountNote": "備註",
   "accountNoteHint": "新增備註資訊",
+  "accountAvatarTitle": "帳戶頭像",
+  "accountAvatarTapToSelect": "點擊選擇圖片",
+  "accountAvatarTapToChange": "點擊更換圖片",
+  "accountAvatarCrop": "裁剪頭像",
+  "accountParentTitle": "主帳戶",
+  "accountParentNone": "無(獨立帳戶)",
+  "accountParentBadge": "隸屬於 {parentName}",
+  "@accountParentBadge": {
+    "placeholders": {
+      "parentName": {"type": "String"}
+    }
+  },
   "accountMetaInfo": "帳戶資訊",
   "accountBalanceTrend": "餘額趨勢",
   "accountCategoryBreakdown": "分類統計",
@@ -2942,5 +2955,30 @@
   "currencyLSL": "萊索托洛蒂",
   "currencySZL": "斯威士蘭里蘭吉尼",
   "currencyMGA": "马達加斯加阿里亞里",
-  "currencyMRU": "毛里塔尼亞烏吉亞"
+  "currencyMRU": "毛里塔尼亞烏吉亞",
+  "accountDetailTabTransactions": "交易明細",
+  "accountDetailTabInfo": "帳戶資訊",
+  "accountSubAccountsLabel": "子帳戶",
+  "accountSubAccountsCount": "{count}組帳戶",
+  "@accountSubAccountsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "accountMainCurrencyLabel": "主幣種",
+  "accountGroupLabel": "帳戶分組",
+  "accountAutoPayLabel": "自動扣繳",
+  "accountAutoPayNone": "無",
+  "accountLowCreditAlertLabel": "可用額度不足提醒",
+  "accountIncludeInNetWorthLabel": "納入總餘額",
+  "billingSummaryNewSpending": "新增花費",
+  "billingSummaryPriorBalance": "上期欠款",
+  "billingSummaryAmountDue": "應繳金額",
+  "billingSummaryAmountPaid": "已繳金額",
+  "billingSummaryInstallments": "帳單分期",
+  "billingSummaryReconciledCount": "對帳筆數",
+  "billingSummaryRemaining": "剩餘帳款",
+  "billingSummaryPaidOff": "已繳清"
 }

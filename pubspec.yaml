@@ -89,7 +89,7 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^5.0.0
   build_runner: ^2.4.10
-  drift_dev: ^2.20.2
+  drift_dev: ^2.34.5
   flutter_launcher_icons: ^0.14.4
   # Testing framework enhancements
   mocktail: ^1.0.4

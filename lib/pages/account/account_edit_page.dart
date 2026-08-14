@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../providers.dart';
 import '../../widgets/ui/ui.dart';
@@ -7,6 +11,8 @@ import '../../widgets/biz/section_card.dart';
 import '../../data/db.dart' as db;
 import '../../l10n/app_localizations.dart';
 import '../../services/billing/post_processor.dart';
+import '../../services/custom_icon_service.dart';
+import '../../services/system/logger_service.dart';
 import '../../utils/currencies.dart';
 import '../../styles/tokens.dart';
 import '../../utils/ui_scale_extensions.dart';
@@ -46,6 +52,19 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
   String? _nameErrorText;
   // 账户类型 Tab：0 = 日常账户，1 = 估值账户
   int _typeTab = 0;
+
+  // 主帳戶(合併帳單分組):挂靠的主卡 syncId,null = 沒有掛靠(自己是主帳戶
+  // 或独立账户)。_parentCandidates 只收「本身不是任何主卡的子卡」的账户,
+  // 限制成 2 层,跟 BeeCount Cloud server 的 account_group 模型对齐。
+  String? _parentAccountId;
+  List<db.Account> _parentCandidates = [];
+
+  // 账户头像:_avatarPath 用 "/" 前缀区分状态 —— 以 "/" 开头是刚裁剪出来、
+  // 还没落到 custom_icons/ 目录的临时文件绝对路径(新建账户场景,保存时才
+  // 真正写盘);不以 "/" 开头是已经落盘的相对路径(如 "custom_icons/xxx.png"),
+  // 跟 Categories.customIconPath 同一套约定。
+  String? _avatarPath;
+  bool _isPickingAvatar = false;
 
   // 日常账户类型（走流水）
   static const List<String> tradableAccountTypes = [
@@ -89,8 +108,156 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     _selectedCurrency = widget.account?.currency ?? 'CNY';
     _billingDay = widget.account?.billingDay;
     _paymentDueDay = widget.account?.paymentDueDay;
+    _parentAccountId = widget.account?.parentAccountId;
+    _avatarPath = widget.account?.avatarPath;
     _typeTab = isValuationOnlyType(_selectedType) ? 1 : 0;
     _loadReminderSettings();
+    _loadParentCandidates();
+  }
+
+  Future<void> _loadParentCandidates() async {
+    final repo = ref.read(repositoryProvider);
+    final all = await repo.getAllAccounts();
+    final candidates = all.where((a) {
+      if (a.parentAccountId != null) return false; // 只做 2 层,子卡不能再当主卡
+      if (widget.account != null && a.id == widget.account!.id) return false;
+      return a.syncId != null && a.syncId!.isNotEmpty;
+    }).toList();
+    if (mounted) {
+      setState(() => _parentCandidates = candidates);
+    }
+  }
+
+  /// 头像预览用的绝对路径。_avatarPath 以 "/" 开头就是还没落盘的裁剪临时
+  /// 文件,直接用;否则是 custom_icons/ 下的相对路径,要用 CustomIconService
+  /// 拼回绝对路径(跟分类自定义图标 [_AccountEditPageState] 同款约定)。
+  Future<String?> _resolveAvatarPreviewPath() async {
+    final path = _avatarPath;
+    if (path == null || path.isEmpty) return null;
+    if (path.startsWith('/')) return path;
+    final svc = CustomIconService();
+    return svc.resolveIconPath(path);
+  }
+
+  Future<void> _pickAvatar() async {
+    if (_isPickingAvatar) return;
+    setState(() => _isPickingAvatar = true);
+    try {
+      final picker = ImagePicker();
+      final image = await picker.pickImage(source: ImageSource.gallery);
+      if (image == null) {
+        if (mounted) setState(() => _isPickingAvatar = false);
+        return;
+      }
+
+      final l10n = AppLocalizations.of(context);
+      final primaryColor = ref.read(primaryColorProvider);
+      final croppedFile = await ImageCropper().cropImage(
+        sourcePath: image.path,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        compressQuality: 100,
+        compressFormat: ImageCompressFormat.png,
+        maxWidth: 512,
+        maxHeight: 512,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: l10n.accountAvatarCrop,
+            toolbarColor: primaryColor,
+            toolbarWidgetColor: Colors.white,
+            initAspectRatio: CropAspectRatioPreset.square,
+            lockAspectRatio: true,
+            hideBottomControls: false,
+          ),
+          IOSUiSettings(
+            title: l10n.accountAvatarCrop,
+            aspectRatioLockEnabled: true,
+            resetAspectRatioEnabled: false,
+            aspectRatioPickerButtonHidden: true,
+          ),
+        ],
+      );
+      if (croppedFile == null) {
+        if (mounted) setState(() => _isPickingAvatar = false);
+        return;
+      }
+
+      final file = File(croppedFile.path);
+      final iconSvc = CustomIconService();
+      await iconSvc.validateImage(file);
+
+      if (widget.account != null) {
+        // 编辑现有账户：立刻落盘（跟分类自定义图标一致），旧文件顺手清掉。
+        final oldPath = _avatarPath;
+        final savedPath = await iconSvc.saveCustomIcon(file, widget.account!.id);
+        if (oldPath != null && !oldPath.startsWith('/') && oldPath != savedPath) {
+          try {
+            final abs = await iconSvc.resolveIconPath(oldPath);
+            await iconSvc.deleteCustomIcon(abs);
+          } catch (_) {}
+        }
+        if (mounted) {
+          setState(() {
+            _avatarPath = savedPath;
+            _isPickingAvatar = false;
+          });
+        }
+      } else {
+        // 新建账户还没有 id，先记临时绝对路径，_save() 拿到 id 后再落盘。
+        if (mounted) {
+          setState(() {
+            _avatarPath = croppedFile.path;
+            _isPickingAvatar = false;
+          });
+        }
+      }
+    } on CustomIconException catch (e, st) {
+      if (mounted) setState(() => _isPickingAvatar = false);
+      logger.error('AccountEditPage', '账户头像异常: ${e.message}', e, st);
+      if (mounted) showToast(context, e.message);
+    } catch (e, st) {
+      if (mounted) setState(() => _isPickingAvatar = false);
+      logger.error('AccountEditPage', '选择头像时出错', e, st);
+      if (mounted) {
+        showToast(context, AppLocalizations.of(context).commonError);
+      }
+    }
+  }
+
+  void _removeAvatar() {
+    setState(() => _avatarPath = null);
+  }
+
+  void _showParentAccountPicker(BuildContext context, AppLocalizations l10n) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            ListTile(
+              title: Text(l10n.accountParentNone),
+              trailing:
+                  _parentAccountId == null ? const Icon(Icons.check) : null,
+              onTap: () {
+                setState(() => _parentAccountId = null);
+                Navigator.of(sheetContext).pop();
+              },
+            ),
+            for (final a in _parentCandidates)
+              ListTile(
+                title: Text(a.name),
+                trailing: _parentAccountId == a.syncId
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () {
+                  setState(() => _parentAccountId = a.syncId);
+                  Navigator.of(sheetContext).pop();
+                },
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _loadReminderSettings() async {
@@ -627,6 +794,135 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                     ),
                   ],
 
+                  // ===== 帳戶頭像（所有类型）=====
+                  SizedBox(height: 8.0.scaled(context, ref)),
+                  SectionCard(
+                    margin: EdgeInsets.zero,
+                    child: InkWell(
+                      onTap: _isPickingAvatar ? null : _pickAvatar,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: EdgeInsets.all(16.0.scaled(context, ref)),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: BeeTokens.surfaceHeader(context),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: BeeTokens.border(context)),
+                              ),
+                              child: _isPickingAvatar
+                                  ? const Center(
+                                      child: SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      ),
+                                    )
+                                  : _avatarPath != null
+                                      ? FutureBuilder<String?>(
+                                          future: _resolveAvatarPreviewPath(),
+                                          builder: (context, snapshot) {
+                                            final abs = snapshot.data;
+                                            if (abs == null) {
+                                              return const SizedBox(
+                                                width: 48,
+                                                height: 48,
+                                                child: Center(
+                                                  child: CircularProgressIndicator(
+                                                      strokeWidth: 2),
+                                                ),
+                                              );
+                                            }
+                                            return ClipRRect(
+                                              borderRadius: BorderRadius.circular(6),
+                                              child: Image.file(
+                                                File(abs),
+                                                width: 48,
+                                                height: 48,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (_, __, ___) => Icon(
+                                                  Icons.broken_image,
+                                                  size: 24,
+                                                  color: BeeTokens.textTertiary(context),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        )
+                                      : Icon(
+                                          Icons.add_photo_alternate_outlined,
+                                          size: 24,
+                                          color: BeeTokens.textSecondary(context),
+                                        ),
+                            ),
+                            SizedBox(width: 12.0.scaled(context, ref)),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(l10n.accountAvatarTitle,
+                                      style: Theme.of(context).textTheme.titleSmall),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _avatarPath != null
+                                        ? l10n.accountAvatarTapToChange
+                                        : l10n.accountAvatarTapToSelect,
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                          color: BeeTokens.textTertiary(context),
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (_avatarPath != null)
+                              TextButton(
+                                onPressed: _removeAvatar,
+                                child: Text(l10n.commonRemove),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // ===== 主帳戶（合併帳單分組，所有类型）=====
+                  if (_parentCandidates.isNotEmpty) ...[
+                    SizedBox(height: 8.0.scaled(context, ref)),
+                    SectionCard(
+                      margin: EdgeInsets.zero,
+                      child: Padding(
+                        padding: EdgeInsets.all(16.0.scaled(context, ref)),
+                        child: InkWell(
+                          onTap: () => _showParentAccountPicker(context, l10n),
+                          borderRadius: BorderRadius.circular(12),
+                          child: InputDecorator(
+                            decoration: filledDec(label: l10n.accountParentTitle),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    _parentAccountId == null
+                                        ? l10n.accountParentNone
+                                        : (_parentCandidates
+                                                .where((a) => a.syncId == _parentAccountId)
+                                                .map((a) => a.name)
+                                                .firstOrNull ??
+                                            l10n.accountParentNone),
+                                  ),
+                                ),
+                                Icon(Icons.arrow_drop_down,
+                                    color: BeeTokens.textSecondary(context)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+
                   // ===== 备注（所有类型）=====
                   SizedBox(height: 8.0.scaled(context, ref)),
                   SectionCard(
@@ -819,6 +1115,12 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           cardLastFour: cardLastFour != null && cardLastFour.isNotEmpty ? cardLastFour : null,
           note: noteText.isNotEmpty ? noteText : null,
           clearMetadataFields: clearMetadataFields,
+          parentAccountId: _parentAccountId,
+          clearParentAccount: _parentAccountId == null,
+          // 编辑场景 _pickAvatar 已经把新头像存到 custom_icons/ 并回填成
+          // 相对路径,这里不会是临时绝对路径,直接落库即可。
+          avatarPath: _avatarPath,
+          clearAvatar: _avatarPath == null,
         );
 
         // 保存还款提醒设置
@@ -843,7 +1145,20 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           bankName: bankNameText != null && bankNameText.isNotEmpty ? bankNameText : null,
           cardLastFour: cardLastFourText != null && cardLastFourText.isNotEmpty ? cardLastFourText : null,
           note: noteText.isNotEmpty ? noteText : null,
+          parentAccountId: _parentAccountId,
         );
+
+        // 新建场景头像还是临时裁剪文件的绝对路径（新建时账户 id 还不存在,
+        // 没法用它命名落盘文件),这里才真正存进 custom_icons/ 并回填。
+        if (_avatarPath != null && _avatarPath!.startsWith('/')) {
+          try {
+            final savedPath = await CustomIconService()
+                .saveCustomIcon(File(_avatarPath!), id);
+            await repo.updateAccount(id, avatarPath: savedPath);
+          } catch (e, st) {
+            logger.error('AccountEditPage', '新建账户保存头像失败', e, st);
+          }
+        }
 
         // 保存还款提醒设置
         if (isCreditCard) {

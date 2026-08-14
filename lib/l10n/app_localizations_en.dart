@@ -3582,6 +3582,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudBeeCountCloudUrlHint => 'https://your-server.com';
 
   @override
+  String get cloudBeeCountCloudSsoLoginHint =>
+      'After saving, tap \"Login\" to sign in via your browser — no need to enter an email or password here.';
+
+  @override
   String get cloudBeeCountCloudApiPrefixLabel => 'API Prefix';
 
   @override
@@ -4735,7 +4739,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cloudTutorialStep3Desc =>
-      'In the app, pick BeeCount Cloud, enter the server URL and the account you got in step 2. First login uploads your entire local ledger; every subsequent edit is pushed in real time.';
+      'In the app, pick BeeCount Cloud and just enter the server URL, then save (no need to type an email or password). Tap \"Login\" — it opens your system browser to the server\'s login page; sign in with the account from step 2 (2FA too, if the server has it enabled), and you\'ll be redirected back to the app automatically. The first login uploads your entire local ledger; every subsequent edit is pushed in real time.';
 
   @override
   String get cloudTutorialStep4Title => 'Step 4: Login from other devices';
@@ -6759,6 +6763,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountNoteHint => 'Add a note';
 
   @override
+  String get accountAvatarTitle => 'Account Avatar';
+
+  @override
+  String get accountAvatarTapToSelect => 'Tap to select image';
+
+  @override
+  String get accountAvatarTapToChange => 'Tap to change image';
+
+  @override
+  String get accountAvatarCrop => 'Crop Avatar';
+
+  @override
+  String get accountParentTitle => 'Parent Account';
+
+  @override
+  String get accountParentNone => 'None (standalone account)';
+
+  @override
+  String accountParentBadge(String parentName) {
+    return 'Part of $parentName';
+  }
+
+  @override
   String get accountMetaInfo => 'Account Info';
 
   @override
@@ -7920,4 +7947,60 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get currencyMRU => 'Mauritanian Ouguiya';
+
+  @override
+  String get accountDetailTabTransactions => 'Transactions';
+
+  @override
+  String get accountDetailTabInfo => 'Account Info';
+
+  @override
+  String get accountSubAccountsLabel => 'Sub-accounts';
+
+  @override
+  String accountSubAccountsCount(int count) {
+    return '$count accounts';
+  }
+
+  @override
+  String get accountMainCurrencyLabel => 'Primary Currency';
+
+  @override
+  String get accountGroupLabel => 'Account Group';
+
+  @override
+  String get accountAutoPayLabel => 'Autopay';
+
+  @override
+  String get accountAutoPayNone => 'None';
+
+  @override
+  String get accountLowCreditAlertLabel => 'Low Available Credit Alert';
+
+  @override
+  String get accountIncludeInNetWorthLabel => 'Include in Net Worth';
+
+  @override
+  String get billingSummaryNewSpending => 'New Spending';
+
+  @override
+  String get billingSummaryPriorBalance => 'Prior Balance';
+
+  @override
+  String get billingSummaryAmountDue => 'Amount Due';
+
+  @override
+  String get billingSummaryAmountPaid => 'Amount Paid';
+
+  @override
+  String get billingSummaryInstallments => 'Installments';
+
+  @override
+  String get billingSummaryReconciledCount => 'Reconciled';
+
+  @override
+  String get billingSummaryRemaining => 'Remaining Balance';
+
+  @override
+  String get billingSummaryPaidOff => 'Paid Off';
 }

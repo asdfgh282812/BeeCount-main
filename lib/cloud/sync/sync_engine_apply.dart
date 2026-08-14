@@ -321,22 +321,60 @@ extension SyncEngineApplyExt on SyncEngine {
 
     // upsert
     final payload = change.payload!;
+    // web 端 PATCH /accounts/{id} 用 `model_dump(exclude_unset=True)`
+    // (routers/write/accounts.py::update_acc),只送用户实际改动的字段 ——
+    // 广播给其它设备的 SyncChange.payload 就是这份 partial dict,不是
+    // server 自己 merge 出的全量快照(那份只写回 server 自己的 projection,
+    // 见 sync_applier.py::_merge_from_spec / merge_with_existing_user)。
+    // 所以本端 apply **必须**对每个字段做 containsKey 保护,缺键 → 保留本地
+    // 现值,不能落 ?? 默认值 —— 否则"web 只改 parentAccountId"这类 partial
+    // 更新会把本地已有的 type/currency 等字段冲成 'cash'/'CNY'(实测事故:
+    // 信用卡群组子卡被冲成现金+人民币)。跟 hidden/parentAccountId 同款
+    // containsKey 范式,这里对齐到其余全部字段。
+    final hasNameKey = payload.containsKey('name');
     final name = payload['name'] as String? ?? '';
+    final hasTypeKey = payload.containsKey('type');
     final type = payload['type'] as String? ?? 'cash';
+    final hasCurrencyKey = payload.containsKey('currency');
     final currency = payload['currency'] as String? ?? 'CNY';
+    final hasInitialBalanceKey = payload.containsKey('initialBalance');
     final initialBalance =
         (payload['initialBalance'] as num?)?.toDouble() ?? 0.0;
+    final hasSortOrderKey = payload.containsKey('sortOrder');
     final sortOrder = (payload['sortOrder'] as num?)?.toInt() ?? 0;
+    final hasCreditLimitKey = payload.containsKey('creditLimit');
+    final creditLimit = (payload['creditLimit'] as num?)?.toDouble();
+    final hasBillingDayKey = payload.containsKey('billingDay');
+    final billingDay = (payload['billingDay'] as num?)?.toInt();
+    final hasPaymentDueDayKey = payload.containsKey('paymentDueDay');
+    final paymentDueDay = (payload['paymentDueDay'] as num?)?.toInt();
+    final hasBankNameKey = payload.containsKey('bankName');
+    final bankName = payload['bankName'] as String?;
+    final hasCardLastFourKey = payload.containsKey('cardLastFour');
+    final cardLastFour = payload['cardLastFour'] as String?;
+    final hasNoteKey = payload.containsKey('note');
+    final note = payload['note'] as String?;
 
     // 账户隐藏(#240,D6 缺键保留):payload 不含该键 → null → update 走
     // Value.absent() 不覆盖本地;含键(包括显式 false)→ 覆盖。insert 路径
-    // 缺键落默认 false。⚠️ 账户 apply 其它字段(name/type/currency 等)是
-    // 无条件覆盖,hidden **必须**走这条 containsKey 保护 —— 否则一条"只改
-    // 名字、payload 不带 hidden"的远端 partial 更新会把本地已隐藏抹成 false
-    // (照抄交易 flags 的 containsKey 范式,见 _applyTransactionChange)。
+    // 缺键落默认 false(照抄交易 flags 的 containsKey 范式,见
+    // _applyTransactionChange)。
     final hidden = payload.containsKey('hidden')
         ? (payload['hidden'] as bool? ?? false)
         : null;
+
+    // 主帳戶(合併帳單,§2.9 Phase 4):跟 hidden 同款 containsKey 保护 ——
+    // 老版本 App / 早于本次改动落的历史 sync_change 没有这个键,不能把
+    // d.Value(null) 无条件写进去抹掉本地已经建好的挂靠关系。本端 App 自己
+    // push 时(entity_serializer.dart)一律无条件带 ''/真实 syncId,所以正常
+    // 情况下这个键总是存在。
+    final hasParentAccountIdKey = payload.containsKey('parentAccountId');
+    final parentAccountIdRaw =
+        hasParentAccountIdKey ? payload['parentAccountId'] as String? : null;
+    final parentAccountId =
+        (parentAccountIdRaw == null || parentAccountIdRaw.isEmpty)
+            ? null
+            : parentAccountIdRaw;
 
     var existing = await (db.select(db.accounts)
           ..where((a) => a.syncId.equals(syncId)))
@@ -359,23 +397,58 @@ extension SyncEngineApplyExt on SyncEngine {
       }
     }
 
+    // 帳戶頭像:跟分类自定义图标同一套"文件名嵌 fileId,已下载就跳过"策略
+    // (见下面 'category' 分支的详细注释)。avatarCloudFileId:
+    //   非空字串 → 有云端头像,本地没有(或对不上)就入队下载
+    //   空字串   → 用户主动清空头像 → 本地 avatarPath 也清空
+    //   键缺失(null)→ 本次 push 头像上传暂时失败 / 老数据,不动本地
+    final avatarCloudFileId = payload['avatarCloudFileId'] as String?;
+    String? resolvedAvatarPath;
+    bool needAvatarDownload = false;
+    if (avatarCloudFileId != null && avatarCloudFileId.isNotEmpty) {
+      if (existing != null &&
+          (existing.avatarPath ?? '').contains(avatarCloudFileId)) {
+        resolvedAvatarPath = existing.avatarPath;
+      } else {
+        resolvedAvatarPath = null;
+        needAvatarDownload = true;
+      }
+    } else if (avatarCloudFileId == '') {
+      resolvedAvatarPath = null;
+    } else {
+      resolvedAvatarPath = existing?.avatarPath;
+    }
+
     final int localId;
     if (existing != null) {
       localId = existing.id;
       await (db.update(db.accounts)..where((a) => a.id.equals(localId)))
           .write(AccountsCompanion(
-        name: d.Value(name),
-        type: d.Value(type),
-        currency: d.Value(currency),
-        initialBalance: d.Value(initialBalance),
-        sortOrder: d.Value(sortOrder),
-        creditLimit: d.Value((payload['creditLimit'] as num?)?.toDouble()),
-        billingDay: d.Value((payload['billingDay'] as num?)?.toInt()),
-        paymentDueDay: d.Value((payload['paymentDueDay'] as num?)?.toInt()),
-        bankName: d.Value(payload['bankName'] as String?),
-        cardLastFour: d.Value(payload['cardLastFour'] as String?),
-        note: d.Value(payload['note'] as String?),
+        name: hasNameKey ? d.Value(name) : const d.Value.absent(),
+        type: hasTypeKey ? d.Value(type) : const d.Value.absent(),
+        currency: hasCurrencyKey ? d.Value(currency) : const d.Value.absent(),
+        initialBalance: hasInitialBalanceKey
+            ? d.Value(initialBalance)
+            : const d.Value.absent(),
+        sortOrder:
+            hasSortOrderKey ? d.Value(sortOrder) : const d.Value.absent(),
+        creditLimit:
+            hasCreditLimitKey ? d.Value(creditLimit) : const d.Value.absent(),
+        billingDay:
+            hasBillingDayKey ? d.Value(billingDay) : const d.Value.absent(),
+        paymentDueDay: hasPaymentDueDayKey
+            ? d.Value(paymentDueDay)
+            : const d.Value.absent(),
+        bankName: hasBankNameKey ? d.Value(bankName) : const d.Value.absent(),
+        cardLastFour: hasCardLastFourKey
+            ? d.Value(cardLastFour)
+            : const d.Value.absent(),
+        note: hasNoteKey ? d.Value(note) : const d.Value.absent(),
         hidden: hidden == null ? const d.Value.absent() : d.Value(hidden),
+        parentAccountId: hasParentAccountIdKey
+            ? d.Value(parentAccountId)
+            : const d.Value.absent(),
+        avatarPath: d.Value(resolvedAvatarPath),
       ));
       logger.debug('SyncEngine', 'pull: 更新账户 $syncId');
     } else {
@@ -387,20 +460,29 @@ extension SyncEngineApplyExt on SyncEngine {
               currency: d.Value(currency),
               initialBalance: d.Value(initialBalance),
               sortOrder: d.Value(sortOrder),
-              creditLimit:
-                  d.Value((payload['creditLimit'] as num?)?.toDouble()),
-              billingDay: d.Value((payload['billingDay'] as num?)?.toInt()),
-              paymentDueDay:
-                  d.Value((payload['paymentDueDay'] as num?)?.toInt()),
-              bankName: d.Value(payload['bankName'] as String?),
-              cardLastFour: d.Value(payload['cardLastFour'] as String?),
-              note: d.Value(payload['note'] as String?),
+              creditLimit: d.Value(creditLimit),
+              billingDay: d.Value(billingDay),
+              paymentDueDay: d.Value(paymentDueDay),
+              bankName: d.Value(bankName),
+              cardLastFour: d.Value(cardLastFour),
+              note: d.Value(note),
               syncId: d.Value(syncId),
               hidden: d.Value(hidden ?? false),
+              parentAccountId: d.Value(parentAccountId),
+              avatarPath: d.Value(resolvedAvatarPath),
             ),
           );
       activePullCache?.putAccount(syncId, localId);
       logger.debug('SyncEngine', 'pull: 新增账户 $syncId');
+    }
+
+    // 入队头像下载任务,主事务 commit 后由 drainAccountAvatarQueue 并发处理,
+    // 跟分类自定义图标(drainCustomIconQueue)同一套并发/重试机制。
+    if (needAvatarDownload && avatarCloudFileId != null) {
+      pendingAccountAvatarJobs.add(AccountAvatarDownloadJob(
+        accountId: localId,
+        cloudFileId: avatarCloudFileId,
+      ));
     }
 
     // 登记"已从 server 拉到本地"的标记,防止 _backfillLegacyUserGlobalChanges

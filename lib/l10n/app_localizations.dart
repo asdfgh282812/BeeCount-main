@@ -6556,6 +6556,12 @@ abstract class AppLocalizations {
   /// **'https://your-server.com'**
   String get cloudBeeCountCloudUrlHint;
 
+  /// No description provided for @cloudBeeCountCloudSsoLoginHint.
+  ///
+  /// In en, this message translates to:
+  /// **'After saving, tap \"Login\" to sign in via your browser — no need to enter an email or password here.'**
+  String get cloudBeeCountCloudSsoLoginHint;
+
   /// No description provided for @cloudBeeCountCloudApiPrefixLabel.
   ///
   /// In en, this message translates to:
@@ -8587,7 +8593,7 @@ abstract class AppLocalizations {
   /// No description provided for @cloudTutorialStep3Desc.
   ///
   /// In en, this message translates to:
-  /// **'In the app, pick BeeCount Cloud, enter the server URL and the account you got in step 2. First login uploads your entire local ledger; every subsequent edit is pushed in real time.'**
+  /// **'In the app, pick BeeCount Cloud and just enter the server URL, then save (no need to type an email or password). Tap \"Login\" — it opens your system browser to the server\'s login page; sign in with the account from step 2 (2FA too, if the server has it enabled), and you\'ll be redirected back to the app automatically. The first login uploads your entire local ledger; every subsequent edit is pushed in real time.'**
   String get cloudTutorialStep3Desc;
 
   /// No description provided for @cloudTutorialStep4Title.
@@ -12246,6 +12252,48 @@ abstract class AppLocalizations {
   /// **'Add a note'**
   String get accountNoteHint;
 
+  /// No description provided for @accountAvatarTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Account Avatar'**
+  String get accountAvatarTitle;
+
+  /// No description provided for @accountAvatarTapToSelect.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to select image'**
+  String get accountAvatarTapToSelect;
+
+  /// No description provided for @accountAvatarTapToChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to change image'**
+  String get accountAvatarTapToChange;
+
+  /// No description provided for @accountAvatarCrop.
+  ///
+  /// In en, this message translates to:
+  /// **'Crop Avatar'**
+  String get accountAvatarCrop;
+
+  /// No description provided for @accountParentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Parent Account'**
+  String get accountParentTitle;
+
+  /// No description provided for @accountParentNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None (standalone account)'**
+  String get accountParentNone;
+
+  /// No description provided for @accountParentBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Part of {parentName}'**
+  String accountParentBadge(String parentName);
+
   /// No description provided for @accountMetaInfo.
   ///
   /// In en, this message translates to:
@@ -14297,6 +14345,114 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Mauritanian Ouguiya'**
   String get currencyMRU;
+
+  /// No description provided for @accountDetailTabTransactions.
+  ///
+  /// In en, this message translates to:
+  /// **'Transactions'**
+  String get accountDetailTabTransactions;
+
+  /// No description provided for @accountDetailTabInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Account Info'**
+  String get accountDetailTabInfo;
+
+  /// No description provided for @accountSubAccountsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Sub-accounts'**
+  String get accountSubAccountsLabel;
+
+  /// No description provided for @accountSubAccountsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} accounts'**
+  String accountSubAccountsCount(int count);
+
+  /// No description provided for @accountMainCurrencyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Primary Currency'**
+  String get accountMainCurrencyLabel;
+
+  /// No description provided for @accountGroupLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Account Group'**
+  String get accountGroupLabel;
+
+  /// No description provided for @accountAutoPayLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Autopay'**
+  String get accountAutoPayLabel;
+
+  /// No description provided for @accountAutoPayNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get accountAutoPayNone;
+
+  /// No description provided for @accountLowCreditAlertLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Low Available Credit Alert'**
+  String get accountLowCreditAlertLabel;
+
+  /// No description provided for @accountIncludeInNetWorthLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Include in Net Worth'**
+  String get accountIncludeInNetWorthLabel;
+
+  /// No description provided for @billingSummaryNewSpending.
+  ///
+  /// In en, this message translates to:
+  /// **'New Spending'**
+  String get billingSummaryNewSpending;
+
+  /// No description provided for @billingSummaryPriorBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Prior Balance'**
+  String get billingSummaryPriorBalance;
+
+  /// No description provided for @billingSummaryAmountDue.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount Due'**
+  String get billingSummaryAmountDue;
+
+  /// No description provided for @billingSummaryAmountPaid.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount Paid'**
+  String get billingSummaryAmountPaid;
+
+  /// No description provided for @billingSummaryInstallments.
+  ///
+  /// In en, this message translates to:
+  /// **'Installments'**
+  String get billingSummaryInstallments;
+
+  /// No description provided for @billingSummaryReconciledCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconciled'**
+  String get billingSummaryReconciledCount;
+
+  /// No description provided for @billingSummaryRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'Remaining Balance'**
+  String get billingSummaryRemaining;
+
+  /// No description provided for @billingSummaryPaidOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid Off'**
+  String get billingSummaryPaidOff;
 }
 
 class _AppLocalizationsDelegate

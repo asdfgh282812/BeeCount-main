@@ -654,6 +654,18 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("hidden" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _parentAccountIdMeta =
+      const VerificationMeta('parentAccountId');
+  @override
+  late final GeneratedColumn<String> parentAccountId = GeneratedColumn<String>(
+      'parent_account_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _avatarPathMeta =
+      const VerificationMeta('avatarPath');
+  @override
+  late final GeneratedColumn<String> avatarPath = GeneratedColumn<String>(
+      'avatar_path', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -672,7 +684,9 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         cardLastFour,
         note,
         syncId,
-        hidden
+        hidden,
+        parentAccountId,
+        avatarPath
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -765,6 +779,18 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
       context.handle(_hiddenMeta,
           hidden.isAcceptableOrUnknown(data['hidden']!, _hiddenMeta));
     }
+    if (data.containsKey('parent_account_id')) {
+      context.handle(
+          _parentAccountIdMeta,
+          parentAccountId.isAcceptableOrUnknown(
+              data['parent_account_id']!, _parentAccountIdMeta));
+    }
+    if (data.containsKey('avatar_path')) {
+      context.handle(
+          _avatarPathMeta,
+          avatarPath.isAcceptableOrUnknown(
+              data['avatar_path']!, _avatarPathMeta));
+    }
     return context;
   }
 
@@ -808,6 +834,10 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
           .read(DriftSqlType.string, data['${effectivePrefix}sync_id']),
       hidden: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}hidden'])!,
+      parentAccountId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}parent_account_id']),
+      avatarPath: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}avatar_path']),
     );
   }
 
@@ -838,6 +868,17 @@ class Account extends DataClass implements Insertable<Account> {
   /// 隐藏:true 时该账户不再出现在记账/转账/周期选择器,账户管理页移入「已隐藏」分区。
   /// 仍计入账户余额、净资产、资产构成、净值趋势(.docs/account-archive/01 §二 D1)。
   final bool hidden;
+
+  /// v32 主帳戶(合併帳單):子卡/附卡指向主卡的 syncId,null = 沒有掛在任何
+  /// 主卡下。跟 BeeCount Cloud server `accounts.parent_account_id` 對齊
+  /// (docs/MOZE_FEATURE_GAP_SD.md §2.9 Phase 4)。
+  final String? parentAccountId;
+
+  /// v32 帳戶頭像本地相對路徑(如 "custom_icons/<fileId>.png"),跟
+  /// Categories.customIconPath 同一套目錄/存取邏輯(CustomIconService)。
+  /// 上傳到雲端拿到的 fileId/sha256 不落本地欄位 —— push 時即時上傳算,
+  /// 對齊分類自訂圖標的做法(見 entity_serializer.dart serializeCategory)。
+  final String? avatarPath;
   const Account(
       {required this.id,
       required this.ledgerId,
@@ -855,7 +896,9 @@ class Account extends DataClass implements Insertable<Account> {
       this.cardLastFour,
       this.note,
       this.syncId,
-      required this.hidden});
+      required this.hidden,
+      this.parentAccountId,
+      this.avatarPath});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -894,6 +937,12 @@ class Account extends DataClass implements Insertable<Account> {
       map['sync_id'] = Variable<String>(syncId);
     }
     map['hidden'] = Variable<bool>(hidden);
+    if (!nullToAbsent || parentAccountId != null) {
+      map['parent_account_id'] = Variable<String>(parentAccountId);
+    }
+    if (!nullToAbsent || avatarPath != null) {
+      map['avatar_path'] = Variable<String>(avatarPath);
+    }
     return map;
   }
 
@@ -931,6 +980,12 @@ class Account extends DataClass implements Insertable<Account> {
       syncId:
           syncId == null && nullToAbsent ? const Value.absent() : Value(syncId),
       hidden: Value(hidden),
+      parentAccountId: parentAccountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(parentAccountId),
+      avatarPath: avatarPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(avatarPath),
     );
   }
 
@@ -955,6 +1010,8 @@ class Account extends DataClass implements Insertable<Account> {
       note: serializer.fromJson<String?>(json['note']),
       syncId: serializer.fromJson<String?>(json['syncId']),
       hidden: serializer.fromJson<bool>(json['hidden']),
+      parentAccountId: serializer.fromJson<String?>(json['parentAccountId']),
+      avatarPath: serializer.fromJson<String?>(json['avatarPath']),
     );
   }
   @override
@@ -978,6 +1035,8 @@ class Account extends DataClass implements Insertable<Account> {
       'note': serializer.toJson<String?>(note),
       'syncId': serializer.toJson<String?>(syncId),
       'hidden': serializer.toJson<bool>(hidden),
+      'parentAccountId': serializer.toJson<String?>(parentAccountId),
+      'avatarPath': serializer.toJson<String?>(avatarPath),
     };
   }
 
@@ -998,7 +1057,9 @@ class Account extends DataClass implements Insertable<Account> {
           Value<String?> cardLastFour = const Value.absent(),
           Value<String?> note = const Value.absent(),
           Value<String?> syncId = const Value.absent(),
-          bool? hidden}) =>
+          bool? hidden,
+          Value<String?> parentAccountId = const Value.absent(),
+          Value<String?> avatarPath = const Value.absent()}) =>
       Account(
         id: id ?? this.id,
         ledgerId: ledgerId ?? this.ledgerId,
@@ -1019,6 +1080,10 @@ class Account extends DataClass implements Insertable<Account> {
         note: note.present ? note.value : this.note,
         syncId: syncId.present ? syncId.value : this.syncId,
         hidden: hidden ?? this.hidden,
+        parentAccountId: parentAccountId.present
+            ? parentAccountId.value
+            : this.parentAccountId,
+        avatarPath: avatarPath.present ? avatarPath.value : this.avatarPath,
       );
   Account copyWithCompanion(AccountsCompanion data) {
     return Account(
@@ -1047,6 +1112,11 @@ class Account extends DataClass implements Insertable<Account> {
       note: data.note.present ? data.note.value : this.note,
       syncId: data.syncId.present ? data.syncId.value : this.syncId,
       hidden: data.hidden.present ? data.hidden.value : this.hidden,
+      parentAccountId: data.parentAccountId.present
+          ? data.parentAccountId.value
+          : this.parentAccountId,
+      avatarPath:
+          data.avatarPath.present ? data.avatarPath.value : this.avatarPath,
     );
   }
 
@@ -1069,7 +1139,9 @@ class Account extends DataClass implements Insertable<Account> {
           ..write('cardLastFour: $cardLastFour, ')
           ..write('note: $note, ')
           ..write('syncId: $syncId, ')
-          ..write('hidden: $hidden')
+          ..write('hidden: $hidden, ')
+          ..write('parentAccountId: $parentAccountId, ')
+          ..write('avatarPath: $avatarPath')
           ..write(')'))
         .toString();
   }
@@ -1092,7 +1164,9 @@ class Account extends DataClass implements Insertable<Account> {
       cardLastFour,
       note,
       syncId,
-      hidden);
+      hidden,
+      parentAccountId,
+      avatarPath);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1113,7 +1187,9 @@ class Account extends DataClass implements Insertable<Account> {
           other.cardLastFour == this.cardLastFour &&
           other.note == this.note &&
           other.syncId == this.syncId &&
-          other.hidden == this.hidden);
+          other.hidden == this.hidden &&
+          other.parentAccountId == this.parentAccountId &&
+          other.avatarPath == this.avatarPath);
 }
 
 class AccountsCompanion extends UpdateCompanion<Account> {
@@ -1134,6 +1210,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<String?> note;
   final Value<String?> syncId;
   final Value<bool> hidden;
+  final Value<String?> parentAccountId;
+  final Value<String?> avatarPath;
   const AccountsCompanion({
     this.id = const Value.absent(),
     this.ledgerId = const Value.absent(),
@@ -1152,6 +1230,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.note = const Value.absent(),
     this.syncId = const Value.absent(),
     this.hidden = const Value.absent(),
+    this.parentAccountId = const Value.absent(),
+    this.avatarPath = const Value.absent(),
   });
   AccountsCompanion.insert({
     this.id = const Value.absent(),
@@ -1171,6 +1251,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.note = const Value.absent(),
     this.syncId = const Value.absent(),
     this.hidden = const Value.absent(),
+    this.parentAccountId = const Value.absent(),
+    this.avatarPath = const Value.absent(),
   })  : ledgerId = Value(ledgerId),
         name = Value(name);
   static Insertable<Account> custom({
@@ -1191,6 +1273,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Expression<String>? note,
     Expression<String>? syncId,
     Expression<bool>? hidden,
+    Expression<String>? parentAccountId,
+    Expression<String>? avatarPath,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1210,6 +1294,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       if (note != null) 'note': note,
       if (syncId != null) 'sync_id': syncId,
       if (hidden != null) 'hidden': hidden,
+      if (parentAccountId != null) 'parent_account_id': parentAccountId,
+      if (avatarPath != null) 'avatar_path': avatarPath,
     });
   }
 
@@ -1230,7 +1316,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       Value<String?>? cardLastFour,
       Value<String?>? note,
       Value<String?>? syncId,
-      Value<bool>? hidden}) {
+      Value<bool>? hidden,
+      Value<String?>? parentAccountId,
+      Value<String?>? avatarPath}) {
     return AccountsCompanion(
       id: id ?? this.id,
       ledgerId: ledgerId ?? this.ledgerId,
@@ -1249,6 +1337,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       note: note ?? this.note,
       syncId: syncId ?? this.syncId,
       hidden: hidden ?? this.hidden,
+      parentAccountId: parentAccountId ?? this.parentAccountId,
+      avatarPath: avatarPath ?? this.avatarPath,
     );
   }
 
@@ -1306,6 +1396,12 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     if (hidden.present) {
       map['hidden'] = Variable<bool>(hidden.value);
     }
+    if (parentAccountId.present) {
+      map['parent_account_id'] = Variable<String>(parentAccountId.value);
+    }
+    if (avatarPath.present) {
+      map['avatar_path'] = Variable<String>(avatarPath.value);
+    }
     return map;
   }
 
@@ -1328,7 +1424,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
           ..write('cardLastFour: $cardLastFour, ')
           ..write('note: $note, ')
           ..write('syncId: $syncId, ')
-          ..write('hidden: $hidden')
+          ..write('hidden: $hidden, ')
+          ..write('parentAccountId: $parentAccountId, ')
+          ..write('avatarPath: $avatarPath')
           ..write(')'))
         .toString();
   }
@@ -11132,6 +11230,8 @@ typedef $$AccountsTableCreateCompanionBuilder = AccountsCompanion Function({
   Value<String?> note,
   Value<String?> syncId,
   Value<bool> hidden,
+  Value<String?> parentAccountId,
+  Value<String?> avatarPath,
 });
 typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<int> id,
@@ -11151,6 +11251,8 @@ typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<String?> note,
   Value<String?> syncId,
   Value<bool> hidden,
+  Value<String?> parentAccountId,
+  Value<String?> avatarPath,
 });
 
 class $$AccountsTableFilterComposer
@@ -11213,6 +11315,13 @@ class $$AccountsTableFilterComposer
 
   ColumnFilters<bool> get hidden => $composableBuilder(
       column: $table.hidden, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get parentAccountId => $composableBuilder(
+      column: $table.parentAccountId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get avatarPath => $composableBuilder(
+      column: $table.avatarPath, builder: (column) => ColumnFilters(column));
 }
 
 class $$AccountsTableOrderingComposer
@@ -11277,6 +11386,13 @@ class $$AccountsTableOrderingComposer
 
   ColumnOrderings<bool> get hidden => $composableBuilder(
       column: $table.hidden, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get parentAccountId => $composableBuilder(
+      column: $table.parentAccountId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get avatarPath => $composableBuilder(
+      column: $table.avatarPath, builder: (column) => ColumnOrderings(column));
 }
 
 class $$AccountsTableAnnotationComposer
@@ -11338,6 +11454,12 @@ class $$AccountsTableAnnotationComposer
 
   GeneratedColumn<bool> get hidden =>
       $composableBuilder(column: $table.hidden, builder: (column) => column);
+
+  GeneratedColumn<String> get parentAccountId => $composableBuilder(
+      column: $table.parentAccountId, builder: (column) => column);
+
+  GeneratedColumn<String> get avatarPath => $composableBuilder(
+      column: $table.avatarPath, builder: (column) => column);
 }
 
 class $$AccountsTableTableManager extends RootTableManager<
@@ -11380,6 +11502,8 @@ class $$AccountsTableTableManager extends RootTableManager<
             Value<String?> note = const Value.absent(),
             Value<String?> syncId = const Value.absent(),
             Value<bool> hidden = const Value.absent(),
+            Value<String?> parentAccountId = const Value.absent(),
+            Value<String?> avatarPath = const Value.absent(),
           }) =>
               AccountsCompanion(
             id: id,
@@ -11399,6 +11523,8 @@ class $$AccountsTableTableManager extends RootTableManager<
             note: note,
             syncId: syncId,
             hidden: hidden,
+            parentAccountId: parentAccountId,
+            avatarPath: avatarPath,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
@@ -11418,6 +11544,8 @@ class $$AccountsTableTableManager extends RootTableManager<
             Value<String?> note = const Value.absent(),
             Value<String?> syncId = const Value.absent(),
             Value<bool> hidden = const Value.absent(),
+            Value<String?> parentAccountId = const Value.absent(),
+            Value<String?> avatarPath = const Value.absent(),
           }) =>
               AccountsCompanion.insert(
             id: id,
@@ -11437,6 +11565,8 @@ class $$AccountsTableTableManager extends RootTableManager<
             note: note,
             syncId: syncId,
             hidden: hidden,
+            parentAccountId: parentAccountId,
+            avatarPath: avatarPath,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

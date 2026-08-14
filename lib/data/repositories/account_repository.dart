@@ -40,6 +40,8 @@ abstract class AccountRepository {
     String? cardLastFour,
     String? note,
     String? syncId,
+    String? parentAccountId,
+    String? avatarPath,
   });
 
   /// 按 name 取账户(name 全局唯一,账户跨账本可用);不存在则建一条。
@@ -74,6 +76,10 @@ abstract class AccountRepository {
     String? note,
     bool clearMetadataFields = false,
     bool? hidden,
+    String? parentAccountId,
+    bool clearParentAccount = false,
+    String? avatarPath,
+    bool clearAvatar = false,
   });
 
   /// 隐藏 / 恢复账户(账户隐藏 #240)。内部走 [updateAccount] → 记
@@ -154,8 +160,23 @@ abstract class AccountRepository {
   /// - 'expense':支出 + 转出(资金流出该账户)
   /// - 'income':收入 + 转入(资金流入该账户)
   /// - null:全部交易
+  ///
+  /// [extraAccountIds] 主帳戶(合併帳單分組)聚合視圖用:非空時把這些子帳戶的
+  /// 交易也一併拉出來(跟 accountId 合併按 account_id IN (...) 查),用於帳戶
+  /// 詳情頁「交易明細」tab 顯示主卡+所有子卡的合併流水。
+  ///
+  /// [startDate]/[endDate] 帳單週期篩選(信用卡「交易明細」tab 按帳單日切期
+  /// 用),含端點所在的整個自然日(endDate 當天 23:59:59 前都算,不用調用方
+  /// 自己補時分秒),null 代表不限制。
   Future<List<Transaction>> getAccountTransactions(
-    int accountId, {int limit = 50, int offset = 0, String? flow});
+    int accountId, {
+    int limit = 50,
+    int offset = 0,
+    String? flow,
+    List<int>? extraAccountIds,
+    DateTime? startDate,
+    DateTime? endDate,
+  });
 
   /// 获取账户每日余额快照（用于余额趋势图）
   Future<List<({DateTime date, double balance})>> getAccountDailyBalances(

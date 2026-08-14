@@ -16,6 +16,7 @@ import '../../widgets/ui/capsule_switcher.dart';
 import '../../widgets/biz/section_card.dart';
 import '../../styles/tokens.dart';
 import '../../l10n/app_localizations.dart';
+import '../auth/login_page.dart';
 
 // GitHub配置教程链接
 const _kSupabaseGuideUrl = 'https://github.com/TNT-Likely/BeeCount/wiki/Supabase-%E4%BA%91%E5%90%8C%E6%AD%A5%E9%85%8D%E7%BD%AE';
@@ -1505,16 +1506,12 @@ class _CloudServicePageState extends ConsumerState<CloudServicePage> {
       builder: (dialogContext) => _BeeCountCloudConfigDialog(
         initialUrl: existing?.beecountCloudBaseUrl ?? '',
         initialApiPrefix: existing?.beecountCloudApiPrefix ?? '/api/v1',
-        initialEmail: existing?.beecountCloudEmail ?? '',
-        initialPassword: existing?.beecountCloudPassword ?? '',
       ),
     );
 
     if (result != null) {
       final url = result['url'] as String;
       final apiPrefix = result['apiPrefix'] as String;
-      final email = result['email'] as String;
-      final password = result['password'] as String;
 
       if (url.isEmpty) {
         if (mounted) {
@@ -1523,13 +1520,14 @@ class _CloudServicePageState extends ConsumerState<CloudServicePage> {
         return;
       }
 
+      // 只存服务器地址 —— 不再收邮箱/密码,登录改走浏览器 SSO(见
+      // _BeeCountCloudConfigDialog 顶部注释)。新建的 cfg 不带
+      // beecountCloudEmail/Password,顺带清掉历史上残留的密码登录凭证。
       final cfg = CloudServiceConfig(
         type: CloudBackendType.beecountCloud,
         name: AppLocalizations.of(context).cloudBeeCountCloudTitle,
         beecountCloudBaseUrl: url,
         beecountCloudApiPrefix: apiPrefix.isEmpty ? '/api/v1' : apiPrefix,
-        beecountCloudEmail: email.isNotEmpty ? email : null,
-        beecountCloudPassword: password.isNotEmpty ? password : null,
       );
 
       if (!cfg.valid) {
@@ -1546,50 +1544,13 @@ class _CloudServicePageState extends ConsumerState<CloudServicePage> {
         ref.invalidate(beecountCloudProviderInstance);
         if (mounted) showToast(context, AppLocalizations.of(context).cloudConfigSaved);
 
-        // 如果提供了邮箱和密码，尝试登录（恢复旧行为）
-        if (email.isNotEmpty && password.isNotEmpty) {
-          try {
-            // 在全 App 唯一的 provider 上登录，避免 2FA session 只写入临时
-            // auth 实例、SyncEngine 仍持有未登录实例。
-            final provider =
-                await ref.read(beecountCloudProviderInstance.future);
-            if (provider != null) {
-              await provider.auth.signInWithEmail(
-                email: email,
-                password: password,
-              );
-              ref.invalidate(authServiceProvider);
-              ref.invalidate(syncServiceProvider);
-
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setBool('auto_sync', true);
-              ref.invalidate(autoSyncValueProvider);
-
-              Future(() async {
-                try {
-                  final sync = ref.read(syncServiceProvider);
-                  final ledgerId = ref.read(currentLedgerIdProvider);
-                  await sync.uploadCurrentLedger(ledgerId: ledgerId);
-                  ref.read(syncStatusRefreshProvider.notifier).state++;
-                  ref.read(ledgerListRefreshProvider.notifier).state++;
-                } catch (e) {
-                  logger.error('CloudServicePage', 'BeeCount Cloud 首次同步失败', e);
-                }
-              });
-
-              if (mounted) {
-                showToast(context, AppLocalizations.of(context).cloudBeeCountCloudLoginSuccess);
-              }
-            }
-          } catch (e) {
-            if (mounted) {
-              await AppDialog.error(
-                context,
-                title: AppLocalizations.of(context).cloudBeeCountCloudLoginFailed,
-                message: e.toString(),
-              );
-            }
-          }
+        // 切到 BeeCount Cloud 并直接跳登录页(SSO),免得用户存完地址还要
+        // 回来再点一次卡片才找得到登录入口。
+        await _switchService(CloudBackendType.beecountCloud);
+        if (mounted) {
+          await Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const LoginPage()),
+          );
         }
       } catch (e) {
         if (mounted) {
@@ -1990,18 +1951,18 @@ class _CloudServicePageState extends ConsumerState<CloudServicePage> {
   }
 }
 
-// Supabase配置对话框(独立Widget,避免controller生命周期问题)
+// BeeCount Cloud配置对话框(独立Widget,避免controller生命周期问题)
+//
+// 只收服务器地址 —— 登录改走浏览器 SSO(见 login_page.dart 的
+// `_buildSsoLoginBody`),这里不再收邮箱/密码:生产环境密码登录 server 端
+// 直接 403,继续收集只会让用户以为填了就能登录。
 class _BeeCountCloudConfigDialog extends StatefulWidget {
   final String initialUrl;
   final String initialApiPrefix;
-  final String initialEmail;
-  final String initialPassword;
 
   const _BeeCountCloudConfigDialog({
     required this.initialUrl,
     required this.initialApiPrefix,
-    this.initialEmail = '',
-    this.initialPassword = '',
   });
 
   @override
@@ -2011,25 +1972,18 @@ class _BeeCountCloudConfigDialog extends StatefulWidget {
 class _BeeCountCloudConfigDialogState extends State<_BeeCountCloudConfigDialog> {
   late final TextEditingController urlController;
   late final TextEditingController apiPrefixController;
-  late final TextEditingController emailController;
-  late final TextEditingController passwordController;
-  bool obscurePassword = true;
 
   @override
   void initState() {
     super.initState();
     urlController = TextEditingController(text: widget.initialUrl);
     apiPrefixController = TextEditingController(text: widget.initialApiPrefix);
-    emailController = TextEditingController(text: widget.initialEmail);
-    passwordController = TextEditingController(text: widget.initialPassword);
   }
 
   @override
   void dispose() {
     urlController.dispose();
     apiPrefixController.dispose();
-    emailController.dispose();
-    passwordController.dispose();
     super.dispose();
   }
 
@@ -2051,34 +2005,16 @@ class _BeeCountCloudConfigDialogState extends State<_BeeCountCloudConfigDialog> 
             ),
             // API Prefix 输入框移除 —— 后端固定 /api/v1,前端用户没有配置场景;
             // 保留 apiPrefixController(默认 /api/v1)让 save 流程不破。
-            const SizedBox(height: 16),
-            TextField(
-              controller: emailController,
-              decoration: InputDecoration(
-                labelText: AppLocalizations.of(context).cloudBeeCountCloudEmailLabel,
-                hintText: AppLocalizations.of(context).cloudBeeCountCloudEmailHint,
-              ),
-              keyboardType: TextInputType.emailAddress,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: passwordController,
-              decoration: InputDecoration(
-                labelText: AppLocalizations.of(context).cloudBeeCountCloudPasswordLabel,
-                hintText: AppLocalizations.of(context).cloudBeeCountCloudPasswordHint,
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                    size: 20,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      obscurePassword = !obscurePassword;
-                    });
-                  },
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                AppLocalizations.of(context).cloudBeeCountCloudSsoLoginHint,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: BeeTokens.textSecondary(context),
                 ),
               ),
-              obscureText: obscurePassword,
             ),
           ],
         ),
@@ -2093,8 +2029,6 @@ class _BeeCountCloudConfigDialogState extends State<_BeeCountCloudConfigDialog> 
             Navigator.of(context).pop({
               'url': urlController.text.trim(),
               'apiPrefix': apiPrefixController.text.trim(),
-              'email': emailController.text.trim(),
-              'password': passwordController.text.trim(),
             });
           },
           child: Text(AppLocalizations.of(context).commonSave),

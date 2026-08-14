@@ -77,7 +77,11 @@ class EntitySerializer {
 
   // ==================== Account ====================
 
-  static Map<String, dynamic> serializeAccount(Account account) {
+  static Map<String, dynamic> serializeAccount(
+    Account account, {
+    String? avatarCloudFileId,
+    String? avatarCloudSha256,
+  }) {
     return {
       'syncId': account.syncId,
       'name': account.name,
@@ -91,6 +95,15 @@ class EntitySerializer {
       if (account.bankName != null) 'bankName': account.bankName,
       if (account.cardLastFour != null) 'cardLastFour': account.cardLastFour,
       if (account.note != null) 'note': account.note,
+      // 主帳戶(合併帳單,§2.9 Phase 4):跟 tx 的 accountId 同款约定 —— 无条件
+      // 发送 + 空串清空,server _merge_from_spec 只过滤 None,省略/null 都
+      // 会被当"不更新",空串才是唯一能清掉挂靠关系的路径。
+      'parentAccountId': account.parentAccountId ?? '',
+      // 帳戶頭像:调用方(sync_engine_serialization.dart)决定语义 ——
+      // null = 不传这俩键(本地头像没变 / 本次上传失败,不要用空串误清掉
+      // server 现有值);空串 = 用户主动清空头像;非空 = 新上传成功的引用。
+      if (avatarCloudFileId != null) 'avatarCloudFileId': avatarCloudFileId,
+      if (avatarCloudSha256 != null) 'avatarCloudSha256': avatarCloudSha256,
       // 账户隐藏(#240)。非空 bool + 默认 false,同账单标记的
       // excludeFromStats/excludeFromBudget 无条件发送(不用 if-null 省略)。
       'hidden': account.hidden,

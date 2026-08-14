@@ -60,6 +60,15 @@ class Accounts extends Table {
   /// 隐藏:true 时该账户不再出现在记账/转账/周期选择器,账户管理页移入「已隐藏」分区。
   /// 仍计入账户余额、净资产、资产构成、净值趋势(.docs/account-archive/01 §二 D1)。
   BoolColumn get hidden => boolean().withDefault(const Constant(false))();
+  /// v32 主帳戶(合併帳單):子卡/附卡指向主卡的 syncId,null = 沒有掛在任何
+  /// 主卡下。跟 BeeCount Cloud server `accounts.parent_account_id` 對齊
+  /// (docs/MOZE_FEATURE_GAP_SD.md §2.9 Phase 4)。
+  TextColumn get parentAccountId => text().nullable()();
+  /// v32 帳戶頭像本地相對路徑(如 "custom_icons/<fileId>.png"),跟
+  /// Categories.customIconPath 同一套目錄/存取邏輯(CustomIconService)。
+  /// 上傳到雲端拿到的 fileId/sha256 不落本地欄位 —— push 時即時上傳算,
+  /// 對齊分類自訂圖標的做法(見 entity_serializer.dart serializeCategory)。
+  TextColumn get avatarPath => text().nullable()();
 }
 
 /// 自动汇率本地缓存。日期键 append-only;可随时整表重建 → **不进同步**(README D2)。
@@ -442,7 +451,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 31; // v31: 账户隐藏 — accounts.hidden
+  int get schemaVersion => 32; // v32: 账户主卡分组 + 头像 — accounts.parentAccountId/avatarPath
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1156,6 +1165,14 @@ class BeeDatabase extends _$BeeDatabase {
             await _addColumnIfMissing('accounts', 'hidden',
                 'ALTER TABLE accounts ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0;');
             logger.info('DBMigration', 'v31 迁移完成');
+          }
+          if (from < 32) {
+            logger.info('DBMigration', '开始迁移到 v32: 账户主卡分组(parent_account_id) + 头像(avatar_path)');
+            await _addColumnIfMissing('accounts', 'parent_account_id',
+                'ALTER TABLE accounts ADD COLUMN parent_account_id TEXT;');
+            await _addColumnIfMissing('accounts', 'avatar_path',
+                'ALTER TABLE accounts ADD COLUMN avatar_path TEXT;');
+            logger.info('DBMigration', 'v32 迁移完成');
           }
         },
         onCreate: (m) async {

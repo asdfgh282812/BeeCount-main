@@ -1482,6 +1482,7 @@
   "cloudConfigureBeeCountCloudTitle": "Configure BeeCount Cloud",
   "cloudBeeCountCloudUrlLabel": "Server URL",
   "cloudBeeCountCloudUrlHint": "https://your-server.com",
+  "cloudBeeCountCloudSsoLoginHint": "After saving, tap \"Login\" to sign in via your browser — no need to enter an email or password here.",
   "cloudBeeCountCloudApiPrefixLabel": "API Prefix",
   "cloudBeeCountCloudApiPrefixHint": "/api/v1",
   "cloudBeeCountCloudEmailLabel": "Email",
@@ -1923,7 +1924,7 @@
   "cloudTutorialStep2Title": "Step 2: Get an account",
   "cloudTutorialStep2Desc": "BeeCount Cloud does NOT offer self-registration (to prevent abuse on public servers). If you self-host: the first Docker boot prints a random admin email + password to the logs — use that. Joining someone else's server: ask the admin to create an account for you in Web → Users.",
   "cloudTutorialStep3Title": "Step 3: Login + enable sync",
-  "cloudTutorialStep3Desc": "In the app, pick BeeCount Cloud, enter the server URL and the account you got in step 2. First login uploads your entire local ledger; every subsequent edit is pushed in real time.",
+  "cloudTutorialStep3Desc": "In the app, pick BeeCount Cloud and just enter the server URL, then save (no need to type an email or password). Tap \"Login\" — it opens your system browser to the server's login page; sign in with the account from step 2 (2FA too, if the server has it enabled), and you'll be redirected back to the app automatically. The first login uploads your entire local ledger; every subsequent edit is pushed in real time.",
   "cloudTutorialStep4Title": "Step 4: Login from other devices",
   "cloudTutorialStep4Desc": "Phone / tablet / Web — same account, instant shared state. Edits propagate within seconds.",
   "cloudTutorialTipTitle": "Tip",
@@ -2835,6 +2836,18 @@
   "accountCardLastFourHint": "e.g. 1234",
   "accountNote": "Note",
   "accountNoteHint": "Add a note",
+  "accountAvatarTitle": "Account Avatar",
+  "accountAvatarTapToSelect": "Tap to select image",
+  "accountAvatarTapToChange": "Tap to change image",
+  "accountAvatarCrop": "Crop Avatar",
+  "accountParentTitle": "Parent Account",
+  "accountParentNone": "None (standalone account)",
+  "accountParentBadge": "Part of {parentName}",
+  "@accountParentBadge": {
+    "placeholders": {
+      "parentName": {"type": "String"}
+    }
+  },
   "accountMetaInfo": "Account Info",
   "accountBalanceTrend": "Balance Trend",
   "accountCategoryBreakdown": "Category Breakdown",
@@ -3318,5 +3331,30 @@
   "currencyLSL": "Basotho Loti",
   "currencySZL": "Swazi Lilangeni",
   "currencyMGA": "Malagasy Ariary",
-  "currencyMRU": "Mauritanian Ouguiya"
+  "currencyMRU": "Mauritanian Ouguiya",
+  "accountDetailTabTransactions": "Transactions",
+  "accountDetailTabInfo": "Account Info",
+  "accountSubAccountsLabel": "Sub-accounts",
+  "accountSubAccountsCount": "{count} accounts",
+  "@accountSubAccountsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "accountMainCurrencyLabel": "Primary Currency",
+  "accountGroupLabel": "Account Group",
+  "accountAutoPayLabel": "Autopay",
+  "accountAutoPayNone": "None",
+  "accountLowCreditAlertLabel": "Low Available Credit Alert",
+  "accountIncludeInNetWorthLabel": "Include in Net Worth",
+  "billingSummaryNewSpending": "New Spending",
+  "billingSummaryPriorBalance": "Prior Balance",
+  "billingSummaryAmountDue": "Amount Due",
+  "billingSummaryAmountPaid": "Amount Paid",
+  "billingSummaryInstallments": "Installments",
+  "billingSummaryReconciledCount": "Reconciled",
+  "billingSummaryRemaining": "Remaining Balance",
+  "billingSummaryPaidOff": "Paid Off"
 }

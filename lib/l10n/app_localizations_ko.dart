@@ -3491,6 +3491,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get cloudBeeCountCloudUrlHint => 'https://your-server.com';
 
   @override
+  String get cloudBeeCountCloudSsoLoginHint =>
+      '저장 후 \"로그인\"을 누르면 브라우저에서 로그인을 완료합니다. 여기에 이메일/비밀번호를 입력할 필요는 없습니다.';
+
+  @override
   String get cloudBeeCountCloudApiPrefixLabel => 'API 접두사';
 
   @override
@@ -4588,7 +4592,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get cloudTutorialStep3Desc =>
-      '앱에서 BeeCount 클라우드를 선택하고 서버 URL과 2단계에서 받은 계정을 입력하세요. 첫 로그인 시 로컬 가계부 전체가 업로드되며, 이후의 모든 변경 사항은 실시간으로 전송됩니다.';
+      '앱에서 BeeCount 클라우드를 선택하고 서버 URL만 입력해 저장하세요(이메일/비밀번호 입력 불필요). \"로그인\"을 누르면 시스템 브라우저가 열려 서버 로그인 페이지로 이동합니다. 2단계에서 받은 계정으로 로그인하면(서버에 2FA가 켜져 있으면 브라우저에서 인증) 자동으로 앱으로 돌아옵니다. 첫 로그인 시 로컬 가계부 전체가 업로드되며, 이후의 모든 변경 사항은 실시간으로 전송됩니다.';
 
   @override
   String get cloudTutorialStep4Title => '4단계: 다른 기기에서 로그인';
@@ -6554,6 +6558,29 @@ class AppLocalizationsKo extends AppLocalizations {
   String get accountNoteHint => '메모를 추가하세요';
 
   @override
+  String get accountAvatarTitle => '계좌 아바타';
+
+  @override
+  String get accountAvatarTapToSelect => '눌러서 이미지 선택';
+
+  @override
+  String get accountAvatarTapToChange => '눌러서 이미지 변경';
+
+  @override
+  String get accountAvatarCrop => '아바타 자르기';
+
+  @override
+  String get accountParentTitle => '주 계좌';
+
+  @override
+  String get accountParentNone => '없음(독립 계좌)';
+
+  @override
+  String accountParentBadge(String parentName) {
+    return '$parentName에 속함';
+  }
+
+  @override
   String get accountMetaInfo => '계정 정보';
 
   @override
@@ -7703,4 +7730,60 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get currencyMRU => 'Mauritanian Ouguiya';
+
+  @override
+  String get accountDetailTabTransactions => '거래 내역';
+
+  @override
+  String get accountDetailTabInfo => '계좌 정보';
+
+  @override
+  String get accountSubAccountsLabel => '하위 계좌';
+
+  @override
+  String accountSubAccountsCount(int count) {
+    return '$count개 계좌';
+  }
+
+  @override
+  String get accountMainCurrencyLabel => '기본 통화';
+
+  @override
+  String get accountGroupLabel => '계좌 그룹';
+
+  @override
+  String get accountAutoPayLabel => '자동 이체';
+
+  @override
+  String get accountAutoPayNone => '없음';
+
+  @override
+  String get accountLowCreditAlertLabel => '가용 한도 부족 알림';
+
+  @override
+  String get accountIncludeInNetWorthLabel => '총 자산에 포함';
+
+  @override
+  String get billingSummaryNewSpending => '신규 지출';
+
+  @override
+  String get billingSummaryPriorBalance => '이전 이월 잔액';
+
+  @override
+  String get billingSummaryAmountDue => '청구 금액';
+
+  @override
+  String get billingSummaryAmountPaid => '납부 금액';
+
+  @override
+  String get billingSummaryInstallments => '할부';
+
+  @override
+  String get billingSummaryReconciledCount => '대조 건수';
+
+  @override
+  String get billingSummaryRemaining => '잔여 금액';
+
+  @override
+  String get billingSummaryPaidOff => '완납';
 }

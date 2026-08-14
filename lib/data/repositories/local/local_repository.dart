@@ -1698,6 +1698,8 @@ class LocalRepository extends BaseRepository {
     String? cardLastFour,
     String? note,
     String? syncId,
+    String? parentAccountId,
+    String? avatarPath,
   }) async {
     final id = await _accountRepo.createAccount(
       ledgerId: ledgerId,
@@ -1712,6 +1714,8 @@ class LocalRepository extends BaseRepository {
       cardLastFour: cardLastFour,
       note: note,
       syncId: syncId,
+      parentAccountId: parentAccountId,
+      avatarPath: avatarPath,
     );
     if (changeTracker != null) {
       final account = await _accountRepo.getAccount(id);
@@ -1765,6 +1769,10 @@ class LocalRepository extends BaseRepository {
     String? note,
     bool clearMetadataFields = false,
     bool? hidden,
+    String? parentAccountId,
+    bool clearParentAccount = false,
+    String? avatarPath,
+    bool clearAvatar = false,
   }) async {
     final account = changeTracker != null ? await _accountRepo.getAccount(id) : null;
     await _accountRepo.updateAccount(
@@ -1782,6 +1790,10 @@ class LocalRepository extends BaseRepository {
       note: note,
       clearMetadataFields: clearMetadataFields,
       hidden: hidden,
+      parentAccountId: parentAccountId,
+      clearParentAccount: clearParentAccount,
+      avatarPath: avatarPath,
+      clearAvatar: clearAvatar,
     );
     if (account?.syncId != null) {
       await changeTracker!.recordUserGlobalChange(
@@ -1959,9 +1971,23 @@ class LocalRepository extends BaseRepository {
 
   @override
   Future<List<Transaction>> getAccountTransactions(
-    int accountId, {int limit = 50, int offset = 0, String? flow}) =>
+    int accountId, {
+    int limit = 50,
+    int offset = 0,
+    String? flow,
+    List<int>? extraAccountIds,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) =>
       _accountRepo.getAccountTransactions(
-          accountId, limit: limit, offset: offset, flow: flow);
+        accountId,
+        limit: limit,
+        offset: offset,
+        flow: flow,
+        extraAccountIds: extraAccountIds,
+        startDate: startDate,
+        endDate: endDate,
+      );
 
   @override
   Future<List<({DateTime date, double balance})>> getAccountDailyBalances(

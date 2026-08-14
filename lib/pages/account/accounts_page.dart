@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +7,7 @@ import 'package:collection/collection.dart';
 
 import '../../providers.dart';
 import '../../services/billing/post_processor.dart';
+import '../../services/custom_icon_service.dart';
 import '../../services/currency/rate_math.dart';
 import '../../services/marketing/product_promos.dart';
 import '../../widgets/ui/ui.dart';
@@ -48,12 +50,45 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     });
   }
 
+  /// 按「展示類型」分組(而不是原始 account.type)——主帳戶(合併帳單分組,
+  /// type='account_group')本身只是純管理容器,沒有自己的資產/負債分類,
+  /// 要跟著它底下子帳戶的實際類型歸類,才能跟子帳戶落在同一個 typeOrder
+  /// 分組裡讓樹狀巢狀渲染找得到彼此(否則主帳戶會被丟進「其它未知類型」
+  /// 分組,子帳戶在信用卡分組裡找不到自己的主帳戶,全部降級成孤兒「隸屬於
+  /// X」平鋪列表)。跟 web `resolveAccountGroupDisplayType` 同一份邏輯。
   Map<String, List<db.Account>> _groupAccounts(List<db.Account> accounts) {
+    final childrenByParentSyncId = <String, List<db.Account>>{};
+    for (final a in accounts) {
+      final pid = a.parentAccountId;
+      if (pid != null && pid.isNotEmpty) {
+        childrenByParentSyncId.putIfAbsent(pid, () => []).add(a);
+      }
+    }
     final Map<String, List<db.Account>> grouped = {};
     for (final account in accounts) {
-      grouped.putIfAbsent(account.type, () => []).add(account);
+      final displayType = _resolveDisplayType(account, childrenByParentSyncId);
+      grouped.putIfAbsent(displayType, () => []).add(account);
     }
     return grouped;
+  }
+
+  /// 主帳戶(account_group)的展示類型:底下子帳戶類型一致就跟著子帳戶;
+  /// 子帳戶類型不一致時信用卡優先(合併帳單分組多半是信用卡場景);還沒有
+  /// 任何子帳戶同步下來時,靠自己身上是否設了信用額度粗略判斷。非
+  /// account_group 帳戶原樣返回自己的 type。
+  String _resolveDisplayType(
+    db.Account account,
+    Map<String, List<db.Account>> childrenByParentSyncId,
+  ) {
+    if (account.type != 'account_group') return account.type;
+    final syncId = account.syncId;
+    final children = syncId != null ? childrenByParentSyncId[syncId] : null;
+    if (children == null || children.isEmpty) {
+      return account.creditLimit != null ? 'credit_card' : 'bank_card';
+    }
+    final childTypes = children.map((c) => c.type).toSet();
+    if (childTypes.length == 1) return childTypes.first;
+    return childTypes.contains('credit_card') ? 'credit_card' : 'bank_card';
   }
 
   void _onReorder(String type, List<db.Account> groupAccounts, int oldIndex, int newIndex) {
@@ -1640,10 +1675,16 @@ class _AccountTypeGroup extends ConsumerStatefulWidget {
 
 class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
   bool _expanded = true;
+  /// 主帳戶(合併帳單分組)收合狀態:記錄「已收合」的主帳戶 id,預設全部展開。
+  final Set<int> _collapsedParentIds = {};
 
   @override
   Widget build(BuildContext context) {
     final typeColor = getColorForAccountType(widget.type, widget.primaryColor);
+    // 折算外幣子帳戶用:跟頁面其它折算口徑（净资产卡/分组小计）同一組
+    // effectiveRatesProvider + baseCurrencyProvider。
+    final rates = ref.watch(effectiveRatesProvider).valueOrNull;
+    final base = ref.watch(baseCurrencyProvider).toUpperCase();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1717,22 +1758,427 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
             ),
           ),
         ),
-        // 账户卡片列表
+        // 账户清单(主帳戶/子帳戶樹狀分組,帳戶總覽 #主子帳戶改版):對齊 web
+        // AccountListRow 的緊湊清單樣式 —— 整組帳戶包在同一個帶邊框的清單
+        // 容器裡,行與行之間用細分隔線隔開,不再是各自獨立的漸層卡片。
         if (_expanded)
-          ...widget.accounts.map((account) {
-            return _AccountCard(
-              key: ValueKey(account.id),
-              account: account,
-              primaryColor: widget.primaryColor,
-              typeColor: typeColor,
-              stats: widget.allStats?[account.id],
-              onTap: () => widget.onTap(account),
-              onEdit: () => widget.onEdit(account),
-            );
-          }),
+          Container(
+            decoration: BoxDecoration(
+              color: BeeTokens.surfaceElevated(context),
+              borderRadius: BorderRadius.circular(14.0.scaled(context, ref)),
+              border: Border.all(color: BeeTokens.cardOuterBorderColor(context)),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                for (final entry in _buildAccountBlocks(context, typeColor, rates, base).indexed) ...[
+                  if (entry.$1 > 0)
+                    Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: BeeTokens.cardInnerDividerColor(context),
+                    ),
+                  entry.$2,
+                ],
+              ],
+            ),
+          ),
       ],
     );
   }
+
+  /// 按 parentAccountId 把本類型的帳戶分成「主帳戶+子帳戶」樹狀結構跟獨立
+  /// 帳戶,每個頂層帳戶(含它底下展開的子帳戶)算一個 block,block 之間由
+  /// 呼叫端插入分隔線。子帳戶找不到同組主帳戶(主帳戶被隱藏/不同類型/尚未
+  /// 同步下來)時降級成獨立 block,不丟資料。
+  List<Widget> _buildAccountBlocks(
+    BuildContext context,
+    Color typeColor,
+    Map<String, EffectiveRate>? rates,
+    String base,
+  ) {
+    final childrenByParent = <String, List<db.Account>>{};
+    for (final a in widget.accounts) {
+      final pid = a.parentAccountId;
+      if (pid != null && pid.isNotEmpty) {
+        childrenByParent.putIfAbsent(pid, () => []).add(a);
+      }
+    }
+    final topLevel =
+        widget.accounts.where((a) => a.parentAccountId == null || a.parentAccountId!.isEmpty).toList();
+    final topLevelSyncIds = topLevel.map((a) => a.syncId).whereType<String>().toSet();
+
+    final blocks = <Widget>[];
+    for (final account in topLevel) {
+      final children = (account.syncId != null)
+          ? (childrenByParent[account.syncId] ?? const <db.Account>[])
+          : const <db.Account>[];
+      if (children.isEmpty) {
+        blocks.add(_AccountCard(
+          key: ValueKey(account.id),
+          account: account,
+          primaryColor: widget.primaryColor,
+          typeColor: typeColor,
+          effectiveType: widget.type,
+          stats: widget.allStats?[account.id],
+          onTap: () => widget.onTap(account),
+          onEdit: () => widget.onEdit(account),
+        ));
+        continue;
+      }
+
+      final collapsed = _collapsedParentIds.contains(account.id);
+      final rows = <Widget>[
+        _AccountCard(
+          key: ValueKey(account.id),
+          account: account,
+          primaryColor: widget.primaryColor,
+          typeColor: typeColor,
+          effectiveType: widget.type,
+          stats: _aggregateParentStats(account, children, widget.allStats, rates, base),
+          childCount: children.length,
+          expanded: !collapsed,
+          onToggleExpand: () => setState(() {
+            if (collapsed) {
+              _collapsedParentIds.remove(account.id);
+            } else {
+              _collapsedParentIds.add(account.id);
+            }
+          }),
+          onTap: () => widget.onTap(account),
+          onEdit: () => widget.onEdit(account),
+        ),
+      ];
+      if (!collapsed) {
+        for (var i = 0; i < children.length; i++) {
+          final child = children[i];
+          rows.add(_ChildAccountRow(
+            key: ValueKey('child_${child.id}'),
+            account: child,
+            parentCurrency: account.currency,
+            isLast: i == children.length - 1,
+            stats: widget.allStats?[child.id],
+            onTap: () => widget.onTap(child),
+            onEdit: () => widget.onEdit(child),
+          ));
+        }
+      }
+      blocks.add(Column(children: rows));
+    }
+
+    // 孤儿子卡(主帳戶不在同一類型分組裡):降級成獨立 block,避免漏掉。
+    for (final a in widget.accounts) {
+      final pid = a.parentAccountId;
+      if (pid != null && pid.isNotEmpty && !topLevelSyncIds.contains(pid)) {
+        blocks.add(_AccountCard(
+          key: ValueKey(a.id),
+          account: a,
+          primaryColor: widget.primaryColor,
+          typeColor: typeColor,
+          effectiveType: widget.type,
+          stats: widget.allStats?[a.id],
+          onTap: () => widget.onTap(a),
+          onEdit: () => widget.onEdit(a),
+        ));
+      }
+    }
+
+    return blocks;
+  }
+
+  /// 主帳戶表頭聚合餘額:自己的 stats + 全部子帳戶 stats 加總,幣種不同的
+  /// 子帳戶按 [rates] 折算成主帳戶幣種再併入(跟 web 端「主帳戶合計＝子帳戶
+  /// 折算後加總」對齊);缺有效匯率時該子帳戶跳過不併入合計,不靜默按 1.0
+  /// 折算(README D5)。
+  ({double balance, double expense, double income})? _aggregateParentStats(
+    db.Account parent,
+    List<db.Account> children,
+    Map<int, ({double balance, double expense, double income})>? allStats,
+    Map<String, EffectiveRate>? rates,
+    String base,
+  ) {
+    if (allStats == null) return null;
+    final own = allStats[parent.id];
+    double balance = own?.balance ?? 0;
+    double expense = own?.expense ?? 0;
+    double income = own?.income ?? 0;
+    for (final c in children) {
+      final s = allStats[c.id];
+      if (s == null) continue;
+      if (c.currency == parent.currency) {
+        balance += s.balance;
+        expense += s.expense;
+        income += s.income;
+        continue;
+      }
+      final convertedBalance = convertBetweenCurrencies(
+          amount: s.balance, from: c.currency, to: parent.currency, rates: rates, base: base);
+      final convertedExpense = convertBetweenCurrencies(
+          amount: s.expense, from: c.currency, to: parent.currency, rates: rates, base: base);
+      final convertedIncome = convertBetweenCurrencies(
+          amount: s.income, from: c.currency, to: parent.currency, rates: rates, base: base);
+      if (convertedBalance != null) balance += convertedBalance;
+      if (convertedExpense != null) expense += convertedExpense;
+      if (convertedIncome != null) income += convertedIncome;
+    }
+    return (balance: balance, expense: expense, income: income);
+  }
+}
+
+/// 幣種互轉:通過 [rates](以 [base] 為錨的「1 quote = rate base」有效匯率表)
+/// 做「from → base → to」兩段換算。from/to 等於 base 時對應段 rate=1,免查表。
+/// 任一段缺有效匯率 → 回傳 null(README D5,絕不靜默按 1.0 折算)。
+double? convertBetweenCurrencies({
+  required double amount,
+  required String from,
+  required String to,
+  required Map<String, EffectiveRate>? rates,
+  required String base,
+}) {
+  final fromCode = from.toUpperCase();
+  final toCode = to.toUpperCase();
+  if (fromCode == toCode) return amount;
+  double? rateToBase(String code) {
+    if (code == base) return 1.0;
+    final eff = rates?[code];
+    if (eff == null) return null;
+    final r = double.tryParse(eff.rate);
+    if (r == null || r <= 0) return null;
+    return r;
+  }
+
+  final fromRate = rateToBase(fromCode);
+  final toRate = rateToBase(toCode);
+  if (fromRate == null || toRate == null) return null;
+  return amount * fromRate / toRate;
+}
+
+/// 子帳戶樹狀列表行(帳戶總覽 #主子帳戶改版):樹狀連接線 + 小圖標 + 名稱 +
+/// 餘額,點擊進子帳戶明細、長按編輯(跟 _AccountCard 手勢一致)。幣種跟主
+/// 帳戶不同時,金額前綴幣種代碼並帶一個 ⇌ 折算切換鈕(對齊 web 端行為):
+/// 預設顯示原幣金額,點一下切成折算成主帳戶幣種後的金額,再點一下切回去。
+class _ChildAccountRow extends ConsumerStatefulWidget {
+  final db.Account account;
+  final String parentCurrency;
+  final bool isLast;
+  final ({double balance, double expense, double income})? stats;
+  final VoidCallback onTap;
+  final VoidCallback onEdit;
+
+  const _ChildAccountRow({
+    super.key,
+    required this.account,
+    required this.parentCurrency,
+    required this.isLast,
+    required this.stats,
+    required this.onTap,
+    required this.onEdit,
+  });
+
+  @override
+  ConsumerState<_ChildAccountRow> createState() => _ChildAccountRowState();
+}
+
+class _ChildAccountRowState extends ConsumerState<_ChildAccountRow> {
+  bool _showConverted = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final account = widget.account;
+    final isLast = widget.isLast;
+    final onTap = widget.onTap;
+    final onEdit = widget.onEdit;
+    final balance = widget.stats?.balance ?? 0;
+    final useCompact = ref.watch(compactAmountProvider);
+
+    final isForeign = account.currency.toUpperCase() != widget.parentCurrency.toUpperCase();
+    double? converted;
+    if (isForeign) {
+      final rates = ref.watch(effectiveRatesProvider).valueOrNull;
+      final base = ref.watch(baseCurrencyProvider).toUpperCase();
+      converted = convertBetweenCurrencies(
+        amount: balance,
+        from: account.currency,
+        to: widget.parentCurrency,
+        rates: rates,
+        base: base,
+      );
+    }
+    final showingConverted = isForeign && _showConverted && converted != null;
+    final displayValue = showingConverted ? converted : balance;
+    final displayCurrency = showingConverted ? widget.parentCurrency : account.currency;
+
+    return GestureDetector(
+      onTap: onTap,
+      onLongPress: onEdit,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 14.0.scaled(context, ref),
+          right: 14.0.scaled(context, ref),
+          top: 4.0.scaled(context, ref),
+          bottom: 4.0.scaled(context, ref),
+        ),
+        child: Row(
+          children: [
+            _TreeConnector(
+              isLast: isLast,
+              color: BeeTokens.divider(context),
+            ),
+            Container(
+              width: 26.0.scaled(context, ref),
+              height: 26.0.scaled(context, ref),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: BeeTokens.surfaceCategoryIcon(context),
+              ),
+              child: account.avatarPath != null
+                  ? ClipOval(
+                      child: _AccountAvatarImage(
+                        avatarPath: account.avatarPath!,
+                        size: 26.0.scaled(context, ref),
+                        fallback: AccountTypeIcon(
+                          type: account.type,
+                          size: 14.0.scaled(context, ref),
+                        ),
+                      ),
+                    )
+                  : Center(
+                      child: AccountTypeIcon(
+                        type: account.type,
+                        size: 14.0.scaled(context, ref),
+                      ),
+                    ),
+            ),
+            SizedBox(width: 8.0.scaled(context, ref)),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    account.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: BeeTokens.textPrimary(context),
+                    ),
+                  ),
+                  if ((account.cardLastFour ?? '').isNotEmpty)
+                    Text(
+                      '•••• ${account.cardLastFour}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: BeeTokens.textTertiary(context),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            SizedBox(width: 8.0.scaled(context, ref)),
+            if (isForeign)
+              Padding(
+                padding: EdgeInsets.only(right: 4.0.scaled(context, ref)),
+                child: Text(
+                  displayCurrency.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: BeeTokens.textTertiary(context),
+                  ),
+                ),
+              ),
+            AmountText(
+              value: displayValue,
+              signed: false,
+              showCurrency: false,
+              useCompactFormat: useCompact,
+              currencyCode: displayCurrency,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                // 信用卡类子帳戶:欠款(負)紅、繳清或溢繳(≥0)綠,跟主帳戶
+                // 聚合列同一套配色(_AccountCard);其它類型子帳戶維持中性
+                // 文字色,只在真的欠款時標紅。
+                color: isLiabilityType(account.type)
+                    ? (displayValue < 0
+                        ? BeeTokens.expenseColor(context, ref)
+                        : BeeTokens.incomeColor(context, ref))
+                    : (displayValue < 0
+                        ? BeeTokens.expenseColor(context, ref)
+                        : BeeTokens.textPrimary(context)),
+              ),
+            ),
+            // 幣種折算切換鈕(對齊 web「⇌」):只在能算出折算值(匯率齊全)
+            // 時才顯示,缺匯率就不給切換入口,避免點了沒反應。
+            if (isForeign && converted != null)
+              GestureDetector(
+                onTap: () => setState(() => _showConverted = !_showConverted),
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: EdgeInsets.only(left: 4.0.scaled(context, ref)),
+                  child: Icon(
+                    Icons.sync_alt,
+                    size: 14.0.scaled(context, ref),
+                    color: showingConverted
+                        ? BeeTokens.primary(context)
+                        : BeeTokens.iconTertiary(context),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 子帳戶樹狀連接線:垂直主幹(從上方接續) + 水平分支接到圖標,非最後一個
+/// 子帳戶時主幹繼續往下延伸接下一行(視覺上就是 ├/└ 的效果)。
+class _TreeConnector extends StatelessWidget {
+  final bool isLast;
+  final Color color;
+
+  const _TreeConnector({required this.isLast, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 22,
+      height: 34,
+      child: CustomPaint(
+        painter: _TreeConnectorPainter(isLast: isLast, color: color),
+      ),
+    );
+  }
+}
+
+class _TreeConnectorPainter extends CustomPainter {
+  final bool isLast;
+  final Color color;
+
+  _TreeConnectorPainter({required this.isLast, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+    final midX = size.width * 0.4;
+    final midY = size.height / 2;
+    canvas.drawLine(
+      Offset(midX, 0),
+      Offset(midX, isLast ? midY : size.height),
+      paint,
+    );
+    canvas.drawLine(Offset(midX, midY), Offset(size.width, midY), paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _TreeConnectorPainter oldDelegate) =>
+      oldDelegate.isLast != isLast || oldDelegate.color != color;
 }
 
 /// 「已隐藏」账户分区(账户隐藏 #240,产品设计 01 §4.1)。置于所有在用分组
@@ -1841,16 +2287,36 @@ class _HiddenAccountsSectionState
           ),
         ),
         if (_expanded)
-          ...widget.accounts.map((account) => _AccountCard(
-                key: ValueKey('hidden_${account.id}'),
-                account: account,
-                primaryColor: widget.primaryColor,
-                typeColor: mutedColor,
-                stats: widget.allStats?[account.id],
-                onTap: () => widget.onTap(account),
-                onEdit: () => widget.onEdit(account),
-                onRestore: () => widget.onRestore(account),
-              )),
+          Container(
+            decoration: BoxDecoration(
+              color: BeeTokens.surfaceElevated(context),
+              borderRadius: BorderRadius.circular(14.0.scaled(context, ref)),
+              border: Border.all(color: BeeTokens.cardOuterBorderColor(context)),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                for (final entry in widget.accounts.indexed) ...[
+                  if (entry.$1 > 0)
+                    Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: BeeTokens.cardInnerDividerColor(context),
+                    ),
+                  _AccountCard(
+                    key: ValueKey('hidden_${entry.$2.id}'),
+                    account: entry.$2,
+                    primaryColor: widget.primaryColor,
+                    typeColor: mutedColor,
+                    stats: widget.allStats?[entry.$2.id],
+                    onTap: () => widget.onTap(entry.$2),
+                    onEdit: () => widget.onEdit(entry.$2),
+                    onRestore: () => widget.onRestore(entry.$2),
+                  ),
+                ],
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -1879,6 +2345,10 @@ class _HiddenAccountsSectionState
 }
 
 /// 账户卡片
+/// 账户清单行(帳戶總覽 #主子帳戶改版):緊湊清單樣式,對齊 web
+/// AccountListRow —— 圖示 + 名稱(+子卡數量徽章)+ 副標(可用額度 / 卡號末
+/// 四碼 / 隸屬於 X)+ 金額(+ 展開箭頭),取代舊版漸層促銷卡片。主帳戶跟
+/// 子帳戶(_ChildAccountRow)共用同一種視覺語言,只差圖示大小跟樹狀連接線。
 class _AccountCard extends ConsumerWidget {
   final db.Account account;
   final Color primaryColor;
@@ -1889,6 +2359,17 @@ class _AccountCard extends ConsumerWidget {
   /// 「已隐藏」分区卡片的恢复回调(账户隐藏 #240)。非空时才渲染「已隐藏」
   /// 灰标 + 恢复按钮;在用卡片(account.hidden==false)不受影响。
   final VoidCallback? onRestore;
+  /// 主帳戶(合併帳單分組)子卡數量。非空時在名稱旁渲染數量徽章,配合
+  /// [onToggleExpand] 顯示展開/收合箭頭。
+  final int? childCount;
+  final bool expanded;
+  final VoidCallback? onToggleExpand;
+  /// 資產/負債分類要用的「展示類型」——主帳戶(account_group)自己的
+  /// account.type 不在 isLiabilityType 白名單裡,要用它被歸類到的分組
+  /// type(呼叫端 [_AccountTypeGroupState.widget.type],已按子帳戶類型
+  /// 解析過,見 [_AccountsPageState._resolveDisplayType])才能正確判斷是不是
+  /// 該用信用卡的欠款紅/繳清綠配色。不傳則退回 account.type 自己。
+  final String? effectiveType;
 
   const _AccountCard({
     super.key,
@@ -1899,476 +2380,295 @@ class _AccountCard extends ConsumerWidget {
     required this.onTap,
     required this.onEdit,
     this.onRestore,
+    this.childCount,
+    this.expanded = true,
+    this.onToggleExpand,
+    this.effectiveType,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final isDark = BeeTokens.isDark(context);
+    final balance = stats?.balance ?? 0;
+    final isLiability = isLiabilityType(effectiveType ?? account.type);
+    final creditLimit = account.creditLimit;
+    final used = balance < 0 ? -balance : 0.0;
+    final primaryValue = isLiability ? used : balance;
+    final Color amountColor = isLiability
+        ? (used > 0
+            ? BeeTokens.expenseColor(context, ref)
+            : BeeTokens.incomeColor(context, ref))
+        : (balance < 0
+            ? BeeTokens.expenseColor(context, ref)
+            : BeeTokens.textPrimary(context));
 
     return GestureDetector(
       onTap: onTap,
       onLongPress: onEdit,
-      child: Container(
-        margin: EdgeInsets.only(bottom: 8.0.scaled(context, ref)),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: isDark
-                ? [
-                    typeColor.withValues(alpha: 0.25),
-                    typeColor.withValues(alpha: 0.12),
-                  ]
-                : [typeColor, typeColor.withValues(alpha: 0.8)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(12.0.scaled(context, ref)),
-          boxShadow: isDark
-              ? null
-              : [
-                  BoxShadow(
-                    color: typeColor.withValues(alpha: 0.15),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: 14.0.scaled(context, ref),
+          vertical: 10.0.scaled(context, ref),
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12.0.scaled(context, ref)),
-          child: Stack(
-            children: [
-              // 装饰圆圈
-              Positioned(
-                right: -20,
-                top: -20,
-                child: Container(
-                  width: 80.0.scaled(context, ref),
-                  height: 80.0.scaled(context, ref),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: isDark ? 0.05 : 0.1),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: 14.0.scaled(context, ref),
-                  vertical: 12.0.scaled(context, ref),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 顶部行：图标 + 名称 + 编辑
-                    Row(
-                      children: [
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _buildAvatar(context, ref),
+            SizedBox(width: 10.0.scaled(context, ref)),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          account.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: BeeTokens.textPrimary(context),
+                          ),
+                        ),
+                      ),
+                      if (childCount != null) ...[
+                        SizedBox(width: 6.0.scaled(context, ref)),
                         Container(
-                          width: 32.0.scaled(context, ref),
-                          height: 32.0.scaled(context, ref),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 5.0.scaled(context, ref),
+                            vertical: 1.0.scaled(context, ref),
+                          ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            shape: BoxShape.circle,
+                            color: typeColor.withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(8.0.scaled(context, ref)),
                           ),
-                          child: Center(
-                            child: AccountTypeIcon(
-                              type: account.type,
-                              size: 18.0.scaled(context, ref),
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: 10.0.scaled(context, ref)),
-                        Expanded(
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  account.name,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: isDark ? Colors.white.withValues(alpha: 0.9) : Colors.white,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              SizedBox(width: 8.0.scaled(context, ref)),
-                              Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 5.0.scaled(context, ref),
-                                  vertical: 1.0.scaled(context, ref),
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(4.0.scaled(context, ref)),
-                                ),
-                                child: Text(
-                                  getCurrencyName(account.currency, context),
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: isDark ? Colors.white.withValues(alpha: 0.8) : Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: onEdit,
-                          child: Container(
-                            padding: EdgeInsets.all(6.0.scaled(context, ref)),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.edit,
-                              color: isDark ? Colors.white.withValues(alpha: 0.8) : Colors.white,
-                              size: 14.0.scaled(context, ref),
+                          child: Text(
+                            '$childCount',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: typeColor,
                             ),
                           ),
                         ),
                       ],
-                    ),
-                    SizedBox(height: 10.0.scaled(context, ref)),
-                    // 已隐藏标签 + 恢复按钮(账户隐藏 #240,D2)
-                    if (account.hidden) ...[
-                      _buildHiddenBadgeRow(context, ref, l10n, isDark),
-                      SizedBox(height: 8.0.scaled(context, ref)),
-                    ],
-                    // 信用卡：进度条 + 额度信息
-                    if (account.type == 'credit_card' && stats != null)
-                      _buildCreditCardStats(context, ref, l10n, isDark)
-                    // 估值账户：仅显示当前估值
-                    else if (isValuationOnlyType(account.type) && stats != null)
-                      _buildValuationStats(context, ref, l10n, isDark)
-                    // 普通账户：余额/收入/支出
-                    else if (stats != null)
-                      _buildNormalStats(context, ref, l10n, isDark)
-                    else
-                      Center(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 4.0.scaled(context, ref)),
-                          child: const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              strokeWidth: 2,
+                      if (account.hidden) ...[
+                        SizedBox(width: 6.0.scaled(context, ref)),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 5.0.scaled(context, ref),
+                            vertical: 1.0.scaled(context, ref),
+                          ),
+                          decoration: BoxDecoration(
+                            color: BeeTokens.textTertiary(context).withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(4.0.scaled(context, ref)),
+                          ),
+                          child: Text(
+                            l10n.accountHiddenTag,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: BeeTokens.textTertiary(context),
                             ),
                           ),
                         ),
+                      ],
+                    ],
+                  ),
+                  SizedBox(height: 2.0.scaled(context, ref)),
+                  _buildSubtitle(context, ref, l10n, creditLimit, used),
+                ],
+              ),
+            ),
+            SizedBox(width: 8.0.scaled(context, ref)),
+            if (stats == null)
+              SizedBox(
+                width: 14.0.scaled(context, ref),
+                height: 14.0.scaled(context, ref),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(BeeTokens.iconTertiary(context)),
+                ),
+              )
+            else
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AmountText(
+                    value: primaryValue,
+                    signed: false,
+                    showCurrency: false,
+                    useCompactFormat: ref.watch(compactAmountProvider),
+                    currencyCode: account.currency,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: amountColor,
+                    ),
+                  ),
+                  if (onRestore != null) ...[
+                    SizedBox(height: 4.0.scaled(context, ref)),
+                    GestureDetector(
+                      onTap: onRestore,
+                      child: Text(
+                        l10n.accountRestore,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: primaryColor,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
+                    ),
                   ],
+                ],
+              ),
+            if (onToggleExpand != null)
+              GestureDetector(
+                onTap: onToggleExpand,
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: EdgeInsets.only(left: 4.0.scaled(context, ref)),
+                  child: AnimatedRotation(
+                    turns: expanded ? 0.25 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      Icons.chevron_right,
+                      size: 18.0.scaled(context, ref),
+                      color: BeeTokens.iconTertiary(context),
+                    ),
+                  ),
                 ),
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );
   }
 
-  /// 「已隐藏」灰标 + 恢复按钮(账户隐藏 #240)。仅 account.hidden==true 时被调用。
-  Widget _buildHiddenBadgeRow(
-      BuildContext context, WidgetRef ref, AppLocalizations l10n, bool isDark) {
-    final textColor = isDark ? Colors.white.withValues(alpha: 0.9) : Colors.white;
-    return Row(
-      children: [
-        Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: 6.0.scaled(context, ref),
-            vertical: 2.0.scaled(context, ref),
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.18),
-            borderRadius: BorderRadius.circular(4.0.scaled(context, ref)),
-          ),
-          child: Text(
-            l10n.accountHiddenTag,
-            style: TextStyle(
-              fontSize: 11,
-              color: textColor,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        const Spacer(),
-        if (onRestore != null)
-          GestureDetector(
-            onTap: onRestore,
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: 10.0.scaled(context, ref),
-                vertical: 4.0.scaled(context, ref),
+  Widget _buildAvatar(BuildContext context, WidgetRef ref) {
+    final size = 36.0.scaled(context, ref);
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: typeColor.withValues(alpha: 0.14),
+        border: Border.all(color: typeColor.withValues(alpha: 0.35)),
+      ),
+      child: account.avatarPath != null
+          ? ClipOval(
+              child: _AccountAvatarImage(
+                avatarPath: account.avatarPath!,
+                size: size,
+                fallback: AccountTypeIcon(
+                  type: account.type,
+                  size: 18.0.scaled(context, ref),
+                  color: typeColor,
+                ),
               ),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.25),
-                borderRadius: BorderRadius.circular(12.0.scaled(context, ref)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.replay,
-                      size: 12.0.scaled(context, ref), color: textColor),
-                  SizedBox(width: 4.0.scaled(context, ref)),
-                  Text(
-                    l10n.accountRestore,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: textColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+            )
+          : Center(
+              child: AccountTypeIcon(
+                type: account.type,
+                size: 18.0.scaled(context, ref),
+                color: typeColor,
               ),
             ),
-          ),
-      ],
     );
   }
 
-  Widget _buildNormalStats(BuildContext context, WidgetRef ref, AppLocalizations l10n, bool isDark) {
-    final textColor = isDark ? Colors.white.withValues(alpha: 0.9) : Colors.white;
-    final labelColor = isDark ? Colors.white.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.8);
-
-    return Row(
-      children: [
-        Expanded(
-          child: _CardStat(
-            label: l10n.accountBalance,
-            value: stats!.balance,
-            textColor: textColor,
-            labelColor: labelColor,
-            ref: ref,
-            currencyCode: account.currency,
-          ),
-        ),
-        Container(
-          width: 1,
-          height: 24.0.scaled(context, ref),
-          color: Colors.white.withValues(alpha: 0.2),
-        ),
-        Expanded(
-          child: _CardStat(
-            label: l10n.homeIncome,
-            value: stats!.income,
-            textColor: textColor,
-            labelColor: labelColor,
-            ref: ref,
-            currencyCode: account.currency,
-          ),
-        ),
-        Container(
-          width: 1,
-          height: 24.0.scaled(context, ref),
-          color: Colors.white.withValues(alpha: 0.2),
-        ),
-        Expanded(
-          child: _CardStat(
-            label: l10n.homeExpense,
-            value: stats!.expense,
-            textColor: textColor,
-            labelColor: labelColor,
-            ref: ref,
-            currencyCode: account.currency,
-          ),
-        ),
-      ],
+  /// 副標優先序:掛靠主帳戶的子卡顯示「隸屬於 X」→ 有子卡且設了額度的主
+  /// 帳戶顯示「可用額度 $X」→ 有卡號末四碼顯示「•••• 1234」→ 都沒有就不
+  /// 顯示副標。跟 web AccountListRow 的 showAvailableCredit/showLastFour
+  /// 互斥邏輯對齊。
+  Widget _buildSubtitle(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l10n,
+    double? creditLimit,
+    double used,
+  ) {
+    final subtitleStyle = TextStyle(
+      fontSize: 11,
+      color: BeeTokens.textTertiary(context),
     );
-  }
 
-  Widget _buildValuationStats(BuildContext context, WidgetRef ref, AppLocalizations l10n, bool isDark) {
-    final textColor = isDark ? Colors.white.withValues(alpha: 0.9) : Colors.white;
-    final labelColor = isDark ? Colors.white.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.8);
-    final isLiability = isLiabilityType(account.type);
-    final displayValue = isLiability ? stats!.balance.abs() : stats!.balance;
-    final label = isLiability ? l10n.valuationCurrentDebt : l10n.valuationCurrentValue;
-
-    return Row(
-      children: [
-        Expanded(
-          flex: 2,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: labelColor,
-                ),
-              ),
-              SizedBox(height: 2.0.scaled(context, ref)),
-              AmountText(
-                value: displayValue,
-                signed: false,
-                showCurrency: false,
-                useCompactFormat: ref.watch(compactAmountProvider),
-                currencyCode: account.currency,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (account.updatedAt != null)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Icon(
-                Icons.update,
-                size: 14.0.scaled(context, ref),
-                color: labelColor,
-              ),
-              SizedBox(height: 2.0.scaled(context, ref)),
-              Text(
-                '${account.updatedAt!.month.toString().padLeft(2, '0')}-${account.updatedAt!.day.toString().padLeft(2, '0')}',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: labelColor,
-                ),
-              ),
-            ],
-          ),
-      ],
-    );
-  }
-
-  Widget _buildCreditCardStats(BuildContext context, WidgetRef ref, AppLocalizations l10n, bool isDark) {
-    final used = stats!.balance < 0 ? -stats!.balance : 0.0;
-    final textColor = isDark ? Colors.white.withValues(alpha: 0.9) : Colors.white;
-    final labelColor = isDark ? Colors.white.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.8);
-
-    // 信用卡按 type 判定;无额度时仅显示当前欠款,不再 fallthrough 到收入/支出卡
-    final creditLimit = account.creditLimit;
-    if (creditLimit == null) {
-      return Align(
-        alignment: Alignment.centerLeft,
-        child: _CardStat(
-          label: l10n.creditCardOwed,
-          value: used,
-          textColor: textColor,
-          labelColor: labelColor,
-          ref: ref,
-          currencyCode: account.currency,
-        ),
+    if (account.parentAccountId != null) {
+      final allAccounts = ref.watch(allAccountsStreamProvider).valueOrNull ?? [];
+      final parentName = allAccounts
+          .where((a) => a.syncId == account.parentAccountId)
+          .map((a) => a.name)
+          .firstOrNull;
+      if (parentName == null) return const SizedBox.shrink();
+      return Text(
+        l10n.accountParentBadge(parentName),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: subtitleStyle,
       );
     }
 
-    final usageRate = creditLimit > 0 ? (used / creditLimit).clamp(0.0, 1.0) : 0.0;
-    return Column(
-      children: [
-        // 进度条
-        ClipRRect(
-          borderRadius: BorderRadius.circular(3.0.scaled(context, ref)),
-          child: LinearProgressIndicator(
-            value: usageRate,
-            backgroundColor: Colors.white.withValues(alpha: 0.2),
-            valueColor: AlwaysStoppedAnimation<Color>(
-              Colors.white.withValues(alpha: 0.8),
-            ),
-            minHeight: 4.0.scaled(context, ref),
+    if (childCount != null && creditLimit != null) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('${l10n.creditAvailable} ', style: subtitleStyle),
+          AmountText(
+            value: creditLimit - used,
+            signed: false,
+            showCurrency: false,
+            useCompactFormat: ref.watch(compactAmountProvider),
+            currencyCode: account.currency,
+            style: subtitleStyle,
           ),
-        ),
-        SizedBox(height: 8.0.scaled(context, ref)),
-        Row(
-          children: [
-            Expanded(
-              child: _CardStat(
-                label: l10n.creditLimit,
-                value: creditLimit,
-                textColor: textColor,
-                labelColor: labelColor,
-                ref: ref,
-                currencyCode: account.currency,
-              ),
-            ),
-            Container(
-              width: 1,
-              height: 24.0.scaled(context, ref),
-              color: Colors.white.withValues(alpha: 0.2),
-            ),
-            Expanded(
-              child: _CardStat(
-                label: l10n.creditUsed,
-                value: used,
-                textColor: textColor,
-                labelColor: labelColor,
-                ref: ref,
-                currencyCode: account.currency,
-              ),
-            ),
-            Container(
-              width: 1,
-              height: 24.0.scaled(context, ref),
-              color: Colors.white.withValues(alpha: 0.2),
-            ),
-            Expanded(
-              child: _CardStat(
-                label: l10n.creditAvailable,
-                value: creditLimit - used,
-                textColor: textColor,
-                labelColor: labelColor,
-                ref: ref,
-                currencyCode: account.currency,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
+        ],
+      );
+    }
+
+    if ((account.cardLastFour ?? '').isNotEmpty) {
+      return Text('•••• ${account.cardLastFour}', style: subtitleStyle);
+    }
+
+    return const SizedBox.shrink();
   }
 }
 
-/// 卡片内统计项
-class _CardStat extends StatelessWidget {
-  final String label;
-  final double value;
-  final Color textColor;
-  final Color labelColor;
-  final WidgetRef ref;
-  /// 账户的货币代码 — 用来锁住 formatBalance 的格式;不传则 fallback 到账本货币。
-  final String? currencyCode;
+/// 账户头像图片。avatarPath 是 custom_icons/ 下的相对路径(账户头像正常
+/// 状态一定是已落盘的相对路径 —— 临时绝对路径只在编辑页保存前那一刻存在,
+/// 不会进到这张已保存的卡片里),用 CustomIconService 解回绝对路径显示;
+/// 解析失败 / 文件被清过缓存就退回调用方传入的 [fallback](类型图标)。
+class _AccountAvatarImage extends StatelessWidget {
+  final String avatarPath;
+  final double size;
+  final Widget fallback;
 
-  const _CardStat({
-    required this.label,
-    required this.value,
-    required this.textColor,
-    required this.labelColor,
-    required this.ref,
-    this.currencyCode,
+  const _AccountAvatarImage({
+    required this.avatarPath,
+    required this.size,
+    required this.fallback,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        AmountText(
-          value: value,
-          signed: false,
-          showCurrency: false,
-          useCompactFormat: ref.watch(compactAmountProvider),
-          currencyCode: currencyCode,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: textColor,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            color: labelColor,
-          ),
-        ),
-      ],
+    return FutureBuilder<String>(
+      future: CustomIconService().resolveIconPath(avatarPath),
+      builder: (context, snapshot) {
+        final abs = snapshot.data;
+        if (abs == null) return Center(child: fallback);
+        final file = File(abs);
+        if (!file.existsSync()) return Center(child: fallback);
+        return Image.file(
+          file,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Center(child: fallback),
+        );
+      },
     );
   }
 }

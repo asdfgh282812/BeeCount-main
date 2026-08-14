@@ -134,6 +134,11 @@ class SyncEngine implements app.SyncService {
   /// [drainCustomIconQueue](sync_engine_attachments.dart)。
   final List<CustomIconDownloadJob> pendingCustomIconJobs = [];
 
+  /// 账户头像下载队列,跟 [pendingCustomIconJobs] 同款机制。详见
+  /// [AccountAvatarDownloadJob](sync_engine_pull.dart) 和
+  /// [drainAccountAvatarQueue](sync_engine_attachments.dart)。
+  final List<AccountAvatarDownloadJob> pendingAccountAvatarJobs = [];
+
   /// pull 期间生效的 [LookupCache]。pull 入口 new + prime,pull 结束清 null。
   /// resolvers 路径(`sync_engine_resolvers.dart`)优先查它,消除 N+1 SELECT。
   /// 详见 [LookupCache](sync_engine_pull.dart)。
@@ -1196,6 +1201,9 @@ class SyncEngine implements app.SyncService {
       // 主事务已 commit,fire-and-forget 并发处理图标 queue,不阻塞下一页
       if (pendingCustomIconJobs.isNotEmpty) {
         unawaited(drainCustomIconQueue());
+      }
+      if (pendingAccountAvatarJobs.isNotEmpty) {
+        unawaited(drainAccountAvatarQueue());
       }
 
       hasMore = result.hasMore;

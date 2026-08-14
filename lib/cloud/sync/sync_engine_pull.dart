@@ -323,3 +323,20 @@ class CustomIconDownloadJob {
   final String cloudFileId;
   final String? expectedPath;
 }
+
+// =====================================================================
+// 账户头像下载任务(in-memory queue)
+// =====================================================================
+
+/// 账户头像的下载任务。跟 [CustomIconDownloadJob] 同款设计,只是落地表从
+/// categories 换成 accounts,事务 commit 后由
+/// [SyncEngine.drainAccountAvatarQueue] 并发处理。
+class AccountAvatarDownloadJob {
+  const AccountAvatarDownloadJob({
+    required this.accountId,
+    required this.cloudFileId,
+  });
+
+  final int accountId;
+  final String cloudFileId;
+}

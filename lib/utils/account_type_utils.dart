@@ -84,6 +84,8 @@ IconData getIconForAccountType(String type) {
       return Icons.account_balance_outlined;
     case 'other':
       return Icons.account_balance_outlined;
+    case 'account_group':
+      return Icons.credit_card;
     default:
       return Icons.account_balance_wallet_outlined;
   }
@@ -185,6 +187,10 @@ String _getSvgPath(String type) {
       return 'assets/icons/social_fund.svg';
     case 'other':
       return 'assets/icons/other_account.svg';
+    case 'account_group':
+      // 主帳戶(合併帳單分組)是純管理容器,沒有專屬圖示素材,借用
+      // bank_card 的圖示(跟 web AccountListRow.TYPE_ICON_URL 同款處理)。
+      return 'assets/icons/bank_card.svg';
     default:
       return 'assets/icons/other_account.svg';
   }

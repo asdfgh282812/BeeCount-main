@@ -179,7 +179,41 @@ extension SyncEngineSerializationExt on SyncEngine {
               ..where((a) => a.id.equals(entityId)))
             .getSingleOrNull();
         if (account == null) return <String, dynamic>{};
-        return EntitySerializer.serializeAccount(account);
+        // 有本地头像文件就上传拿 fileId/sha256(server 按 sha256 去重,重复
+        // push 同一张图无害),跟 category 自定义图标同一套做法(见上面
+        // 'category' 分支的注释)。三态语义:
+        //   avatarPath 为空 → 用户没设/已清空头像 → 显式传空串清掉 server 值
+        //   上传成功 → 传真实 fileId/sha256
+        //   上传失败(网络抖动等)→ 传 null(省略键),不拿空串误清掉 server
+        //   现有头像 —— 下次 push 同一条 change 还会再试一次。
+        String? avatarCloudFileId;
+        String? avatarCloudSha256;
+        if (account.avatarPath == null || account.avatarPath!.isEmpty) {
+          avatarCloudFileId = '';
+          avatarCloudSha256 = '';
+        } else {
+          try {
+            final iconSvc = CustomIconService();
+            final abs = await iconSvc.resolveIconPath(account.avatarPath!);
+            final file = File(abs);
+            if (file.existsSync()) {
+              final bytes = await file.readAsBytes();
+              final uploaded = await provider.uploadAccountAvatar(
+                bytes: bytes,
+                fileName: account.avatarPath!.split('/').last,
+              );
+              avatarCloudFileId = uploaded.fileId;
+              avatarCloudSha256 = uploaded.sha256;
+            }
+          } catch (e, st) {
+            logger.warning('SyncEngine', '账户头像增量上传失败: ${account.name} $e', st);
+          }
+        }
+        return EntitySerializer.serializeAccount(
+          account,
+          avatarCloudFileId: avatarCloudFileId,
+          avatarCloudSha256: avatarCloudSha256,
+        );
 
       case 'exchange_rate_override':
         // 按 entityId 反查行,跟 account 分支同款;行已删(delete change)
