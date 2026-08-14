@@ -5085,6 +5085,12 @@ abstract class AppLocalizations {
   /// **'Login'**
   String get authLogin;
 
+  /// No description provided for @authSsoLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with SSO'**
+  String get authSsoLogin;
+
   /// No description provided for @authEmail.
   ///
   /// In en, this message translates to:
@@ -7557,6 +7563,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'An accounting app that truly respects your privacy'**
   String get welcomeDescription;
+
+  /// No description provided for @welcomeServerAddressTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Server Address'**
+  String get welcomeServerAddressTitle;
+
+  /// No description provided for @welcomeServerAddressDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your BeeCount Cloud server address'**
+  String get welcomeServerAddressDescription;
+
+  /// No description provided for @welcomeServerAddressHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. example.com'**
+  String get welcomeServerAddressHint;
+
+  /// No description provided for @welcomeServerAddressButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect'**
+  String get welcomeServerAddressButton;
+
+  /// No description provided for @welcomeServerAddressInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a valid server address'**
+  String get welcomeServerAddressInvalid;
+
+  /// No description provided for @welcomeServerAddressUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach this server, or SSO is not enabled on it'**
+  String get welcomeServerAddressUnreachable;
+
+  /// No description provided for @welcomeLoginTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign In'**
+  String get welcomeLoginTitle;
+
+  /// No description provided for @welcomeLoginDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with your organization\'s SSO account'**
+  String get welcomeLoginDescription;
 
   /// No description provided for @welcomeCurrencyDescription.
   ///

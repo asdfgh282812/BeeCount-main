@@ -2773,6 +2773,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authLogin => 'Login';
 
   @override
+  String get authSsoLogin => 'Sign in with SSO';
+
+  @override
   String get authEmail => 'Email';
 
   @override
@@ -4132,6 +4135,34 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get welcomeDescription =>
       'An accounting app that truly respects your privacy';
+
+  @override
+  String get welcomeServerAddressTitle => 'Server Address';
+
+  @override
+  String get welcomeServerAddressDescription =>
+      'Enter your BeeCount Cloud server address';
+
+  @override
+  String get welcomeServerAddressHint => 'e.g. example.com';
+
+  @override
+  String get welcomeServerAddressButton => 'Connect';
+
+  @override
+  String get welcomeServerAddressInvalid =>
+      'Please enter a valid server address';
+
+  @override
+  String get welcomeServerAddressUnreachable =>
+      'Could not reach this server, or SSO is not enabled on it';
+
+  @override
+  String get welcomeLoginTitle => 'Sign In';
+
+  @override
+  String get welcomeLoginDescription =>
+      'Sign in with your organization\'s SSO account';
 
   @override
   String get welcomeCurrencyDescription =>

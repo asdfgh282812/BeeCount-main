@@ -2698,6 +2698,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get authLogin => '로그인';
 
   @override
+  String get authSsoLogin => 'SSO로 로그인';
+
+  @override
   String get authEmail => '이메일';
 
   @override
@@ -4010,6 +4013,31 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get welcomeDescription => '사용자의 개인정보를 진심으로 존중하는 가계부 앱';
+
+  @override
+  String get welcomeServerAddressTitle => '서버 주소';
+
+  @override
+  String get welcomeServerAddressDescription => 'BeeCount Cloud 서버 주소를 입력하세요';
+
+  @override
+  String get welcomeServerAddressHint => '예: example.com';
+
+  @override
+  String get welcomeServerAddressButton => '연결';
+
+  @override
+  String get welcomeServerAddressInvalid => '유효한 서버 주소를 입력하세요';
+
+  @override
+  String get welcomeServerAddressUnreachable =>
+      '서버에 연결할 수 없거나 SSO가 활성화되어 있지 않습니다';
+
+  @override
+  String get welcomeLoginTitle => '로그인';
+
+  @override
+  String get welcomeLoginDescription => 'SSO 계정으로 로그인하세요';
 
   @override
   String get welcomeCurrencyDescription =>

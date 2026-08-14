@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as s;
+import 'package:url_launcher/url_launcher.dart';
 import '../../providers.dart';
 import 'package:flutter_cloud_sync/flutter_cloud_sync.dart' hide SyncStatus;
 import '../../widgets/ui/ui.dart';
@@ -11,7 +12,12 @@ import '../../utils/website_urls.dart';
 import '../settings/help_center_page.dart';
 
 class AuthPage extends ConsumerStatefulWidget {
-  const AuthPage({super.key});
+  const AuthPage({super.key, this.onLoggedIn});
+
+  /// 登录成功后的回调。不给就维持旧行为(pop 当前页 + 切到"我的"分页)——
+  /// 设置页手动触发的登录走这条路径。欢迎页把登入页内嵌进引导流程时会
+  /// 传这个,让登录完成后推进 PageView 而不是 pop 一个不存在的路由。
+  final VoidCallback? onLoggedIn;
 
   @override
   ConsumerState<AuthPage> createState() => _AuthPageState();
@@ -24,6 +30,10 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   bool busy = false;
   bool _showPwd = false;
   bool _rememberAccount = false;
+
+  // —— SSO 登录（BeeCount Cloud 生产环境唯一登录方式）——
+  bool _ssoBusy = false;
+  String? _ssoErrorText;
 
   @override
   void initState() {
@@ -201,10 +211,167 @@ class _AuthPageState extends ConsumerState<AuthPage> {
     );
   }
 
-  // 恢复流程改为登录后回到“我的”页由其触发，不再在登录页内执行
+  // 恢复流程改为登录后回到”我的”页由其触发，不再在登录页内执行
+
+  /// 打开系统浏览器走 SSO 登录。收到 `beecount://auth-callback` 深链后的
+  /// 后续处理在 [build] 里用 `ref.listen(pendingSsoCallbackUriProvider, ...)`
+  /// 完成 —— 这里只负责发起。
+  Future<void> _startSsoLogin() async {
+    setState(() {
+      _ssoBusy = true;
+      _ssoErrorText = null;
+    });
+    try {
+      final provider = await ref.read(beecountCloudProviderInstance.future);
+      if (provider == null) {
+        throw Exception('BeeCount Cloud provider not configured');
+      }
+      final auth = provider.auth;
+      if (auth is! BeeCountCloudAuthService) {
+        throw Exception('Unexpected auth service type');
+      }
+      final url = await auth.buildSsoLoginUrl();
+      logger.info('auth', '打开 SSO 登录: $url');
+      final launched = await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) {
+        throw Exception('无法打开浏览器');
+      }
+      // 剩下的交给 ref.listen(pendingSsoCallbackUriProvider) —— 用户在
+      // 系统浏览器完成登录后深链回来才会继续，这里先保持 busy 状态。
+    } catch (e, st) {
+      logger.error('auth', 'SSO 登录发起失败', e, st);
+      if (mounted) {
+        setState(() {
+          _ssoBusy = false;
+          _ssoErrorText = '${AppLocalizations.of(context).authErrorLoginFailed}\n\n$e';
+        });
+      }
+    }
+  }
+
+  /// `beecount://auth-callback` 深链落地后的处理：换 session、刷新相关
+  /// provider、触发跟密码登录一致的收尾动作。
+  Future<void> _completeSsoLogin(Uri callbackUri) async {
+    try {
+      final provider = await ref.read(beecountCloudProviderInstance.future);
+      final auth = provider?.auth;
+      if (auth is! BeeCountCloudAuthService) {
+        throw Exception('Unexpected auth service type');
+      }
+      await auth.completeSsoLogin(callbackUri);
+      if (!mounted) return;
+      logger.info('auth', 'SSO 登录成功');
+
+      ref.invalidate(authServiceProvider);
+      ref.invalidate(syncServiceProvider);
+      ref.read(syncStatusRefreshProvider.notifier).state++;
+
+      setState(() {
+        _ssoBusy = false;
+        _ssoErrorText = null;
+      });
+
+      final onLoggedIn = widget.onLoggedIn;
+      if (onLoggedIn != null) {
+        onLoggedIn();
+        return;
+      }
+      ref.read(bottomTabIndexProvider.notifier).state = 3; // Mine tab index
+      final can = Navigator.of(context).canPop();
+      logger.info('nav', 'sso login: success -> switch tab to Mine, canPop=$can; pop login');
+      if (can) {
+        Navigator.of(context).pop();
+      }
+    } catch (e, st) {
+      logger.error('auth', 'SSO 登录完成失败', e, st);
+      if (mounted) {
+        setState(() {
+          _ssoBusy = false;
+          _ssoErrorText = '${AppLocalizations.of(context).authErrorLoginFailed}\n\n$e';
+        });
+      }
+    }
+  }
+
+  Widget _buildSsoLoginBody(BuildContext context, ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 420),
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: BeeTokens.surface(context),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: BeeTokens.isDark(context)
+                ? null
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    )
+                  ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.lock_outline, size: 48, color: theme.colorScheme.primary),
+              const SizedBox(height: 16),
+              Text(
+                AppLocalizations.of(context).authLogin,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: BeeTokens.textPrimary(context),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              if (_ssoErrorText != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Text(
+                    _ssoErrorText!,
+                    style: TextStyle(color: BeeTokens.error(context)),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _ssoBusy ? null : _startSsoLogin,
+                  style: FilledButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: _ssoBusy
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : Text(AppLocalizations.of(context).authSsoLogin),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<Uri?>(pendingSsoCallbackUriProvider, (previous, next) {
+      if (next == null) return;
+      ref.read(pendingSsoCallbackUriProvider.notifier).state = null;
+      if (_ssoBusy) {
+        _completeSsoLogin(next);
+      }
+    });
+
     final theme = Theme.of(context);
     final primary = ref.watch(primaryColorProvider);
     final radius = BorderRadius.circular(12);
@@ -272,6 +439,26 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                 ),
               ),
             ),
+          ],
+        ),
+      );
+    }
+
+    if (cloudConfig.hasValue && cloudConfig.value!.type == CloudBackendType.beecountCloud) {
+      // BeeCount Cloud 生产环境只能走 SSO(密码登录 server 端直接 403)，
+      // 这里不再画 email/password 表单，只留一颗「使用 SSO 登录」按钮。
+      final ssoBody = _buildSsoLoginBody(context, theme);
+      if (widget.onLoggedIn != null) {
+        // 内嵌在欢迎页 PageView 里，外层已经有自己的 Scaffold/页面指示器，
+        // 不需要再套一层（也没有 Navigator 路由可以给返回按钮 pop）。
+        return ssoBody;
+      }
+      return Scaffold(
+        backgroundColor: BeeTokens.scaffoldBackground(context),
+        body: Column(
+          children: [
+            PrimaryHeader(title: AppLocalizations.of(context).authLogin, showBack: true),
+            Expanded(child: ssoBody),
           ],
         ),
       );

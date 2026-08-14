@@ -41,6 +41,11 @@ enum AppLinkAction {
   /// `beecount://open?page=assets|budget|detail`
   open,
 
+  /// SSO 登录回调：`beecount://auth-callback#access_token=...`（或失败时
+  /// `?sso_error=...`）。由 main.dart 在 isAppReady 判断之前提前拦截，
+  /// 不会真的走到 handleUrl 的这个 case（见 AppLinkService 顶部文档）。
+  ssoCallback,
+
   /// 未知
   unknown,
 }
@@ -282,6 +287,8 @@ class AppLinkService {
         return AppLinkAction.newTransaction;
       case 'open':
         return AppLinkAction.open;
+      case 'auth-callback':
+        return AppLinkAction.ssoCallback;
       case 'auto-billing':
         return AppLinkAction.autoBilling;
       case 'quick-billing':
@@ -346,6 +353,13 @@ class AppLinkService {
         }
         onNavigate?.call(AppLinkAction.open, params: AddTransactionParams(amount: 0, page: page));
         return AppLinkResult.success(message: '打开页面: $page');
+
+      case AppLinkAction.ssoCallback:
+        // 正常流程下 main.dart 的 dispatch() 会在 isAppReady 判断之前就
+        // 拦截掉这个 host，不会走到这里。留这个 case 只是兜底（比如未来
+        // 有别的入口直接调 handleUrl），避免 switch 漏 case。
+        logger.warning('AppLink', 'ssoCallback 未被 main.dart 提前拦截，忽略');
+        return AppLinkResult.failure('SSO 回调未被处理');
 
       case AppLinkAction.autoBilling:
         // 兼容旧版

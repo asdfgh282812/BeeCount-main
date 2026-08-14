@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_cloud_sync/flutter_cloud_sync.dart' hide SyncStatus;
 import '../../widgets/biz/bee_icon.dart';
+import 'dart:convert';
 import 'dart:io';
 import '../../l10n/app_localizations.dart';
 import '../../utils/file_picker_helper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../providers/ui_state_providers.dart';
-import '../../providers/language_provider.dart';
-import '../../providers/database_providers.dart';
-import '../../providers/theme_providers.dart';
+import '../../providers.dart';
 import '../../providers/font_scale_provider.dart';
-import '../../providers/currency_providers.dart';
 import '../../services/system/logger_service.dart';
 import '../../services/export/config_export_service.dart';
 import '../../services/attachment_export_import_service.dart';
 import '../../utils/currencies.dart';
 import '../../widgets/ui/ui.dart';
+import '../../cloud/sync/sync_engine.dart';
+import 'login_page.dart';
 
 /// 首次启动欢迎页面
 /// 展示应用的独特价值：隐私保护、开源透明、数据自主
@@ -30,8 +30,7 @@ class WelcomePage extends ConsumerStatefulWidget {
 class _WelcomePageState extends ConsumerState<WelcomePage> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
-  String _selectedCurrency = 'CNY'; // 默认货币
-  bool _createDefaultLedger = true; // 是否创建默认账本(币种页复选框)
+  String _selectedCurrency = 'TWD'; // 默认货币：新台币
   // 分类模式: 'flat' = 一级分类, 'hierarchical' = 二级分类, 'none' = 不创建分类
   String _categoryMode = 'flat'; // 默认使用一级分类
   bool _isInitializing = false; // 初始化状态
@@ -39,11 +38,32 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
   bool _isExistingUserFlow = false; // 老用户流程
   bool _isImportingAttachment = false; // 附件导入状态
 
+  // —— SSO 登录流程新增状态 ——
+  final TextEditingController _serverAddressCtrl = TextEditingController();
+  bool _serverAddressBusy = false; // 校验/连接 server 中
+  String? _serverAddressError;
+  bool _postLoginChecking = false; // 登录成功后拉取账本列表中
+  // 登录后发现 server 没有帐本 → true，插入货币选择页
+  bool _needsCurrencyStep = false;
+  // 建完帐本后发现分类还是空的（server 没有照新规则自动建）→ true，插入分类模式页
+  bool _needsCategoryStep = false;
+
   @override
   void dispose() {
     _pageController.dispose();
+    _serverAddressCtrl.dispose();
     super.dispose();
   }
+
+  /// 新用户流程当前动态页序列的 key，跟 build() 里组 newUserPages 用同一份
+  /// 状态字段(_needsCurrencyStep/_needsCategoryStep)，保证两边永远一致。
+  List<String> _newUserPageKeys() => [
+        'lang',
+        'server',
+        'login',
+        if (_needsCurrencyStep) 'currency',
+        if (_needsCategoryStep) 'category',
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -55,17 +75,27 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
       _buildAttachmentImportPage(context, theme, l10n),
     ];
 
-    // 新用户流程：5页
+    // 新用户流程：语言 → 伺服器位址 → SSO 登录 → (视情况)货币 → (视情况)分类。
+    // 后两页是否出现取决于登录后从 server 拉回来的帐本/分类是否已经存在，
+    // 见 _onSsoLoggedIn / _onCurrencyStepConfirmed。
     final newUserPages = [
-      _buildWelcomePage(context, theme, l10n), // 第1屏：语言选择
-      _buildCurrencyPage(context, theme, l10n), // 第2屏：货币选择
-      _buildCategoryModePage(context, theme, l10n), // 第3屏：分类模式
-      _buildCloudSyncPage(context, theme, l10n), // 第4屏：云同步
-      _buildPrivacyAndOpenSourcePage(context, theme, l10n), // 第5屏：隐私保护+开源透明
+      _buildWelcomePage(context, theme, l10n),
+      _buildServerAddressPage(context, theme, l10n),
+      _buildLoginPage(context, theme, l10n),
+      if (_needsCurrencyStep) _buildCurrencyPage(context, theme, l10n),
+      if (_needsCategoryStep) _buildCategoryModePage(context, theme, l10n),
     ];
+    final pageKeys = _isExistingUserFlow ? const ['import'] : _newUserPageKeys();
 
     final pages = _isExistingUserFlow ? existingUserPages : newUserPages;
     final pageCount = pages.length;
+    final safePageIndex =
+        _currentPage < 0 ? 0 : (_currentPage >= pageKeys.length ? pageKeys.length - 1 : _currentPage);
+    final currentKey = pageKeys[safePageIndex];
+    // 伺服器位址页/登录页有自己的送出按钮（要么要校验网络，要么要开浏览器
+    // 等回调），不走通用的「下一页」逻辑，所以底部只留一个「上一页」。
+    final showGenericNextButton =
+        currentKey == 'lang' || currentKey == 'currency' || currentKey == 'category';
 
     return Scaffold(
       backgroundColor: theme.primaryColor,
@@ -128,35 +158,34 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
                         child: Text(l10n.commonPrevious),
                       ),
                     const Spacer(),
-                    if (_currentPage < 4)
-                      FilledButton(
-                        onPressed: () {
-                          _pageController.nextPage(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                          );
-                        },
-                        style: FilledButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: theme.primaryColor,
-                        ),
-                        child: Text(l10n.commonNext),
-                      )
-                    else
-                      FilledButton(
-                        onPressed: _isInitializing ? null : () => _finishWelcome(context),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: theme.primaryColor,
-                        ),
-                        child: _isInitializing
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : Text(l10n.commonFinish),
-                      ),
+                    if (showGenericNextButton)
+                      (_currentPage < pageCount - 1
+                          ? FilledButton(
+                              onPressed: _isInitializing
+                                  ? null
+                                  : () => _handlePrimaryButtonPressed(currentKey),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: theme.primaryColor,
+                              ),
+                              child: Text(l10n.commonNext),
+                            )
+                          : FilledButton(
+                              onPressed: _isInitializing
+                                  ? null
+                                  : () => _handlePrimaryButtonPressed(currentKey),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: theme.primaryColor,
+                              ),
+                              child: _isInitializing
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : Text(l10n.commonFinish),
+                            )),
                 ],
               ),
             ),
@@ -164,6 +193,362 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
         ),
       ),
     );
+  }
+
+  /// 底部通用「下一页/完成」按钮的统一处理入口。语言页只是单纯翻页；
+  /// 货币页/分类页要先做异步工作（建帐本、同步、seed 分类）才能决定翻到
+  /// 哪一页或直接结束引导。伺服器位址页/登录页不会走到这里（各自隐藏了
+  /// 这颗按钮，用自己的送出按钮驱动）。
+  Future<void> _handlePrimaryButtonPressed(String currentKey) async {
+    switch (currentKey) {
+      case 'lang':
+        _pageController.nextPage(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+        break;
+      case 'currency':
+        await _onCurrencyStepConfirmed();
+        break;
+      case 'category':
+        await _onCategoryStepConfirmed();
+        break;
+    }
+  }
+
+  /// 新增页：伺服器位址（SSO 登录前必须先知道要连去哪个 BeeCount Cloud）。
+  Widget _buildServerAddressPage(
+      BuildContext context, ThemeData theme, AppLocalizations l10n) {
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.dns_outlined, size: 64, color: Colors.white),
+          ),
+          const SizedBox(height: 32),
+          Text(
+            l10n.welcomeServerAddressTitle,
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            l10n.welcomeServerAddressDescription,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: Colors.white.withValues(alpha: 0.9),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: TextField(
+              controller: _serverAddressCtrl,
+              keyboardType: TextInputType.url,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: l10n.welcomeServerAddressHint,
+                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+              onSubmitted: (_) => _confirmServerAddress(),
+            ),
+          ),
+          if (_serverAddressError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(
+                _serverAddressError!,
+                style: const TextStyle(color: Colors.white),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _serverAddressBusy ? null : _confirmServerAddress,
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: theme.primaryColor,
+              ),
+              child: _serverAddressBusy
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(l10n.welcomeServerAddressButton),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 归一化用户输入的服务器地址：没带 scheme 就补 https://，去掉结尾斜线。
+  String _normalizeServerUrl(String raw) {
+    var url = raw.trim();
+    if (url.endsWith('/')) {
+      url = url.substring(0, url.length - 1);
+    }
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://$url';
+    }
+    return url;
+  }
+
+  Future<void> _confirmServerAddress() async {
+    final l10n = AppLocalizations.of(context);
+    final url = _normalizeServerUrl(_serverAddressCtrl.text);
+    if (url.isEmpty || Uri.tryParse(url)?.host.isEmpty != false) {
+      setState(() => _serverAddressError = l10n.welcomeServerAddressInvalid);
+      return;
+    }
+
+    setState(() {
+      _serverAddressBusy = true;
+      _serverAddressError = null;
+    });
+
+    const apiPrefix = '/api/v1';
+    try {
+      // 探测可达性 + 确认 server 端真的开了 SSO（server 现成的
+      // GET /auth/sso/status 端点，见 BeeCount-Cloud src/routers/auth.py）。
+      final statusUri = Uri.parse('$url$apiPrefix/auth/sso/status');
+      final resp = await http.get(statusUri).timeout(const Duration(seconds: 10));
+      if (resp.statusCode != 200) {
+        throw Exception('HTTP ${resp.statusCode}');
+      }
+      final body = jsonDecode(resp.body) as Map<String, dynamic>;
+      if (body['sso_enabled'] != true) {
+        throw Exception('sso_enabled=false');
+      }
+
+      final cfg = CloudServiceConfig(
+        type: CloudBackendType.beecountCloud,
+        name: 'BeeCount Cloud',
+        beecountCloudBaseUrl: url,
+        beecountCloudApiPrefix: apiPrefix,
+      );
+      if (!cfg.valid) {
+        throw Exception('invalid config');
+      }
+
+      final store = ref.read(cloudServiceStoreProvider);
+      await store.saveOnly(cfg);
+      await store.activate(CloudBackendType.beecountCloud);
+      ref.invalidate(beecountCloudConfigProvider);
+      ref.invalidate(activeCloudConfigProvider);
+      ref.invalidate(beecountCloudProviderInstance);
+      ref.invalidate(authServiceProvider);
+      ref.invalidate(syncServiceProvider);
+
+      if (!mounted) return;
+      setState(() => _serverAddressBusy = false);
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    } catch (e) {
+      logger.warning('welcome', '伺服器位址校验失败: $url ($e)');
+      if (mounted) {
+        setState(() {
+          _serverAddressBusy = false;
+          _serverAddressError = l10n.welcomeServerAddressUnreachable;
+        });
+      }
+    }
+  }
+
+  /// 新增页：SSO 登录。内嵌 AuthPage —— 跟设置页里手动触发登录走的是同一颗
+  /// 组件，只是这里传了 onLoggedIn 回调，登录成功后推进引导流程而不是 pop。
+  Widget _buildLoginPage(
+      BuildContext context, ThemeData theme, AppLocalizations l10n) {
+    if (_postLoginChecking) {
+      return const Center(
+        child: CircularProgressIndicator(color: Colors.white),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(32, 32, 32, 0),
+      child: Column(
+        children: [
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.login, size: 64, color: Colors.white),
+          ),
+          const SizedBox(height: 32),
+          Text(
+            l10n.welcomeLoginTitle,
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            l10n.welcomeLoginDescription,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: Colors.white.withValues(alpha: 0.9),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Expanded(child: AuthPage(onLoggedIn: _onSsoLoggedIn)),
+        ],
+      ),
+    );
+  }
+
+  /// SSO 登录成功后的收尾：拉一次 server 端的帐本列表，帐本已存在（web 端
+  /// 已经用过）就直接结束引导；没有帐本才继续走货币选择页。
+  Future<void> _onSsoLoggedIn() async {
+    if (!mounted) return;
+    setState(() => _postLoginChecking = true);
+    try {
+      final syncService = ref.read(syncServiceProvider);
+      if (syncService is SyncEngine) {
+        await syncService.syncLedgersFromServer();
+      }
+      final repo = ref.read(repositoryProvider);
+      final ledgers = await repo.getAllLedgers();
+
+      if (ledgers.isNotEmpty) {
+        await _finishOnboarding(applyCurrencyPrefs: false);
+        return;
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _needsCurrencyStep = true;
+        _postLoginChecking = false;
+      });
+      // 等 PageView 用新的 _needsCurrencyStep 重建出货币页之后再翻页，
+      // 否则 nextPage() 可能指向一个还不存在的 index。
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _pageController.nextPage(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        }
+      });
+    } catch (e, st) {
+      logger.error('welcome', 'SSO 登录后检查帐本失败', e, st);
+      if (mounted) {
+        setState(() => _postLoginChecking = false);
+        showToast(context, '$e');
+      }
+    }
+  }
+
+  /// 货币页确认：建默认帐本、推上去同步（server 端会照新规则自动建分类），
+  /// 再拉回来看看分类是不是已经有了。
+  Future<void> _onCurrencyStepConfirmed() async {
+    setState(() => _isInitializing = true);
+    try {
+      final l10n = AppLocalizations.of(context);
+      final repo = ref.read(repositoryProvider);
+      final ledgerId = await repo.createLedger(
+        name: l10n.ledgerDefaultName,
+        currency: _selectedCurrency,
+      );
+      ref.read(currentLedgerIdProvider.notifier).state = ledgerId;
+
+      final syncService = ref.read(syncServiceProvider);
+      if (syncService is SyncEngine) {
+        await syncService.sync(ledgerId: ledgerId.toString());
+      }
+
+      final expense = await repo.getTopLevelCategories('expense');
+      final income = await repo.getTopLevelCategories('income');
+      if (!mounted) return;
+
+      if (expense.isEmpty && income.isEmpty) {
+        setState(() {
+          _needsCategoryStep = true;
+          _isInitializing = false;
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _pageController.nextPage(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+            );
+          }
+        });
+      } else {
+        // server 已经照新规则自动建好分类、同步也拉下来了，不用再问一次。
+        await _finishOnboarding(applyCurrencyPrefs: true);
+      }
+    } catch (e, st) {
+      logger.error('welcome', '建立预设帐本失败', e, st);
+      if (mounted) {
+        setState(() => _isInitializing = false);
+        showToast(context, '$e');
+      }
+    }
+  }
+
+  /// 分类页确认：server 没有自动建分类时的兜底，走本机 seed 逻辑。
+  Future<void> _onCategoryStepConfirmed() async {
+    setState(() => _isInitializing = true);
+    try {
+      final l10n = AppLocalizations.of(context);
+      final db = ref.read(databaseProvider);
+      await db.ensureSeed(
+        l10n: l10n,
+        currency: _selectedCurrency,
+        useHierarchicalCategories: _categoryMode == 'hierarchical',
+        skipCategories: _categoryMode == 'none',
+        createDefaultLedger: false,
+      );
+      await _finishOnboarding(applyCurrencyPrefs: true);
+    } catch (e, st) {
+      logger.error('welcome', '创建分类失败', e, st);
+      if (mounted) {
+        setState(() => _isInitializing = false);
+        showToast(context, '$e');
+      }
+    }
+  }
+
+  /// 结束引导，回到主流程。[applyCurrencyPrefs] 只在真的走过货币选择页时
+  /// 为 true —— 帐本已经在 server 上存在时不该用页面初始值 'TWD' 覆盖用户
+  /// 原本的币种设置（那种情况下币种由登录后的 profile/ledger 同步带回来）。
+  Future<void> _finishOnboarding({required bool applyCurrencyPrefs}) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('welcome_shown', true);
+    if (applyCurrencyPrefs) {
+      await prefs.setString('selected_currency', _selectedCurrency);
+      await prefs.setString('baseCurrency', _selectedCurrency);
+      ref.read(baseCurrencyProvider.notifier).state = _selectedCurrency.toUpperCase();
+    }
+    if (!mounted) return;
+    setState(() => _isInitializing = false);
+    ref.read(shouldShowWelcomeProvider.notifier).state = false;
   }
 
   /// 第1页：欢迎
@@ -454,333 +839,15 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
             ),
           ),
 
-          const SizedBox(height: 16),
-
-          // 创建默认账本复选框
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () {
-                setState(() {
-                  _createDefaultLedger = !_createDefaultLedger;
-                });
-              },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 12),
-                child: Row(
-                  children: [
-                    Icon(
-                      _createDefaultLedger
-                          ? Icons.check_box
-                          : Icons.check_box_outline_blank,
-                      color: Colors.white,
-                      size: 22,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        l10n.welcomeCreateDefaultLedger,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
   }
 
-  /// 第5页：开源透明与社群驱动
-  Widget _buildPrivacyAndOpenSourcePage(
-      BuildContext context, ThemeData theme, AppLocalizations l10n) {
-    return Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // 开源与社群图标
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.favorite_outline,
-              size: 64,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 32),
-
-          // 标题
-          Text(
-            l10n.welcomePrivacyTitle,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-
-          // 特性列表
-          Center(
-            child: IntrinsicWidth(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 开源代码
-                  _buildFeatureItem(
-                    context,
-                    Icons.code_outlined,
-                    Colors.white,
-                    l10n.welcomePrivacyFeature1,
-                  ),
-                  const SizedBox(height: 12),
-                  // 隐私保护
-                  _buildFeatureItem(
-                    context,
-                    Icons.shield_outlined,
-                    Colors.white,
-                    l10n.welcomePrivacyFeature2,
-                  ),
-                  const SizedBox(height: 12),
-                  // 社群驱动
-                  _buildFeatureItem(
-                    context,
-                    Icons.groups_outlined,
-                    Colors.white,
-                    l10n.welcomeOpenSourceFeature1,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // GitHub链接按钮
-          OutlinedButton.icon(
-            onPressed: () => _launchGitHub(context),
-            icon: const Icon(Icons.open_in_new, size: 18, color: Colors.white),
-            label: Text(l10n.welcomeViewGitHub,
-                style: const TextStyle(color: Colors.white)),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Colors.white),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 12,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 第4页：云同步说明
-  Widget _buildCloudSyncPage(
-      BuildContext context, ThemeData theme, AppLocalizations l10n) {
-    return Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // 云同步图标
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.cloud_outlined,
-              size: 64,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 32),
-
-          // 标题
-          Text(
-            l10n.welcomeCloudSyncTitle,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-
-          // 描述
-          Text(
-            l10n.welcomeCloudSyncDescription,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: Colors.white.withValues(alpha: 0.9),
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-
-          // 特性列表
-          Center(
-            child: IntrinsicWidth(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildFeatureItem(
-                    context,
-                    Icons.offline_bolt_outlined,
-                    Colors.white,
-                    l10n.welcomeCloudSyncFeature1,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildFeatureItem(
-                    context,
-                    Icons.dns_outlined,
-                    Colors.white,
-                    l10n.welcomeCloudSyncFeature2,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildFeatureItem(
-                    context,
-                    Icons.cloud_upload_outlined,
-                    Colors.white,
-                    l10n.welcomeCloudSyncFeature3,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 构建特性条目
-  Widget _buildFeatureItem(
-    BuildContext context,
-    IconData icon,
-    Color color,
-    String text,
-  ) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: color, size: 24),
-        const SizedBox(width: 12),
-        Flexible(
-          child: Text(
-            text,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: color,
-                ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// 打开GitHub链接
-  Future<void> _launchGitHub(BuildContext context) async {
-    final url = Uri.parse('https://github.com/TNT-Likely/BeeCount');
-    try {
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
-      } else {
-        if (context.mounted) {
-          showToast(context, AppLocalizations.of(context).privacyOpenSourceUrlError);
-        }
-      }
-    } catch (e) {
-      if (context.mounted) {
-        showToast(context, AppLocalizations.of(context).privacyOpenSourceUrlError);
-      }
-    }
-  }
-
-  /// 完成欢迎页面
-  Future<void> _finishWelcome(BuildContext context) async {
-    // 设置初始化状态
-    setState(() {
-      _isInitializing = true;
-    });
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('welcome_shown', true);
-      // 保存用户选择的分类模式
-      await prefs.setString('category_mode', _categoryMode);
-      // 保存用户选择的货币
-      await prefs.setString('selected_currency', _selectedCurrency);
-      // 多币种 MVP:主币种随初始化选币一并落定,新装用户开箱即正确
-      await prefs.setString('baseCurrency', _selectedCurrency);
-      // 同步 provider:splash init 已先行兜底 CNY,这里用用户所选币种即时纠正(首会话即正确)
-      ref.read(baseCurrencyProvider.notifier).state = _selectedCurrency.toUpperCase();
-
-      // 初始化数据库（使用用户选择的语言和设置）
-      if (context.mounted) {
-        logger.info('welcome', '开始初始化数据库');
-        logger.info('welcome', '货币: $_selectedCurrency');
-        final categoryModeText = _categoryMode == 'hierarchical'
-            ? '二级分类'
-            : _categoryMode == 'flat'
-                ? '一级分类'
-                : '不创建分类';
-        logger.info('welcome', '分类模式: $categoryModeText');
-
-        final l10n = AppLocalizations.of(context);
-        final db = ref.read(databaseProvider);
-
-        // 根据用户选择创建分类
-        // 注意: 使用 databaseProvider 直接访问数据库，因为 ensureSeed 是数据库初始化方法
-        if (_categoryMode != 'none') {
-          await db.ensureSeed(
-            l10n: l10n,
-            currency: _selectedCurrency,
-            useHierarchicalCategories: _categoryMode == 'hierarchical',
-            createDefaultLedger: _createDefaultLedger,
-          );
-        } else {
-          // 只创建默认账本，不创建分类
-          await db.ensureSeed(
-            l10n: l10n,
-            currency: _selectedCurrency,
-            skipCategories: true,
-            createDefaultLedger: _createDefaultLedger,
-          );
-        }
-
-        logger.info('welcome', '数据库初始化完成');
-      }
-
-      if (context.mounted) {
-        // 首次启动的情况，标记欢迎页面已完成，触发重新构建
-        // 这将显示启屏页面（如果初始化未完成）或主应用（如果已完成）
-        ref.read(shouldShowWelcomeProvider.notifier).state = false;
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isInitializing = false;
-        });
-      }
-    }
-  }
+  // 原「云同步说明」「隐私保护/开源透明」两页介绍页已拿掉（登入现在是必经
+  // 步骤，这两页承诺的内容不再需要单独说明）；_finishWelcome 的本机建帐本/
+  // 建分类逻辑已拆分到 _onCurrencyStepConfirmed / _onCategoryStepConfirmed /
+  // _finishOnboarding。
 
   /// 导入配置文件（老用户）
   Future<void> _importConfig(BuildContext context) async {

@@ -422,6 +422,13 @@ void _setupUrlListener(ProviderContainer container) {
     // 监听URL(冷启动初始链接 + 应用在后台时的后续链接都走这里)
     appLinks.uriLinkStream.listen((uri) {
       logger.info('AppLink', '收到URL: $uri');
+      // SSO 登录回调不进 isAppReady 的等待队列：它常常发生在欢迎页登录
+      // 步骤（冷启动、DB/账本还没 ready），等 ready 反而会把登录卡住。
+      // 这里直接写 provider，由正在监听的登录页自己消费。
+      if (AppLinkService.parseAction(uri) == AppLinkAction.ssoCallback) {
+        container.read(pendingSsoCallbackUriProvider.notifier).state = uri;
+        return;
+      }
       if (isAppReady()) {
         dispatch(uri);
       } else {

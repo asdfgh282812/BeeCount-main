@@ -2685,6 +2685,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get authLogin => '登录';
 
   @override
+  String get authSsoLogin => '使用 SSO 登录';
+
+  @override
   String get authEmail => '邮箱';
 
   @override
@@ -3985,6 +3988,30 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get welcomeDescription => '一个真正尊重您隐私的记账应用';
+
+  @override
+  String get welcomeServerAddressTitle => '服务器地址';
+
+  @override
+  String get welcomeServerAddressDescription => '请输入 BeeCount Cloud 服务器地址';
+
+  @override
+  String get welcomeServerAddressHint => '例如 example.com';
+
+  @override
+  String get welcomeServerAddressButton => '连接';
+
+  @override
+  String get welcomeServerAddressInvalid => '请输入有效的服务器地址';
+
+  @override
+  String get welcomeServerAddressUnreachable => '无法连接该服务器，或服务器未启用 SSO';
+
+  @override
+  String get welcomeLoginTitle => '登录';
+
+  @override
+  String get welcomeLoginDescription => '使用您的 SSO 账号登录';
 
   @override
   String get welcomeCurrencyDescription => '选择您常用的货币，之后可以随时在设置中更改';
@@ -10271,6 +10298,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get authLogin => '登入';
 
   @override
+  String get authSsoLogin => '使用 SSO 登入';
+
+  @override
   String get authEmail => '電子郵件';
 
   @override
@@ -11571,6 +11601,30 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get welcomeDescription => '一個真正尊重您隱私的記帳應用';
+
+  @override
+  String get welcomeServerAddressTitle => '伺服器位址';
+
+  @override
+  String get welcomeServerAddressDescription => '請輸入 BeeCount Cloud 伺服器位址';
+
+  @override
+  String get welcomeServerAddressHint => '例如 example.com';
+
+  @override
+  String get welcomeServerAddressButton => '連接';
+
+  @override
+  String get welcomeServerAddressInvalid => '請輸入有效的伺服器位址';
+
+  @override
+  String get welcomeServerAddressUnreachable => '無法連接該伺服器，或伺服器未啟用 SSO';
+
+  @override
+  String get welcomeLoginTitle => '登入';
+
+  @override
+  String get welcomeLoginDescription => '使用您的 SSO 帳號登入';
 
   @override
   String get welcomeCurrencyDescription => '選擇您常用的貨幣，之後可以隨時在設定中更改';

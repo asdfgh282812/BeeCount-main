@@ -1560,6 +1560,69 @@ class BeeCountCloudAuthService implements CloudAuthService {
     return _toCloudUser(session);
   }
 
+  /// 组「打开系统浏览器去登录」用的 SSO 入口 URL(`GET {base}{apiPrefix}
+  /// /auth/sso/login`)。`mobile=1` 让 server 在 `/auth/sso/callback` 换完
+  /// token 后导回 app 的 `beecount://auth-callback` deep link,而不是
+  /// server 自己 serve 的 web 前端页面(见 server 端 `_encode_sso_state`)。
+  /// device 参数跟密码登录 [_buildAuthBody] 用同一份 [_resolveDeviceMetadata],
+  /// 保证「已登录设备」列表里的 device_id 一致。
+  Future<String> buildSsoLoginUrl() async {
+    final metadata = await _resolveDeviceMetadata();
+    final query = <String, String>{
+      'mobile': '1',
+      'device_id': metadata.deviceId,
+      'device_name': metadata.deviceName,
+      'platform': metadata.platform,
+      if (metadata.appVersion != null) 'app_version': metadata.appVersion!,
+      if (metadata.osVersion != null) 'os_version': metadata.osVersion!,
+      if (metadata.deviceModel != null) 'device_model': metadata.deviceModel!,
+    };
+    final base = Uri.parse('$baseUrl$apiPrefix/auth/sso/login');
+    return base.replace(queryParameters: query).toString();
+  }
+
+  /// 处理 `beecount://auth-callback` deep link。成功时 fragment 里带
+  /// access_token/refresh_token/device_id/user_id/user_email/expires_in
+  /// (server 端 `sso_callback` 组的,见 auth.py);失败时 server 改用 query
+  /// 参数带 `sso_error`。落地逻辑复用 [_BeeCountCloudSession.fromAuthResponse]
+  /// + [_saveSession],跟密码登录走同一套 session 持久化 / authStateChanges。
+  Future<CloudUser> completeSsoLogin(Uri callbackUri) async {
+    final ssoError = callbackUri.queryParameters['sso_error'];
+    if (ssoError != null && ssoError.isNotEmpty) {
+      throw CloudAuthException('SSO login failed: $ssoError');
+    }
+
+    final fragment = callbackUri.fragment;
+    if (fragment.isEmpty) {
+      throw CloudAuthException('SSO callback missing token data.');
+    }
+    final params = Uri.splitQueryString(fragment);
+    final accessToken = params['access_token'];
+    final refreshToken = params['refresh_token'];
+    final deviceId = params['device_id'];
+    final userId = params['user_id'];
+    final userEmail = params['user_email'];
+    final expiresIn = int.tryParse(params['expires_in'] ?? '');
+    if (accessToken == null ||
+        refreshToken == null ||
+        deviceId == null ||
+        userId == null ||
+        expiresIn == null) {
+      throw CloudAuthException('SSO callback payload incomplete.');
+    }
+
+    final payload = <String, dynamic>{
+      'user': {'id': userId, 'email': userEmail},
+      'access_token': accessToken,
+      'refresh_token': refreshToken,
+      'expires_in': expiresIn,
+      'device_id': deviceId,
+    };
+    final session = _BeeCountCloudSession.fromAuthResponse(payload);
+    await _saveSession(session);
+    return _toCloudUser(session);
+  }
+
   @override
   Future<void> signOut() async {
     final session = _session;

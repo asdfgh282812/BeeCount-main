@@ -37,6 +37,12 @@ final pendingNewTransactionCategoryIdProvider = StateProvider<int?>((ref) => nul
 // 配合 AppLinkAction.open 使用
 final pendingOpenPageProvider = StateProvider<String?>((ref) => null);
 
+// beecount://auth-callback 深链的待处理 URI（SSO 登录回调）。这个不走
+// AppLinkService.handleUrl 的一般派发流程 —— 冷启动/欢迎页登录阶段
+// appInitState 还没到 ready，等 ready 会卡住登录，所以在 main.dart 里
+// 提前拦截、直接写进这个 provider，由正在监听的登录页自己消费掉。
+final pendingSsoCallbackUriProvider = StateProvider<Uri?>((ref) => null);
+
 // 首页滚动到顶部触发器（每次改变值时触发滚动）
 final homeScrollToTopProvider = StateProvider<int>((ref) => 0);
 
