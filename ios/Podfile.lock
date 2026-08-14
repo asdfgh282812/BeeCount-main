@@ -1,0 +1,87 @@
+PODS:
+  - Flutter (1.0.0)
+  - flutter_cloud_sync_icloud (0.1.0):
+    - Flutter
+  - flutter_image_compress_common (1.0.0):
+    - Flutter
+    - Mantle
+    - SDWebImage
+    - SDWebImageWebPCoder
+  - flutter_local_notifications (0.0.1):
+    - Flutter
+  - libwebp (1.6.0):
+    - libwebp/demux (= 1.6.0)
+    - libwebp/mux (= 1.6.0)
+    - libwebp/sharpyuv (= 1.6.0)
+    - libwebp/webp (= 1.6.0)
+  - libwebp/demux (1.6.0):
+    - libwebp/webp
+  - libwebp/mux (1.6.0):
+    - libwebp/demux
+  - libwebp/sharpyuv (1.6.0)
+  - libwebp/webp (1.6.0):
+    - libwebp/sharpyuv
+  - Mantle (2.2.0):
+    - Mantle/extobjc (= 2.2.0)
+  - Mantle/extobjc (2.2.0)
+  - open_filex (0.0.2):
+    - Flutter
+  - permission_handler_apple (9.3.0):
+    - Flutter
+  - record_darwin (1.0.0):
+    - Flutter
+  - SDWebImage (5.21.7):
+    - SDWebImage/Core (= 5.21.7)
+  - SDWebImage/Core (5.21.7)
+  - SDWebImageWebPCoder (0.15.0):
+    - libwebp (~> 1.0)
+    - SDWebImage/Core (~> 5.17)
+
+DEPENDENCIES:
+  - Flutter (from `Flutter`)
+  - flutter_cloud_sync_icloud (from `.symlinks/plugins/flutter_cloud_sync_icloud/ios`)
+  - flutter_image_compress_common (from `.symlinks/plugins/flutter_image_compress_common/ios`)
+  - flutter_local_notifications (from `.symlinks/plugins/flutter_local_notifications/ios`)
+  - open_filex (from `.symlinks/plugins/open_filex/ios`)
+  - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
+  - record_darwin (from `.symlinks/plugins/record_darwin/ios`)
+
+SPEC REPOS:
+  trunk:
+    - libwebp
+    - Mantle
+    - SDWebImage
+    - SDWebImageWebPCoder
+
+EXTERNAL SOURCES:
+  Flutter:
+    :path: Flutter
+  flutter_cloud_sync_icloud:
+    :path: ".symlinks/plugins/flutter_cloud_sync_icloud/ios"
+  flutter_image_compress_common:
+    :path: ".symlinks/plugins/flutter_image_compress_common/ios"
+  flutter_local_notifications:
+    :path: ".symlinks/plugins/flutter_local_notifications/ios"
+  open_filex:
+    :path: ".symlinks/plugins/open_filex/ios"
+  permission_handler_apple:
+    :path: ".symlinks/plugins/permission_handler_apple/ios"
+  record_darwin:
+    :path: ".symlinks/plugins/record_darwin/ios"
+
+SPEC CHECKSUMS:
+  Flutter: 71a624a5bc0c04062bf19101d501e466baf2fb47
+  flutter_cloud_sync_icloud: 171713421b96aa52d4e5c005c4cac5331be738d0
+  flutter_image_compress_common: 1697a328fd72bfb335507c6bca1a65fa5ad87df1
+  flutter_local_notifications: ad39620c743ea4c15127860f4b5641649a988100
+  libwebp: af5937a13536ef73f3784d69cc342b98961acf33
+  Mantle: c5aa8794a29a022dfbbfc9799af95f477a69b62d
+  open_filex: 432f3cd11432da3e39f47fcc0df2b1603854eff1
+  permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
+  record_darwin: fb1f375f1d9603714f55b8708a903bbb91ffdb0a
+  SDWebImage: e9fc87c1aab89a8ab1bbd74eba378c6f53be8abf
+  SDWebImageWebPCoder: 0e06e365080397465cc73a7a9b472d8a3bd0f377
+
+PODFILE CHECKSUM: 9c048d5097642b9e05adff16a59006d0e03cbf3f
+
+COCOAPODS: 1.17.0
