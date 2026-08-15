@@ -6,14 +6,27 @@ import '../data/repositories/local/local_repository.dart';
 import '../providers/database_providers.dart';
 import 'shared_ledger_picker_filter.dart' show syntheticIdForSyncId;
 
+/// 解析交易的标签/类别/账户(含 §7 共享账本 override → synthetic id)三元组,
+/// 供编辑/复制共用。
+class _ResolvedTransactionRefs {
+  final List<int> tagIds;
+  final int? categoryId;
+  final int? accountId;
+  final int? toAccountId;
+
+  const _ResolvedTransactionRefs({
+    required this.tagIds,
+    required this.categoryId,
+    required this.accountId,
+    required this.toAccountId,
+  });
+}
+
 class TransactionEditUtils {
-  static Future<void> editTransaction(
-    BuildContext context,
+  static Future<_ResolvedTransactionRefs> _resolveRefs(
     WidgetRef ref,
     Transaction transaction,
-    Category? category,
   ) async {
-    // 获取交易关联的标签ID(主表 + §7 override 表)
     final repo = ref.read(repositoryProvider);
     final tags = await repo.getTagsForTransaction(transaction.id);
     final tagIds = <int>[for (final t in tags) t.id];
@@ -33,16 +46,31 @@ class TransactionEditUtils {
     // §7 v25 共享账本:Editor 视角下记的 tx,categoryId/accountId 为 null,
     // 真实引用在 *SyncIdOverride。编辑时用 syntheticIdForSyncId 转成 picker
     // 列表里的 synthetic id,让 editor 反查时能命中"已选"。
-    final int? initialCategoryId = transaction.categorySyncIdOverride != null
+    final int? categoryId = transaction.categorySyncIdOverride != null
         ? syntheticIdForSyncId(transaction.categorySyncIdOverride!)
         : transaction.categoryId;
-    final int? initialAccountId = transaction.accountSyncIdOverride != null
+    final int? accountId = transaction.accountSyncIdOverride != null
         ? syntheticIdForSyncId(transaction.accountSyncIdOverride!)
         : transaction.accountId;
-    final int? initialToAccountId = transaction.toAccountSyncIdOverride != null
+    final int? toAccountId = transaction.toAccountSyncIdOverride != null
         ? syntheticIdForSyncId(transaction.toAccountSyncIdOverride!)
         : transaction.toAccountId;
 
+    return _ResolvedTransactionRefs(
+      tagIds: tagIds,
+      categoryId: categoryId,
+      accountId: accountId,
+      toAccountId: toAccountId,
+    );
+  }
+
+  static Future<void> editTransaction(
+    BuildContext context,
+    WidgetRef ref,
+    Transaction transaction,
+    Category? category,
+  ) async {
+    final refs = await _resolveRefs(ref, transaction);
     if (!context.mounted) return;
 
     // 所有类型（收入/支出/转账）都使用交易编辑器页面
@@ -50,23 +78,91 @@ class TransactionEditUtils {
       MaterialPageRoute(
         builder: (_) => TransactionEditorPage(
           initialKind: transaction.type, // 'expense', 'income', 或 'transfer'
-          initialCategoryId: initialCategoryId,
+          initialCategoryId: refs.categoryId,
           initialAmount: transaction.amount,
           initialDate: transaction.happenedAt,
           initialNote: transaction.note,
           initialMerchant: transaction.merchant,
           editingTransactionId: transaction.id,
-          initialAccountId: initialAccountId,
+          initialAccountId: refs.accountId,
           // 转账特有的参数
-          initialToAccountId: initialToAccountId,
+          initialToAccountId: refs.toAccountId,
           // 标签
-          initialTagIds: tagIds,
+          initialTagIds: refs.tagIds,
           // 账单标记（不计入收支/预算）回显
           initialExcludeFromStats: transaction.excludeFromStats,
           initialExcludeFromBudget: transaction.excludeFromBudget,
           // v30 多币种:编辑外币交易时汇率行按隐含汇率回显
           initialCurrencyCode: transaction.currencyCode,
           initialNativeAmount: transaction.nativeAmount,
+        ),
+      ),
+    );
+  }
+
+  /// 复制交易——比照 BeeCount Cloud 网页版的「複製」:开一个新建模式的编辑器,
+  /// 带入除日期(重设为现在)、附件、退款关联以外的所有字段。复制出来是全新
+  /// 独立记录,不写任何数据库关联。
+  static Future<void> copyTransaction(
+    BuildContext context,
+    WidgetRef ref,
+    Transaction transaction,
+    Category? category,
+  ) async {
+    final refs = await _resolveRefs(ref, transaction);
+    if (!context.mounted) return;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TransactionEditorPage(
+          initialKind: transaction.type,
+          initialCategoryId: refs.categoryId,
+          initialAmount: transaction.amount,
+          initialDate: DateTime.now(), // 网页版复制不带日期,重设为现在
+          initialNote: transaction.note,
+          initialMerchant: transaction.merchant,
+          editingTransactionId: null, // 新建模式
+          initialAccountId: refs.accountId,
+          initialToAccountId: refs.toAccountId,
+          initialTagIds: refs.tagIds,
+          initialExcludeFromStats: transaction.excludeFromStats,
+          initialExcludeFromBudget: transaction.excludeFromBudget,
+          initialCurrencyCode: transaction.currencyCode,
+          initialNativeAmount: transaction.nativeAmount,
+          // 不传 initialRefundOfSyncId:复制出来的是独立新记录
+        ),
+      ),
+    );
+  }
+
+  /// 退款——比照 BeeCount Cloud 网页版的「退款」:开一个新建模式的编辑器,
+  /// 类型对调(expense↔income)、金额/备注/账户带入原交易(金额可改,天然支持
+  /// 部分退款),类别留空让用户自己选。呼叫方需先确认 transaction.type 是
+  /// expense/income(transfer/adjustment 不可退款),且这笔交易本身不是退款单、
+  /// 也还没被退过款。
+  static Future<void> refundTransaction(
+    BuildContext context,
+    WidgetRef ref,
+    Transaction transaction,
+    Category? category,
+  ) async {
+    final refs = await _resolveRefs(ref, transaction);
+    if (!context.mounted) return;
+
+    final reversedKind = transaction.type == 'expense' ? 'income' : 'expense';
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TransactionEditorPage(
+          initialKind: reversedKind,
+          initialCategoryId: null, // 留空让用户自己选
+          initialAmount: transaction.amount,
+          initialDate: DateTime.now(),
+          initialNote: transaction.note,
+          editingTransactionId: null, // 新建模式
+          initialAccountId: refs.accountId,
+          initialCurrencyCode: transaction.currencyCode,
+          initialRefundOfSyncId: transaction.syncId,
         ),
       ),
     );

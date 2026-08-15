@@ -51,6 +51,11 @@ class EntitySerializer {
       // 语义等价;省略保持 payload 干净。
       if (tx.currencyCode != null) 'currencyCode': tx.currencyCode,
       if (tx.nativeAmount != null) 'nativeAmount': tx.nativeAmount,
+      // v34:退款关联。有值才发(省略等价"不更新"),wire key 必须是
+      // refundOfId —— BeeCount Cloud sync_applier.py 既有 merge spec
+      // ("refundOfId", "refund_of_sync_id") 已经这样约定,改键名会让退款
+      // 关联跨设备同步不到。
+      if (tx.refundOfSyncId != null) 'refundOfId': tx.refundOfSyncId,
       if (ledgerSyncId != null && ledgerSyncId.isNotEmpty)
         'ledgerSyncId': ledgerSyncId,
       'categoryName': categoryName,

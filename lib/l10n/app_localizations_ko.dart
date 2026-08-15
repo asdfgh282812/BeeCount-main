@@ -6183,6 +6183,21 @@ class AppLocalizationsKo extends AppLocalizations {
   String get calendarAddTransactionTooltip => '선택한 날짜에 기록을 추가합니다';
 
   @override
+  String get transactionListTitle => '내역';
+
+  @override
+  String get transactionListFilterToday => '오늘';
+
+  @override
+  String get transactionListFilterWeek => '최근 7일';
+
+  @override
+  String get transactionListFilterMonth => '최근 1개월';
+
+  @override
+  String get transactionListFilterAll => '전체';
+
+  @override
   String get commonUncategorized => '미분류';
 
   @override
@@ -7364,6 +7379,33 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get txFlagBudgetExcludedTag => '예산 제외';
+
+  @override
+  String get txDetailRefund => '환불';
+
+  @override
+  String get txDetailCopy => '복사';
+
+  @override
+  String get txDetailRefundDisabledType => '이체와 평가 조정은 환불할 수 없습니다';
+
+  @override
+  String get txDetailRefundDisabledIsRefund => '환불 거래는 다시 환불할 수 없습니다';
+
+  @override
+  String get txDetailRefundDisabledAlreadyRefunded => '이미 환불된 거래입니다';
+
+  @override
+  String get txDetailRefundBadge => '환불';
+
+  @override
+  String get txDetailRefundedTotal => '환불됨';
+
+  @override
+  String get txDetailOnce => '일회성';
+
+  @override
+  String get txDetailRecurring => '정기';
 
   @override
   String get txCurrencyLabel => 'Currency';

@@ -106,6 +106,11 @@ extension SyncEngineApplyExt on SyncEngine {
     // v33:商家。跟 note 同款——entity_serializer.dart 恒发这个键(不省略),
     // 这里直接无条件读,不用 containsKey 保护。
     final merchant = payload['merchant'] as String?;
+    // v34:退款关联。跟 excludeFromStats 同款「缺键不覆盖」——旧版 App 送出的
+    // payload 不会带这个键，若无条件覆盖会把本地已有的关联清空。
+    final hasRefundKey = payload.containsKey('refundOfId');
+    final refundOfSyncId =
+        hasRefundKey ? payload['refundOfId'] as String? : null;
     final categoryName = payload['categoryName'] as String?;
     final categoryKind = payload['categoryKind'] as String?;
     // web 端创建转账时 account_name/account_id 是 null,只填 from_account_*。
@@ -262,6 +267,8 @@ extension SyncEngineApplyExt on SyncEngine {
             ? d.Value(payloadCurrency)
             : const d.Value.absent(), // 缺键保留本地币种
         nativeAmount: nativeValue,
+        refundOfSyncId:
+            hasRefundKey ? d.Value(refundOfSyncId) : const d.Value.absent(),
       ));
       // 更新标签和附件(existing 路径)
       await _syncTransactionTags(existingId, syncId, payload);
@@ -293,6 +300,7 @@ extension SyncEngineApplyExt on SyncEngine {
               // 留 NULL(检测端 LEFT JOIN 账户币种兜底)。
               currencyCode: d.Value(payloadCurrency),
               nativeAmount: d.Value(hasNativeKey ? payloadNative : amount),
+              refundOfSyncId: d.Value(refundOfSyncId),
             ),
           );
       // 写回 cache,后续同 syncId 的 update change 能命中

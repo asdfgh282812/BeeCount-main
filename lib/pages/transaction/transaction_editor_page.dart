@@ -41,6 +41,9 @@ class TransactionEditorPage extends ConsumerStatefulWidget {
   // v30 多币种编辑回显(推隐含汇率用)
   final String? initialCurrencyCode;
   final double? initialNativeAmount;
+  // v34:从「退款」入口打开时,带入原交易 syncId,存档时写进新交易的
+  // refundOfSyncId。只有新建模式(editingTransactionId == null)会用到。
+  final String? initialRefundOfSyncId;
 
   const TransactionEditorPage({
     super.key,
@@ -58,6 +61,7 @@ class TransactionEditorPage extends ConsumerStatefulWidget {
     this.initialExcludeFromBudget = false,
     this.initialCurrencyCode,
     this.initialNativeAmount,
+    this.initialRefundOfSyncId,
   });
 
   @override
@@ -265,6 +269,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
         excludeFromBudget: res.excludeFromBudget,
         currencyCode: res.currencyCode,
         nativeAmount: res.nativeAmount,
+        refundOfSyncId: widget.initialRefundOfSyncId,
       );
       // 共享账本:新建本地 tx 也回填创建人 + 编辑人(同一个 user)
       await TxAuthorService.markCreated(ref, transactionId);

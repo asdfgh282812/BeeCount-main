@@ -11556,6 +11556,36 @@ abstract class AppLocalizations {
   /// **'Add a record on the selected day'**
   String get calendarAddTransactionTooltip;
 
+  /// No description provided for @transactionListTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Transactions'**
+  String get transactionListTitle;
+
+  /// No description provided for @transactionListFilterToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get transactionListFilterToday;
+
+  /// No description provided for @transactionListFilterWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 7 Days'**
+  String get transactionListFilterWeek;
+
+  /// No description provided for @transactionListFilterMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Last Month'**
+  String get transactionListFilterMonth;
+
+  /// No description provided for @transactionListFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get transactionListFilterAll;
+
   /// No description provided for @commonUncategorized.
   ///
   /// In en, this message translates to:
@@ -13637,6 +13667,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No budget'**
   String get txFlagBudgetExcludedTag;
+
+  /// No description provided for @txDetailRefund.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund'**
+  String get txDetailRefund;
+
+  /// No description provided for @txDetailCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get txDetailCopy;
+
+  /// No description provided for @txDetailRefundDisabledType.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfers and adjustments can\'t be refunded'**
+  String get txDetailRefundDisabledType;
+
+  /// No description provided for @txDetailRefundDisabledIsRefund.
+  ///
+  /// In en, this message translates to:
+  /// **'A refund transaction can\'t be refunded again'**
+  String get txDetailRefundDisabledIsRefund;
+
+  /// No description provided for @txDetailRefundDisabledAlreadyRefunded.
+  ///
+  /// In en, this message translates to:
+  /// **'This transaction has already been refunded'**
+  String get txDetailRefundDisabledAlreadyRefunded;
+
+  /// No description provided for @txDetailRefundBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund'**
+  String get txDetailRefundBadge;
+
+  /// No description provided for @txDetailRefundedTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Refunded'**
+  String get txDetailRefundedTotal;
+
+  /// No description provided for @txDetailOnce.
+  ///
+  /// In en, this message translates to:
+  /// **'One-time'**
+  String get txDetailOnce;
+
+  /// No description provided for @txDetailRecurring.
+  ///
+  /// In en, this message translates to:
+  /// **'Recurring'**
+  String get txDetailRecurring;
 
   /// No description provided for @txCurrencyLabel.
   ///

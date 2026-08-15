@@ -9,20 +9,24 @@ import '../../widgets/biz/transaction_list_item.dart';
 import '../../widgets/category_icon.dart';
 import '../../styles/tokens.dart';
 import '../../utils/ui_scale_extensions.dart';
-import '../../utils/transaction_edit_utils.dart';
+import '../../widgets/biz/transaction_detail_card.dart';
 import '../../providers.dart';
 import '../../providers/calendar_providers.dart';
 import '../../l10n/app_localizations.dart';
 import '../transaction/transaction_editor_page.dart';
 
-class CalendarPage extends ConsumerStatefulWidget {
-  const CalendarPage({super.key});
+/// 日历视图主体（月历网格 + 选中日交易列表），不含外层 Scaffold/Header ——
+/// 直接嵌入首页(HomePage)的 body 中作为「明細」tab 的内容。
+/// 通过 GlobalKey<CalendarBodyState> 暴露 jumpToToday()/jumpToMonth()
+/// 给外层 Header（今天双击/年月选择器）驱动。
+class CalendarBody extends ConsumerStatefulWidget {
+  const CalendarBody({super.key});
 
   @override
-  ConsumerState<CalendarPage> createState() => _CalendarPageState();
+  ConsumerState<CalendarBody> createState() => CalendarBodyState();
 }
 
-class _CalendarPageState extends ConsumerState<CalendarPage> {
+class CalendarBodyState extends ConsumerState<CalendarBody> {
   late DateTime _focusedMonth;
   DateTime? _selectedDay;
 
@@ -71,9 +75,13 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     });
     ref.read(calendarSelectedMonthProvider.notifier).state = focusedMonth;
     ref.read(calendarSelectedDateProvider.notifier).state = null;
+    // 与首页头部「年/月 + 收支结余」摘要联动 —— 之前该摘要靠列表滚动可见性
+    // 驱动 selectedMonthProvider,现在改由日历翻页/跳转驱动,保持同一契约。
+    ref.read(selectedMonthProvider.notifier).state = focusedMonth;
   }
 
-  void _jumpToToday() {
+  /// 跳转到今天。暴露给外层 Header 的「今天」入口(双击首页 tab)调用。
+  void jumpToToday() {
     final now = DateTime.now();
     setState(() {
       _focusedMonth = DateTime(now.year, now.month, 1);
@@ -81,6 +89,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     });
     ref.read(calendarSelectedMonthProvider.notifier).state = _focusedMonth;
     ref.read(calendarSelectedDateProvider.notifier).state = _selectedDay;
+    ref.read(selectedMonthProvider.notifier).state = _focusedMonth;
   }
 
   // 点头部「20xx年xx月 ▾」跳转指定年月(#429)。复用全 App 通用的年月滚轮,
@@ -96,10 +105,11 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
       maxDate: _calLastDay,
     );
     if (picked == null || !mounted) return;
-    _jumpToMonth(picked);
+    jumpToMonth(picked);
   }
 
-  void _jumpToMonth(DateTime target) {
+  /// 跳转到指定年月。暴露给外层 Header 的年月选择器调用。
+  void jumpToMonth(DateTime target) {
     // 选择器已按 min/max 限制返回值,这里只是兜底,防止将来改动边界后越界崩溃。
     // 钳制同样落到月初 —— _focusedMonth 恒为月初是本页各处共同的前置假设。
     var month = DateTime(target.year, target.month, 1);
@@ -117,9 +127,10 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
       _selectedDay = null;
     });
     // 程序化跳转时 table_calendar 会置 _pageCallbackDisabled(table_calendar_
-    // base.dart:165),onPageChanged 不会回调,两个 provider 必须手动同步
+    // base.dart:165),onPageChanged 不会回调,provider 必须手动同步
     ref.read(calendarSelectedMonthProvider.notifier).state = month;
     ref.read(calendarSelectedDateProvider.notifier).state = null;
+    ref.read(selectedMonthProvider.notifier).state = month;
   }
 
   Future<void> _addTransactionForSelectedDate() async {
@@ -155,77 +166,72 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     // 监听数据刷新
     ref.watch(calendarRefreshProvider);
 
+    // 交易资讯卡的删除/退款/复制/编辑都会在变更真正完成时 bump
+    // statsRefreshProvider(见 transaction_detail_card.dart /
+    // transaction_editor_page.dart _handleSubmit)。日历用的是 FutureProvider
+    // (不会因 Drift 写入自动重算),借这个信号驱动 calendarRefreshProvider。
+    ref.listen<int>(statsRefreshProvider, (previous, next) {
+      if (previous != next) {
+        ref.read(calendarRefreshProvider.notifier).state++;
+      }
+    });
+
     // 获取当月统计数据
     final dailyTotalsAsync = ref.watch(
       dailyTotalsByMonthProvider((ledgerId: ledgerId, month: _focusedMonth)),
     );
 
-    return Scaffold(
-      backgroundColor: BeeTokens.scaffoldBackground(context),
-      body: Column(
-        children: [
-          // Header
-          PrimaryHeader(
-            title: l10n.calendarTitle,
-            showBack: true,
-            actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: TextButton(
-                  onPressed: _jumpToToday,
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                  ),
-                  child: Text(
-                    l10n.calendarToday,
-                    style: TextStyle(
-                      color: BeeTokens.textPrimary(context),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
+    return ListView(
+      padding: EdgeInsets.symmetric(
+        horizontal: 12.0.scaled(context, ref),
+        vertical: 8.0.scaled(context, ref),
+      ),
+      children: [
+        // 回到今天
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: jumpToToday,
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              l10n.calendarToday,
+              style: TextStyle(
+                color: BeeTokens.textPrimary(context),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
               ),
-            ],
-          ),
-
-          // 日历主体
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.symmetric(
-                horizontal: 12.0.scaled(context, ref),
-                vertical: 8.0.scaled(context, ref),
-              ),
-              children: [
-                // 日历视图
-                SectionCard(
-                  margin: EdgeInsets.zero,
-                  child: dailyTotalsAsync.when(
-                    // 记账等触发 calendarRefreshProvider 时不切到 loading,
-                    // 旧统计保留,等新数据来无缝替换 — 避免日历整页 spinner 闪烁
-                    skipLoadingOnReload: true,
-                    data: (dailyTotals) =>
-                        _buildCalendar(context, dailyTotals, primaryColor),
-                    loading: () => _buildCalendarSkeleton(context),
-                    error: (err, stack) => Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Text('Error: $err'),
-                      ),
-                    ),
-                  ),
-                ),
-
-                SizedBox(height: 12.0.scaled(context, ref)),
-
-                // 选中日期的交易列表（无日期标题和统计）
-                if (_selectedDay != null)
-                  _buildDateTransactionsList(context, ledgerId, _selectedDay!),
-              ],
             ),
           ),
-        ],
-      ),
+        ),
+        // 日历视图
+        SectionCard(
+          margin: EdgeInsets.zero,
+          child: dailyTotalsAsync.when(
+            // 记账等触发 calendarRefreshProvider 时不切到 loading,
+            // 旧统计保留,等新数据来无缝替换 — 避免日历整页 spinner 闪烁
+            skipLoadingOnReload: true,
+            data: (dailyTotals) =>
+                _buildCalendar(context, dailyTotals, primaryColor),
+            loading: () => _buildCalendarSkeleton(context),
+            error: (err, stack) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Text('Error: $err'),
+              ),
+            ),
+          ),
+        ),
+
+        SizedBox(height: 12.0.scaled(context, ref)),
+
+        // 选中日期的交易列表（无日期标题和统计）
+        if (_selectedDay != null)
+          _buildDateTransactionsList(context, ledgerId, _selectedDay!),
+      ],
     );
   }
 
@@ -640,7 +646,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                 tags: tagsList.isNotEmpty ? tagsList : null,
                 attachmentCount: item.attachments.length,
                 onTap: () async {
-                  await TransactionEditUtils.editTransaction(
+                  await showTransactionDetailCard(
                     context,
                     ref,
                     item.t,

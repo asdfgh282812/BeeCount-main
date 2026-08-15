@@ -19,7 +19,7 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:beecount/data/db.dart';
 import 'package:beecount/data/repositories/local/local_repository.dart';
 import 'package:beecount/l10n/app_localizations.dart';
-import 'package:beecount/pages/calendar/calendar_page.dart';
+import 'package:beecount/pages/calendar/calendar_body.dart';
 import 'package:beecount/providers/database_providers.dart';
 import 'package:beecount/widgets/ui/wheel_date_picker.dart';
 
@@ -72,7 +72,7 @@ void main() {
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         locale: const Locale('zh'),
-        home: const CalendarPage(),
+        home: const Scaffold(body: CalendarBody()),
       ),
     );
   }

@@ -201,6 +201,8 @@ abstract class TransactionRepository {
     // nativeAmount 外币先按有效汇率折算,取不到才 =amount,详设计 02 §六)。
     String? currencyCode,
     double? nativeAmount,
+    // v34:退款关联(存原交易 syncId)。只在新建这笔交易当下写入,后续编辑不改。
+    String? refundOfSyncId,
   });
 
   /// 批量新增交易，单事务内插入，返回插入条数。
@@ -375,6 +377,9 @@ abstract class TransactionRepository {
 
   /// 根据 syncId 获取交易
   Future<Transaction?> getTransactionBySyncId(String syncId);
+
+  /// 查出所有「退款自 [originalSyncId] 这笔交易」的退款单(refundOfSyncId 指向它)。
+  Future<List<Transaction>> getRefundsOf(String originalSyncId);
 
   /// 根据 syncId 更新交易的全部字段
   Future<void> updateTransactionBySyncId({

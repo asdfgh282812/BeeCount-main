@@ -6113,6 +6113,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get calendarAddTransactionTooltip => '添加该日记账';
 
   @override
+  String get transactionListTitle => '明细';
+
+  @override
+  String get transactionListFilterToday => '今日';
+
+  @override
+  String get transactionListFilterWeek => '七天内';
+
+  @override
+  String get transactionListFilterMonth => '一个月内';
+
+  @override
+  String get transactionListFilterAll => '全部';
+
+  @override
   String get commonUncategorized => '未分类';
 
   @override
@@ -7280,6 +7295,33 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get txFlagBudgetExcludedTag => '不计预算';
+
+  @override
+  String get txDetailRefund => '退款';
+
+  @override
+  String get txDetailCopy => '复制';
+
+  @override
+  String get txDetailRefundDisabledType => '转账和估值调整不能退款';
+
+  @override
+  String get txDetailRefundDisabledIsRefund => '退款交易不能再退款';
+
+  @override
+  String get txDetailRefundDisabledAlreadyRefunded => '这笔交易已经退过款,不能重复退款';
+
+  @override
+  String get txDetailRefundBadge => '退款单';
+
+  @override
+  String get txDetailRefundedTotal => '已退款';
+
+  @override
+  String get txDetailOnce => '单次';
+
+  @override
+  String get txDetailRecurring => '周期';
 
   @override
   String get txCurrencyLabel => '币种';
@@ -13815,6 +13857,21 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get calendarAddTransactionTooltip => '新增該日記帳';
 
   @override
+  String get transactionListTitle => '明細';
+
+  @override
+  String get transactionListFilterToday => '今日';
+
+  @override
+  String get transactionListFilterWeek => '七天內';
+
+  @override
+  String get transactionListFilterMonth => '一個月內';
+
+  @override
+  String get transactionListFilterAll => '全部';
+
+  @override
   String get commonUncategorized => '未分類';
 
   @override
@@ -14982,6 +15039,33 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get txFlagBudgetExcludedTag => '不計預算';
+
+  @override
+  String get txDetailRefund => '退款';
+
+  @override
+  String get txDetailCopy => '複製';
+
+  @override
+  String get txDetailRefundDisabledType => '轉帳和估值調整不能退款';
+
+  @override
+  String get txDetailRefundDisabledIsRefund => '退款交易不能再退款';
+
+  @override
+  String get txDetailRefundDisabledAlreadyRefunded => '這筆交易已經退過款,不能重複退款';
+
+  @override
+  String get txDetailRefundBadge => '退款單';
+
+  @override
+  String get txDetailRefundedTotal => '已退款';
+
+  @override
+  String get txDetailOnce => '單次';
+
+  @override
+  String get txDetailRecurring => '週期';
 
   @override
   String get txCurrencyLabel => '幣種';

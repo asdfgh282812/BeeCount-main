@@ -431,6 +431,7 @@ class LocalTransactionRepository implements TransactionRepository {
     bool excludeFromBudget = false,
     String? currencyCode,
     double? nativeAmount,
+    String? refundOfSyncId,
   }) async {
     // v30:子仓收「已定值」直写;带折算的兜底(查账户/汇率)在聚合
     // LocalRepository 包装层(子仓拿不到汇率)。
@@ -452,6 +453,7 @@ class LocalTransactionRepository implements TransactionRepository {
           excludeFromBudget: d.Value(excludeFromBudget),
           currencyCode: d.Value(currencyCode),
           nativeAmount: d.Value(nativeAmount),
+          refundOfSyncId: d.Value(refundOfSyncId),
         ));
   }
 
@@ -1477,6 +1479,13 @@ class LocalTransactionRepository implements TransactionRepository {
     return await (db.select(db.transactions)
           ..where((t) => t.syncId.equals(syncId)))
         .getSingleOrNull();
+  }
+
+  @override
+  Future<List<Transaction>> getRefundsOf(String originalSyncId) async {
+    return await (db.select(db.transactions)
+          ..where((t) => t.refundOfSyncId.equals(originalSyncId)))
+        .get();
   }
 
   @override

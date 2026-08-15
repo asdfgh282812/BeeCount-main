@@ -6380,6 +6380,21 @@ class AppLocalizationsEn extends AppLocalizations {
       'Add a record on the selected day';
 
   @override
+  String get transactionListTitle => 'Transactions';
+
+  @override
+  String get transactionListFilterToday => 'Today';
+
+  @override
+  String get transactionListFilterWeek => 'Last 7 Days';
+
+  @override
+  String get transactionListFilterMonth => 'Last Month';
+
+  @override
+  String get transactionListFilterAll => 'All';
+
+  @override
   String get commonUncategorized => 'Uncategorized';
 
   @override
@@ -7581,6 +7596,36 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get txFlagBudgetExcludedTag => 'No budget';
+
+  @override
+  String get txDetailRefund => 'Refund';
+
+  @override
+  String get txDetailCopy => 'Copy';
+
+  @override
+  String get txDetailRefundDisabledType =>
+      'Transfers and adjustments can\'t be refunded';
+
+  @override
+  String get txDetailRefundDisabledIsRefund =>
+      'A refund transaction can\'t be refunded again';
+
+  @override
+  String get txDetailRefundDisabledAlreadyRefunded =>
+      'This transaction has already been refunded';
+
+  @override
+  String get txDetailRefundBadge => 'Refund';
+
+  @override
+  String get txDetailRefundedTotal => 'Refunded';
+
+  @override
+  String get txDetailOnce => 'One-time';
+
+  @override
+  String get txDetailRecurring => 'Recurring';
 
   @override
   String get txCurrencyLabel => 'Currency';

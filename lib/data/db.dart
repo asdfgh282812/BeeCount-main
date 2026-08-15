@@ -169,6 +169,12 @@ class Transactions extends Table {
   /// read_tx_projection.merchant / _LEDGER_MERGE_SPECS["transaction"] 已支持
   /// 同名 wire 字段 merchant,这里补齐本地列即可直接接上同步。
   TextColumn get merchant => text().nullable()();
+
+  /// v34:退款关联——存原交易的 syncId(而非本地 int id,因为本地 id 跨设备不
+  /// 稳定)。BeeCount Cloud 服务端已有对应的 refund_of_sync_id 列/业务规则
+  /// (一笔交易只能被退一次、退款单不能再被退款),wire 字段名 refundOfId,
+  /// 见 sync_applier.py 的 merge spec。
+  TextColumn get refundOfSyncId => text().nullable()();
 }
 
 class RecurringTransactions extends Table {
@@ -466,7 +472,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 33; // v33: 交易商家 — transactions.merchant
+  int get schemaVersion => 34; // v34: 退款关联 — transactions.refundOfSyncId
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1202,6 +1208,12 @@ class BeeDatabase extends _$BeeDatabase {
             await _addColumnIfMissing('transactions', 'merchant',
                 'ALTER TABLE transactions ADD COLUMN merchant TEXT;');
             logger.info('DBMigration', 'v33 迁移完成');
+          }
+          if (from < 34) {
+            logger.info('DBMigration', '开始迁移到 v34: 退款关联(refund_of_sync_id)');
+            await _addColumnIfMissing('transactions', 'refund_of_sync_id',
+                'ALTER TABLE transactions ADD COLUMN refund_of_sync_id TEXT;');
+            logger.info('DBMigration', 'v34 迁移完成');
           }
         },
         onCreate: (m) async {

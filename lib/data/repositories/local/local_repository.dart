@@ -358,6 +358,7 @@ class LocalRepository extends BaseRepository {
     bool excludeFromBudget = false,
     String? currencyCode,
     double? nativeAmount,
+    String? refundOfSyncId,
   }) async {
     // v30 带折算兜底(02 §六):任何调用方(单币种记账/AI/周期模板)未传两字段
     // 时在此补齐 —— 外币先查有效汇率,取不到才 =amount(命中 L11 检测可捞回)。
@@ -386,6 +387,7 @@ class LocalRepository extends BaseRepository {
       excludeFromBudget: excludeFromBudget,
       currencyCode: cc,
       nativeAmount: na,
+      refundOfSyncId: refundOfSyncId,
     );
     if (changeTracker != null) {
       final tx = await _transactionRepo.getTransactionById(id);
@@ -1130,6 +1132,10 @@ class LocalRepository extends BaseRepository {
   @override
   Future<Transaction?> getTransactionBySyncId(String syncId) =>
       _transactionRepo.getTransactionBySyncId(syncId);
+
+  @override
+  Future<List<Transaction>> getRefundsOf(String originalSyncId) =>
+      _transactionRepo.getRefundsOf(originalSyncId);
 
   @override
   Future<void> updateTransactionBySyncId({
