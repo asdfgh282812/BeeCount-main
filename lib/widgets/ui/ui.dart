@@ -5,6 +5,7 @@ export 'skin_animation_scope.dart';
 export 'feature_dot.dart';
 export 'wheel_date_picker.dart';
 export 'wheel_time_picker.dart';
+export 'entry_date_time_picker.dart';
 export 'wheel_picker.dart';
 export 'searchable_dropdown.dart';
 export 'message_popover_menu.dart';

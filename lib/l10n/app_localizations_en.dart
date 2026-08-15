@@ -67,6 +67,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonOk => 'OK';
 
   @override
+  String get commonNow => 'Now';
+
+  @override
   String get commonKnow => 'Got it';
 
   @override

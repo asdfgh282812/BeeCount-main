@@ -85,6 +85,27 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
     } else {
       _tab.index = 0;
     }
+    _tab.addListener(_unfocusOnTabSwitch);
+  }
+
+  @override
+  void dispose() {
+    _tab.removeListener(_unfocusOnTabSwitch);
+    _tab.dispose();
+    super.dispose();
+  }
+
+  /// 切换支出/收入/转账 tab 时强制收起系统键盘。
+  ///
+  /// TabBarView 底层是 PageView,三个子表单(两个 TransactionEntryForm +
+  /// 一个 TransferForm)全程保持挂载;切到别的 tab 不会让旧 tab 里聚焦的
+  /// 名稱/商家欄位自動失焦。如果不主动 unfocus,旧 tab 的系统键盘会继续
+  /// 停留在画面上,跟新 tab 自己的自定义数字小算盘(只在没有欄位聚焦时才
+  /// 渲染,见 TransactionEntryForm._textFieldFocused)同时出现、彼此重叠。
+  void _unfocusOnTabSwitch() {
+    if (_tab.indexIsChanging) {
+      FocusManager.instance.primaryFocus?.unfocus();
+    }
   }
 
   @override

@@ -13,7 +13,6 @@ import '../../widgets/biz/transaction_detail_card.dart';
 import '../../providers.dart';
 import '../../providers/calendar_providers.dart';
 import '../../l10n/app_localizations.dart';
-import '../transaction/transaction_editor_page.dart';
 
 /// 日历视图主体（月历网格 + 选中日交易列表），不含外层 Scaffold/Header ——
 /// 直接嵌入首页(HomePage)的 body 中作为「明細」tab 的内容。
@@ -29,6 +28,9 @@ class CalendarBody extends ConsumerStatefulWidget {
 class CalendarBodyState extends ConsumerState<CalendarBody> {
   late DateTime _focusedMonth;
   DateTime? _selectedDay;
+  // 月/週显示格式;由 TableCalendar 内置的上下滑动手势驱动切换
+  // (availableGestures: all),不需要额外按钮。
+  CalendarFormat _calendarFormat = CalendarFormat.month;
 
   // 日历可浏览范围。下界与 WheelDatePicker 默认 minDate 对齐(2000-01-01),
   // 导入了 2020 年前账单的用户也能翻到(#429:此前硬编码 2020-01-01);
@@ -133,30 +135,6 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
     ref.read(selectedMonthProvider.notifier).state = month;
   }
 
-  Future<void> _addTransactionForSelectedDate() async {
-    // 优先使用当前选中日期，未选中时回退到今天。
-    // 把时间锁到中午,避开 UTC 边界导致跨日的问题(交易列表按日期分组,
-    // 凌晨 00:00 在某些时区可能被算作前一天)。
-    final base = _selectedDay ?? DateTime.now();
-    final initialDate = DateTime(base.year, base.month, base.day, 12, 0, 0);
-
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => TransactionEditorPage(
-          initialKind: 'expense',
-          initialDate: initialDate,
-        ),
-      ),
-    );
-
-    // 编辑器关闭后,主动刷新日历的统计与当日交易列表
-    // (FutureProvider 不会因 Drift 写入自动重算)
-    if (mounted) {
-      ref.read(calendarRefreshProvider.notifier).state++;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -181,56 +159,80 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
       dailyTotalsByMonthProvider((ledgerId: ledgerId, month: _focusedMonth)),
     );
 
-    return ListView(
-      padding: EdgeInsets.symmetric(
-        horizontal: 12.0.scaled(context, ref),
-        vertical: 8.0.scaled(context, ref),
-      ),
+    final horizontalPadding = 12.0.scaled(context, ref);
+    final verticalPadding = 8.0.scaled(context, ref);
+
+    // 月历格与「选中日交易列表」拆成上下两块:月历固定高度不滚动,
+    // 交易列表单独用 Expanded+SingleChildScrollView 承接滚动。
+    // 这样天数记录少时列表在自己的区域内就完整可见,不需要把整页往下滑
+    // 划过月历才能看到(此前两者同在一个 ListView 里,月历本身就快 500px)。
+    return Column(
       children: [
-        // 回到今天
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton(
-            onPressed: jumpToToday,
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: Text(
-              l10n.calendarToday,
-              style: TextStyle(
-                color: BeeTokens.textPrimary(context),
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+              horizontalPadding, verticalPadding, horizontalPadding, 0),
+          child: Column(
+            children: [
+              // 回到今天
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: jumpToToday,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    l10n.calendarToday,
+                    style: TextStyle(
+                      color: BeeTokens.textPrimary(context),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
-        ),
-        // 日历视图
-        SectionCard(
-          margin: EdgeInsets.zero,
-          child: dailyTotalsAsync.when(
-            // 记账等触发 calendarRefreshProvider 时不切到 loading,
-            // 旧统计保留,等新数据来无缝替换 — 避免日历整页 spinner 闪烁
-            skipLoadingOnReload: true,
-            data: (dailyTotals) =>
-                _buildCalendar(context, dailyTotals, primaryColor),
-            loading: () => _buildCalendarSkeleton(context),
-            error: (err, stack) => Center(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Text('Error: $err'),
+              // 日历视图
+              SectionCard(
+                margin: EdgeInsets.zero,
+                // 比默认 all(12) 更紧凑：格子本身已经很小，四周留白没必要
+                // 跟随同样的间距，避免看起来"卡片比日历内容还占地方"。
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                child: dailyTotalsAsync.when(
+                  // 记账等触发 calendarRefreshProvider 时不切到 loading,
+                  // 旧统计保留,等新数据来无缝替换 — 避免日历整页 spinner 闪烁
+                  skipLoadingOnReload: true,
+                  data: (dailyTotals) =>
+                      _buildCalendar(context, dailyTotals, primaryColor),
+                  loading: () => _buildCalendarSkeleton(context),
+                  error: (err, stack) => Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Text('Error: $err'),
+                    ),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
         ),
 
-        SizedBox(height: 12.0.scaled(context, ref)),
-
-        // 选中日期的交易列表（无日期标题和统计）
-        if (_selectedDay != null)
-          _buildDateTransactionsList(context, ledgerId, _selectedDay!),
+        // 选中日期的交易列表（无日期标题和统计）—— 独立滚动区域
+        Expanded(
+          child: _selectedDay == null
+              ? const SizedBox.shrink()
+              : SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    horizontalPadding,
+                    12.0.scaled(context, ref),
+                    horizontalPadding,
+                    verticalPadding,
+                  ),
+                  child: _buildDateTransactionsList(
+                      context, ledgerId, _selectedDay!),
+                ),
+        ),
       ],
     );
   }
@@ -258,13 +260,27 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
       },
       onDaySelected: _onDaySelected,
       onPageChanged: _onPageChanged,
-      calendarFormat: CalendarFormat.month,
+      calendarFormat: _calendarFormat,
+      // 只在 月/週 两种格式间切换（跳过内置的 twoWeeks），
+      // 上滑收起成一週、下滑展开回整月。
+      availableCalendarFormats: const {
+        CalendarFormat.month: '月',
+        CalendarFormat.week: '週',
+      },
+      onFormatChanged: (format) {
+        if (_calendarFormat != format) {
+          setState(() => _calendarFormat = format);
+        }
+      },
       startingDayOfWeek: StartingDayOfWeek.monday,
-      availableGestures: AvailableGestures.horizontalSwipe,
+      // all = 横滑翻页 + 纵滑切换 月/週 格式（原先只开横滑，纵滑收起成一週的
+      // 功能一直没接上手势，现补上）。
+      availableGestures: AvailableGestures.all,
 
-      // 设置行高以适应内容
-      rowHeight: 68,
-      daysOfWeekHeight: 30,
+      // 设置行高以适应内容（每格已改成只显示一行净额，不再需要两行收支的
+      // 空间，行高可以进一步收紧）
+      rowHeight: 44,
+      daysOfWeekHeight: 20,
 
       // Header 样式
       headerStyle: HeaderStyle(
@@ -411,6 +427,7 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
     final totals = dailyTotals[dateKey];
     final (income, expense) = totals ?? (0.0, 0.0);
     final hasTransaction = income > 0 || expense > 0;
+    final netAmount = income - expense;
 
     // 文字颜色
     Color textColor;
@@ -425,15 +442,15 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 1),
+      padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 1),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // 日期数字（带圆形背景）
           Container(
-            width: 32,
-            height: 32,
+            width: 24,
+            height: 24,
             decoration: isSelected
                 ? BoxDecoration(
                     color: primaryColor,
@@ -450,137 +467,54 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
               '${day.day}',
               style: TextStyle(
                 color: textColor,
-                fontSize: 14,
+                fontSize: 12,
                 fontWeight:
                     isToday || isSelected ? FontWeight.bold : FontWeight.normal,
                 height: 1.0,
               ),
             ),
           ),
-          // 收入和支出（在圆形外面）
+          // 净额（收入-支出），只占一行，不再分两行显示收入/支出
           if (!isOutside && hasTransaction) ...[
-            const SizedBox(height: 2),
-            // 支出
-            if (expense > 0)
-              Text(
-                expense >= 10000
-                    ? '-${(expense / 10000).toStringAsFixed(1)}w'
-                    : expense >= 1000
-                        ? '-${(expense / 1000).toStringAsFixed(1)}k'
-                        : '-${expense.toInt()}',
-                style: TextStyle(
-                  color: BeeTokens.expenseColor(context, ref),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  height: 1.1,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.clip,
+            const SizedBox(height: 1),
+            Text(
+              _formatNetAmount(netAmount),
+              style: TextStyle(
+                color: netAmount >= 0
+                    ? BeeTokens.incomeColor(context, ref)
+                    : BeeTokens.expenseColor(context, ref),
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+                height: 1.0,
               ),
-            // 收入
-            if (income > 0)
-              Text(
-                income >= 10000
-                    ? '+${(income / 10000).toStringAsFixed(1)}w'
-                    : income >= 1000
-                        ? '+${(income / 1000).toStringAsFixed(1)}k'
-                        : '+${income.toInt()}',
-                style: TextStyle(
-                  color: BeeTokens.incomeColor(context, ref),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  height: 1.1,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.clip,
-              ),
+              maxLines: 1,
+              overflow: TextOverflow.clip,
+            ),
           ],
         ],
       ),
     );
   }
 
-  // 构建选中日期的交易列表（上方含"日期 + 在该日记账"紧凑头）
+  // 净额格式化：正数带 +、负数带 -，超过千/万位简写成 k/w。
+  String _formatNetAmount(double net) {
+    final sign = net < 0 ? '-' : '+';
+    final abs = net.abs();
+    final value = abs >= 10000
+        ? '${(abs / 10000).toStringAsFixed(1)}w'
+        : abs >= 1000
+            ? '${(abs / 1000).toStringAsFixed(1)}k'
+            : abs.toInt().toString();
+    return '$sign$value';
+  }
+
+  // 构建选中日期的交易列表
   Widget _buildDateTransactionsList(
       BuildContext context, int ledgerId, DateTime date) {
     final l10n = AppLocalizations.of(context);
-    final primaryColor = ref.watch(primaryColorProvider);
-    final localeName = Localizations.localeOf(context).toString();
-    final dateLabel = DateFormat.MMMMd(localeName).format(date);
-    final weekdayLabel = DateFormat.E(localeName).format(date);
 
     final transactionsAsync = ref.watch(
       transactionsByDateProvider((ledgerId: ledgerId, date: date)),
-    );
-
-    final header = Padding(
-      padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
-      child: Row(
-        children: [
-          Expanded(
-            child: Row(
-              children: [
-                Text(
-                  dateLabel,
-                  style: TextStyle(
-                    color: BeeTokens.textPrimary(context),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  weekdayLabel,
-                  style: TextStyle(
-                    color: BeeTokens.textTertiary(context),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: _addTransactionForSelectedDate,
-              child: Ink(
-                decoration: BoxDecoration(
-                  color: primaryColor,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: primaryColor.withValues(alpha: 0.28),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.add_rounded,
-                          size: 18, color: Colors.white),
-                      const SizedBox(width: 4),
-                      Text(
-                        l10n.calendarAddTransaction,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
 
     final card = SectionCard(
@@ -665,10 +599,7 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
       ),
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [header, card],
-    );
+    return card;
   }
 
   String _formatDate(DateTime date) {
@@ -676,19 +607,19 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
   }
 
   // 日历整页骨架(模拟 6 周 × 7 天 的灰格,接近真实日历高度)
-  // 占位等高:rowHeight 68 × 6 + daysOfWeekHeight 30 + header 50 ≈ 488
+  // 占位等高:rowHeight 44 × 6 + daysOfWeekHeight 20 + header 50 ≈ 334
   Widget _buildCalendarSkeleton(BuildContext context) {
     return DelayedSkeleton(
-      placeholder: const SizedBox(height: 488),
+      placeholder: const SizedBox(height: 334),
       child: PulseSkeleton(
         child: SizedBox(
-          height: 488,
+          height: 334,
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(8),
             child: Column(
               children: [
                 const SkeletonBar(height: 18, widthFactor: 0.4),
-                const SizedBox(height: 14),
+                const SizedBox(height: 10),
                 for (int row = 0; row < 6; row++)
                   Row(
                     children: List.generate(
@@ -696,8 +627,8 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
                       (_) => const Expanded(
                         child: Padding(
                           padding:
-                              EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                          child: SkeletonBar(height: 56),
+                              EdgeInsets.symmetric(horizontal: 3, vertical: 3),
+                          child: SkeletonBar(height: 32),
                         ),
                       ),
                     ),

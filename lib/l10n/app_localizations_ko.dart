@@ -67,6 +67,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get commonOk => '확인';
 
   @override
+  String get commonNow => '지금';
+
+  @override
   String get commonKnow => '확인했습니다';
 
   @override

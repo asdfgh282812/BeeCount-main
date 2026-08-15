@@ -215,6 +215,12 @@ abstract class AppLocalizations {
   /// **'OK'**
   String get commonOk;
 
+  /// No description provided for @commonNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Now'**
+  String get commonNow;
+
   /// No description provided for @commonKnow.
   ///
   /// In en, this message translates to:

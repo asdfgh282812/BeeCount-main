@@ -271,20 +271,30 @@ class _TransferFormState extends ConsumerState<TransferForm> {
     await Future.delayed(const Duration(milliseconds: 100));
     if (!mounted) return;
 
-    final showTime = ref.read(showTransactionTimeProvider);
-    if (showTime) {
-      final res = await showWheelDateTimePicker(context,
-          initial: _date, maxDate: DateTime.now());
-      if (res != null) setState(() => _date = res);
-    } else {
-      final res = await showWheelDatePicker(
-        context,
-        initial: _date,
-        mode: WheelDatePickerMode.ymd,
-        maxDate: DateTime.now(),
-      );
-      if (res != null) setState(() => _date = res);
-    }
+    // 日期/時間拆成兩個獨立欄位各自喚起專屬選擇器,見
+    // transaction_entry_form.dart 同名方法(這裡是複製改寫的轉帳版)。
+    final res = await showTransactionDatePicker(context, initial: _date);
+    if (res == null || !mounted) return;
+    setState(() {
+      _date = DateTime(
+          res.year, res.month, res.day, _date.hour, _date.minute, _date.second);
+    });
+  }
+
+  void _pickTime() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    await Future.delayed(const Duration(milliseconds: 100));
+    if (!mounted) return;
+
+    final res = await showTransactionTimePicker(
+      context,
+      initial: TimeOfDay(hour: _date.hour, minute: _date.minute),
+    );
+    if (res == null || !mounted) return;
+    setState(() {
+      _date = DateTime(_date.year, _date.month, _date.day, res.hour,
+          res.minute, _date.second);
+    });
   }
 
   Future<void> _submit() async {
@@ -853,35 +863,59 @@ class _TransferFormState extends ConsumerState<TransferForm> {
     String fmtDate(DateTime d) => '${d.year}/${d.month}/${d.day}';
     String fmtTime(DateTime d) =>
         '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: () {
-        SystemSound.play(SystemSoundType.click);
-        _pickDate();
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: BeeTokens.surfaceInput(context),
+
+    Widget field({
+      required IconData icon,
+      required String label,
+      required VoidCallback onTap,
+    }) {
+      return Expanded(
+        child: InkWell(
           borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.calendar_today_outlined,
-                size: 16, color: BeeTokens.iconSecondary(context)),
-            const SizedBox(width: 8),
-            Text(
-              showTime
-                  ? '${fmtDate(_date)}  ${fmtTime(_date)}'
-                  : fmtDate(_date),
-              style: text.bodyMedium?.copyWith(
-                  color: BeeTokens.textPrimary(context),
-                  fontWeight: FontWeight.w500),
+          onTap: () {
+            SystemSound.play(SystemSoundType.click);
+            onTap();
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: BeeTokens.surfaceInput(context),
+              borderRadius: BorderRadius.circular(12),
             ),
-          ],
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 16, color: BeeTokens.iconSecondary(context)),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: text.bodyMedium?.copyWith(
+                      color: BeeTokens.textPrimary(context),
+                      fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+          ),
         ),
-      ),
+      );
+    }
+
+    return Row(
+      children: [
+        field(
+          icon: Icons.calendar_today_outlined,
+          label: fmtDate(_date),
+          onTap: _pickDate,
+        ),
+        if (showTime) ...[
+          const SizedBox(width: 8),
+          field(
+            icon: Icons.access_time,
+            label: fmtTime(_date),
+            onTap: _pickTime,
+          ),
+        ],
+      ],
     );
   }
 }

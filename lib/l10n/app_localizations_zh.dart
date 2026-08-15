@@ -67,6 +67,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get commonOk => '确定';
 
   @override
+  String get commonNow => '现在';
+
+  @override
   String get commonKnow => '知道了';
 
   @override
@@ -7809,6 +7812,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get commonOk => '確定';
+
+  @override
+  String get commonNow => '現在';
 
   @override
   String get commonKnow => '知道了';

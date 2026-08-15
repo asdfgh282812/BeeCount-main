@@ -7,6 +7,7 @@ import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/biz.dart';
 import '../../styles/tokens.dart';
 import '../../l10n/app_localizations.dart';
+import 'search_page.dart';
 
 enum _DateFilter { today, week, month, all }
 
@@ -23,17 +24,18 @@ class TransactionListPage extends ConsumerStatefulWidget {
 class _TransactionListPageState extends ConsumerState<TransactionListPage> {
   _DateFilter _filter = _DateFilter.today;
 
-  /// 过滤区间下界(含);_DateFilter.all 返回 null 表示不限制。
-  DateTime? _filterStart(_DateFilter filter) {
+  /// 过滤区间 [下界(含), 上界(不含)];_DateFilter.all 返回 null 表示不限制。
+  (DateTime, DateTime)? _filterRange(_DateFilter filter) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
+    final tomorrow = today.add(const Duration(days: 1));
     switch (filter) {
       case _DateFilter.today:
-        return today;
+        return (today, tomorrow);
       case _DateFilter.week:
-        return today.subtract(const Duration(days: 6));
+        return (today.subtract(const Duration(days: 6)), tomorrow);
       case _DateFilter.month:
-        return DateTime(now.year, now.month - 1, now.day);
+        return (DateTime(now.year, now.month - 1, now.day), tomorrow);
       case _DateFilter.all:
         return null;
     }
@@ -55,10 +57,12 @@ class _TransactionListPageState extends ConsumerState<TransactionListPage> {
             })>
         transactions,
   ) {
-    final start = _filterStart(_filter);
-    if (start == null) return transactions;
+    final range = _filterRange(_filter);
+    if (range == null) return transactions;
+    final (start, end) = range;
     return transactions.where((item) {
-      return !item.t.happenedAt.isBefore(start);
+      final happenedAt = item.t.happenedAt;
+      return !happenedAt.isBefore(start) && happenedAt.isBefore(end);
     }).toList();
   }
 
@@ -90,6 +94,23 @@ class _TransactionListPageState extends ConsumerState<TransactionListPage> {
           PrimaryHeader(
             title: l10n.transactionListTitle,
             showBack: true,
+            actions: [
+              IconButton(
+                tooltip: AppLocalizations.of(context).homeSearch,
+                padding: const EdgeInsets.all(6),
+                style: IconButton.styleFrom(
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  minimumSize: Size.zero,
+                ),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (context) => const SearchPage()),
+                  );
+                },
+                icon: Icon(Icons.search,
+                    size: 20, color: Theme.of(context).iconTheme.color),
+              ),
+            ],
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),

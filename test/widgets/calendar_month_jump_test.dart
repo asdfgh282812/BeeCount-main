@@ -142,8 +142,9 @@ void main() {
     await tester.pumpWidget(host());
     await tester.pumpAndSettle();
 
-    // initState 默认选中今天 → 下方当日交易列表(含「在该日记账」按钮)可见
-    expect(find.text('在该日记账'), findsOneWidget);
+    // initState 默认选中今天 → 下方当日交易列表可见(测试库没有任何交易,
+    // 显示空状态文案「当天无交易」;需求 #1 已经拿掉这里的「在该日记账」按钮)
+    expect(find.text('当天无交易'), findsOneWidget);
 
     await tester.tap(find.text(monthTitle(thisMonth())));
     await tester.pumpAndSettle();
@@ -162,6 +163,6 @@ void main() {
     // 改造前 firstDay 硬编码 2020-01-01,跳到 2000-01 会直接踩 assert
     expect(find.text(monthTitle(DateTime(2000, 1, 1))), findsOneWidget);
     // 与滑动切月一致:选中日清空 → 当日列表整块收起
-    expect(find.text('在该日记账'), findsNothing);
+    expect(find.text('当天无交易'), findsNothing);
   });
 }

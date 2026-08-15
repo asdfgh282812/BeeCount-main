@@ -15,6 +15,7 @@ import 'pages/budget/budget_page.dart';
 import 'pages/main/mine_page.dart';
 import 'pages/transaction/transaction_editor_page.dart';
 import 'providers.dart';
+import 'providers/calendar_providers.dart';
 import 'l10n/app_localizations.dart';
 import 'widget/widget_manager.dart';
 import 'widgets/ui/ui.dart';
@@ -862,11 +863,20 @@ class _BeeAppState extends ConsumerState<BeeApp>
                 }
               },
               onCenterTap: () {
+                // 预设日期跟随行事历当前选中的日期(为 null 表示未选中/不在
+                // 明細 tab,退回今天),而不是恒定今天——见需求 #1。
+                final selectedDate = ref.read(calendarSelectedDateProvider);
+                final now = DateTime.now();
+                final initialDate = selectedDate == null
+                    ? null
+                    : DateTime(selectedDate.year, selectedDate.month,
+                        selectedDate.day, now.hour, now.minute, now.second);
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const TransactionEditorPage(
+                    builder: (_) => TransactionEditorPage(
                       initialKind: 'expense',
+                      initialDate: initialDate,
                     ),
                   ),
                 );
