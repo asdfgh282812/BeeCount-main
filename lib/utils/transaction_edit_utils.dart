@@ -39,10 +39,9 @@ class TransactionEditUtils {
     final int? initialAccountId = transaction.accountSyncIdOverride != null
         ? syntheticIdForSyncId(transaction.accountSyncIdOverride!)
         : transaction.accountId;
-    final int? initialToAccountId =
-        transaction.toAccountSyncIdOverride != null
-            ? syntheticIdForSyncId(transaction.toAccountSyncIdOverride!)
-            : transaction.toAccountId;
+    final int? initialToAccountId = transaction.toAccountSyncIdOverride != null
+        ? syntheticIdForSyncId(transaction.toAccountSyncIdOverride!)
+        : transaction.toAccountId;
 
     if (!context.mounted) return;
 
@@ -51,11 +50,11 @@ class TransactionEditUtils {
       MaterialPageRoute(
         builder: (_) => TransactionEditorPage(
           initialKind: transaction.type, // 'expense', 'income', 或 'transfer'
-          quickAdd: true,
           initialCategoryId: initialCategoryId,
           initialAmount: transaction.amount,
           initialDate: transaction.happenedAt,
           initialNote: transaction.note,
+          initialMerchant: transaction.merchant,
           editingTransactionId: transaction.id,
           initialAccountId: initialAccountId,
           // 转账特有的参数

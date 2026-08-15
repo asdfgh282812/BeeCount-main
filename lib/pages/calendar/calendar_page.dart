@@ -134,7 +134,6 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
       MaterialPageRoute(
         builder: (_) => TransactionEditorPage(
           initialKind: 'expense',
-          quickAdd: true,
           initialDate: initialDate,
         ),
       ),
@@ -496,7 +495,8 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   }
 
   // 构建选中日期的交易列表（上方含"日期 + 在该日记账"紧凑头）
-  Widget _buildDateTransactionsList(BuildContext context, int ledgerId, DateTime date) {
+  Widget _buildDateTransactionsList(
+      BuildContext context, int ledgerId, DateTime date) {
     final l10n = AppLocalizations.of(context);
     final primaryColor = ref.watch(primaryColorProvider);
     final localeName = Localizations.localeOf(context).toString();
@@ -551,8 +551,8 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                   ],
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -621,7 +621,8 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                   .toList();
 
               return TransactionListItem(
-                icon: getCategoryIconData(category: category, categoryName: categoryName),
+                icon: getCategoryIconData(
+                    category: category, categoryName: categoryName),
                 category: category,
                 title: isTransfer
                     ? (subtitle.isNotEmpty ? subtitle : l10n.transferTitle)
@@ -688,8 +689,8 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                       7,
                       (_) => const Expanded(
                         child: Padding(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 4, vertical: 4),
+                          padding:
+                              EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                           child: SkeletonBar(height: 56),
                         ),
                       ),

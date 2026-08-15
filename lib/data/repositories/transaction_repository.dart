@@ -117,6 +117,16 @@ abstract class TransactionRepository {
     int limit = 20,
   });
 
+  /// 该分类下最近使用过的 distinct 金额(新增交易页「常用金額」列用)，
+  /// 按最后一次使用时间倒序。共享账本 Owner 分类(仅 syncId override、没有
+  /// 本地 categoryId 的场景)暂不支持，直接返回空列表(该场景下这排快捷
+  /// chips 不显示，不影响其余记账流程)。
+  Future<List<double>> getRecentDistinctAmounts({
+    required int ledgerId,
+    required int categoryId,
+    int limit = 8,
+  });
+
   /// 根据ID获取单条交易
   Future<Transaction?> getTransactionById(int id);
 
@@ -124,19 +134,40 @@ abstract class TransactionRepository {
   ///
   /// [month] 为周期标签,约定传 DateTime(year, month, 1);实际范围由账本
   /// monthStartDay 决定:[y-m-起始日, y-(m+1)-起始日)。
-  Stream<List<({Transaction t, Category? category, Account? account, Account? toAccount})>> watchTransactionsWithCategoryInMonth({
+  Stream<
+      List<
+          ({
+            Transaction t,
+            Category? category,
+            Account? account,
+            Account? toAccount
+          })>> watchTransactionsWithCategoryInMonth({
     required int ledgerId,
     required DateTime month,
   });
 
   /// 获取指定年份的交易记录（带分类信息）
-  Stream<List<({Transaction t, Category? category, Account? account, Account? toAccount})>> watchTransactionsWithCategoryInYear({
+  Stream<
+      List<
+          ({
+            Transaction t,
+            Category? category,
+            Account? account,
+            Account? toAccount
+          })>> watchTransactionsWithCategoryInYear({
     required int ledgerId,
     required int year,
   });
 
   /// 获取指定分类和时间范围的交易记录（带分类信息）
-  Stream<List<({Transaction t, Category? category, Account? account, Account? toAccount})>> watchTransactionsForCategoryInRange({
+  Stream<
+      List<
+          ({
+            Transaction t,
+            Category? category,
+            Account? account,
+            Account? toAccount
+          })>> watchTransactionsForCategoryInRange({
     required int ledgerId,
     required DateTime start,
     required DateTime end,
@@ -158,6 +189,8 @@ abstract class TransactionRepository {
     int? toAccountId,
     required DateTime happenedAt,
     String? note,
+    // v33:商家(独立于 note 的自由文本字段,BeeCount Cloud 已有对应 wire 字段)。
+    String? merchant,
     String? syncId,
     String? categorySyncIdOverride,
     String? accountSyncIdOverride,
@@ -214,6 +247,8 @@ abstract class TransactionRepository {
     required double amount,
     int? categoryId,
     String? note,
+    // v33:商家,语义同 note——null 会显式清空既有值(调用方需自行传当前值以保留)。
+    String? merchant,
     DateTime? happenedAt,
     dynamic accountId,
     String? categorySyncIdOverride,
@@ -303,25 +338,29 @@ abstract class TransactionRepository {
   });
 
   /// 获取指定日期的所有交易（含分类、标签、附件、账户）
-  Future<List<({
-    Transaction t,
-    Category? category,
-    List<Tag> tags,
-    List<TransactionAttachment> attachments,
-    Account? account,
-  })>> getTransactionsByDate({
+  Future<
+      List<
+          ({
+            Transaction t,
+            Category? category,
+            List<Tag> tags,
+            List<TransactionAttachment> attachments,
+            Account? account,
+          })>> getTransactionsByDate({
     required int ledgerId,
     required DateTime date,
   });
 
   /// 获取指定时间范围的交易列表（用于日历当月列表）
-  Future<List<({
-    Transaction t,
-    Category? category,
-    List<Tag> tags,
-    List<TransactionAttachment> attachments,
-    Account? account,
-  })>> getTransactionsByDateRange({
+  Future<
+      List<
+          ({
+            Transaction t,
+            Category? category,
+            List<Tag> tags,
+            List<TransactionAttachment> attachments,
+            Account? account,
+          })>> getTransactionsByDateRange({
     required int ledgerId,
     required DateTime startDate,
     required DateTime endDate,

@@ -1042,6 +1042,8 @@
   "commonNext": "下一步",
   "commonNo": "否",
   "commonNoteHint": "備註…",
+  "transactionNameHint": "名稱…",
+  "transactionMerchantHint": "商家…",
   "commonNotice": "提示",
   "commonOk": "確定",
   "commonPressAgainToExit": "再按一次退出應用程式",

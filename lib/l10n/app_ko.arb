@@ -66,6 +66,8 @@
   "commonYesterday": "어제",
   "commonSearch": "검색",
   "commonNoteHint": "메모...",
+  "transactionNameHint": "이름...",
+  "transactionMerchantHint": "상점...",
   "commonSettings": "설정",
   "commonGoSettings": "설정으로 이동",
   "commonLanguage": "언어",

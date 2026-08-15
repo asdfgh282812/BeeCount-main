@@ -103,6 +103,9 @@ extension SyncEngineApplyExt on SyncEngine {
         ? DateTime.tryParse(happenedAtStr)?.toLocal() ?? DateTime.now()
         : DateTime.now();
     final note = payload['note'] as String?;
+    // v33:商家。跟 note 同款——entity_serializer.dart 恒发这个键(不省略),
+    // 这里直接无条件读,不用 containsKey 保护。
+    final merchant = payload['merchant'] as String?;
     final categoryName = payload['categoryName'] as String?;
     final categoryKind = payload['categoryKind'] as String?;
     // web 端创建转账时 account_name/account_id 是 null,只填 from_account_*。
@@ -238,6 +241,7 @@ extension SyncEngineApplyExt on SyncEngine {
         amount: d.Value(amount),
         happenedAt: d.Value(happenedAt),
         note: d.Value(note),
+        merchant: d.Value(merchant),
         categoryId: d.Value(categoryId),
         accountId: d.Value(accountId),
         toAccountId: d.Value(toAccountId),
@@ -272,6 +276,7 @@ extension SyncEngineApplyExt on SyncEngine {
               amount: amount,
               happenedAt: d.Value(happenedAt),
               note: d.Value(note),
+              merchant: d.Value(merchant),
               categoryId: d.Value(categoryId),
               accountId: d.Value(accountId),
               toAccountId: d.Value(toAccountId),
@@ -440,9 +445,8 @@ extension SyncEngineApplyExt on SyncEngine {
             ? d.Value(paymentDueDay)
             : const d.Value.absent(),
         bankName: hasBankNameKey ? d.Value(bankName) : const d.Value.absent(),
-        cardLastFour: hasCardLastFourKey
-            ? d.Value(cardLastFour)
-            : const d.Value.absent(),
+        cardLastFour:
+            hasCardLastFourKey ? d.Value(cardLastFour) : const d.Value.absent(),
         note: hasNoteKey ? d.Value(note) : const d.Value.absent(),
         hidden: hidden == null ? const d.Value.absent() : d.Value(hidden),
         parentAccountId: hasParentAccountIdKey

@@ -503,6 +503,18 @@ abstract class AppLocalizations {
   /// **'Note...'**
   String get commonNoteHint;
 
+  /// No description provided for @transactionNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Name...'**
+  String get transactionNameHint;
+
+  /// No description provided for @transactionMerchantHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Merchant...'**
+  String get transactionMerchantHint;
+
   /// No description provided for @commonSettings.
   ///
   /// In en, this message translates to:

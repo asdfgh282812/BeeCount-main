@@ -224,6 +224,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get commonNoteHint => '备注…';
 
   @override
+  String get transactionNameHint => '名称…';
+
+  @override
+  String get transactionMerchantHint => '商家…';
+
+  @override
   String get commonSettings => '设置';
 
   @override
@@ -7918,6 +7924,12 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get commonNoteHint => '備註…';
+
+  @override
+  String get transactionNameHint => '名稱…';
+
+  @override
+  String get transactionMerchantHint => '商家…';
 
   @override
   String get commonSettings => '設定';

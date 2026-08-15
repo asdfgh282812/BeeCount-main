@@ -38,6 +38,10 @@ class EntitySerializer {
       'amount': tx.amount,
       'happenedAt': tx.happenedAt.toUtc().toIso8601String(),
       'note': tx.note,
+      // v33:商家。跟 note 同规则——恒发(不做 if != null 的省略),让显式 null
+      // 能传达"清空商家"给 server(BeeCount Cloud _LEDGER_MERGE_SPECS["transaction"]
+      // 已有对应 ("merchant","merchant") merge spec)。
+      'merchant': tx.merchant,
       // 账单标记(D2 两个独立 bool)。camelCase 键与 server 端
       // _LEDGER_MERGE_SPECS / projection upsert 对齐 —— 改键名会让标记跨设备静默丢失。
       'excludeFromStats': tx.excludeFromStats,

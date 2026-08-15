@@ -112,6 +112,8 @@
   "commonYesterday": "Yesterday",
   "commonSearch": "Search",
   "commonNoteHint": "Note...",
+  "transactionNameHint": "Name...",
+  "transactionMerchantHint": "Merchant...",
   "commonSettings": "Settings",
   "commonGoSettings": "Go to Settings",
   "commonLanguage": "Language",

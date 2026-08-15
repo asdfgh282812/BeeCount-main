@@ -109,6 +109,8 @@
   "commonYesterday": "昨天",
   "commonSearch": "搜索",
   "commonNoteHint": "备注…",
+  "transactionNameHint": "名称…",
+  "transactionMerchantHint": "商家…",
   "commonSettings": "设置",
   "commonGoSettings": "前往设置",
   "commonLanguage": "语言",

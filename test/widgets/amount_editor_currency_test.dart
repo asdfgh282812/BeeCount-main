@@ -11,9 +11,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:beecount/data/db.dart';
 import 'package:beecount/data/repositories/local/local_repository.dart';
 import 'package:beecount/l10n/app_localizations.dart';
-import 'package:beecount/providers/currency_providers.dart';
 import 'package:beecount/providers/database_providers.dart';
-import 'package:beecount/widgets/biz/amount_editor_sheet.dart';
+import 'package:beecount/widgets/biz/transaction_entry_form.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -57,14 +56,14 @@ void main() {
         supportedLocales: AppLocalizations.supportedLocales,
         locale: const Locale('zh'),
         home: Scaffold(
-          body: AmountEditorSheet(
-            categoryName: '餐饮',
+          body: TransactionEntryForm(
+            kind: 'expense',
             initialDate: DateTime(2026, 7, 12),
             initialAmount: initialAmount,
             initialCurrencyCode: initialCurrencyCode,
             initialNativeAmount: initialNativeAmount,
             ledgerId: 1,
-            onSubmit: (_) {},
+            onSubmit: (_, __) {},
           ),
         ),
       ),

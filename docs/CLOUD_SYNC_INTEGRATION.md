@@ -66,7 +66,18 @@ recurring_rules.py`，欄位包含 `merchant` / `projectId` / `tagIds` /
 （`BeeCount-Cloud/src/sync_applier.py:231-254` 的 `_LEDGER_MERGE_SPECS["recurring_rule"]`），
 決定是擴充這張本地表還是重新設計。
 
-### 1.2 已知混淆陷阱：App 沒有 `account_group` 帳戶類型
+### 1.2 已知混淆陷阱：App 沒有 `account_group` 帳戶類型（⚠️ 已過時，見下方 2026-08-15 補注）
+
+> **2026-08-15 補注**：本節已經過時。v32（`accounts.parentAccountId` +
+> `accounts.avatarPath`，「帳戶主卡分組」功能）之後，App 端 `Accounts.type`
+> **已經支援** `account_group`（純管理容器帳戶，見 `lib/data/db.dart` 的
+> `parentAccountId` 欄位、`lib/pages/account/accounts_page.dart` 的
+> `_resolveDisplayType`、`lib/utils/account_type_utils.dart` 對
+> `'account_group'` 的 icon/color/label 特判、`entity_serializer.dart` 序列化
+> 的 `parentAccountId` 欄位)。下面「App 端合法值只有 cash, bank_card, ...
+> 沒有 account_group」這句已不成立。這裡先標記出來,詳細比對 App/Cloud 兩邊
+> account_group 語意是否完全一致(欄位、寫入路徑守衛等)留給下次真的要動
+> 這塊的人重新確認、更新本節,不在這次順手改動的範圍內。
 
 Cloud/Web 有 `account_type == "account_group"`（純管理容器帳戶，Phase 10/11，
 `BeeCount-Cloud/CLAUDE.md` 的「帳戶群組限制」鐵律）。App 端 `Accounts.type` 欄位

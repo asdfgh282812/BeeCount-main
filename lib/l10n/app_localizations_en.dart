@@ -228,6 +228,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonNoteHint => 'Note...';
 
   @override
+  String get transactionNameHint => 'Name...';
+
+  @override
+  String get transactionMerchantHint => 'Merchant...';
+
+  @override
   String get commonSettings => 'Settings';
 
   @override

@@ -224,6 +224,12 @@ class AppLocalizationsKo extends AppLocalizations {
   String get commonNoteHint => '메모...';
 
   @override
+  String get transactionNameHint => '이름...';
+
+  @override
+  String get transactionMerchantHint => '상점...';
+
+  @override
   String get commonSettings => '설정';
 
   @override

@@ -186,12 +186,21 @@ const List<_Cur> _kCurrencyDefs = [
 ];
 
 /// 货币代码列表（自动派生,无需手动维护）
-final List<String> kCurrencyCodes =
-    _kCurrencyDefs.map((d) => d.code).toList();
+final List<String> kCurrencyCodes = _kCurrencyDefs.map((d) => d.code).toList();
 
 /// 常用币种(置顶显示;顺序即展示顺序)。中国用户 + 出境/外贸高频币种。
 const List<String> kCommonCurrencyCodes = [
-  'CNY', 'USD', 'EUR', 'JPY', 'HKD', 'GBP', 'KRW', 'AUD', 'CAD', 'SGD', 'THB',
+  'CNY',
+  'USD',
+  'EUR',
+  'JPY',
+  'HKD',
+  'GBP',
+  'KRW',
+  'AUD',
+  'CAD',
+  'SGD',
+  'THB',
 ];
 
 /// symbol 查找表（自动派生）
@@ -203,7 +212,7 @@ final Map<String, String> _symbolMap = {
 /// (USD→US、JPY→JP);区域/特殊货币无单一国旗,返回 null 由 UI 兜底。
 const Map<String, String?> _currencyCountryOverride = {
   'EUR': 'EU', // 欧盟旗(currencyFlag 特例:country_flags 有 eu.si 资源但无 API 入口,直接渲染)
-  'TWD': 'CN', // 新台币显示中国国旗(中国大陆市场合规要求)
+  // TWD 无覆写,走下面默认派生(code.substring(0,2))得到 'TW',显示中华民国国旗。
   'XAF': null, 'XOF': null, 'XCD': null, 'XPF': null, // 区域法郎/元
   'XDR': null, 'XAU': null, 'XAG': null, 'XPT': null, 'XPD': null, // SDR/贵金属
 };
@@ -222,8 +231,6 @@ String? countryCodeForCurrency(String currencyCode) {
 final Map<String, String> _enNameMap = {
   for (final d in _kCurrencyDefs) d.code: d.enName,
 };
-
-
 
 /// 获取本地化的货币信息列表。
 /// 名称优先用本地化覆盖(主流币种,见 [_buildNameMap]),长尾币种回退英文名。

@@ -49,8 +49,10 @@ class AccountTransactionsPaginationNotifier
     extends StateNotifier<AccountTransactionsPaginationState> {
   final Ref ref;
   final int accountId;
+
   /// 资金流向过滤:'expense'=支出+转出,'income'=收入+转入,null=全部
   final String? flow;
+
   /// 主帳戶(合併帳單分組)聚合視圖:一併拉取這些子帳戶的交易。
   final List<int> extraAccountIds;
   static const _pageSize = 50;
@@ -130,7 +132,8 @@ class AccountTransactionsPaginationNotifier
 /// = 沒有子帳戶),用字串而非 List 是因為 Riverpod family key 需要值相等,
 /// List 沒有結構相等會導致每次都判定成新 key、緩存失效。
 final accountTransactionsPaginatedProvider = StateNotifierProvider.family
-    .autoDispose<AccountTransactionsPaginationNotifier,
+    .autoDispose<
+        AccountTransactionsPaginationNotifier,
         AccountTransactionsPaginationState,
         ({int accountId, String? flow, String extraIdsKey})>(
   (ref, params) {
@@ -165,9 +168,9 @@ final accountBillingPeriodTransactionsProvider = FutureProvider.family
 );
 
 /// 分类统计 Provider
-final accountCategoryStatsProvider = FutureProvider.family
-    .autoDispose<List<({int? id, String name, String? icon, double total})>,
-        ({int accountId, String type})>((ref, params) async {
+final accountCategoryStatsProvider = FutureProvider.family.autoDispose<
+    List<({int? id, String name, String? icon, double total})>,
+    ({int accountId, String type})>((ref, params) async {
   final repo = ref.watch(repositoryProvider);
   return repo.getAccountCategoryStats(params.accountId, type: params.type);
 });
@@ -193,8 +196,10 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     with SingleTickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
   late final TabController _tabController;
+
   /// 详情页图表 tab: 0=支出分布, 1=收入分布
   int _detailChartTab = 0;
+
   /// 帳單週期導航偏移(信用卡「交易明細」tab):0=本期,負數=更早的週期。
   int _billingPeriodOffset = 0;
 
@@ -254,8 +259,8 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final account = widget.account;
-    final allAccounts =
-        ref.watch(allAccountsStreamProvider).valueOrNull ?? const <db.Account>[];
+    final allAccounts = ref.watch(allAccountsStreamProvider).valueOrNull ??
+        const <db.Account>[];
     final children = _children(allAccounts);
 
     return Scaffold(
@@ -276,7 +281,8 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
                   size: 20,
                 ),
                 onPressed: () async {
-                  final currentLedger = ref.read(currentLedgerProvider).asData?.value;
+                  final currentLedger =
+                      ref.read(currentLedgerProvider).asData?.value;
                   if (currentLedger == null) return;
                   final result = await Navigator.push(
                     context,
@@ -342,7 +348,8 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
       return ListView(
         padding: EdgeInsets.symmetric(vertical: 8.0.scaled(context, ref)),
         children: [
-          _buildValuationCard(context, ref, account, statsAsync, currencyCode, primaryColor, l10n),
+          _buildValuationCard(context, ref, account, statsAsync, currencyCode,
+              primaryColor, l10n),
         ],
       );
     }
@@ -351,20 +358,27 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
       return ListView(
         padding: EdgeInsets.symmetric(vertical: 8.0.scaled(context, ref)),
         children: [
-          _buildBillingSummaryCard(context, account, children, l10n, primaryColor, currencyCode),
+          _buildBillingSummaryCard(
+              context, account, children, l10n, primaryColor, currencyCode),
           SizedBox(height: 8.0.scaled(context, ref)),
           _buildBillingTransactionList(
-            context, account, children, currencyCode, primaryColor,
-            categoriesAsync.asData?.value ?? [], l10n, typeColor,
+            context,
+            account,
+            children,
+            currencyCode,
+            primaryColor,
+            categoriesAsync.asData?.value ?? [],
+            l10n,
+            typeColor,
           ),
         ],
       );
     }
 
-    final expenseStatsAsync = ref.watch(accountCategoryStatsProvider(
-        (accountId: account.id, type: 'expense')));
-    final incomeStatsAsync = ref.watch(accountCategoryStatsProvider(
-        (accountId: account.id, type: 'income')));
+    final expenseStatsAsync = ref.watch(
+        accountCategoryStatsProvider((accountId: account.id, type: 'expense')));
+    final incomeStatsAsync = ref.watch(
+        accountCategoryStatsProvider((accountId: account.id, type: 'income')));
     final paginationState = ref.watch(accountTransactionsPaginatedProvider((
       accountId: account.id,
       flow: _listFlow,
@@ -378,13 +392,24 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
         _buildStatsCard(context, ref, account, statsAsync, currencyCode, l10n),
         SizedBox(height: 4.0.scaled(context, ref)),
         _buildOverviewCard(
-          context, ref, account, statsAsync,
-          currencyCode, primaryColor, typeColor, l10n,
+          context,
+          ref,
+          account,
+          statsAsync,
+          currencyCode,
+          primaryColor,
+          typeColor,
+          l10n,
         ),
         SizedBox(height: 8.0.scaled(context, ref)),
         _buildDetailChartSection(
-          context, ref, l10n, primaryColor,
-          expenseStatsAsync, incomeStatsAsync, typeColor,
+          context,
+          ref,
+          l10n,
+          primaryColor,
+          expenseStatsAsync,
+          incomeStatsAsync,
+          typeColor,
           isCreditCard: false,
         ),
         SizedBox(height: 12.0.scaled(context, ref)),
@@ -421,8 +446,14 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
       children: [
         if (account.type == 'credit_card') ...[
           _buildOverviewCard(
-            context, ref, account, statsAsync,
-            currencyCode, primaryColor, typeColor, l10n,
+            context,
+            ref,
+            account,
+            statsAsync,
+            currencyCode,
+            primaryColor,
+            typeColor,
+            l10n,
           ),
           SizedBox(height: 8.0.scaled(context, ref)),
         ],
@@ -500,8 +531,10 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     AppLocalizations l10n,
   ) {
     final isLiability = isLiabilityType(account.type);
-    final valueLabel = isLiability ? l10n.valuationCurrentDebt : l10n.valuationCurrentValue;
-    final updateLabel = isLiability ? l10n.valuationUpdateDebt : l10n.valuationUpdateValue;
+    final valueLabel =
+        isLiability ? l10n.valuationCurrentDebt : l10n.valuationCurrentValue;
+    final updateLabel =
+        isLiability ? l10n.valuationUpdateDebt : l10n.valuationUpdateValue;
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 12.0.scaled(context, ref)),
@@ -542,7 +575,8 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
                 ),
                 loading: () => SizedBox(
                   height: 36.0.scaled(context, ref),
-                  child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                  child: const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2)),
                 ),
                 error: (_, __) => const Text('-'),
               ),
@@ -578,17 +612,25 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () => _showUpdateValuationDialog(
-                    context, ref, account, isLiability, currencyCode, l10n,
+                    context,
+                    ref,
+                    account,
+                    isLiability,
+                    currencyCode,
+                    l10n,
                   ),
-                  icon: Icon(Icons.edit_outlined, size: 16, color: Colors.white),
+                  icon:
+                      Icon(Icons.edit_outlined, size: 16, color: Colors.white),
                   label: Text(updateLabel),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryColor,
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    padding: EdgeInsets.symmetric(vertical: 12.0.scaled(context, ref)),
+                    padding: EdgeInsets.symmetric(
+                        vertical: 12.0.scaled(context, ref)),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.0.scaled(context, ref)),
+                      borderRadius:
+                          BorderRadius.circular(8.0.scaled(context, ref)),
                     ),
                   ),
                 ),
@@ -618,14 +660,18 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
       builder: (ctx) {
         final primaryColor = ref.watch(primaryColorProvider);
         return AlertDialog(
-          title: Text(isLiability ? l10n.valuationUpdateDebt : l10n.valuationUpdateValue),
+          title: Text(isLiability
+              ? l10n.valuationUpdateDebt
+              : l10n.valuationUpdateValue),
           content: TextField(
             controller: controller,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             autofocus: true,
             decoration: InputDecoration(
               prefixText: '${getCurrencySymbol(currencyCode)} ',
-              hintText: isLiability ? l10n.valuationDebtHint : l10n.valuationAccountHint,
+              hintText: isLiability
+                  ? l10n.valuationDebtHint
+                  : l10n.valuationAccountHint,
             ),
           ),
           actions: [
@@ -701,7 +747,14 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
               if (hasTypeStats)
                 statsAsync.when(
                   data: (stats) => _buildTypeStatsInline(
-                    context, ref, account, stats, currencyCode, primaryColor, typeColor, l10n,
+                    context,
+                    ref,
+                    account,
+                    stats,
+                    currencyCode,
+                    primaryColor,
+                    typeColor,
+                    l10n,
                   ),
                   loading: () => const Center(
                     child: Padding(
@@ -774,7 +827,8 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
           : 0.0;
 
       // 计算距还款日天数
-      final hasBillingInfo = account.billingDay != null && account.paymentDueDay != null;
+      final hasBillingInfo =
+          account.billingDay != null && account.paymentDueDay != null;
       int? daysUntilPayment;
       if (account.paymentDueDay != null) {
         final now = DateTime.now();
@@ -797,7 +851,8 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
             children: [
               Text(
                 l10n.creditCardOwed,
-                style: TextStyle(fontSize: 13, color: BeeTokens.textSecondary(context)),
+                style: TextStyle(
+                    fontSize: 13, color: BeeTokens.textSecondary(context)),
               ),
               const Spacer(),
               AmountText(
@@ -819,9 +874,16 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
             SizedBox(height: 12.0.scaled(context, ref)),
             Row(
               children: [
-                Expanded(child: _OverviewStatCell(label: l10n.creditLimit, value: creditLimit)),
-                Expanded(child: _OverviewStatCell(label: l10n.creditUsed, value: usedAmount)),
-                Expanded(child: _OverviewStatCell(label: l10n.creditAvailable, value: creditLimit - usedAmount)),
+                Expanded(
+                    child: _OverviewStatCell(
+                        label: l10n.creditLimit, value: creditLimit)),
+                Expanded(
+                    child: _OverviewStatCell(
+                        label: l10n.creditUsed, value: usedAmount)),
+                Expanded(
+                    child: _OverviewStatCell(
+                        label: l10n.creditAvailable,
+                        value: creditLimit - usedAmount)),
               ],
             ),
             SizedBox(height: 8.0.scaled(context, ref)),
@@ -831,9 +893,11 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
                 value: usageRate,
                 backgroundColor: BeeTokens.divider(context),
                 valueColor: AlwaysStoppedAnimation<Color>(
-                  usageRate < 0.5 ? BeeTokens.success(context)
-                      : usageRate < 0.8 ? BeeTokens.warning(context)
-                      : BeeTokens.error(context),
+                  usageRate < 0.5
+                      ? BeeTokens.success(context)
+                      : usageRate < 0.8
+                          ? BeeTokens.warning(context)
+                          : BeeTokens.error(context),
                 ),
                 minHeight: 4,
               ),
@@ -866,18 +930,21 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
                       children: [
                         if (hasBillingInfo)
                           Text(
-                            l10n.creditCardBillingInfo(account.billingDay!, account.paymentDueDay!),
+                            l10n.creditCardBillingInfo(
+                                account.billingDay!, account.paymentDueDay!),
                             style: TextStyle(
                               fontSize: 12,
                               color: BeeTokens.textSecondary(context),
                             ),
                           ),
                         if (daysUntilPayment != null) ...[
-                          if (hasBillingInfo) SizedBox(height: 2.0.scaled(context, ref)),
+                          if (hasBillingInfo)
+                            SizedBox(height: 2.0.scaled(context, ref)),
                           Text(
                             daysUntilPayment == 0
                                 ? l10n.creditCardPaymentDueToday
-                                : l10n.creditCardDaysUntilPayment(daysUntilPayment),
+                                : l10n.creditCardDaysUntilPayment(
+                                    daysUntilPayment),
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
@@ -901,7 +968,8 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
             width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: () => _quickTransfer(
-                context, account,
+                context,
+                account,
                 toAccountId: account.id,
               ),
               icon: Icon(Icons.payment, size: 16, color: primaryColor),
@@ -926,8 +994,10 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     WidgetRef ref,
     AppLocalizations l10n,
     Color primaryColor,
-    AsyncValue<List<({int? id, String name, String? icon, double total})>> expenseStatsAsync,
-    AsyncValue<List<({int? id, String name, String? icon, double total})>> incomeStatsAsync,
+    AsyncValue<List<({int? id, String name, String? icon, double total})>>
+        expenseStatsAsync,
+    AsyncValue<List<({int? id, String name, String? icon, double total})>>
+        incomeStatsAsync,
     Color typeColor, {
     required bool isCreditCard,
   }) {
@@ -969,7 +1039,9 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
                       return SizedBox(
                         height: 180,
                         child: Center(
-                          child: Text('-', style: TextStyle(color: BeeTokens.textTertiary(context))),
+                          child: Text('-',
+                              style: TextStyle(
+                                  color: BeeTokens.textTertiary(context))),
                         ),
                       );
                     }
@@ -983,7 +1055,8 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
                   },
                   loading: () => const SizedBox(
                     height: 180,
-                    child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    child: Center(
+                        child: CircularProgressIndicator(strokeWidth: 2)),
                   ),
                   error: (_, __) => const SizedBox(height: 180),
                 )
@@ -994,7 +1067,9 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
                       return SizedBox(
                         height: 180,
                         child: Center(
-                          child: Text('-', style: TextStyle(color: BeeTokens.textTertiary(context))),
+                          child: Text('-',
+                              style: TextStyle(
+                                  color: BeeTokens.textTertiary(context))),
                         ),
                       );
                     }
@@ -1008,7 +1083,8 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
                   },
                   loading: () => const SizedBox(
                     height: 180,
-                    child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    child: Center(
+                        child: CircularProgressIndicator(strokeWidth: 2)),
                   ),
                   error: (_, __) => const SizedBox(height: 180),
                 ),
@@ -1031,7 +1107,8 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
 
   /// 帳單週期起訖:[offset]=0 為涵蓋今天的本期,負數往前推一期一期算。
   /// 沒設 billingDay 時退化成「每月 1 號」起算的自然月。
-  ({DateTime start, DateTime end}) _billingPeriod(db.Account account, int offset) {
+  ({DateTime start, DateTime end}) _billingPeriod(
+      db.Account account, int offset) {
     final day = account.billingDay ?? 1;
     final now = DateTime.now();
     var anchorYear = now.year;
@@ -1110,8 +1187,8 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
               children: [
                 IconButton(
                   visualDensity: VisualDensity.compact,
-                  icon: Icon(Icons.chevron_left, size: 20,
-                      color: BeeTokens.iconSecondary(context)),
+                  icon: Icon(Icons.chevron_left,
+                      size: 20, color: BeeTokens.iconSecondary(context)),
                   onPressed: () => setState(() => _billingPeriodOffset -= 1),
                 ),
                 Text(
@@ -1124,7 +1201,8 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
                 ),
                 IconButton(
                   visualDensity: VisualDensity.compact,
-                  icon: Icon(Icons.chevron_right, size: 20,
+                  icon: Icon(Icons.chevron_right,
+                      size: 20,
                       color: _billingPeriodOffset < 0
                           ? BeeTokens.iconSecondary(context)
                           : BeeTokens.iconTertiary(context)),
@@ -1134,13 +1212,17 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
                 ),
               ],
             ),
-            Divider(height: 16.0.scaled(context, ref), color: BeeTokens.divider(context)),
+            Divider(
+                height: 16.0.scaled(context, ref),
+                color: BeeTokens.divider(context)),
             txAsync.when(
               data: (txs) => _buildBillingSummaryRows(
                   context, txs, account, children, l10n, currencyCode),
               loading: () => Padding(
-                padding: EdgeInsets.symmetric(vertical: 24.0.scaled(context, ref)),
-                child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                padding:
+                    EdgeInsets.symmetric(vertical: 24.0.scaled(context, ref)),
+                child: const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2)),
               ),
               error: (_, __) => const SizedBox.shrink(),
             ),
@@ -1196,7 +1278,8 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
           child: Row(
             children: [
               Text(label,
-                  style: TextStyle(fontSize: 13, color: BeeTokens.textSecondary(context))),
+                  style: TextStyle(
+                      fontSize: 13, color: BeeTokens.textSecondary(context))),
               const Spacer(),
               value,
             ],
@@ -1211,12 +1294,15 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
         row(l10n.billingSummaryAmountPaid, amountValue(amountPaid)),
         row(
           l10n.billingSummaryInstallments,
-          Text('---', style: TextStyle(fontSize: 13, color: BeeTokens.textTertiary(context))),
+          Text('---',
+              style: TextStyle(
+                  fontSize: 13, color: BeeTokens.textTertiary(context))),
         ),
         row(
           l10n.billingSummaryReconciledCount,
           Text('${txs.length} / ${txs.length}',
-              style: TextStyle(fontSize: 13, color: BeeTokens.textPrimary(context))),
+              style: TextStyle(
+                  fontSize: 13, color: BeeTokens.textPrimary(context))),
         ),
         row(
           l10n.billingSummaryRemaining,
@@ -1233,7 +1319,8 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
                       ),
                     ),
                     SizedBox(width: 4.0.scaled(context, ref)),
-                    Icon(Icons.check_circle, size: 15, color: BeeTokens.success(context)),
+                    Icon(Icons.check_circle,
+                        size: 15, color: BeeTokens.success(context)),
                   ],
                 )
               : amountValue(remaining),
@@ -1268,7 +1355,13 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
 
     return txAsync.when(
       data: (txs) => _buildBillingPeriodTransactionList(
-        context, txs, currencyCode, primaryColor, categories, l10n, accountNameById,
+        context,
+        txs,
+        currencyCode,
+        primaryColor,
+        categories,
+        l10n,
+        accountNameById,
       ),
       loading: () => Padding(
         padding: EdgeInsets.symmetric(vertical: 32.0.scaled(context, ref)),
@@ -1303,7 +1396,8 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
       ),
       _InfoRow(
         label: l10n.accountGroupLabel,
-        value: Text(getAccountTypeLabel(context, account.type), style: _infoValueStyle(context)),
+        value: Text(getAccountTypeLabel(context, account.type),
+            style: _infoValueStyle(context)),
       ),
     ];
 
@@ -1341,7 +1435,9 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
       rows.add(_InfoRow(
         label: l10n.accountSubAccountsLabel,
         value: Text(
-          children.isEmpty ? '-' : l10n.accountSubAccountsCount(children.length),
+          children.isEmpty
+              ? '-'
+              : l10n.accountSubAccountsCount(children.length),
           style: _infoValueStyle(context),
         ),
       ));
@@ -1350,12 +1446,14 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
         value: Text(l10n.accountAutoPayNone, style: _infoValueStyle(context)),
       ));
       // 可用額度不足提醒:目前没有这个提醒功能,先展示为关闭的占位开关。
-      rows.add(_InfoSwitchRow(label: l10n.accountLowCreditAlertLabel, value: false));
+      rows.add(
+          _InfoSwitchRow(label: l10n.accountLowCreditAlertLabel, value: false));
     }
 
     // 納入總餘額:目前所有账户(隐藏账户也不例外)一律计入净资产,没有排除
     // 开关,这里如实展示成常亮、不可交互的占位开关。
-    rows.add(_InfoSwitchRow(label: l10n.accountIncludeInNetWorthLabel, value: true));
+    rows.add(
+        _InfoSwitchRow(label: l10n.accountIncludeInNetWorthLabel, value: true));
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 12.0.scaled(context, ref)),
@@ -1386,8 +1484,15 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
   }) {
     final transactions = state.transactions;
     return _buildTransactionListBody(
-      context, transactions, state.isLoading, state.hasMore,
-      currencyCode, primaryColor, categories, l10n, accountNameById,
+      context,
+      transactions,
+      state.isLoading,
+      state.hasMore,
+      currencyCode,
+      primaryColor,
+      categories,
+      l10n,
+      accountNameById,
     );
   }
 
@@ -1404,8 +1509,15 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     Map<int, String> accountNameById,
   ) {
     return _buildTransactionListBody(
-      context, transactions, false, false,
-      currencyCode, primaryColor, categories, l10n, accountNameById,
+      context,
+      transactions,
+      false,
+      false,
+      currencyCode,
+      primaryColor,
+      categories,
+      l10n,
+      accountNameById,
     );
   }
 
@@ -1422,7 +1534,7 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
   ) {
     // 沿用旧的局部变量名,方便复用下面原封不动的渲染逻辑。
     final state = AccountTransactionsPaginationState(
-      transactions: transactions, isLoading: isLoading, hasMore: hasMore);
+        transactions: transactions, isLoading: isLoading, hasMore: hasMore);
 
     if (transactions.isEmpty && !state.isLoading) {
       return SectionCard(
@@ -1502,8 +1614,7 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
                   transaction: tx,
                   currencyCode: currencyCode,
                   primaryColor: primaryColor,
-                  ledgers:
-                      ref.watch(ledgersStreamProvider).asData?.value ?? [],
+                  ledgers: ref.watch(ledgersStreamProvider).asData?.value ?? [],
                   categories: categories,
                   currentAccountId: widget.account.id,
                   accountTagName: accountNameById[tx.accountId],
@@ -1520,8 +1631,7 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
                 child: SizedBox(
                   width: 24,
                   height: 24,
-                  child:
-                      CircularProgressIndicator(strokeWidth: 2),
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 ),
               ),
             )
@@ -1588,12 +1698,10 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
           initialKind: 'transfer',
           initialAccountId: fromAccountId,
           initialToAccountId: toAccountId,
-          quickAdd: true,
         ),
       ),
     );
   }
-
 }
 
 // ============================================
@@ -1615,7 +1723,8 @@ class _InfoRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(fontSize: 14, color: BeeTokens.textSecondary(context)),
+            style: TextStyle(
+                fontSize: 14, color: BeeTokens.textSecondary(context)),
           ),
           const Spacer(),
           value,
@@ -1642,7 +1751,8 @@ class _InfoSwitchRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: TextStyle(fontSize: 14, color: BeeTokens.textSecondary(context)),
+              style: TextStyle(
+                  fontSize: 14, color: BeeTokens.textSecondary(context)),
             ),
           ),
           Switch(value: value, onChanged: null),
@@ -1794,6 +1904,7 @@ class _TransactionTile extends ConsumerWidget {
   final List<db.Category> categories;
   final VoidCallback onTap;
   final int? currentAccountId;
+
   /// 主帳戶(合併帳單分組)聚合視圖用:這筆交易實際所屬的子帳戶名稱,非空時
   /// 在分类/账本标签旁多渲染一个帐户名标签(参照範例圖「永豐 Sport 卡」)。
   final String? accountTagName;
@@ -1878,7 +1989,8 @@ class _TransactionTile extends ConsumerWidget {
       displayTitle = category != null
           ? category.name
           : (transaction.type == 'income' ? l10n.homeIncome : l10n.homeExpense);
-      if (transaction.note?.isNotEmpty == true && transaction.note != displayTitle) {
+      if (transaction.note?.isNotEmpty == true &&
+          transaction.note != displayTitle) {
         noteSuffix = transaction.note;
       }
     }
@@ -1953,8 +2065,8 @@ class _TransactionTile extends ConsumerWidget {
                           ),
                           decoration: BoxDecoration(
                             color: primaryColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(
-                                4.0.scaled(context, ref)),
+                            borderRadius:
+                                BorderRadius.circular(4.0.scaled(context, ref)),
                           ),
                           child: Text(
                             ledgerName,
@@ -1966,7 +2078,8 @@ class _TransactionTile extends ConsumerWidget {
                           ),
                         ),
                       ],
-                      if (accountTagName != null && accountTagName!.isNotEmpty) ...[
+                      if (accountTagName != null &&
+                          accountTagName!.isNotEmpty) ...[
                         SizedBox(width: 6.0.scaled(context, ref)),
                         Container(
                           padding: EdgeInsets.symmetric(
@@ -1974,9 +2087,10 @@ class _TransactionTile extends ConsumerWidget {
                             vertical: 2.0.scaled(context, ref),
                           ),
                           decoration: BoxDecoration(
-                            color: BeeTokens.textTertiary(context).withValues(alpha: 0.14),
-                            borderRadius: BorderRadius.circular(
-                                4.0.scaled(context, ref)),
+                            color: BeeTokens.textTertiary(context)
+                                .withValues(alpha: 0.14),
+                            borderRadius:
+                                BorderRadius.circular(4.0.scaled(context, ref)),
                           ),
                           child: Text(
                             accountTagName!,
@@ -1992,8 +2106,7 @@ class _TransactionTile extends ConsumerWidget {
                   ),
                   if (displaySubtitle != null)
                     Padding(
-                      padding:
-                          EdgeInsets.only(top: 2.0.scaled(context, ref)),
+                      padding: EdgeInsets.only(top: 2.0.scaled(context, ref)),
                       child: Text(
                         displaySubtitle,
                         style: TextStyle(
@@ -2003,8 +2116,7 @@ class _TransactionTile extends ConsumerWidget {
                       ),
                     ),
                   Padding(
-                    padding:
-                        EdgeInsets.only(top: 2.0.scaled(context, ref)),
+                    padding: EdgeInsets.only(top: 2.0.scaled(context, ref)),
                     child: Text(
                       _formatDate(transaction.happenedAt),
                       style: TextStyle(
