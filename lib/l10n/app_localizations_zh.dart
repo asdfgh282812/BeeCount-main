@@ -7749,6 +7749,238 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get billingSummaryPaidOff => '已缴清';
+
+  @override
+  String get cardRewardRuleEntryLabel => '红利回馈';
+
+  @override
+  String cardRewardRuleCount(int count) {
+    return '$count组回馈条件';
+  }
+
+  @override
+  String get cardRewardRuleListTitle => '红利回馈列表';
+
+  @override
+  String cardRewardRuleActiveSection(int count) {
+    return '进行中 ($count)';
+  }
+
+  @override
+  String cardRewardRuleEndedSection(int count) {
+    return '已结束 ($count)';
+  }
+
+  @override
+  String get cardRewardRuleCapNone => '回馈无上限';
+
+  @override
+  String cardRewardRuleCapUpTo(String amount) {
+    return '上限 $amount';
+  }
+
+  @override
+  String get cardRewardRuleEmptyState => '尚未设置任何回馈规则,点右上角“+”新增';
+
+  @override
+  String get cardRewardRuleEditorTitleNew => '新增红利回馈';
+
+  @override
+  String get cardRewardRuleEditorTitleEdit => '编辑红利回馈';
+
+  @override
+  String get cardRewardRuleLabelField => '活动名称';
+
+  @override
+  String get cardRewardRuleLabelHint => '请输入名称';
+
+  @override
+  String get cardRewardRuleAccountField => '绑定账户';
+
+  @override
+  String get cardRewardRuleRateTypeField => '回馈方式';
+
+  @override
+  String get cardRewardRuleRateTypePercentage => '按照%数';
+
+  @override
+  String get cardRewardRuleRateTypeFixedAmount => '每笔固定金额';
+
+  @override
+  String get cardRewardRuleRateValuePercentField => '按照%数';
+
+  @override
+  String get cardRewardRuleRateValueFixedField => '每笔金额';
+
+  @override
+  String get cardRewardRuleMechanismSection => '回馈机制';
+
+  @override
+  String get cardRewardRuleIntervalField => '回馈计算区间';
+
+  @override
+  String get cardRewardRuleIntervalBillingCycle => '依照账单区间';
+
+  @override
+  String get cardRewardRuleIntervalCalendarMonth => '依照自然月';
+
+  @override
+  String get cardRewardRuleCalcBasisField => '回馈计算基准';
+
+  @override
+  String get cardRewardRuleCalcBasisTransactionDate => '消费日期';
+
+  @override
+  String get cardRewardRuleCalcBasisSettlementDate => '入账日期';
+
+  @override
+  String get cardRewardRuleSettlementTypeField => '回馈入账时机';
+
+  @override
+  String get cardRewardRuleSettlementImmediate => '消费后立即入账';
+
+  @override
+  String get cardRewardRuleSettlementAfterPostingDate => '入账日后结算';
+
+  @override
+  String get cardRewardRuleSettlementPeriodEnd => '区间结束后';
+
+  @override
+  String get cardRewardRuleSettlementManual => '仅手动入账';
+
+  @override
+  String get cardRewardRuleSettlementMonthOffsetField => '回馈入账月份偏移';
+
+  @override
+  String get cardRewardRuleSettlementDayOfMonthField => '回馈日期(当月第几号)';
+
+  @override
+  String get cardRewardRuleThresholdSection => '回馈启动门槛';
+
+  @override
+  String get cardRewardRuleMinSpendThresholdField => '期间累积消费门槛';
+
+  @override
+  String get cardRewardRuleMinTxAmountField => '单笔消费门槛';
+
+  @override
+  String get cardRewardRuleNoThreshold => '无门槛';
+
+  @override
+  String get cardRewardRuleCalcSection => '计算方式';
+
+  @override
+  String get cardRewardRuleRoundingField => '单笔';
+
+  @override
+  String get cardRewardRuleTotalRoundingField => '总额';
+
+  @override
+  String get cardRewardRuleRoundingFloor => '向下取整';
+
+  @override
+  String get cardRewardRuleRoundingRound => '四舍五入';
+
+  @override
+  String get cardRewardRuleRoundingCeil => '向上取整';
+
+  @override
+  String get cardRewardRuleRoundingKeep => '保留小数';
+
+  @override
+  String get cardRewardRuleCapSection => '回馈上限';
+
+  @override
+  String get cardRewardRuleCapTotalField => '总额上限';
+
+  @override
+  String get cardRewardRuleCapNoLimit => '无上限';
+
+  @override
+  String get cardRewardRuleCapSharedKeyField => '共同上限';
+
+  @override
+  String get cardRewardRuleCapSharedKeyHint => '选填,共用同一组值的规则会共享同一份上限额度';
+
+  @override
+  String get cardRewardRuleOtherSection => '其他设置';
+
+  @override
+  String get cardRewardRuleRewardAccountField => '回馈入账账户';
+
+  @override
+  String get cardRewardRuleNoRewardAccount => '未选择';
+
+  @override
+  String get cardRewardRuleStartsAtField => '活动开始';
+
+  @override
+  String get cardRewardRuleEndsAtField => '活动结束';
+
+  @override
+  String get cardRewardRuleNoEndDate => '无结束日期';
+
+  @override
+  String get cardRewardRuleNoteField => '活动详细内容';
+
+  @override
+  String get cardRewardRuleNotePlaceholder => '备注这个回馈活动的细节';
+
+  @override
+  String get cardRewardRuleCategoryIdsField => '适用分类(选填,仅供显示)';
+
+  @override
+  String get cardRewardRuleLockedHint =>
+      '此规则已有交易或入账记录,计算相关字段不能再编辑,只能调整名称/备注/启用状态/活动日期。';
+
+  @override
+  String get cardRewardRuleDeleteConfirmTitle => '确定要删除这条回馈规则吗?';
+
+  @override
+  String get cardRewardRuleDeleteConfirmBody => '删除后无法恢复。';
+
+  @override
+  String cardRewardRuleSaveFailed(String error) {
+    return '保存失败:$error';
+  }
+
+  @override
+  String get cardRewardRuleSelectorTitle => '选择红利回馈';
+
+  @override
+  String get cardRewardRuleSelectorEmpty => '这个账户目前没有生效中的回馈规则';
+
+  @override
+  String cardRewardRuleEstimatedReward(String amount) {
+    return '预计可获得回馈:$amount';
+  }
+
+  @override
+  String get cardRewardRuleCopy => '复制';
+
+  @override
+  String get cardRewardRuleDelete => '删除';
+
+  @override
+  String cardRewardRuleCopyLabel(String name) {
+    return '$name(复制)';
+  }
+
+  @override
+  String get cardRewardRuleCopied => '已复制回馈规则';
+
+  @override
+  String get cardRewardRuleDeleted => '回馈规则已删除';
+
+  @override
+  String get cardRewardRuleDeleteLockedTitle => '这条规则已有交易关联';
+
+  @override
+  String get cardRewardRuleDeleteLockedBody =>
+      '这条回馈规则已有交易引用,无法彻底删除,系统会改成停用并归入「已结束」分组。';
+
+  @override
+  String get cardRewardRuleDisabledInsteadOfDeleted => '规则已有交易关联,已改为停用而非删除';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -15496,4 +15728,236 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get billingSummaryPaidOff => '已繳清';
+
+  @override
+  String get cardRewardRuleEntryLabel => '紅利回饋';
+
+  @override
+  String cardRewardRuleCount(int count) {
+    return '$count組回饋條件';
+  }
+
+  @override
+  String get cardRewardRuleListTitle => '紅利回饋列表';
+
+  @override
+  String cardRewardRuleActiveSection(int count) {
+    return '進行中 ($count)';
+  }
+
+  @override
+  String cardRewardRuleEndedSection(int count) {
+    return '已結束 ($count)';
+  }
+
+  @override
+  String get cardRewardRuleCapNone => '回饋無上限';
+
+  @override
+  String cardRewardRuleCapUpTo(String amount) {
+    return '上限 $amount';
+  }
+
+  @override
+  String get cardRewardRuleEmptyState => '尚未設定任何回饋規則,點右上角「+」新增';
+
+  @override
+  String get cardRewardRuleEditorTitleNew => '新增紅利回饋';
+
+  @override
+  String get cardRewardRuleEditorTitleEdit => '編輯紅利回饋';
+
+  @override
+  String get cardRewardRuleLabelField => '活動名稱';
+
+  @override
+  String get cardRewardRuleLabelHint => '請輸入名稱';
+
+  @override
+  String get cardRewardRuleAccountField => '綁定帳戶';
+
+  @override
+  String get cardRewardRuleRateTypeField => '回饋方式';
+
+  @override
+  String get cardRewardRuleRateTypePercentage => '按照%數';
+
+  @override
+  String get cardRewardRuleRateTypeFixedAmount => '每筆固定金額';
+
+  @override
+  String get cardRewardRuleRateValuePercentField => '按照%數';
+
+  @override
+  String get cardRewardRuleRateValueFixedField => '每筆金額';
+
+  @override
+  String get cardRewardRuleMechanismSection => '回饋機制';
+
+  @override
+  String get cardRewardRuleIntervalField => '回饋計算區間';
+
+  @override
+  String get cardRewardRuleIntervalBillingCycle => '依照帳單區間';
+
+  @override
+  String get cardRewardRuleIntervalCalendarMonth => '依照自然月';
+
+  @override
+  String get cardRewardRuleCalcBasisField => '回饋計算基準';
+
+  @override
+  String get cardRewardRuleCalcBasisTransactionDate => '消費日期';
+
+  @override
+  String get cardRewardRuleCalcBasisSettlementDate => '入帳日期';
+
+  @override
+  String get cardRewardRuleSettlementTypeField => '回饋入帳時機';
+
+  @override
+  String get cardRewardRuleSettlementImmediate => '消費後立即入帳';
+
+  @override
+  String get cardRewardRuleSettlementAfterPostingDate => '入帳日後結算';
+
+  @override
+  String get cardRewardRuleSettlementPeriodEnd => '區間結束後';
+
+  @override
+  String get cardRewardRuleSettlementManual => '僅手動入帳';
+
+  @override
+  String get cardRewardRuleSettlementMonthOffsetField => '回饋入帳月份偏移';
+
+  @override
+  String get cardRewardRuleSettlementDayOfMonthField => '回饋日期(當月第幾號)';
+
+  @override
+  String get cardRewardRuleThresholdSection => '回饋啟動門檻';
+
+  @override
+  String get cardRewardRuleMinSpendThresholdField => '期間累積消費門檻';
+
+  @override
+  String get cardRewardRuleMinTxAmountField => '單筆消費門檻';
+
+  @override
+  String get cardRewardRuleNoThreshold => '無門檻';
+
+  @override
+  String get cardRewardRuleCalcSection => '計算方式';
+
+  @override
+  String get cardRewardRuleRoundingField => '單筆';
+
+  @override
+  String get cardRewardRuleTotalRoundingField => '總額';
+
+  @override
+  String get cardRewardRuleRoundingFloor => '無條件捨去';
+
+  @override
+  String get cardRewardRuleRoundingRound => '四捨五入';
+
+  @override
+  String get cardRewardRuleRoundingCeil => '無條件進位';
+
+  @override
+  String get cardRewardRuleRoundingKeep => '保留小數';
+
+  @override
+  String get cardRewardRuleCapSection => '回饋上限';
+
+  @override
+  String get cardRewardRuleCapTotalField => '總額上限';
+
+  @override
+  String get cardRewardRuleCapNoLimit => '無上限';
+
+  @override
+  String get cardRewardRuleCapSharedKeyField => '共同上限';
+
+  @override
+  String get cardRewardRuleCapSharedKeyHint => '選填,共用同一組值的規則會共享同一份上限額度';
+
+  @override
+  String get cardRewardRuleOtherSection => '其他設定';
+
+  @override
+  String get cardRewardRuleRewardAccountField => '回饋入帳帳戶';
+
+  @override
+  String get cardRewardRuleNoRewardAccount => '未選擇';
+
+  @override
+  String get cardRewardRuleStartsAtField => '活動開始';
+
+  @override
+  String get cardRewardRuleEndsAtField => '活動結束';
+
+  @override
+  String get cardRewardRuleNoEndDate => '無結束日期';
+
+  @override
+  String get cardRewardRuleNoteField => '活動詳細內容';
+
+  @override
+  String get cardRewardRuleNotePlaceholder => '備註這個回饋活動的細節';
+
+  @override
+  String get cardRewardRuleCategoryIdsField => '適用分類(選填,僅供顯示)';
+
+  @override
+  String get cardRewardRuleLockedHint =>
+      '此規則已有交易或入帳紀錄,計算相關欄位不能再編輯,只能調整名稱/備註/啟用狀態/活動日期。';
+
+  @override
+  String get cardRewardRuleDeleteConfirmTitle => '確定要刪除這條回饋規則嗎?';
+
+  @override
+  String get cardRewardRuleDeleteConfirmBody => '刪除後無法復原。';
+
+  @override
+  String cardRewardRuleSaveFailed(String error) {
+    return '儲存失敗:$error';
+  }
+
+  @override
+  String get cardRewardRuleSelectorTitle => '選擇紅利回饋';
+
+  @override
+  String get cardRewardRuleSelectorEmpty => '這個帳戶目前沒有生效中的回饋規則';
+
+  @override
+  String cardRewardRuleEstimatedReward(String amount) {
+    return '預計可獲得回饋:$amount';
+  }
+
+  @override
+  String get cardRewardRuleCopy => '複製';
+
+  @override
+  String get cardRewardRuleDelete => '刪除';
+
+  @override
+  String cardRewardRuleCopyLabel(String name) {
+    return '$name(複製)';
+  }
+
+  @override
+  String get cardRewardRuleCopied => '已複製回饋規則';
+
+  @override
+  String get cardRewardRuleDeleted => '回饋規則已刪除';
+
+  @override
+  String get cardRewardRuleDeleteLockedTitle => '這條規則已有交易關聯';
+
+  @override
+  String get cardRewardRuleDeleteLockedBody =>
+      '這條回饋規則已有交易引用,無法徹底刪除,系統會改成停用並歸入「已結束」分組。';
+
+  @override
+  String get cardRewardRuleDisabledInsteadOfDeleted => '規則已有交易關聯,已改為停用而非刪除';
 }

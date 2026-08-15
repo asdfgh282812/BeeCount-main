@@ -15,6 +15,7 @@ import '../../utils/account_type_utils.dart';
 import '../../widgets/charts/account_category_pie_chart.dart';
 import '../transaction/transaction_editor_page.dart';
 import 'account_edit_page.dart';
+import 'card_reward_rule_list_page.dart';
 
 // ============================================
 // Providers
@@ -1439,6 +1440,34 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
               ? '-'
               : l10n.accountSubAccountsCount(children.length),
           style: _infoValueStyle(context),
+        ),
+      ));
+      // 紅利回饋:入口顯示目前生效中(enabled==true)的規則數量,點擊進列表頁。
+      final rewardRulesAsync =
+          ref.watch(cardRewardRulesForAccountProvider(account.id));
+      final activeRewardRuleCount =
+          rewardRulesAsync.valueOrNull?.where((r) => r.enabled).length ?? 0;
+      rows.add(InkWell(
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => CardRewardRuleListPage(
+              accountId: account.id,
+              accountName: account.name,
+            ),
+          ),
+        ),
+        child: _InfoRow(
+          label: l10n.cardRewardRuleEntryLabel,
+          value: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(l10n.cardRewardRuleCount(activeRewardRuleCount),
+                  style: _infoValueStyle(context)),
+              const SizedBox(width: 4),
+              Icon(Icons.chevron_right,
+                  size: 16, color: BeeTokens.iconSecondary(context)),
+            ],
+          ),
         ),
       ));
       rows.add(_InfoRow(

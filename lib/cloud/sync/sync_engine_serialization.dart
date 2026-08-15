@@ -281,6 +281,34 @@ extension SyncEngineSerializationExt on SyncEngine {
         if (tag == null) return <String, dynamic>{};
         return EntitySerializer.serializeTag(tag);
 
+      case 'card_reward_rule':
+        final rule = await (db.select(db.cardRewardRules)
+              ..where((r) => r.id.equals(entityId)))
+            .getSingleOrNull();
+        if (rule == null) return <String, dynamic>{};
+        final account = await (db.select(db.accounts)
+              ..where((a) => a.id.equals(rule.accountId)))
+            .getSingleOrNull();
+        if (account?.syncId == null || account!.syncId!.isEmpty) {
+          // 绑定的信用卡帐户还没自己的 syncId(理论上不该发生——账户是
+          // user-global,创建时就会有;稳妥起见跳过这次推送而不是推一条
+          // accountId 为空的坏 payload,下次账户 push 完这条 change 还在,
+          // 之后同步会重试)。
+          return <String, dynamic>{};
+        }
+        String? rewardAccountSyncId;
+        if (rule.rewardAccountId != null) {
+          final rewardAccount = await (db.select(db.accounts)
+                ..where((a) => a.id.equals(rule.rewardAccountId!)))
+              .getSingleOrNull();
+          rewardAccountSyncId = rewardAccount?.syncId;
+        }
+        return EntitySerializer.serializeCardRewardRule(
+          rule,
+          accountSyncId: account.syncId!,
+          rewardAccountSyncId: rewardAccountSyncId,
+        );
+
       case 'budget':
         final budget = await (db.select(db.budgets)
               ..where((b) => b.id.equals(entityId)))

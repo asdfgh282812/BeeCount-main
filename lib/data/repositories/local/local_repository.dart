@@ -22,6 +22,7 @@ import 'local_tag_repository.dart';
 import 'local_budget_repository.dart';
 import 'local_attachment_repository.dart';
 import 'local_exchange_rate_repository.dart';
+import 'local_card_reward_rule_repository.dart';
 
 /// LocalRepository 本地数据库实现
 /// 基于 Drift 本地数据库实现所有 Repository 接口
@@ -49,6 +50,7 @@ class LocalRepository extends BaseRepository {
   late final LocalBudgetRepository _budgetRepo;
   late final LocalAttachmentRepository _attachmentRepo;
   late final LocalExchangeRateRepository _exchangeRateRepo;
+  late final LocalCardRewardRuleRepository _cardRewardRuleRepo;
 
   LocalRepository(this.db, {this.changeTracker}) {
     _ledgerRepo = LocalLedgerRepository(db);
@@ -63,6 +65,7 @@ class LocalRepository extends BaseRepository {
     _attachmentRepo = LocalAttachmentRepository(db);
     _exchangeRateRepo =
         LocalExchangeRateRepository(db, trackerGetter: () => changeTracker);
+    _cardRewardRuleRepo = LocalCardRewardRuleRepository(db);
   }
 
   // ============================================
@@ -359,6 +362,7 @@ class LocalRepository extends BaseRepository {
     String? currencyCode,
     double? nativeAmount,
     String? refundOfSyncId,
+    List<String>? rewardRuleIds,
   }) async {
     // v30 带折算兜底(02 §六):任何调用方(单币种记账/AI/周期模板)未传两字段
     // 时在此补齐 —— 外币先查有效汇率,取不到才 =amount(命中 L11 检测可捞回)。
@@ -388,6 +392,7 @@ class LocalRepository extends BaseRepository {
       currencyCode: cc,
       nativeAmount: na,
       refundOfSyncId: refundOfSyncId,
+      rewardRuleIds: rewardRuleIds,
     );
     if (changeTracker != null) {
       final tx = await _transactionRepo.getTransactionById(id);
@@ -463,6 +468,7 @@ class LocalRepository extends BaseRepository {
     bool? excludeFromBudget,
     String? currencyCode,
     double? nativeAmount,
+    List<String>? rewardRuleIds,
   }) async {
     final old = await _transactionRepo.getTransactionById(id);
     // v30 联动兜底(与 Cloud merge/mutator 的 L14 同规则):调用方不传两字段时——
@@ -513,6 +519,7 @@ class LocalRepository extends BaseRepository {
           excludeFromBudget: excludeFromBudget,
           currencyCode: effCurrency,
           nativeAmount: effNative,
+          rewardRuleIds: rewardRuleIds,
         );
         await changeTracker!.recordLedgerChange(
           entityType: 'transaction',
@@ -540,6 +547,7 @@ class LocalRepository extends BaseRepository {
       excludeFromBudget: excludeFromBudget,
       currencyCode: effCurrency,
       nativeAmount: effNative,
+      rewardRuleIds: rewardRuleIds,
     );
   }
 
@@ -3000,4 +3008,131 @@ class LocalRepository extends BaseRepository {
   @override
   Future<void> removeOverride({required String base, required String quote}) =>
       _exchangeRateRepo.removeOverride(base: base, quote: quote);
+
+  // ============================================
+  // CardRewardRuleRepository 接口实现 - 委托给 LocalCardRewardRuleRepository
+  // user-global 实体(同 category/tag),changeTracker.recordUserGlobalChange
+  // 记在这一层,子仓库不挂 changeTracker。
+  // ============================================
+
+  @override
+  Future<int> createCardRewardRule({
+    required int accountId,
+    required String label,
+    List<String>? categoryIds,
+    String rateType = 'percentage',
+    required double rateValue,
+    String rounding = 'round',
+    String totalRounding = 'round',
+    String calcBasis = 'transaction_date',
+    String interval = 'billing_cycle',
+    double? minSpendThreshold,
+    double? minTxAmount,
+    double? capAmount,
+    String? capSharedKey,
+    DateTime? startsAt,
+    DateTime? endsAt,
+    String settlementType = 'manual',
+    int? settlementDays,
+    int? settlementMonthOffset,
+    int? settlementDayOfMonth,
+    int? rewardAccountId,
+    String? note,
+    bool enabled = true,
+    int sortOrder = 0,
+    String? syncId,
+  }) async {
+    final id = await _cardRewardRuleRepo.createCardRewardRule(
+      accountId: accountId,
+      label: label,
+      categoryIds: categoryIds,
+      rateType: rateType,
+      rateValue: rateValue,
+      rounding: rounding,
+      totalRounding: totalRounding,
+      calcBasis: calcBasis,
+      interval: interval,
+      minSpendThreshold: minSpendThreshold,
+      minTxAmount: minTxAmount,
+      capAmount: capAmount,
+      capSharedKey: capSharedKey,
+      startsAt: startsAt,
+      endsAt: endsAt,
+      settlementType: settlementType,
+      settlementDays: settlementDays,
+      settlementMonthOffset: settlementMonthOffset,
+      settlementDayOfMonth: settlementDayOfMonth,
+      rewardAccountId: rewardAccountId,
+      note: note,
+      enabled: enabled,
+      sortOrder: sortOrder,
+      syncId: syncId,
+    );
+    if (changeTracker != null) {
+      final rule = await _cardRewardRuleRepo.getCardRewardRuleById(id);
+      if (rule?.syncId != null) {
+        await changeTracker!.recordUserGlobalChange(
+          entityType: 'card_reward_rule',
+          entityId: id,
+          entitySyncId: rule!.syncId!,
+          action: 'create',
+        );
+      }
+    }
+    return id;
+  }
+
+  @override
+  Future<void> updateCardRewardRule(
+      int id, CardRewardRulesCompanion companion) async {
+    final rule = changeTracker != null
+        ? await _cardRewardRuleRepo.getCardRewardRuleById(id)
+        : null;
+    await _cardRewardRuleRepo.updateCardRewardRule(id, companion);
+    if (rule?.syncId != null) {
+      await changeTracker!.recordUserGlobalChange(
+        entityType: 'card_reward_rule',
+        entityId: id,
+        entitySyncId: rule!.syncId!,
+        action: 'update',
+      );
+    }
+  }
+
+  @override
+  Future<void> deleteCardRewardRule(int id) async {
+    if (changeTracker != null) {
+      final rule = await _cardRewardRuleRepo.getCardRewardRuleById(id);
+      if (rule?.syncId != null) {
+        await changeTracker!.recordUserGlobalChange(
+          entityType: 'card_reward_rule',
+          entityId: id,
+          entitySyncId: rule!.syncId!,
+          action: 'delete',
+        );
+      }
+    }
+    await _cardRewardRuleRepo.deleteCardRewardRule(id);
+  }
+
+  @override
+  Future<CardRewardRule?> getCardRewardRuleById(int id) =>
+      _cardRewardRuleRepo.getCardRewardRuleById(id);
+
+  @override
+  Future<CardRewardRule?> getCardRewardRuleBySyncId(String syncId) =>
+      _cardRewardRuleRepo.getCardRewardRuleBySyncId(syncId);
+
+  @override
+  Future<List<CardRewardRule>> getCardRewardRulesForAccount(int accountId) =>
+      _cardRewardRuleRepo.getCardRewardRulesForAccount(accountId);
+
+  @override
+  Stream<List<CardRewardRule>> watchCardRewardRulesForAccount(int accountId) =>
+      _cardRewardRuleRepo.watchCardRewardRulesForAccount(accountId);
+
+  @override
+  Future<void> updateCardRewardRuleSortOrders(
+          List<({int id, int sortOrder})> updates) =>
+      _cardRewardRuleRepo.updateCardRewardRuleSortOrders(updates);
 }

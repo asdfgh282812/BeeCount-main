@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart' as d;
@@ -432,6 +433,7 @@ class LocalTransactionRepository implements TransactionRepository {
     String? currencyCode,
     double? nativeAmount,
     String? refundOfSyncId,
+    List<String>? rewardRuleIds,
   }) async {
     // v30:子仓收「已定值」直写;带折算的兜底(查账户/汇率)在聚合
     // LocalRepository 包装层(子仓拿不到汇率)。
@@ -454,7 +456,13 @@ class LocalTransactionRepository implements TransactionRepository {
           currencyCode: d.Value(currencyCode),
           nativeAmount: d.Value(nativeAmount),
           refundOfSyncId: d.Value(refundOfSyncId),
+          rewardRuleIdsJson: d.Value(_encodeRewardRuleIds(rewardRuleIds)),
         ));
+  }
+
+  static String? _encodeRewardRuleIds(List<String>? ids) {
+    if (ids == null || ids.isEmpty) return null;
+    return jsonEncode(ids);
   }
 
   @override
@@ -573,6 +581,7 @@ class LocalTransactionRepository implements TransactionRepository {
     bool? excludeFromBudget,
     String? currencyCode,
     double? nativeAmount,
+    List<String>? rewardRuleIds,
   }) async {
     // 处理 accountId 参数
     final d.Value<int?> accountIdValue;
@@ -611,6 +620,7 @@ class LocalTransactionRepository implements TransactionRepository {
         nativeAmount: nativeAmount == null
             ? const d.Value.absent()
             : d.Value(nativeAmount),
+        rewardRuleIdsJson: d.Value(_encodeRewardRuleIds(rewardRuleIds)),
       ),
     );
   }

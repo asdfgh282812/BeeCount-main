@@ -44,6 +44,8 @@ class TransactionEditorPage extends ConsumerStatefulWidget {
   // v34:从「退款」入口打开时,带入原交易 syncId,存档时写进新交易的
   // refundOfSyncId。只有新建模式(editingTransactionId == null)会用到。
   final String? initialRefundOfSyncId;
+  // v35:编辑/复制模式回填已勾选的信用卡紅利回饋規則(syncId 列表)。
+  final List<String>? initialRewardRuleIds;
 
   const TransactionEditorPage({
     super.key,
@@ -62,6 +64,7 @@ class TransactionEditorPage extends ConsumerStatefulWidget {
     this.initialCurrencyCode,
     this.initialNativeAmount,
     this.initialRefundOfSyncId,
+    this.initialRewardRuleIds,
   });
 
   @override
@@ -184,6 +187,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
                   initialExcludeFromBudget: widget.initialExcludeFromBudget,
                   initialCurrencyCode: widget.initialCurrencyCode,
                   initialNativeAmount: widget.initialNativeAmount,
+                  initialRewardRuleIds: widget.initialRewardRuleIds,
                   onSubmit: (c, r) => _handleSubmit(c, 'expense', r),
                 ),
                 TransactionEntryForm(
@@ -201,6 +205,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
                   initialExcludeFromBudget: widget.initialExcludeFromBudget,
                   initialCurrencyCode: widget.initialCurrencyCode,
                   initialNativeAmount: widget.initialNativeAmount,
+                  initialRewardRuleIds: widget.initialRewardRuleIds,
                   onSubmit: (c, r) => _handleSubmit(c, 'income', r),
                 ),
                 TransferForm(
@@ -269,6 +274,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
         excludeFromBudget: res.excludeFromBudget,
         currencyCode: res.currencyCode,
         nativeAmount: res.nativeAmount,
+        rewardRuleIds: res.rewardRuleIds,
       );
       transactionId = widget.editingTransactionId!;
       // 共享账本:本地 lastEditedByUserId 立即回填,UI 头像组直接展示
@@ -291,6 +297,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
         currencyCode: res.currencyCode,
         nativeAmount: res.nativeAmount,
         refundOfSyncId: widget.initialRefundOfSyncId,
+        rewardRuleIds: res.rewardRuleIds,
       );
       // 共享账本:新建本地 tx 也回填创建人 + 编辑人(同一个 user)
       await TxAuthorService.markCreated(ref, transactionId);

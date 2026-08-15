@@ -2123,6 +2123,12 @@ class $TransactionsTable extends Transactions
   late final GeneratedColumn<String> refundOfSyncId = GeneratedColumn<String>(
       'refund_of_sync_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _rewardRuleIdsJsonMeta =
+      const VerificationMeta('rewardRuleIdsJson');
+  @override
+  late final GeneratedColumn<String> rewardRuleIdsJson =
+      GeneratedColumn<String>('reward_rule_ids_json', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -2147,7 +2153,8 @@ class $TransactionsTable extends Transactions
         currencyCode,
         nativeAmount,
         merchant,
-        refundOfSyncId
+        refundOfSyncId,
+        rewardRuleIdsJson
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2287,6 +2294,12 @@ class $TransactionsTable extends Transactions
           refundOfSyncId.isAcceptableOrUnknown(
               data['refund_of_sync_id']!, _refundOfSyncIdMeta));
     }
+    if (data.containsKey('reward_rule_ids_json')) {
+      context.handle(
+          _rewardRuleIdsJsonMeta,
+          rewardRuleIdsJson.isAcceptableOrUnknown(
+              data['reward_rule_ids_json']!, _rewardRuleIdsJsonMeta));
+    }
     return context;
   }
 
@@ -2345,6 +2358,8 @@ class $TransactionsTable extends Transactions
           .read(DriftSqlType.string, data['${effectivePrefix}merchant']),
       refundOfSyncId: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}refund_of_sync_id']),
+      rewardRuleIdsJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}reward_rule_ids_json']),
     );
   }
 
@@ -2400,6 +2415,14 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   /// (一笔交易只能被退一次、退款单不能再被退款),wire 字段名 refundOfId,
   /// 见 sync_applier.py 的 merge spec。
   final String? refundOfSyncId;
+
+  /// v35:信用卡紅利回饋——使用者記帳當下手動勾選的回饋規則 syncId 列表
+  /// (JSON list,同 [tagSyncIdsOverride] 那种"JSON list 存 string"写法)。
+  /// BeeCount Cloud 端字段是 read_tx_projection.reward_rule_sync_ids_json,
+  /// wire 字段名 rewardRuleIds(见 sync_applier.py merge spec)。2026-08-06
+  /// 改版后规则不再靠 category_ids 自动比对,这里是权威的"哪笔消费适用哪个
+  /// 回馈方案"来源。
+  final String? rewardRuleIdsJson;
   const Transaction(
       {required this.id,
       required this.ledgerId,
@@ -2423,7 +2446,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       this.currencyCode,
       this.nativeAmount,
       this.merchant,
-      this.refundOfSyncId});
+      this.refundOfSyncId,
+      this.rewardRuleIdsJson});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2484,6 +2508,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     if (!nullToAbsent || refundOfSyncId != null) {
       map['refund_of_sync_id'] = Variable<String>(refundOfSyncId);
     }
+    if (!nullToAbsent || rewardRuleIdsJson != null) {
+      map['reward_rule_ids_json'] = Variable<String>(rewardRuleIdsJson);
+    }
     return map;
   }
 
@@ -2541,6 +2568,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       refundOfSyncId: refundOfSyncId == null && nullToAbsent
           ? const Value.absent()
           : Value(refundOfSyncId),
+      rewardRuleIdsJson: rewardRuleIdsJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rewardRuleIdsJson),
     );
   }
 
@@ -2576,6 +2606,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       nativeAmount: serializer.fromJson<double?>(json['nativeAmount']),
       merchant: serializer.fromJson<String?>(json['merchant']),
       refundOfSyncId: serializer.fromJson<String?>(json['refundOfSyncId']),
+      rewardRuleIdsJson:
+          serializer.fromJson<String?>(json['rewardRuleIdsJson']),
     );
   }
   @override
@@ -2608,6 +2640,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'nativeAmount': serializer.toJson<double?>(nativeAmount),
       'merchant': serializer.toJson<String?>(merchant),
       'refundOfSyncId': serializer.toJson<String?>(refundOfSyncId),
+      'rewardRuleIdsJson': serializer.toJson<String?>(rewardRuleIdsJson),
     };
   }
 
@@ -2634,7 +2667,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           Value<String?> currencyCode = const Value.absent(),
           Value<double?> nativeAmount = const Value.absent(),
           Value<String?> merchant = const Value.absent(),
-          Value<String?> refundOfSyncId = const Value.absent()}) =>
+          Value<String?> refundOfSyncId = const Value.absent(),
+          Value<String?> rewardRuleIdsJson = const Value.absent()}) =>
       Transaction(
         id: id ?? this.id,
         ledgerId: ledgerId ?? this.ledgerId,
@@ -2674,6 +2708,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         merchant: merchant.present ? merchant.value : this.merchant,
         refundOfSyncId:
             refundOfSyncId.present ? refundOfSyncId.value : this.refundOfSyncId,
+        rewardRuleIdsJson: rewardRuleIdsJson.present
+            ? rewardRuleIdsJson.value
+            : this.rewardRuleIdsJson,
       );
   Transaction copyWithCompanion(TransactionsCompanion data) {
     return Transaction(
@@ -2726,6 +2763,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       refundOfSyncId: data.refundOfSyncId.present
           ? data.refundOfSyncId.value
           : this.refundOfSyncId,
+      rewardRuleIdsJson: data.rewardRuleIdsJson.present
+          ? data.rewardRuleIdsJson.value
+          : this.rewardRuleIdsJson,
     );
   }
 
@@ -2754,7 +2794,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('currencyCode: $currencyCode, ')
           ..write('nativeAmount: $nativeAmount, ')
           ..write('merchant: $merchant, ')
-          ..write('refundOfSyncId: $refundOfSyncId')
+          ..write('refundOfSyncId: $refundOfSyncId, ')
+          ..write('rewardRuleIdsJson: $rewardRuleIdsJson')
           ..write(')'))
         .toString();
   }
@@ -2783,7 +2824,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         currencyCode,
         nativeAmount,
         merchant,
-        refundOfSyncId
+        refundOfSyncId,
+        rewardRuleIdsJson
       ]);
   @override
   bool operator ==(Object other) =>
@@ -2811,7 +2853,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.currencyCode == this.currencyCode &&
           other.nativeAmount == this.nativeAmount &&
           other.merchant == this.merchant &&
-          other.refundOfSyncId == this.refundOfSyncId);
+          other.refundOfSyncId == this.refundOfSyncId &&
+          other.rewardRuleIdsJson == this.rewardRuleIdsJson);
 }
 
 class TransactionsCompanion extends UpdateCompanion<Transaction> {
@@ -2838,6 +2881,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<double?> nativeAmount;
   final Value<String?> merchant;
   final Value<String?> refundOfSyncId;
+  final Value<String?> rewardRuleIdsJson;
   const TransactionsCompanion({
     this.id = const Value.absent(),
     this.ledgerId = const Value.absent(),
@@ -2862,6 +2906,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.nativeAmount = const Value.absent(),
     this.merchant = const Value.absent(),
     this.refundOfSyncId = const Value.absent(),
+    this.rewardRuleIdsJson = const Value.absent(),
   });
   TransactionsCompanion.insert({
     this.id = const Value.absent(),
@@ -2887,6 +2932,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.nativeAmount = const Value.absent(),
     this.merchant = const Value.absent(),
     this.refundOfSyncId = const Value.absent(),
+    this.rewardRuleIdsJson = const Value.absent(),
   })  : ledgerId = Value(ledgerId),
         type = Value(type),
         amount = Value(amount);
@@ -2914,6 +2960,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<double>? nativeAmount,
     Expression<String>? merchant,
     Expression<String>? refundOfSyncId,
+    Expression<String>? rewardRuleIdsJson,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2944,6 +2991,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (nativeAmount != null) 'native_amount': nativeAmount,
       if (merchant != null) 'merchant': merchant,
       if (refundOfSyncId != null) 'refund_of_sync_id': refundOfSyncId,
+      if (rewardRuleIdsJson != null) 'reward_rule_ids_json': rewardRuleIdsJson,
     });
   }
 
@@ -2970,7 +3018,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       Value<String?>? currencyCode,
       Value<double?>? nativeAmount,
       Value<String?>? merchant,
-      Value<String?>? refundOfSyncId}) {
+      Value<String?>? refundOfSyncId,
+      Value<String?>? rewardRuleIdsJson}) {
     return TransactionsCompanion(
       id: id ?? this.id,
       ledgerId: ledgerId ?? this.ledgerId,
@@ -2998,6 +3047,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       nativeAmount: nativeAmount ?? this.nativeAmount,
       merchant: merchant ?? this.merchant,
       refundOfSyncId: refundOfSyncId ?? this.refundOfSyncId,
+      rewardRuleIdsJson: rewardRuleIdsJson ?? this.rewardRuleIdsJson,
     );
   }
 
@@ -3077,6 +3127,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     if (refundOfSyncId.present) {
       map['refund_of_sync_id'] = Variable<String>(refundOfSyncId.value);
     }
+    if (rewardRuleIdsJson.present) {
+      map['reward_rule_ids_json'] = Variable<String>(rewardRuleIdsJson.value);
+    }
     return map;
   }
 
@@ -3105,7 +3158,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('currencyCode: $currencyCode, ')
           ..write('nativeAmount: $nativeAmount, ')
           ..write('merchant: $merchant, ')
-          ..write('refundOfSyncId: $refundOfSyncId')
+          ..write('refundOfSyncId: $refundOfSyncId, ')
+          ..write('rewardRuleIdsJson: $rewardRuleIdsJson')
           ..write(')'))
         .toString();
   }
@@ -10995,6 +11049,1243 @@ class ExchangeRateOverridesCompanion
   }
 }
 
+class $CardRewardRulesTable extends CardRewardRules
+    with TableInfo<$CardRewardRulesTable, CardRewardRule> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CardRewardRulesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _accountIdMeta =
+      const VerificationMeta('accountId');
+  @override
+  late final GeneratedColumn<int> accountId = GeneratedColumn<int>(
+      'account_id', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _syncIdMeta = const VerificationMeta('syncId');
+  @override
+  late final GeneratedColumn<String> syncId = GeneratedColumn<String>(
+      'sync_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _labelMeta = const VerificationMeta('label');
+  @override
+  late final GeneratedColumn<String> label = GeneratedColumn<String>(
+      'label', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _categoryIdsJsonMeta =
+      const VerificationMeta('categoryIdsJson');
+  @override
+  late final GeneratedColumn<String> categoryIdsJson = GeneratedColumn<String>(
+      'category_ids_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _rateTypeMeta =
+      const VerificationMeta('rateType');
+  @override
+  late final GeneratedColumn<String> rateType = GeneratedColumn<String>(
+      'rate_type', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('percentage'));
+  static const VerificationMeta _rateValueMeta =
+      const VerificationMeta('rateValue');
+  @override
+  late final GeneratedColumn<double> rateValue = GeneratedColumn<double>(
+      'rate_value', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _roundingMeta =
+      const VerificationMeta('rounding');
+  @override
+  late final GeneratedColumn<String> rounding = GeneratedColumn<String>(
+      'rounding', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('round'));
+  static const VerificationMeta _totalRoundingMeta =
+      const VerificationMeta('totalRounding');
+  @override
+  late final GeneratedColumn<String> totalRounding = GeneratedColumn<String>(
+      'total_rounding', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('round'));
+  static const VerificationMeta _calcBasisMeta =
+      const VerificationMeta('calcBasis');
+  @override
+  late final GeneratedColumn<String> calcBasis = GeneratedColumn<String>(
+      'calc_basis', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('transaction_date'));
+  static const VerificationMeta _intervalMeta =
+      const VerificationMeta('interval');
+  @override
+  late final GeneratedColumn<String> interval = GeneratedColumn<String>(
+      'interval', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('billing_cycle'));
+  static const VerificationMeta _minSpendThresholdMeta =
+      const VerificationMeta('minSpendThreshold');
+  @override
+  late final GeneratedColumn<double> minSpendThreshold =
+      GeneratedColumn<double>('min_spend_threshold', aliasedName, true,
+          type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _minTxAmountMeta =
+      const VerificationMeta('minTxAmount');
+  @override
+  late final GeneratedColumn<double> minTxAmount = GeneratedColumn<double>(
+      'min_tx_amount', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _capAmountMeta =
+      const VerificationMeta('capAmount');
+  @override
+  late final GeneratedColumn<double> capAmount = GeneratedColumn<double>(
+      'cap_amount', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _capSharedKeyMeta =
+      const VerificationMeta('capSharedKey');
+  @override
+  late final GeneratedColumn<String> capSharedKey = GeneratedColumn<String>(
+      'cap_shared_key', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _startsAtMeta =
+      const VerificationMeta('startsAt');
+  @override
+  late final GeneratedColumn<DateTime> startsAt = GeneratedColumn<DateTime>(
+      'starts_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _endsAtMeta = const VerificationMeta('endsAt');
+  @override
+  late final GeneratedColumn<DateTime> endsAt = GeneratedColumn<DateTime>(
+      'ends_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _settlementTypeMeta =
+      const VerificationMeta('settlementType');
+  @override
+  late final GeneratedColumn<String> settlementType = GeneratedColumn<String>(
+      'settlement_type', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('manual'));
+  static const VerificationMeta _settlementDaysMeta =
+      const VerificationMeta('settlementDays');
+  @override
+  late final GeneratedColumn<int> settlementDays = GeneratedColumn<int>(
+      'settlement_days', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _settlementMonthOffsetMeta =
+      const VerificationMeta('settlementMonthOffset');
+  @override
+  late final GeneratedColumn<int> settlementMonthOffset = GeneratedColumn<int>(
+      'settlement_month_offset', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _settlementDayOfMonthMeta =
+      const VerificationMeta('settlementDayOfMonth');
+  @override
+  late final GeneratedColumn<int> settlementDayOfMonth = GeneratedColumn<int>(
+      'settlement_day_of_month', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _rewardAccountIdMeta =
+      const VerificationMeta('rewardAccountId');
+  @override
+  late final GeneratedColumn<int> rewardAccountId = GeneratedColumn<int>(
+      'reward_account_id', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+      'note', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _enabledMeta =
+      const VerificationMeta('enabled');
+  @override
+  late final GeneratedColumn<bool> enabled = GeneratedColumn<bool>(
+      'enabled', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("enabled" IN (0, 1))'),
+      defaultValue: const Constant(true));
+  static const VerificationMeta _sortOrderMeta =
+      const VerificationMeta('sortOrder');
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+      'sort_order', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        accountId,
+        syncId,
+        label,
+        categoryIdsJson,
+        rateType,
+        rateValue,
+        rounding,
+        totalRounding,
+        calcBasis,
+        interval,
+        minSpendThreshold,
+        minTxAmount,
+        capAmount,
+        capSharedKey,
+        startsAt,
+        endsAt,
+        settlementType,
+        settlementDays,
+        settlementMonthOffset,
+        settlementDayOfMonth,
+        rewardAccountId,
+        note,
+        enabled,
+        sortOrder,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'card_reward_rules';
+  @override
+  VerificationContext validateIntegrity(Insertable<CardRewardRule> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('account_id')) {
+      context.handle(_accountIdMeta,
+          accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta));
+    } else if (isInserting) {
+      context.missing(_accountIdMeta);
+    }
+    if (data.containsKey('sync_id')) {
+      context.handle(_syncIdMeta,
+          syncId.isAcceptableOrUnknown(data['sync_id']!, _syncIdMeta));
+    }
+    if (data.containsKey('label')) {
+      context.handle(
+          _labelMeta, label.isAcceptableOrUnknown(data['label']!, _labelMeta));
+    } else if (isInserting) {
+      context.missing(_labelMeta);
+    }
+    if (data.containsKey('category_ids_json')) {
+      context.handle(
+          _categoryIdsJsonMeta,
+          categoryIdsJson.isAcceptableOrUnknown(
+              data['category_ids_json']!, _categoryIdsJsonMeta));
+    }
+    if (data.containsKey('rate_type')) {
+      context.handle(_rateTypeMeta,
+          rateType.isAcceptableOrUnknown(data['rate_type']!, _rateTypeMeta));
+    }
+    if (data.containsKey('rate_value')) {
+      context.handle(_rateValueMeta,
+          rateValue.isAcceptableOrUnknown(data['rate_value']!, _rateValueMeta));
+    } else if (isInserting) {
+      context.missing(_rateValueMeta);
+    }
+    if (data.containsKey('rounding')) {
+      context.handle(_roundingMeta,
+          rounding.isAcceptableOrUnknown(data['rounding']!, _roundingMeta));
+    }
+    if (data.containsKey('total_rounding')) {
+      context.handle(
+          _totalRoundingMeta,
+          totalRounding.isAcceptableOrUnknown(
+              data['total_rounding']!, _totalRoundingMeta));
+    }
+    if (data.containsKey('calc_basis')) {
+      context.handle(_calcBasisMeta,
+          calcBasis.isAcceptableOrUnknown(data['calc_basis']!, _calcBasisMeta));
+    }
+    if (data.containsKey('interval')) {
+      context.handle(_intervalMeta,
+          interval.isAcceptableOrUnknown(data['interval']!, _intervalMeta));
+    }
+    if (data.containsKey('min_spend_threshold')) {
+      context.handle(
+          _minSpendThresholdMeta,
+          minSpendThreshold.isAcceptableOrUnknown(
+              data['min_spend_threshold']!, _minSpendThresholdMeta));
+    }
+    if (data.containsKey('min_tx_amount')) {
+      context.handle(
+          _minTxAmountMeta,
+          minTxAmount.isAcceptableOrUnknown(
+              data['min_tx_amount']!, _minTxAmountMeta));
+    }
+    if (data.containsKey('cap_amount')) {
+      context.handle(_capAmountMeta,
+          capAmount.isAcceptableOrUnknown(data['cap_amount']!, _capAmountMeta));
+    }
+    if (data.containsKey('cap_shared_key')) {
+      context.handle(
+          _capSharedKeyMeta,
+          capSharedKey.isAcceptableOrUnknown(
+              data['cap_shared_key']!, _capSharedKeyMeta));
+    }
+    if (data.containsKey('starts_at')) {
+      context.handle(_startsAtMeta,
+          startsAt.isAcceptableOrUnknown(data['starts_at']!, _startsAtMeta));
+    }
+    if (data.containsKey('ends_at')) {
+      context.handle(_endsAtMeta,
+          endsAt.isAcceptableOrUnknown(data['ends_at']!, _endsAtMeta));
+    }
+    if (data.containsKey('settlement_type')) {
+      context.handle(
+          _settlementTypeMeta,
+          settlementType.isAcceptableOrUnknown(
+              data['settlement_type']!, _settlementTypeMeta));
+    }
+    if (data.containsKey('settlement_days')) {
+      context.handle(
+          _settlementDaysMeta,
+          settlementDays.isAcceptableOrUnknown(
+              data['settlement_days']!, _settlementDaysMeta));
+    }
+    if (data.containsKey('settlement_month_offset')) {
+      context.handle(
+          _settlementMonthOffsetMeta,
+          settlementMonthOffset.isAcceptableOrUnknown(
+              data['settlement_month_offset']!, _settlementMonthOffsetMeta));
+    }
+    if (data.containsKey('settlement_day_of_month')) {
+      context.handle(
+          _settlementDayOfMonthMeta,
+          settlementDayOfMonth.isAcceptableOrUnknown(
+              data['settlement_day_of_month']!, _settlementDayOfMonthMeta));
+    }
+    if (data.containsKey('reward_account_id')) {
+      context.handle(
+          _rewardAccountIdMeta,
+          rewardAccountId.isAcceptableOrUnknown(
+              data['reward_account_id']!, _rewardAccountIdMeta));
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+          _noteMeta, note.isAcceptableOrUnknown(data['note']!, _noteMeta));
+    }
+    if (data.containsKey('enabled')) {
+      context.handle(_enabledMeta,
+          enabled.isAcceptableOrUnknown(data['enabled']!, _enabledMeta));
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(_sortOrderMeta,
+          sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CardRewardRule map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CardRewardRule(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      accountId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}account_id'])!,
+      syncId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sync_id']),
+      label: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}label'])!,
+      categoryIdsJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}category_ids_json']),
+      rateType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}rate_type'])!,
+      rateValue: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}rate_value'])!,
+      rounding: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}rounding'])!,
+      totalRounding: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}total_rounding'])!,
+      calcBasis: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}calc_basis'])!,
+      interval: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}interval'])!,
+      minSpendThreshold: attachedDatabase.typeMapping.read(
+          DriftSqlType.double, data['${effectivePrefix}min_spend_threshold']),
+      minTxAmount: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}min_tx_amount']),
+      capAmount: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}cap_amount']),
+      capSharedKey: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}cap_shared_key']),
+      startsAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}starts_at']),
+      endsAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}ends_at']),
+      settlementType: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}settlement_type'])!,
+      settlementDays: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}settlement_days']),
+      settlementMonthOffset: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}settlement_month_offset']),
+      settlementDayOfMonth: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}settlement_day_of_month']),
+      rewardAccountId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}reward_account_id']),
+      note: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}note']),
+      enabled: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}enabled'])!,
+      sortOrder: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at']),
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at']),
+    );
+  }
+
+  @override
+  $CardRewardRulesTable createAlias(String alias) {
+    return $CardRewardRulesTable(attachedDatabase, alias);
+  }
+}
+
+class CardRewardRule extends DataClass implements Insertable<CardRewardRule> {
+  final int id;
+
+  /// 绑定的信用卡帐户(本地 int id)。server 端建立后不可改(wire 字段
+  /// accountId 只在 create payload 送,update 不送这个 key)。
+  final int accountId;
+  final String? syncId;
+  final String label;
+
+  /// 保留字段,JSON list of category syncId。2026-08-06 起不参与回馈资格
+  /// 自动比对(改成使用者记账时手动勾选 rewardRuleIds),这里纯粹用于编辑页
+  /// 显示/筛选。
+  final String? categoryIdsJson;
+  final String rateType;
+  final double rateValue;
+  final String rounding;
+  final String totalRounding;
+  final String calcBasis;
+  final String interval;
+  final double? minSpendThreshold;
+  final double? minTxAmount;
+  final double? capAmount;
+  final String? capSharedKey;
+  final DateTime? startsAt;
+  final DateTime? endsAt;
+  final String settlementType;
+  final int? settlementDays;
+  final int? settlementMonthOffset;
+  final int? settlementDayOfMonth;
+
+  /// 回饋入帳帐户(本地 int id,nullable——manual 结算类型允许不设)。
+  final int? rewardAccountId;
+  final String? note;
+  final bool enabled;
+  final int sortOrder;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  const CardRewardRule(
+      {required this.id,
+      required this.accountId,
+      this.syncId,
+      required this.label,
+      this.categoryIdsJson,
+      required this.rateType,
+      required this.rateValue,
+      required this.rounding,
+      required this.totalRounding,
+      required this.calcBasis,
+      required this.interval,
+      this.minSpendThreshold,
+      this.minTxAmount,
+      this.capAmount,
+      this.capSharedKey,
+      this.startsAt,
+      this.endsAt,
+      required this.settlementType,
+      this.settlementDays,
+      this.settlementMonthOffset,
+      this.settlementDayOfMonth,
+      this.rewardAccountId,
+      this.note,
+      required this.enabled,
+      required this.sortOrder,
+      this.createdAt,
+      this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['account_id'] = Variable<int>(accountId);
+    if (!nullToAbsent || syncId != null) {
+      map['sync_id'] = Variable<String>(syncId);
+    }
+    map['label'] = Variable<String>(label);
+    if (!nullToAbsent || categoryIdsJson != null) {
+      map['category_ids_json'] = Variable<String>(categoryIdsJson);
+    }
+    map['rate_type'] = Variable<String>(rateType);
+    map['rate_value'] = Variable<double>(rateValue);
+    map['rounding'] = Variable<String>(rounding);
+    map['total_rounding'] = Variable<String>(totalRounding);
+    map['calc_basis'] = Variable<String>(calcBasis);
+    map['interval'] = Variable<String>(interval);
+    if (!nullToAbsent || minSpendThreshold != null) {
+      map['min_spend_threshold'] = Variable<double>(minSpendThreshold);
+    }
+    if (!nullToAbsent || minTxAmount != null) {
+      map['min_tx_amount'] = Variable<double>(minTxAmount);
+    }
+    if (!nullToAbsent || capAmount != null) {
+      map['cap_amount'] = Variable<double>(capAmount);
+    }
+    if (!nullToAbsent || capSharedKey != null) {
+      map['cap_shared_key'] = Variable<String>(capSharedKey);
+    }
+    if (!nullToAbsent || startsAt != null) {
+      map['starts_at'] = Variable<DateTime>(startsAt);
+    }
+    if (!nullToAbsent || endsAt != null) {
+      map['ends_at'] = Variable<DateTime>(endsAt);
+    }
+    map['settlement_type'] = Variable<String>(settlementType);
+    if (!nullToAbsent || settlementDays != null) {
+      map['settlement_days'] = Variable<int>(settlementDays);
+    }
+    if (!nullToAbsent || settlementMonthOffset != null) {
+      map['settlement_month_offset'] = Variable<int>(settlementMonthOffset);
+    }
+    if (!nullToAbsent || settlementDayOfMonth != null) {
+      map['settlement_day_of_month'] = Variable<int>(settlementDayOfMonth);
+    }
+    if (!nullToAbsent || rewardAccountId != null) {
+      map['reward_account_id'] = Variable<int>(rewardAccountId);
+    }
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    map['enabled'] = Variable<bool>(enabled);
+    map['sort_order'] = Variable<int>(sortOrder);
+    if (!nullToAbsent || createdAt != null) {
+      map['created_at'] = Variable<DateTime>(createdAt);
+    }
+    if (!nullToAbsent || updatedAt != null) {
+      map['updated_at'] = Variable<DateTime>(updatedAt);
+    }
+    return map;
+  }
+
+  CardRewardRulesCompanion toCompanion(bool nullToAbsent) {
+    return CardRewardRulesCompanion(
+      id: Value(id),
+      accountId: Value(accountId),
+      syncId:
+          syncId == null && nullToAbsent ? const Value.absent() : Value(syncId),
+      label: Value(label),
+      categoryIdsJson: categoryIdsJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(categoryIdsJson),
+      rateType: Value(rateType),
+      rateValue: Value(rateValue),
+      rounding: Value(rounding),
+      totalRounding: Value(totalRounding),
+      calcBasis: Value(calcBasis),
+      interval: Value(interval),
+      minSpendThreshold: minSpendThreshold == null && nullToAbsent
+          ? const Value.absent()
+          : Value(minSpendThreshold),
+      minTxAmount: minTxAmount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(minTxAmount),
+      capAmount: capAmount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(capAmount),
+      capSharedKey: capSharedKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(capSharedKey),
+      startsAt: startsAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startsAt),
+      endsAt:
+          endsAt == null && nullToAbsent ? const Value.absent() : Value(endsAt),
+      settlementType: Value(settlementType),
+      settlementDays: settlementDays == null && nullToAbsent
+          ? const Value.absent()
+          : Value(settlementDays),
+      settlementMonthOffset: settlementMonthOffset == null && nullToAbsent
+          ? const Value.absent()
+          : Value(settlementMonthOffset),
+      settlementDayOfMonth: settlementDayOfMonth == null && nullToAbsent
+          ? const Value.absent()
+          : Value(settlementDayOfMonth),
+      rewardAccountId: rewardAccountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rewardAccountId),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      enabled: Value(enabled),
+      sortOrder: Value(sortOrder),
+      createdAt: createdAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdAt),
+      updatedAt: updatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAt),
+    );
+  }
+
+  factory CardRewardRule.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CardRewardRule(
+      id: serializer.fromJson<int>(json['id']),
+      accountId: serializer.fromJson<int>(json['accountId']),
+      syncId: serializer.fromJson<String?>(json['syncId']),
+      label: serializer.fromJson<String>(json['label']),
+      categoryIdsJson: serializer.fromJson<String?>(json['categoryIdsJson']),
+      rateType: serializer.fromJson<String>(json['rateType']),
+      rateValue: serializer.fromJson<double>(json['rateValue']),
+      rounding: serializer.fromJson<String>(json['rounding']),
+      totalRounding: serializer.fromJson<String>(json['totalRounding']),
+      calcBasis: serializer.fromJson<String>(json['calcBasis']),
+      interval: serializer.fromJson<String>(json['interval']),
+      minSpendThreshold:
+          serializer.fromJson<double?>(json['minSpendThreshold']),
+      minTxAmount: serializer.fromJson<double?>(json['minTxAmount']),
+      capAmount: serializer.fromJson<double?>(json['capAmount']),
+      capSharedKey: serializer.fromJson<String?>(json['capSharedKey']),
+      startsAt: serializer.fromJson<DateTime?>(json['startsAt']),
+      endsAt: serializer.fromJson<DateTime?>(json['endsAt']),
+      settlementType: serializer.fromJson<String>(json['settlementType']),
+      settlementDays: serializer.fromJson<int?>(json['settlementDays']),
+      settlementMonthOffset:
+          serializer.fromJson<int?>(json['settlementMonthOffset']),
+      settlementDayOfMonth:
+          serializer.fromJson<int?>(json['settlementDayOfMonth']),
+      rewardAccountId: serializer.fromJson<int?>(json['rewardAccountId']),
+      note: serializer.fromJson<String?>(json['note']),
+      enabled: serializer.fromJson<bool>(json['enabled']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      createdAt: serializer.fromJson<DateTime?>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'accountId': serializer.toJson<int>(accountId),
+      'syncId': serializer.toJson<String?>(syncId),
+      'label': serializer.toJson<String>(label),
+      'categoryIdsJson': serializer.toJson<String?>(categoryIdsJson),
+      'rateType': serializer.toJson<String>(rateType),
+      'rateValue': serializer.toJson<double>(rateValue),
+      'rounding': serializer.toJson<String>(rounding),
+      'totalRounding': serializer.toJson<String>(totalRounding),
+      'calcBasis': serializer.toJson<String>(calcBasis),
+      'interval': serializer.toJson<String>(interval),
+      'minSpendThreshold': serializer.toJson<double?>(minSpendThreshold),
+      'minTxAmount': serializer.toJson<double?>(minTxAmount),
+      'capAmount': serializer.toJson<double?>(capAmount),
+      'capSharedKey': serializer.toJson<String?>(capSharedKey),
+      'startsAt': serializer.toJson<DateTime?>(startsAt),
+      'endsAt': serializer.toJson<DateTime?>(endsAt),
+      'settlementType': serializer.toJson<String>(settlementType),
+      'settlementDays': serializer.toJson<int?>(settlementDays),
+      'settlementMonthOffset': serializer.toJson<int?>(settlementMonthOffset),
+      'settlementDayOfMonth': serializer.toJson<int?>(settlementDayOfMonth),
+      'rewardAccountId': serializer.toJson<int?>(rewardAccountId),
+      'note': serializer.toJson<String?>(note),
+      'enabled': serializer.toJson<bool>(enabled),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'createdAt': serializer.toJson<DateTime?>(createdAt),
+      'updatedAt': serializer.toJson<DateTime?>(updatedAt),
+    };
+  }
+
+  CardRewardRule copyWith(
+          {int? id,
+          int? accountId,
+          Value<String?> syncId = const Value.absent(),
+          String? label,
+          Value<String?> categoryIdsJson = const Value.absent(),
+          String? rateType,
+          double? rateValue,
+          String? rounding,
+          String? totalRounding,
+          String? calcBasis,
+          String? interval,
+          Value<double?> minSpendThreshold = const Value.absent(),
+          Value<double?> minTxAmount = const Value.absent(),
+          Value<double?> capAmount = const Value.absent(),
+          Value<String?> capSharedKey = const Value.absent(),
+          Value<DateTime?> startsAt = const Value.absent(),
+          Value<DateTime?> endsAt = const Value.absent(),
+          String? settlementType,
+          Value<int?> settlementDays = const Value.absent(),
+          Value<int?> settlementMonthOffset = const Value.absent(),
+          Value<int?> settlementDayOfMonth = const Value.absent(),
+          Value<int?> rewardAccountId = const Value.absent(),
+          Value<String?> note = const Value.absent(),
+          bool? enabled,
+          int? sortOrder,
+          Value<DateTime?> createdAt = const Value.absent(),
+          Value<DateTime?> updatedAt = const Value.absent()}) =>
+      CardRewardRule(
+        id: id ?? this.id,
+        accountId: accountId ?? this.accountId,
+        syncId: syncId.present ? syncId.value : this.syncId,
+        label: label ?? this.label,
+        categoryIdsJson: categoryIdsJson.present
+            ? categoryIdsJson.value
+            : this.categoryIdsJson,
+        rateType: rateType ?? this.rateType,
+        rateValue: rateValue ?? this.rateValue,
+        rounding: rounding ?? this.rounding,
+        totalRounding: totalRounding ?? this.totalRounding,
+        calcBasis: calcBasis ?? this.calcBasis,
+        interval: interval ?? this.interval,
+        minSpendThreshold: minSpendThreshold.present
+            ? minSpendThreshold.value
+            : this.minSpendThreshold,
+        minTxAmount: minTxAmount.present ? minTxAmount.value : this.minTxAmount,
+        capAmount: capAmount.present ? capAmount.value : this.capAmount,
+        capSharedKey:
+            capSharedKey.present ? capSharedKey.value : this.capSharedKey,
+        startsAt: startsAt.present ? startsAt.value : this.startsAt,
+        endsAt: endsAt.present ? endsAt.value : this.endsAt,
+        settlementType: settlementType ?? this.settlementType,
+        settlementDays:
+            settlementDays.present ? settlementDays.value : this.settlementDays,
+        settlementMonthOffset: settlementMonthOffset.present
+            ? settlementMonthOffset.value
+            : this.settlementMonthOffset,
+        settlementDayOfMonth: settlementDayOfMonth.present
+            ? settlementDayOfMonth.value
+            : this.settlementDayOfMonth,
+        rewardAccountId: rewardAccountId.present
+            ? rewardAccountId.value
+            : this.rewardAccountId,
+        note: note.present ? note.value : this.note,
+        enabled: enabled ?? this.enabled,
+        sortOrder: sortOrder ?? this.sortOrder,
+        createdAt: createdAt.present ? createdAt.value : this.createdAt,
+        updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
+      );
+  CardRewardRule copyWithCompanion(CardRewardRulesCompanion data) {
+    return CardRewardRule(
+      id: data.id.present ? data.id.value : this.id,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      syncId: data.syncId.present ? data.syncId.value : this.syncId,
+      label: data.label.present ? data.label.value : this.label,
+      categoryIdsJson: data.categoryIdsJson.present
+          ? data.categoryIdsJson.value
+          : this.categoryIdsJson,
+      rateType: data.rateType.present ? data.rateType.value : this.rateType,
+      rateValue: data.rateValue.present ? data.rateValue.value : this.rateValue,
+      rounding: data.rounding.present ? data.rounding.value : this.rounding,
+      totalRounding: data.totalRounding.present
+          ? data.totalRounding.value
+          : this.totalRounding,
+      calcBasis: data.calcBasis.present ? data.calcBasis.value : this.calcBasis,
+      interval: data.interval.present ? data.interval.value : this.interval,
+      minSpendThreshold: data.minSpendThreshold.present
+          ? data.minSpendThreshold.value
+          : this.minSpendThreshold,
+      minTxAmount:
+          data.minTxAmount.present ? data.minTxAmount.value : this.minTxAmount,
+      capAmount: data.capAmount.present ? data.capAmount.value : this.capAmount,
+      capSharedKey: data.capSharedKey.present
+          ? data.capSharedKey.value
+          : this.capSharedKey,
+      startsAt: data.startsAt.present ? data.startsAt.value : this.startsAt,
+      endsAt: data.endsAt.present ? data.endsAt.value : this.endsAt,
+      settlementType: data.settlementType.present
+          ? data.settlementType.value
+          : this.settlementType,
+      settlementDays: data.settlementDays.present
+          ? data.settlementDays.value
+          : this.settlementDays,
+      settlementMonthOffset: data.settlementMonthOffset.present
+          ? data.settlementMonthOffset.value
+          : this.settlementMonthOffset,
+      settlementDayOfMonth: data.settlementDayOfMonth.present
+          ? data.settlementDayOfMonth.value
+          : this.settlementDayOfMonth,
+      rewardAccountId: data.rewardAccountId.present
+          ? data.rewardAccountId.value
+          : this.rewardAccountId,
+      note: data.note.present ? data.note.value : this.note,
+      enabled: data.enabled.present ? data.enabled.value : this.enabled,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CardRewardRule(')
+          ..write('id: $id, ')
+          ..write('accountId: $accountId, ')
+          ..write('syncId: $syncId, ')
+          ..write('label: $label, ')
+          ..write('categoryIdsJson: $categoryIdsJson, ')
+          ..write('rateType: $rateType, ')
+          ..write('rateValue: $rateValue, ')
+          ..write('rounding: $rounding, ')
+          ..write('totalRounding: $totalRounding, ')
+          ..write('calcBasis: $calcBasis, ')
+          ..write('interval: $interval, ')
+          ..write('minSpendThreshold: $minSpendThreshold, ')
+          ..write('minTxAmount: $minTxAmount, ')
+          ..write('capAmount: $capAmount, ')
+          ..write('capSharedKey: $capSharedKey, ')
+          ..write('startsAt: $startsAt, ')
+          ..write('endsAt: $endsAt, ')
+          ..write('settlementType: $settlementType, ')
+          ..write('settlementDays: $settlementDays, ')
+          ..write('settlementMonthOffset: $settlementMonthOffset, ')
+          ..write('settlementDayOfMonth: $settlementDayOfMonth, ')
+          ..write('rewardAccountId: $rewardAccountId, ')
+          ..write('note: $note, ')
+          ..write('enabled: $enabled, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+        id,
+        accountId,
+        syncId,
+        label,
+        categoryIdsJson,
+        rateType,
+        rateValue,
+        rounding,
+        totalRounding,
+        calcBasis,
+        interval,
+        minSpendThreshold,
+        minTxAmount,
+        capAmount,
+        capSharedKey,
+        startsAt,
+        endsAt,
+        settlementType,
+        settlementDays,
+        settlementMonthOffset,
+        settlementDayOfMonth,
+        rewardAccountId,
+        note,
+        enabled,
+        sortOrder,
+        createdAt,
+        updatedAt
+      ]);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CardRewardRule &&
+          other.id == this.id &&
+          other.accountId == this.accountId &&
+          other.syncId == this.syncId &&
+          other.label == this.label &&
+          other.categoryIdsJson == this.categoryIdsJson &&
+          other.rateType == this.rateType &&
+          other.rateValue == this.rateValue &&
+          other.rounding == this.rounding &&
+          other.totalRounding == this.totalRounding &&
+          other.calcBasis == this.calcBasis &&
+          other.interval == this.interval &&
+          other.minSpendThreshold == this.minSpendThreshold &&
+          other.minTxAmount == this.minTxAmount &&
+          other.capAmount == this.capAmount &&
+          other.capSharedKey == this.capSharedKey &&
+          other.startsAt == this.startsAt &&
+          other.endsAt == this.endsAt &&
+          other.settlementType == this.settlementType &&
+          other.settlementDays == this.settlementDays &&
+          other.settlementMonthOffset == this.settlementMonthOffset &&
+          other.settlementDayOfMonth == this.settlementDayOfMonth &&
+          other.rewardAccountId == this.rewardAccountId &&
+          other.note == this.note &&
+          other.enabled == this.enabled &&
+          other.sortOrder == this.sortOrder &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class CardRewardRulesCompanion extends UpdateCompanion<CardRewardRule> {
+  final Value<int> id;
+  final Value<int> accountId;
+  final Value<String?> syncId;
+  final Value<String> label;
+  final Value<String?> categoryIdsJson;
+  final Value<String> rateType;
+  final Value<double> rateValue;
+  final Value<String> rounding;
+  final Value<String> totalRounding;
+  final Value<String> calcBasis;
+  final Value<String> interval;
+  final Value<double?> minSpendThreshold;
+  final Value<double?> minTxAmount;
+  final Value<double?> capAmount;
+  final Value<String?> capSharedKey;
+  final Value<DateTime?> startsAt;
+  final Value<DateTime?> endsAt;
+  final Value<String> settlementType;
+  final Value<int?> settlementDays;
+  final Value<int?> settlementMonthOffset;
+  final Value<int?> settlementDayOfMonth;
+  final Value<int?> rewardAccountId;
+  final Value<String?> note;
+  final Value<bool> enabled;
+  final Value<int> sortOrder;
+  final Value<DateTime?> createdAt;
+  final Value<DateTime?> updatedAt;
+  const CardRewardRulesCompanion({
+    this.id = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.syncId = const Value.absent(),
+    this.label = const Value.absent(),
+    this.categoryIdsJson = const Value.absent(),
+    this.rateType = const Value.absent(),
+    this.rateValue = const Value.absent(),
+    this.rounding = const Value.absent(),
+    this.totalRounding = const Value.absent(),
+    this.calcBasis = const Value.absent(),
+    this.interval = const Value.absent(),
+    this.minSpendThreshold = const Value.absent(),
+    this.minTxAmount = const Value.absent(),
+    this.capAmount = const Value.absent(),
+    this.capSharedKey = const Value.absent(),
+    this.startsAt = const Value.absent(),
+    this.endsAt = const Value.absent(),
+    this.settlementType = const Value.absent(),
+    this.settlementDays = const Value.absent(),
+    this.settlementMonthOffset = const Value.absent(),
+    this.settlementDayOfMonth = const Value.absent(),
+    this.rewardAccountId = const Value.absent(),
+    this.note = const Value.absent(),
+    this.enabled = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  CardRewardRulesCompanion.insert({
+    this.id = const Value.absent(),
+    required int accountId,
+    this.syncId = const Value.absent(),
+    required String label,
+    this.categoryIdsJson = const Value.absent(),
+    this.rateType = const Value.absent(),
+    required double rateValue,
+    this.rounding = const Value.absent(),
+    this.totalRounding = const Value.absent(),
+    this.calcBasis = const Value.absent(),
+    this.interval = const Value.absent(),
+    this.minSpendThreshold = const Value.absent(),
+    this.minTxAmount = const Value.absent(),
+    this.capAmount = const Value.absent(),
+    this.capSharedKey = const Value.absent(),
+    this.startsAt = const Value.absent(),
+    this.endsAt = const Value.absent(),
+    this.settlementType = const Value.absent(),
+    this.settlementDays = const Value.absent(),
+    this.settlementMonthOffset = const Value.absent(),
+    this.settlementDayOfMonth = const Value.absent(),
+    this.rewardAccountId = const Value.absent(),
+    this.note = const Value.absent(),
+    this.enabled = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  })  : accountId = Value(accountId),
+        label = Value(label),
+        rateValue = Value(rateValue);
+  static Insertable<CardRewardRule> custom({
+    Expression<int>? id,
+    Expression<int>? accountId,
+    Expression<String>? syncId,
+    Expression<String>? label,
+    Expression<String>? categoryIdsJson,
+    Expression<String>? rateType,
+    Expression<double>? rateValue,
+    Expression<String>? rounding,
+    Expression<String>? totalRounding,
+    Expression<String>? calcBasis,
+    Expression<String>? interval,
+    Expression<double>? minSpendThreshold,
+    Expression<double>? minTxAmount,
+    Expression<double>? capAmount,
+    Expression<String>? capSharedKey,
+    Expression<DateTime>? startsAt,
+    Expression<DateTime>? endsAt,
+    Expression<String>? settlementType,
+    Expression<int>? settlementDays,
+    Expression<int>? settlementMonthOffset,
+    Expression<int>? settlementDayOfMonth,
+    Expression<int>? rewardAccountId,
+    Expression<String>? note,
+    Expression<bool>? enabled,
+    Expression<int>? sortOrder,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (accountId != null) 'account_id': accountId,
+      if (syncId != null) 'sync_id': syncId,
+      if (label != null) 'label': label,
+      if (categoryIdsJson != null) 'category_ids_json': categoryIdsJson,
+      if (rateType != null) 'rate_type': rateType,
+      if (rateValue != null) 'rate_value': rateValue,
+      if (rounding != null) 'rounding': rounding,
+      if (totalRounding != null) 'total_rounding': totalRounding,
+      if (calcBasis != null) 'calc_basis': calcBasis,
+      if (interval != null) 'interval': interval,
+      if (minSpendThreshold != null) 'min_spend_threshold': minSpendThreshold,
+      if (minTxAmount != null) 'min_tx_amount': minTxAmount,
+      if (capAmount != null) 'cap_amount': capAmount,
+      if (capSharedKey != null) 'cap_shared_key': capSharedKey,
+      if (startsAt != null) 'starts_at': startsAt,
+      if (endsAt != null) 'ends_at': endsAt,
+      if (settlementType != null) 'settlement_type': settlementType,
+      if (settlementDays != null) 'settlement_days': settlementDays,
+      if (settlementMonthOffset != null)
+        'settlement_month_offset': settlementMonthOffset,
+      if (settlementDayOfMonth != null)
+        'settlement_day_of_month': settlementDayOfMonth,
+      if (rewardAccountId != null) 'reward_account_id': rewardAccountId,
+      if (note != null) 'note': note,
+      if (enabled != null) 'enabled': enabled,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  CardRewardRulesCompanion copyWith(
+      {Value<int>? id,
+      Value<int>? accountId,
+      Value<String?>? syncId,
+      Value<String>? label,
+      Value<String?>? categoryIdsJson,
+      Value<String>? rateType,
+      Value<double>? rateValue,
+      Value<String>? rounding,
+      Value<String>? totalRounding,
+      Value<String>? calcBasis,
+      Value<String>? interval,
+      Value<double?>? minSpendThreshold,
+      Value<double?>? minTxAmount,
+      Value<double?>? capAmount,
+      Value<String?>? capSharedKey,
+      Value<DateTime?>? startsAt,
+      Value<DateTime?>? endsAt,
+      Value<String>? settlementType,
+      Value<int?>? settlementDays,
+      Value<int?>? settlementMonthOffset,
+      Value<int?>? settlementDayOfMonth,
+      Value<int?>? rewardAccountId,
+      Value<String?>? note,
+      Value<bool>? enabled,
+      Value<int>? sortOrder,
+      Value<DateTime?>? createdAt,
+      Value<DateTime?>? updatedAt}) {
+    return CardRewardRulesCompanion(
+      id: id ?? this.id,
+      accountId: accountId ?? this.accountId,
+      syncId: syncId ?? this.syncId,
+      label: label ?? this.label,
+      categoryIdsJson: categoryIdsJson ?? this.categoryIdsJson,
+      rateType: rateType ?? this.rateType,
+      rateValue: rateValue ?? this.rateValue,
+      rounding: rounding ?? this.rounding,
+      totalRounding: totalRounding ?? this.totalRounding,
+      calcBasis: calcBasis ?? this.calcBasis,
+      interval: interval ?? this.interval,
+      minSpendThreshold: minSpendThreshold ?? this.minSpendThreshold,
+      minTxAmount: minTxAmount ?? this.minTxAmount,
+      capAmount: capAmount ?? this.capAmount,
+      capSharedKey: capSharedKey ?? this.capSharedKey,
+      startsAt: startsAt ?? this.startsAt,
+      endsAt: endsAt ?? this.endsAt,
+      settlementType: settlementType ?? this.settlementType,
+      settlementDays: settlementDays ?? this.settlementDays,
+      settlementMonthOffset:
+          settlementMonthOffset ?? this.settlementMonthOffset,
+      settlementDayOfMonth: settlementDayOfMonth ?? this.settlementDayOfMonth,
+      rewardAccountId: rewardAccountId ?? this.rewardAccountId,
+      note: note ?? this.note,
+      enabled: enabled ?? this.enabled,
+      sortOrder: sortOrder ?? this.sortOrder,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (accountId.present) {
+      map['account_id'] = Variable<int>(accountId.value);
+    }
+    if (syncId.present) {
+      map['sync_id'] = Variable<String>(syncId.value);
+    }
+    if (label.present) {
+      map['label'] = Variable<String>(label.value);
+    }
+    if (categoryIdsJson.present) {
+      map['category_ids_json'] = Variable<String>(categoryIdsJson.value);
+    }
+    if (rateType.present) {
+      map['rate_type'] = Variable<String>(rateType.value);
+    }
+    if (rateValue.present) {
+      map['rate_value'] = Variable<double>(rateValue.value);
+    }
+    if (rounding.present) {
+      map['rounding'] = Variable<String>(rounding.value);
+    }
+    if (totalRounding.present) {
+      map['total_rounding'] = Variable<String>(totalRounding.value);
+    }
+    if (calcBasis.present) {
+      map['calc_basis'] = Variable<String>(calcBasis.value);
+    }
+    if (interval.present) {
+      map['interval'] = Variable<String>(interval.value);
+    }
+    if (minSpendThreshold.present) {
+      map['min_spend_threshold'] = Variable<double>(minSpendThreshold.value);
+    }
+    if (minTxAmount.present) {
+      map['min_tx_amount'] = Variable<double>(minTxAmount.value);
+    }
+    if (capAmount.present) {
+      map['cap_amount'] = Variable<double>(capAmount.value);
+    }
+    if (capSharedKey.present) {
+      map['cap_shared_key'] = Variable<String>(capSharedKey.value);
+    }
+    if (startsAt.present) {
+      map['starts_at'] = Variable<DateTime>(startsAt.value);
+    }
+    if (endsAt.present) {
+      map['ends_at'] = Variable<DateTime>(endsAt.value);
+    }
+    if (settlementType.present) {
+      map['settlement_type'] = Variable<String>(settlementType.value);
+    }
+    if (settlementDays.present) {
+      map['settlement_days'] = Variable<int>(settlementDays.value);
+    }
+    if (settlementMonthOffset.present) {
+      map['settlement_month_offset'] =
+          Variable<int>(settlementMonthOffset.value);
+    }
+    if (settlementDayOfMonth.present) {
+      map['settlement_day_of_month'] =
+          Variable<int>(settlementDayOfMonth.value);
+    }
+    if (rewardAccountId.present) {
+      map['reward_account_id'] = Variable<int>(rewardAccountId.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (enabled.present) {
+      map['enabled'] = Variable<bool>(enabled.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CardRewardRulesCompanion(')
+          ..write('id: $id, ')
+          ..write('accountId: $accountId, ')
+          ..write('syncId: $syncId, ')
+          ..write('label: $label, ')
+          ..write('categoryIdsJson: $categoryIdsJson, ')
+          ..write('rateType: $rateType, ')
+          ..write('rateValue: $rateValue, ')
+          ..write('rounding: $rounding, ')
+          ..write('totalRounding: $totalRounding, ')
+          ..write('calcBasis: $calcBasis, ')
+          ..write('interval: $interval, ')
+          ..write('minSpendThreshold: $minSpendThreshold, ')
+          ..write('minTxAmount: $minTxAmount, ')
+          ..write('capAmount: $capAmount, ')
+          ..write('capSharedKey: $capSharedKey, ')
+          ..write('startsAt: $startsAt, ')
+          ..write('endsAt: $endsAt, ')
+          ..write('settlementType: $settlementType, ')
+          ..write('settlementDays: $settlementDays, ')
+          ..write('settlementMonthOffset: $settlementMonthOffset, ')
+          ..write('settlementDayOfMonth: $settlementDayOfMonth, ')
+          ..write('rewardAccountId: $rewardAccountId, ')
+          ..write('note: $note, ')
+          ..write('enabled: $enabled, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$BeeDatabase extends GeneratedDatabase {
   _$BeeDatabase(QueryExecutor e) : super(e);
   $BeeDatabaseManager get managers => $BeeDatabaseManager(this);
@@ -11027,6 +12318,8 @@ abstract class _$BeeDatabase extends GeneratedDatabase {
   late final $ExchangeRatesTable exchangeRates = $ExchangeRatesTable(this);
   late final $ExchangeRateOverridesTable exchangeRateOverrides =
       $ExchangeRateOverridesTable(this);
+  late final $CardRewardRulesTable cardRewardRules =
+      $CardRewardRulesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -11052,7 +12345,8 @@ abstract class _$BeeDatabase extends GeneratedDatabase {
         transactionTagOverrides,
         syncPullErrors,
         exchangeRates,
-        exchangeRateOverrides
+        exchangeRateOverrides,
+        cardRewardRules
       ];
 }
 
@@ -11959,6 +13253,7 @@ typedef $$TransactionsTableCreateCompanionBuilder = TransactionsCompanion
   Value<double?> nativeAmount,
   Value<String?> merchant,
   Value<String?> refundOfSyncId,
+  Value<String?> rewardRuleIdsJson,
 });
 typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
     Function({
@@ -11985,6 +13280,7 @@ typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
   Value<double?> nativeAmount,
   Value<String?> merchant,
   Value<String?> refundOfSyncId,
+  Value<String?> rewardRuleIdsJson,
 });
 
 class $$TransactionsTableFilterComposer
@@ -12072,6 +13368,10 @@ class $$TransactionsTableFilterComposer
 
   ColumnFilters<String> get refundOfSyncId => $composableBuilder(
       column: $table.refundOfSyncId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get rewardRuleIdsJson => $composableBuilder(
+      column: $table.rewardRuleIdsJson,
       builder: (column) => ColumnFilters(column));
 }
 
@@ -12163,6 +13463,10 @@ class $$TransactionsTableOrderingComposer
   ColumnOrderings<String> get refundOfSyncId => $composableBuilder(
       column: $table.refundOfSyncId,
       builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get rewardRuleIdsJson => $composableBuilder(
+      column: $table.rewardRuleIdsJson,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$TransactionsTableAnnotationComposer
@@ -12242,6 +13546,9 @@ class $$TransactionsTableAnnotationComposer
 
   GeneratedColumn<String> get refundOfSyncId => $composableBuilder(
       column: $table.refundOfSyncId, builder: (column) => column);
+
+  GeneratedColumn<String> get rewardRuleIdsJson => $composableBuilder(
+      column: $table.rewardRuleIdsJson, builder: (column) => column);
 }
 
 class $$TransactionsTableTableManager extends RootTableManager<
@@ -12293,6 +13600,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<double?> nativeAmount = const Value.absent(),
             Value<String?> merchant = const Value.absent(),
             Value<String?> refundOfSyncId = const Value.absent(),
+            Value<String?> rewardRuleIdsJson = const Value.absent(),
           }) =>
               TransactionsCompanion(
             id: id,
@@ -12318,6 +13626,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             nativeAmount: nativeAmount,
             merchant: merchant,
             refundOfSyncId: refundOfSyncId,
+            rewardRuleIdsJson: rewardRuleIdsJson,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
@@ -12343,6 +13652,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<double?> nativeAmount = const Value.absent(),
             Value<String?> merchant = const Value.absent(),
             Value<String?> refundOfSyncId = const Value.absent(),
+            Value<String?> rewardRuleIdsJson = const Value.absent(),
           }) =>
               TransactionsCompanion.insert(
             id: id,
@@ -12368,6 +13678,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             nativeAmount: nativeAmount,
             merchant: merchant,
             refundOfSyncId: refundOfSyncId,
+            rewardRuleIdsJson: rewardRuleIdsJson,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -16264,6 +17575,520 @@ typedef $$ExchangeRateOverridesTableProcessedTableManager
         ),
         ExchangeRateOverride,
         PrefetchHooks Function()>;
+typedef $$CardRewardRulesTableCreateCompanionBuilder = CardRewardRulesCompanion
+    Function({
+  Value<int> id,
+  required int accountId,
+  Value<String?> syncId,
+  required String label,
+  Value<String?> categoryIdsJson,
+  Value<String> rateType,
+  required double rateValue,
+  Value<String> rounding,
+  Value<String> totalRounding,
+  Value<String> calcBasis,
+  Value<String> interval,
+  Value<double?> minSpendThreshold,
+  Value<double?> minTxAmount,
+  Value<double?> capAmount,
+  Value<String?> capSharedKey,
+  Value<DateTime?> startsAt,
+  Value<DateTime?> endsAt,
+  Value<String> settlementType,
+  Value<int?> settlementDays,
+  Value<int?> settlementMonthOffset,
+  Value<int?> settlementDayOfMonth,
+  Value<int?> rewardAccountId,
+  Value<String?> note,
+  Value<bool> enabled,
+  Value<int> sortOrder,
+  Value<DateTime?> createdAt,
+  Value<DateTime?> updatedAt,
+});
+typedef $$CardRewardRulesTableUpdateCompanionBuilder = CardRewardRulesCompanion
+    Function({
+  Value<int> id,
+  Value<int> accountId,
+  Value<String?> syncId,
+  Value<String> label,
+  Value<String?> categoryIdsJson,
+  Value<String> rateType,
+  Value<double> rateValue,
+  Value<String> rounding,
+  Value<String> totalRounding,
+  Value<String> calcBasis,
+  Value<String> interval,
+  Value<double?> minSpendThreshold,
+  Value<double?> minTxAmount,
+  Value<double?> capAmount,
+  Value<String?> capSharedKey,
+  Value<DateTime?> startsAt,
+  Value<DateTime?> endsAt,
+  Value<String> settlementType,
+  Value<int?> settlementDays,
+  Value<int?> settlementMonthOffset,
+  Value<int?> settlementDayOfMonth,
+  Value<int?> rewardAccountId,
+  Value<String?> note,
+  Value<bool> enabled,
+  Value<int> sortOrder,
+  Value<DateTime?> createdAt,
+  Value<DateTime?> updatedAt,
+});
+
+class $$CardRewardRulesTableFilterComposer
+    extends Composer<_$BeeDatabase, $CardRewardRulesTable> {
+  $$CardRewardRulesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get accountId => $composableBuilder(
+      column: $table.accountId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get syncId => $composableBuilder(
+      column: $table.syncId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get label => $composableBuilder(
+      column: $table.label, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get categoryIdsJson => $composableBuilder(
+      column: $table.categoryIdsJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get rateType => $composableBuilder(
+      column: $table.rateType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get rateValue => $composableBuilder(
+      column: $table.rateValue, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get rounding => $composableBuilder(
+      column: $table.rounding, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get totalRounding => $composableBuilder(
+      column: $table.totalRounding, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get calcBasis => $composableBuilder(
+      column: $table.calcBasis, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get interval => $composableBuilder(
+      column: $table.interval, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get minSpendThreshold => $composableBuilder(
+      column: $table.minSpendThreshold,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get minTxAmount => $composableBuilder(
+      column: $table.minTxAmount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get capAmount => $composableBuilder(
+      column: $table.capAmount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get capSharedKey => $composableBuilder(
+      column: $table.capSharedKey, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get startsAt => $composableBuilder(
+      column: $table.startsAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get endsAt => $composableBuilder(
+      column: $table.endsAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get settlementType => $composableBuilder(
+      column: $table.settlementType,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get settlementDays => $composableBuilder(
+      column: $table.settlementDays,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get settlementMonthOffset => $composableBuilder(
+      column: $table.settlementMonthOffset,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get settlementDayOfMonth => $composableBuilder(
+      column: $table.settlementDayOfMonth,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get rewardAccountId => $composableBuilder(
+      column: $table.rewardAccountId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get enabled => $composableBuilder(
+      column: $table.enabled, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$CardRewardRulesTableOrderingComposer
+    extends Composer<_$BeeDatabase, $CardRewardRulesTable> {
+  $$CardRewardRulesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get accountId => $composableBuilder(
+      column: $table.accountId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get syncId => $composableBuilder(
+      column: $table.syncId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get label => $composableBuilder(
+      column: $table.label, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get categoryIdsJson => $composableBuilder(
+      column: $table.categoryIdsJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get rateType => $composableBuilder(
+      column: $table.rateType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get rateValue => $composableBuilder(
+      column: $table.rateValue, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get rounding => $composableBuilder(
+      column: $table.rounding, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get totalRounding => $composableBuilder(
+      column: $table.totalRounding,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get calcBasis => $composableBuilder(
+      column: $table.calcBasis, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get interval => $composableBuilder(
+      column: $table.interval, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get minSpendThreshold => $composableBuilder(
+      column: $table.minSpendThreshold,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get minTxAmount => $composableBuilder(
+      column: $table.minTxAmount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get capAmount => $composableBuilder(
+      column: $table.capAmount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get capSharedKey => $composableBuilder(
+      column: $table.capSharedKey,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get startsAt => $composableBuilder(
+      column: $table.startsAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get endsAt => $composableBuilder(
+      column: $table.endsAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get settlementType => $composableBuilder(
+      column: $table.settlementType,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get settlementDays => $composableBuilder(
+      column: $table.settlementDays,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get settlementMonthOffset => $composableBuilder(
+      column: $table.settlementMonthOffset,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get settlementDayOfMonth => $composableBuilder(
+      column: $table.settlementDayOfMonth,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get rewardAccountId => $composableBuilder(
+      column: $table.rewardAccountId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get enabled => $composableBuilder(
+      column: $table.enabled, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$CardRewardRulesTableAnnotationComposer
+    extends Composer<_$BeeDatabase, $CardRewardRulesTable> {
+  $$CardRewardRulesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get accountId =>
+      $composableBuilder(column: $table.accountId, builder: (column) => column);
+
+  GeneratedColumn<String> get syncId =>
+      $composableBuilder(column: $table.syncId, builder: (column) => column);
+
+  GeneratedColumn<String> get label =>
+      $composableBuilder(column: $table.label, builder: (column) => column);
+
+  GeneratedColumn<String> get categoryIdsJson => $composableBuilder(
+      column: $table.categoryIdsJson, builder: (column) => column);
+
+  GeneratedColumn<String> get rateType =>
+      $composableBuilder(column: $table.rateType, builder: (column) => column);
+
+  GeneratedColumn<double> get rateValue =>
+      $composableBuilder(column: $table.rateValue, builder: (column) => column);
+
+  GeneratedColumn<String> get rounding =>
+      $composableBuilder(column: $table.rounding, builder: (column) => column);
+
+  GeneratedColumn<String> get totalRounding => $composableBuilder(
+      column: $table.totalRounding, builder: (column) => column);
+
+  GeneratedColumn<String> get calcBasis =>
+      $composableBuilder(column: $table.calcBasis, builder: (column) => column);
+
+  GeneratedColumn<String> get interval =>
+      $composableBuilder(column: $table.interval, builder: (column) => column);
+
+  GeneratedColumn<double> get minSpendThreshold => $composableBuilder(
+      column: $table.minSpendThreshold, builder: (column) => column);
+
+  GeneratedColumn<double> get minTxAmount => $composableBuilder(
+      column: $table.minTxAmount, builder: (column) => column);
+
+  GeneratedColumn<double> get capAmount =>
+      $composableBuilder(column: $table.capAmount, builder: (column) => column);
+
+  GeneratedColumn<String> get capSharedKey => $composableBuilder(
+      column: $table.capSharedKey, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get startsAt =>
+      $composableBuilder(column: $table.startsAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get endsAt =>
+      $composableBuilder(column: $table.endsAt, builder: (column) => column);
+
+  GeneratedColumn<String> get settlementType => $composableBuilder(
+      column: $table.settlementType, builder: (column) => column);
+
+  GeneratedColumn<int> get settlementDays => $composableBuilder(
+      column: $table.settlementDays, builder: (column) => column);
+
+  GeneratedColumn<int> get settlementMonthOffset => $composableBuilder(
+      column: $table.settlementMonthOffset, builder: (column) => column);
+
+  GeneratedColumn<int> get settlementDayOfMonth => $composableBuilder(
+      column: $table.settlementDayOfMonth, builder: (column) => column);
+
+  GeneratedColumn<int> get rewardAccountId => $composableBuilder(
+      column: $table.rewardAccountId, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<bool> get enabled =>
+      $composableBuilder(column: $table.enabled, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$CardRewardRulesTableTableManager extends RootTableManager<
+    _$BeeDatabase,
+    $CardRewardRulesTable,
+    CardRewardRule,
+    $$CardRewardRulesTableFilterComposer,
+    $$CardRewardRulesTableOrderingComposer,
+    $$CardRewardRulesTableAnnotationComposer,
+    $$CardRewardRulesTableCreateCompanionBuilder,
+    $$CardRewardRulesTableUpdateCompanionBuilder,
+    (
+      CardRewardRule,
+      BaseReferences<_$BeeDatabase, $CardRewardRulesTable, CardRewardRule>
+    ),
+    CardRewardRule,
+    PrefetchHooks Function()> {
+  $$CardRewardRulesTableTableManager(
+      _$BeeDatabase db, $CardRewardRulesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CardRewardRulesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CardRewardRulesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CardRewardRulesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<int> accountId = const Value.absent(),
+            Value<String?> syncId = const Value.absent(),
+            Value<String> label = const Value.absent(),
+            Value<String?> categoryIdsJson = const Value.absent(),
+            Value<String> rateType = const Value.absent(),
+            Value<double> rateValue = const Value.absent(),
+            Value<String> rounding = const Value.absent(),
+            Value<String> totalRounding = const Value.absent(),
+            Value<String> calcBasis = const Value.absent(),
+            Value<String> interval = const Value.absent(),
+            Value<double?> minSpendThreshold = const Value.absent(),
+            Value<double?> minTxAmount = const Value.absent(),
+            Value<double?> capAmount = const Value.absent(),
+            Value<String?> capSharedKey = const Value.absent(),
+            Value<DateTime?> startsAt = const Value.absent(),
+            Value<DateTime?> endsAt = const Value.absent(),
+            Value<String> settlementType = const Value.absent(),
+            Value<int?> settlementDays = const Value.absent(),
+            Value<int?> settlementMonthOffset = const Value.absent(),
+            Value<int?> settlementDayOfMonth = const Value.absent(),
+            Value<int?> rewardAccountId = const Value.absent(),
+            Value<String?> note = const Value.absent(),
+            Value<bool> enabled = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
+            Value<DateTime?> createdAt = const Value.absent(),
+            Value<DateTime?> updatedAt = const Value.absent(),
+          }) =>
+              CardRewardRulesCompanion(
+            id: id,
+            accountId: accountId,
+            syncId: syncId,
+            label: label,
+            categoryIdsJson: categoryIdsJson,
+            rateType: rateType,
+            rateValue: rateValue,
+            rounding: rounding,
+            totalRounding: totalRounding,
+            calcBasis: calcBasis,
+            interval: interval,
+            minSpendThreshold: minSpendThreshold,
+            minTxAmount: minTxAmount,
+            capAmount: capAmount,
+            capSharedKey: capSharedKey,
+            startsAt: startsAt,
+            endsAt: endsAt,
+            settlementType: settlementType,
+            settlementDays: settlementDays,
+            settlementMonthOffset: settlementMonthOffset,
+            settlementDayOfMonth: settlementDayOfMonth,
+            rewardAccountId: rewardAccountId,
+            note: note,
+            enabled: enabled,
+            sortOrder: sortOrder,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required int accountId,
+            Value<String?> syncId = const Value.absent(),
+            required String label,
+            Value<String?> categoryIdsJson = const Value.absent(),
+            Value<String> rateType = const Value.absent(),
+            required double rateValue,
+            Value<String> rounding = const Value.absent(),
+            Value<String> totalRounding = const Value.absent(),
+            Value<String> calcBasis = const Value.absent(),
+            Value<String> interval = const Value.absent(),
+            Value<double?> minSpendThreshold = const Value.absent(),
+            Value<double?> minTxAmount = const Value.absent(),
+            Value<double?> capAmount = const Value.absent(),
+            Value<String?> capSharedKey = const Value.absent(),
+            Value<DateTime?> startsAt = const Value.absent(),
+            Value<DateTime?> endsAt = const Value.absent(),
+            Value<String> settlementType = const Value.absent(),
+            Value<int?> settlementDays = const Value.absent(),
+            Value<int?> settlementMonthOffset = const Value.absent(),
+            Value<int?> settlementDayOfMonth = const Value.absent(),
+            Value<int?> rewardAccountId = const Value.absent(),
+            Value<String?> note = const Value.absent(),
+            Value<bool> enabled = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
+            Value<DateTime?> createdAt = const Value.absent(),
+            Value<DateTime?> updatedAt = const Value.absent(),
+          }) =>
+              CardRewardRulesCompanion.insert(
+            id: id,
+            accountId: accountId,
+            syncId: syncId,
+            label: label,
+            categoryIdsJson: categoryIdsJson,
+            rateType: rateType,
+            rateValue: rateValue,
+            rounding: rounding,
+            totalRounding: totalRounding,
+            calcBasis: calcBasis,
+            interval: interval,
+            minSpendThreshold: minSpendThreshold,
+            minTxAmount: minTxAmount,
+            capAmount: capAmount,
+            capSharedKey: capSharedKey,
+            startsAt: startsAt,
+            endsAt: endsAt,
+            settlementType: settlementType,
+            settlementDays: settlementDays,
+            settlementMonthOffset: settlementMonthOffset,
+            settlementDayOfMonth: settlementDayOfMonth,
+            rewardAccountId: rewardAccountId,
+            note: note,
+            enabled: enabled,
+            sortOrder: sortOrder,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$CardRewardRulesTableProcessedTableManager = ProcessedTableManager<
+    _$BeeDatabase,
+    $CardRewardRulesTable,
+    CardRewardRule,
+    $$CardRewardRulesTableFilterComposer,
+    $$CardRewardRulesTableOrderingComposer,
+    $$CardRewardRulesTableAnnotationComposer,
+    $$CardRewardRulesTableCreateCompanionBuilder,
+    $$CardRewardRulesTableUpdateCompanionBuilder,
+    (
+      CardRewardRule,
+      BaseReferences<_$BeeDatabase, $CardRewardRulesTable, CardRewardRule>
+    ),
+    CardRewardRule,
+    PrefetchHooks Function()>;
 
 class $BeeDatabaseManager {
   final _$BeeDatabase _db;
@@ -16312,4 +18137,6 @@ class $BeeDatabaseManager {
       $$ExchangeRatesTableTableManager(_db, _db.exchangeRates);
   $$ExchangeRateOverridesTableTableManager get exchangeRateOverrides =>
       $$ExchangeRateOverridesTableTableManager(_db, _db.exchangeRateOverrides);
+  $$CardRewardRulesTableTableManager get cardRewardRules =>
+      $$CardRewardRulesTableTableManager(_db, _db.cardRewardRules);
 }

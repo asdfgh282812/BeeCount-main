@@ -472,7 +472,7 @@ class SyncEngine implements app.SyncService {
         logger.info('SyncEngine', '增量推送: $pushed 条');
       }
 
-      final pulled = await pull(ledgerId);
+      final pulled = await _pullWithOneTimeBackfills(ledgerId);
 
       // 下载远端附件文件（上传已在 push 前完成）
       try {
@@ -1289,6 +1289,45 @@ class SyncEngine implements app.SyncService {
   Future<int> replayAllChanges() async {
     logger.info('SyncEngine', 'replayAllChanges: 从 0 开始重拉 sync_changes');
     return pull('', sinceOverride: 0);
+  }
+
+  /// entity-type 上线后需要一次性补齐的历史 change_id 标记。新增支持的
+  /// sync entity type 时在这里加一条(tag 建议带上触发补齐的 schema 版本号)。
+  ///
+  /// 背景:v35 上线信用卡紅利回饋(card_reward_rule)后发现,已经用过一段
+  /// 时间的老设备打开信用卡帐户看不到 server 端早就存在的紅利規則(新建的
+  /// 规则却能正常同步)。根因:增量 pull 的 app cursor 已经越过了这些规则
+  /// 的历史 change_id——旧版本 `applyRemoteChange` 对不认识的 entityType
+  /// 只是打个 warning log 就放行,cursor 照常前进(见该方法 default 分支),
+  /// 之后再也拉不回。`AppCursorStore.hasBackfilled`/`markBackfilled` 用同
+  /// 一个 per 账号+设备的 key 派生方式记录"是否已经补过一次全量 replay"。
+  static const List<String> _entityTypeBackfillTags = ['card_reward_rule_v35'];
+
+  /// [replayAllChanges] 从 change_id=0 全量重放,一次就能把所有待补齐的
+  /// entity type 都覆盖到——不需要为每个 tag 各跑一次,这里只是收集"还有哪些
+  /// tag 没打过标记",触发一次 replay 后把它们一起标记完成。
+  Future<int> _pullWithOneTimeBackfills(String ledgerId) async {
+    final pendingTags = <String>[];
+    for (final tag in _entityTypeBackfillTags) {
+      if (!await appCursor.hasBackfilled(tag)) pendingTags.add(tag);
+    }
+    if (pendingTags.isEmpty) return pull(ledgerId);
+
+    logger.info('SyncEngine',
+        '待补齐 entity type backfill: $pendingTags,触发一次性 replayAllChanges');
+    try {
+      final applied = await replayAllChanges();
+      for (final tag in pendingTags) {
+        await appCursor.markBackfilled(tag);
+      }
+      return applied;
+    } catch (e, st) {
+      // 补齐失败不阻塞本次同步——退化为普通增量 pull,下次 sync 会话因为
+      // 标记没写入而重试补齐。
+      logger.warning(
+          'SyncEngine', 'entity type backfill replay 失败,本次退化为增量 pull', st);
+      return pull(ledgerId);
+    }
   }
 
   // 附件相关方法搬到 sync_engine_attachments.dart 这个 part 文件:

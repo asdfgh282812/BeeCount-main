@@ -203,6 +203,10 @@ abstract class TransactionRepository {
     double? nativeAmount,
     // v34:退款关联(存原交易 syncId)。只在新建这笔交易当下写入,后续编辑不改。
     String? refundOfSyncId,
+    // v35:信用卡紅利回饋——使用者手动勾选的规则 syncId 列表(不是本地 int
+    // id,原因同 refundOfSyncId:本地 id 跨设备不稳定)。null/空 = 不挂任何
+    // 回饋规则。
+    List<String>? rewardRuleIds,
   });
 
   /// 批量新增交易，单事务内插入，返回插入条数。
@@ -262,6 +266,9 @@ abstract class TransactionRepository {
     // 做折算兜底。
     String? currencyCode,
     double? nativeAmount,
+    // v35:语义同 merchant——null 会显式清空既有勾选(调用方需自行传当前值
+    // 以保留)。
+    List<String>? rewardRuleIds,
   });
 
   /// 删除交易

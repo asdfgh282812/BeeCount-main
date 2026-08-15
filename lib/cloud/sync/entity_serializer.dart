@@ -81,6 +81,10 @@ class EntitySerializer {
       // A 端删光所有附件时 payload 里完全没有 attachments 字段 → B 端没法
       // 区分"没发送附件信息"和"全删光了"，B 就永远同步不到删除。
       if (attachments != null) 'attachments': attachments,
+      // v35:信用卡紅利回饋——使用者手動勾選的規則 syncId 列表。恒發(即使
+      // `[]`)——本地已经用 syncId 存,不用像 tagIds 那样做本地 id→syncId
+      // 转换。空 list 代表"这笔交易没有勾选任何回饋规则"(包含用户清空的场景)。
+      'rewardRuleIds': tx.rewardRuleIds,
     };
   }
 
@@ -212,6 +216,47 @@ class EntitySerializer {
       'period': budget.period,
       'startDay': budget.startDay,
       'enabled': budget.enabled,
+    };
+  }
+
+  // ==================== CardRewardRule ====================
+
+  /// 信用卡紅利回饋規則。**注意**:跟本檔案其它 serialize 方法不同,BeeCount
+  /// Cloud 端這個 entity 的 upsert(`projection.py::upsert_card_reward_rule`)
+  /// 不走 `_merge_from_spec` 的「只覆盖 payload 里非 None 的字段」合并语义,
+  /// 而是每次全量 UPSERT 全部欄位(`_upsert()` docstring:「主键撞了就 UPDATE
+  /// 其他所有列」)。這裡因此**不做任何 `if (x != null)` 省略**——每個欄位
+  /// 每次都要把本地當前真值(包含 null)完整帶上,省略等於把該欄位覆蓋成
+  /// server 端 `payload.get(x) or <default>` 的預設值,不是"維持原值"。
+  static Map<String, dynamic> serializeCardRewardRule(
+    CardRewardRule rule, {
+    required String accountSyncId,
+    String? rewardAccountSyncId,
+  }) {
+    return {
+      'syncId': rule.syncId,
+      'accountId': accountSyncId,
+      'label': rule.label,
+      'categoryIds': rule.categoryIds,
+      'rateType': rule.rateType,
+      'rateValue': rule.rateValue,
+      'rounding': rule.rounding,
+      'totalRounding': rule.totalRounding,
+      'calcBasis': rule.calcBasis,
+      'interval': rule.interval,
+      'minSpendThreshold': rule.minSpendThreshold,
+      'minTxAmount': rule.minTxAmount,
+      'capAmount': rule.capAmount,
+      'capSharedKey': rule.capSharedKey,
+      'startsAt': rule.startsAt?.toUtc().toIso8601String(),
+      'endsAt': rule.endsAt?.toUtc().toIso8601String(),
+      'settlementType': rule.settlementType,
+      'settlementDays': rule.settlementDays,
+      'settlementMonthOffset': rule.settlementMonthOffset,
+      'settlementDayOfMonth': rule.settlementDayOfMonth,
+      'rewardAccountId': rewardAccountSyncId,
+      'note': rule.note,
+      'enabled': rule.enabled,
     };
   }
 

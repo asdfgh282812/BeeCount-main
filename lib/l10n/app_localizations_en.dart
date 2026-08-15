@@ -8057,4 +8057,245 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get billingSummaryPaidOff => 'Paid Off';
+
+  @override
+  String get cardRewardRuleEntryLabel => 'Reward Rules';
+
+  @override
+  String cardRewardRuleCount(int count) {
+    return '$count rule(s)';
+  }
+
+  @override
+  String get cardRewardRuleListTitle => 'Reward Rules';
+
+  @override
+  String cardRewardRuleActiveSection(int count) {
+    return 'Active ($count)';
+  }
+
+  @override
+  String cardRewardRuleEndedSection(int count) {
+    return 'Ended ($count)';
+  }
+
+  @override
+  String get cardRewardRuleCapNone => 'No cap';
+
+  @override
+  String cardRewardRuleCapUpTo(String amount) {
+    return 'Cap $amount';
+  }
+
+  @override
+  String get cardRewardRuleEmptyState =>
+      'No reward rules yet. Tap + to add one.';
+
+  @override
+  String get cardRewardRuleEditorTitleNew => 'New Reward Rule';
+
+  @override
+  String get cardRewardRuleEditorTitleEdit => 'Edit Reward Rule';
+
+  @override
+  String get cardRewardRuleLabelField => 'Activity Name';
+
+  @override
+  String get cardRewardRuleLabelHint => 'Enter a name';
+
+  @override
+  String get cardRewardRuleAccountField => 'Bound Account';
+
+  @override
+  String get cardRewardRuleRateTypeField => 'Reward Method';
+
+  @override
+  String get cardRewardRuleRateTypePercentage => 'By percentage';
+
+  @override
+  String get cardRewardRuleRateTypeFixedAmount =>
+      'Fixed amount per transaction';
+
+  @override
+  String get cardRewardRuleRateValuePercentField => 'Percentage';
+
+  @override
+  String get cardRewardRuleRateValueFixedField => 'Amount per transaction';
+
+  @override
+  String get cardRewardRuleMechanismSection => 'Reward Mechanism';
+
+  @override
+  String get cardRewardRuleIntervalField => 'Calculation Interval';
+
+  @override
+  String get cardRewardRuleIntervalBillingCycle => 'Billing cycle';
+
+  @override
+  String get cardRewardRuleIntervalCalendarMonth => 'Calendar month';
+
+  @override
+  String get cardRewardRuleCalcBasisField => 'Calculation Basis';
+
+  @override
+  String get cardRewardRuleCalcBasisTransactionDate => 'Transaction date';
+
+  @override
+  String get cardRewardRuleCalcBasisSettlementDate => 'Settlement date';
+
+  @override
+  String get cardRewardRuleSettlementTypeField => 'Posting Timing';
+
+  @override
+  String get cardRewardRuleSettlementImmediate =>
+      'Right after each transaction';
+
+  @override
+  String get cardRewardRuleSettlementAfterPostingDate => 'After posting date';
+
+  @override
+  String get cardRewardRuleSettlementPeriodEnd => 'After period ends';
+
+  @override
+  String get cardRewardRuleSettlementManual => 'Manual only';
+
+  @override
+  String get cardRewardRuleSettlementMonthOffsetField => 'Posting Month Offset';
+
+  @override
+  String get cardRewardRuleSettlementDayOfMonthField => 'Posting Day of Month';
+
+  @override
+  String get cardRewardRuleThresholdSection => 'Activation Threshold';
+
+  @override
+  String get cardRewardRuleMinSpendThresholdField => 'Minimum Period Spend';
+
+  @override
+  String get cardRewardRuleMinTxAmountField => 'Minimum Transaction Amount';
+
+  @override
+  String get cardRewardRuleNoThreshold => 'No threshold';
+
+  @override
+  String get cardRewardRuleCalcSection => 'Calculation Method';
+
+  @override
+  String get cardRewardRuleRoundingField => 'Per-transaction Rounding';
+
+  @override
+  String get cardRewardRuleTotalRoundingField => 'Total Rounding';
+
+  @override
+  String get cardRewardRuleRoundingFloor => 'Round down';
+
+  @override
+  String get cardRewardRuleRoundingRound => 'Round to nearest';
+
+  @override
+  String get cardRewardRuleRoundingCeil => 'Round up';
+
+  @override
+  String get cardRewardRuleRoundingKeep => 'Keep decimals';
+
+  @override
+  String get cardRewardRuleCapSection => 'Reward Cap';
+
+  @override
+  String get cardRewardRuleCapTotalField => 'Total Cap';
+
+  @override
+  String get cardRewardRuleCapNoLimit => 'No cap';
+
+  @override
+  String get cardRewardRuleCapSharedKeyField => 'Shared Cap Group';
+
+  @override
+  String get cardRewardRuleCapSharedKeyHint =>
+      'Optional — rules sharing this key share one combined cap';
+
+  @override
+  String get cardRewardRuleOtherSection => 'Other Settings';
+
+  @override
+  String get cardRewardRuleRewardAccountField => 'Reward Deposit Account';
+
+  @override
+  String get cardRewardRuleNoRewardAccount => 'Not selected';
+
+  @override
+  String get cardRewardRuleStartsAtField => 'Start Date';
+
+  @override
+  String get cardRewardRuleEndsAtField => 'End Date';
+
+  @override
+  String get cardRewardRuleNoEndDate => 'No end date';
+
+  @override
+  String get cardRewardRuleNoteField => 'Details';
+
+  @override
+  String get cardRewardRuleNotePlaceholder =>
+      'Notes about this reward campaign';
+
+  @override
+  String get cardRewardRuleCategoryIdsField =>
+      'Applicable Categories (optional, display only)';
+
+  @override
+  String get cardRewardRuleLockedHint =>
+      'This rule already has linked transactions or payouts. Calculation fields can no longer be edited — only the name, note, enabled state and dates can still change.';
+
+  @override
+  String get cardRewardRuleDeleteConfirmTitle => 'Delete this reward rule?';
+
+  @override
+  String get cardRewardRuleDeleteConfirmBody => 'This cannot be undone.';
+
+  @override
+  String cardRewardRuleSaveFailed(String error) {
+    return 'Failed to save: $error';
+  }
+
+  @override
+  String get cardRewardRuleSelectorTitle => 'Select Reward Rules';
+
+  @override
+  String get cardRewardRuleSelectorEmpty =>
+      'No active reward rules for this account';
+
+  @override
+  String cardRewardRuleEstimatedReward(String amount) {
+    return 'Estimated reward: $amount';
+  }
+
+  @override
+  String get cardRewardRuleCopy => 'Duplicate';
+
+  @override
+  String get cardRewardRuleDelete => 'Delete';
+
+  @override
+  String cardRewardRuleCopyLabel(String name) {
+    return '$name (Copy)';
+  }
+
+  @override
+  String get cardRewardRuleCopied => 'Reward rule duplicated';
+
+  @override
+  String get cardRewardRuleDeleted => 'Reward rule deleted';
+
+  @override
+  String get cardRewardRuleDeleteLockedTitle =>
+      'This rule has linked transactions';
+
+  @override
+  String get cardRewardRuleDeleteLockedBody =>
+      'This reward rule already has transactions referencing it, so it can\'t be permanently deleted. It will be disabled instead and moved to the Ended section.';
+
+  @override
+  String get cardRewardRuleDisabledInsteadOfDeleted =>
+      'Rule has linked transactions — disabled instead of deleted';
 }

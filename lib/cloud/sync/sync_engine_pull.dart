@@ -54,8 +54,8 @@ class AppCursorStore {
     final providerCursor = prefs.getInt(providerKey);
     if (providerCursor != null && providerCursor > 0) {
       await prefs.setInt(appKey, providerCursor);
-      logger.info('AppCursorStore',
-          '复制 provider cursor → app cursor: $providerCursor');
+      logger.info(
+          'AppCursorStore', '复制 provider cursor → app cursor: $providerCursor');
     }
   }
 
@@ -79,6 +79,44 @@ class AppCursorStore {
     final raw = '$baseUrl|$apiPrefix|$userId|$deviceId';
     final digest = sha1.convert(utf8.encode(raw)).toString();
     return 'beecount_cloud_pull_cursor_$digest';
+  }
+
+  /// 一次性 entity-type backfill 标记(同一账号+设备只需跑一次)。
+  ///
+  /// 场景:app 新支持某个 sync entity type(例如 card_reward_rule)上线时,
+  /// 已经同步过一段时间的老设备 [_key] 对应的 cursor 早就越过了那些实体的
+  /// 历史 change_id——`applyRemoteChange` 分发不到 case 的旧版本会静默丢弃
+  /// 并放行 cursor 继续前进(见该方法 default 分支),之后普通增量 pull 永远
+  /// 拉不回这批历史数据,只有从 change_id=0 的 [SyncEngine.replayAllChanges]
+  /// 能补齐。补齐只需做一次,用这对方法记录"某个 tag 是否已经补过"。
+  ///
+  /// [tag] 建议带上触发这次补齐的 schema 版本号(如 `'card_reward_rule_v35'`),
+  /// 避免以后同名字段复用时语义混淆。
+  Future<bool> hasBackfilled(String tag) async {
+    final key = await _backfillKey(tag);
+    // 未登录:视为"暂不需要补",避免登录前反复判断/写入。真正登录后
+    // _backfillKey 才会返回非空 key,届时正常走一次性补齐。
+    if (key == null) return true;
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(key) ?? false;
+  }
+
+  Future<void> markBackfilled(String tag) async {
+    final key = await _backfillKey(tag);
+    if (key == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(key, true);
+  }
+
+  Future<String?> _backfillKey(String tag) async {
+    final auth = _provider.auth as BeeCountCloudAuthService;
+    final userId = auth.currentUserId;
+    final deviceId = auth.currentDeviceId;
+    if (userId == null || deviceId == null) return null;
+    final baseUrl = _provider.baseUrl ?? 'unknown';
+    final raw = '$baseUrl|$userId|$deviceId|backfill|$tag';
+    final digest = sha1.convert(utf8.encode(raw)).toString();
+    return 'app_backfill_$digest';
   }
 }
 
@@ -268,9 +306,10 @@ class LookupCache {
         _tx[s] = _TxCacheEntry(id: t.id, createdByUserId: t.createdByUserId);
       }
     }
-    logger.info('LookupCache',
+    logger.info(
+        'LookupCache',
         'prime: ledgers=${_ledger.length} categories=${_category.length} '
-        'accounts=${_account.length} tags=${_tag.length} transactions=${_tx.length}');
+            'accounts=${_account.length} tags=${_tag.length} transactions=${_tx.length}');
   }
 
   int? ledgerId(String? syncId) =>
@@ -281,6 +320,7 @@ class LookupCache {
       (syncId == null || syncId.isEmpty) ? null : _account[syncId];
   int? tagId(String? syncId) =>
       (syncId == null || syncId.isEmpty) ? null : _tag[syncId];
+
   /// `_TxCacheEntry` 是 part 内私有,仅供 apply 路径用,所以 ignore lint。
   // ignore: library_private_types_in_public_api
   _TxCacheEntry? transaction(String? syncId) =>

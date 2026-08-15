@@ -3373,5 +3373,126 @@
   "billingSummaryInstallments": "Installments",
   "billingSummaryReconciledCount": "Reconciled",
   "billingSummaryRemaining": "Remaining Balance",
-  "billingSummaryPaidOff": "Paid Off"
+  "billingSummaryPaidOff": "Paid Off",
+  "cardRewardRuleEntryLabel": "Reward Rules",
+  "cardRewardRuleCount": "{count} rule(s)",
+  "@cardRewardRuleCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cardRewardRuleListTitle": "Reward Rules",
+  "cardRewardRuleActiveSection": "Active ({count})",
+  "@cardRewardRuleActiveSection": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cardRewardRuleEndedSection": "Ended ({count})",
+  "@cardRewardRuleEndedSection": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cardRewardRuleCapNone": "No cap",
+  "cardRewardRuleCapUpTo": "Cap {amount}",
+  "@cardRewardRuleCapUpTo": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "cardRewardRuleEmptyState": "No reward rules yet. Tap + to add one.",
+  "cardRewardRuleEditorTitleNew": "New Reward Rule",
+  "cardRewardRuleEditorTitleEdit": "Edit Reward Rule",
+  "cardRewardRuleLabelField": "Activity Name",
+  "cardRewardRuleLabelHint": "Enter a name",
+  "cardRewardRuleAccountField": "Bound Account",
+  "cardRewardRuleRateTypeField": "Reward Method",
+  "cardRewardRuleRateTypePercentage": "By percentage",
+  "cardRewardRuleRateTypeFixedAmount": "Fixed amount per transaction",
+  "cardRewardRuleRateValuePercentField": "Percentage",
+  "cardRewardRuleRateValueFixedField": "Amount per transaction",
+  "cardRewardRuleMechanismSection": "Reward Mechanism",
+  "cardRewardRuleIntervalField": "Calculation Interval",
+  "cardRewardRuleIntervalBillingCycle": "Billing cycle",
+  "cardRewardRuleIntervalCalendarMonth": "Calendar month",
+  "cardRewardRuleCalcBasisField": "Calculation Basis",
+  "cardRewardRuleCalcBasisTransactionDate": "Transaction date",
+  "cardRewardRuleCalcBasisSettlementDate": "Settlement date",
+  "cardRewardRuleSettlementTypeField": "Posting Timing",
+  "cardRewardRuleSettlementImmediate": "Right after each transaction",
+  "cardRewardRuleSettlementAfterPostingDate": "After posting date",
+  "cardRewardRuleSettlementPeriodEnd": "After period ends",
+  "cardRewardRuleSettlementManual": "Manual only",
+  "cardRewardRuleSettlementMonthOffsetField": "Posting Month Offset",
+  "cardRewardRuleSettlementDayOfMonthField": "Posting Day of Month",
+  "cardRewardRuleThresholdSection": "Activation Threshold",
+  "cardRewardRuleMinSpendThresholdField": "Minimum Period Spend",
+  "cardRewardRuleMinTxAmountField": "Minimum Transaction Amount",
+  "cardRewardRuleNoThreshold": "No threshold",
+  "cardRewardRuleCalcSection": "Calculation Method",
+  "cardRewardRuleRoundingField": "Per-transaction Rounding",
+  "cardRewardRuleTotalRoundingField": "Total Rounding",
+  "cardRewardRuleRoundingFloor": "Round down",
+  "cardRewardRuleRoundingRound": "Round to nearest",
+  "cardRewardRuleRoundingCeil": "Round up",
+  "cardRewardRuleRoundingKeep": "Keep decimals",
+  "cardRewardRuleCapSection": "Reward Cap",
+  "cardRewardRuleCapTotalField": "Total Cap",
+  "cardRewardRuleCapNoLimit": "No cap",
+  "cardRewardRuleCapSharedKeyField": "Shared Cap Group",
+  "cardRewardRuleCapSharedKeyHint": "Optional — rules sharing this key share one combined cap",
+  "cardRewardRuleOtherSection": "Other Settings",
+  "cardRewardRuleRewardAccountField": "Reward Deposit Account",
+  "cardRewardRuleNoRewardAccount": "Not selected",
+  "cardRewardRuleStartsAtField": "Start Date",
+  "cardRewardRuleEndsAtField": "End Date",
+  "cardRewardRuleNoEndDate": "No end date",
+  "cardRewardRuleNoteField": "Details",
+  "cardRewardRuleNotePlaceholder": "Notes about this reward campaign",
+  "cardRewardRuleCategoryIdsField": "Applicable Categories (optional, display only)",
+  "cardRewardRuleLockedHint": "This rule already has linked transactions or payouts. Calculation fields can no longer be edited — only the name, note, enabled state and dates can still change.",
+  "cardRewardRuleDeleteConfirmTitle": "Delete this reward rule?",
+  "cardRewardRuleDeleteConfirmBody": "This cannot be undone.",
+  "cardRewardRuleSaveFailed": "Failed to save: {error}",
+  "@cardRewardRuleSaveFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "cardRewardRuleSelectorTitle": "Select Reward Rules",
+  "cardRewardRuleSelectorEmpty": "No active reward rules for this account",
+  "cardRewardRuleEstimatedReward": "Estimated reward: {amount}",
+  "@cardRewardRuleEstimatedReward": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "cardRewardRuleCopy": "Duplicate",
+  "cardRewardRuleDelete": "Delete",
+  "cardRewardRuleCopyLabel": "{name} (Copy)",
+  "@cardRewardRuleCopyLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cardRewardRuleCopied": "Reward rule duplicated",
+  "cardRewardRuleDeleted": "Reward rule deleted",
+  "cardRewardRuleDeleteLockedTitle": "This rule has linked transactions",
+  "cardRewardRuleDeleteLockedBody": "This reward rule already has transactions referencing it, so it can't be permanently deleted. It will be disabled instead and moved to the Ended section.",
+  "cardRewardRuleDisabledInsteadOfDeleted": "Rule has linked transactions — disabled instead of deleted"
 }

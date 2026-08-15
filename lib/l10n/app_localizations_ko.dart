@@ -7837,4 +7837,239 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get billingSummaryPaidOff => '완납';
+
+  @override
+  String get cardRewardRuleEntryLabel => '카드 리워드';
+
+  @override
+  String cardRewardRuleCount(int count) {
+    return '리워드 규칙 $count개';
+  }
+
+  @override
+  String get cardRewardRuleListTitle => '카드 리워드 목록';
+
+  @override
+  String cardRewardRuleActiveSection(int count) {
+    return '진행 중 ($count)';
+  }
+
+  @override
+  String cardRewardRuleEndedSection(int count) {
+    return '종료됨 ($count)';
+  }
+
+  @override
+  String get cardRewardRuleCapNone => '한도 없음';
+
+  @override
+  String cardRewardRuleCapUpTo(String amount) {
+    return '한도 $amount';
+  }
+
+  @override
+  String get cardRewardRuleEmptyState =>
+      '설정된 리워드 규칙이 없습니다. 오른쪽 위 \'+\'를 눌러 추가하세요.';
+
+  @override
+  String get cardRewardRuleEditorTitleNew => '리워드 규칙 추가';
+
+  @override
+  String get cardRewardRuleEditorTitleEdit => '리워드 규칙 편집';
+
+  @override
+  String get cardRewardRuleLabelField => '이벤트 이름';
+
+  @override
+  String get cardRewardRuleLabelHint => '이름을 입력하세요';
+
+  @override
+  String get cardRewardRuleAccountField => '연결된 계정';
+
+  @override
+  String get cardRewardRuleRateTypeField => '리워드 방식';
+
+  @override
+  String get cardRewardRuleRateTypePercentage => '비율(%)';
+
+  @override
+  String get cardRewardRuleRateTypeFixedAmount => '건당 고정 금액';
+
+  @override
+  String get cardRewardRuleRateValuePercentField => '비율(%)';
+
+  @override
+  String get cardRewardRuleRateValueFixedField => '건당 금액';
+
+  @override
+  String get cardRewardRuleMechanismSection => '리워드 방식 상세';
+
+  @override
+  String get cardRewardRuleIntervalField => '계산 주기';
+
+  @override
+  String get cardRewardRuleIntervalBillingCycle => '결제 주기 기준';
+
+  @override
+  String get cardRewardRuleIntervalCalendarMonth => '달력 월 기준';
+
+  @override
+  String get cardRewardRuleCalcBasisField => '계산 기준일';
+
+  @override
+  String get cardRewardRuleCalcBasisTransactionDate => '거래일';
+
+  @override
+  String get cardRewardRuleCalcBasisSettlementDate => '정산일';
+
+  @override
+  String get cardRewardRuleSettlementTypeField => '적립 시점';
+
+  @override
+  String get cardRewardRuleSettlementImmediate => '거래 직후 즉시';
+
+  @override
+  String get cardRewardRuleSettlementAfterPostingDate => '정산일 이후';
+
+  @override
+  String get cardRewardRuleSettlementPeriodEnd => '주기 종료 후';
+
+  @override
+  String get cardRewardRuleSettlementManual => '수동 적립만';
+
+  @override
+  String get cardRewardRuleSettlementMonthOffsetField => '적립 월 오프셋';
+
+  @override
+  String get cardRewardRuleSettlementDayOfMonthField => '적립일(매월 며칠)';
+
+  @override
+  String get cardRewardRuleThresholdSection => '적립 시작 조건';
+
+  @override
+  String get cardRewardRuleMinSpendThresholdField => '기간 누적 사용 금액 조건';
+
+  @override
+  String get cardRewardRuleMinTxAmountField => '건당 최소 사용 금액';
+
+  @override
+  String get cardRewardRuleNoThreshold => '조건 없음';
+
+  @override
+  String get cardRewardRuleCalcSection => '계산 방식';
+
+  @override
+  String get cardRewardRuleRoundingField => '건별 반올림';
+
+  @override
+  String get cardRewardRuleTotalRoundingField => '합계 반올림';
+
+  @override
+  String get cardRewardRuleRoundingFloor => '내림';
+
+  @override
+  String get cardRewardRuleRoundingRound => '반올림';
+
+  @override
+  String get cardRewardRuleRoundingCeil => '올림';
+
+  @override
+  String get cardRewardRuleRoundingKeep => '소수점 유지';
+
+  @override
+  String get cardRewardRuleCapSection => '리워드 한도';
+
+  @override
+  String get cardRewardRuleCapTotalField => '합계 한도';
+
+  @override
+  String get cardRewardRuleCapNoLimit => '한도 없음';
+
+  @override
+  String get cardRewardRuleCapSharedKeyField => '공동 한도 그룹';
+
+  @override
+  String get cardRewardRuleCapSharedKeyHint =>
+      '선택 사항 — 같은 값을 쓰는 규칙끼리 한도를 공유합니다';
+
+  @override
+  String get cardRewardRuleOtherSection => '기타 설정';
+
+  @override
+  String get cardRewardRuleRewardAccountField => '리워드 적립 계정';
+
+  @override
+  String get cardRewardRuleNoRewardAccount => '선택 안 함';
+
+  @override
+  String get cardRewardRuleStartsAtField => '시작일';
+
+  @override
+  String get cardRewardRuleEndsAtField => '종료일';
+
+  @override
+  String get cardRewardRuleNoEndDate => '종료일 없음';
+
+  @override
+  String get cardRewardRuleNoteField => '상세 내용';
+
+  @override
+  String get cardRewardRuleNotePlaceholder => '이 리워드 이벤트에 대한 메모';
+
+  @override
+  String get cardRewardRuleCategoryIdsField => '적용 카테고리(선택, 표시 전용)';
+
+  @override
+  String get cardRewardRuleLockedHint =>
+      '이미 연결된 거래나 적립 내역이 있는 규칙입니다. 계산 관련 항목은 더 이상 수정할 수 없고 이름/메모/사용 여부/기간만 바꿀 수 있습니다.';
+
+  @override
+  String get cardRewardRuleDeleteConfirmTitle => '이 리워드 규칙을 삭제할까요?';
+
+  @override
+  String get cardRewardRuleDeleteConfirmBody => '삭제하면 되돌릴 수 없습니다.';
+
+  @override
+  String cardRewardRuleSaveFailed(String error) {
+    return '저장 실패: $error';
+  }
+
+  @override
+  String get cardRewardRuleSelectorTitle => '카드 리워드 선택';
+
+  @override
+  String get cardRewardRuleSelectorEmpty => '이 계정에 적용 가능한 리워드 규칙이 없습니다';
+
+  @override
+  String cardRewardRuleEstimatedReward(String amount) {
+    return '예상 적립 리워드: $amount';
+  }
+
+  @override
+  String get cardRewardRuleCopy => '복제';
+
+  @override
+  String get cardRewardRuleDelete => '삭제';
+
+  @override
+  String cardRewardRuleCopyLabel(String name) {
+    return '$name (복제)';
+  }
+
+  @override
+  String get cardRewardRuleCopied => '리워드 규칙이 복제되었습니다';
+
+  @override
+  String get cardRewardRuleDeleted => '리워드 규칙이 삭제되었습니다';
+
+  @override
+  String get cardRewardRuleDeleteLockedTitle => '이미 연결된 거래가 있는 규칙입니다';
+
+  @override
+  String get cardRewardRuleDeleteLockedBody =>
+      '이 리워드 규칙은 이미 거래에서 참조하고 있어 완전히 삭제할 수 없습니다. 대신 비활성화되어 \'종료됨\' 그룹으로 이동합니다.';
+
+  @override
+  String get cardRewardRuleDisabledInsteadOfDeleted =>
+      '연결된 거래가 있어 삭제 대신 비활성화되었습니다';
 }

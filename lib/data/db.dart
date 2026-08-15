@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' show Locale;
 
@@ -175,6 +176,106 @@ class Transactions extends Table {
   /// (一笔交易只能被退一次、退款单不能再被退款),wire 字段名 refundOfId,
   /// 见 sync_applier.py 的 merge spec。
   TextColumn get refundOfSyncId => text().nullable()();
+
+  /// v35:信用卡紅利回饋——使用者記帳當下手動勾選的回饋規則 syncId 列表
+  /// (JSON list,同 [tagSyncIdsOverride] 那种"JSON list 存 string"写法)。
+  /// BeeCount Cloud 端字段是 read_tx_projection.reward_rule_sync_ids_json,
+  /// wire 字段名 rewardRuleIds(见 sync_applier.py merge spec)。2026-08-06
+  /// 改版后规则不再靠 category_ids 自动比对,这里是权威的"哪笔消费适用哪个
+  /// 回馈方案"来源。
+  TextColumn get rewardRuleIdsJson => text().nullable()();
+}
+
+/// v35:信用卡紅利回饋規則。user-global 实体(同 Accounts/Categories/Tags 那组
+/// 白名单),不挂 ledgerId。字段/wire key 对照 BeeCount Cloud
+/// `sync_applier.py` 的 `_MergeSpec["card_reward_rule"]`——改字段前先去那边
+/// 核对,一字之差会让整个字段静默同步失败。
+///
+/// `locked`(规则已有交易/入帐纪录挂着时,计算类字段不可再编辑)不是本表的列:
+/// server 端这个语义只在 web 专用 REST read endpoint 计算返回,不在这张表
+/// 对应的 generic sync 投影里。App 端在 UI 层用本地代理判断(本地是否有交易
+/// 的 rewardRuleIdsJson 命中这条规则),见
+/// lib/pages/account/card_reward_rule_editor_page.dart。
+class CardRewardRules extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// 绑定的信用卡帐户(本地 int id)。server 端建立后不可改(wire 字段
+  /// accountId 只在 create payload 送,update 不送这个 key)。
+  IntColumn get accountId => integer()();
+
+  TextColumn get syncId => text().nullable()();
+  TextColumn get label => text()();
+
+  /// 保留字段,JSON list of category syncId。2026-08-06 起不参与回馈资格
+  /// 自动比对(改成使用者记账时手动勾选 rewardRuleIds),这里纯粹用于编辑页
+  /// 显示/筛选。
+  TextColumn get categoryIdsJson => text().nullable()();
+
+  TextColumn get rateType => text()
+      .withDefault(const Constant('percentage'))(); // percentage / fixed_amount
+  RealColumn get rateValue => real()();
+  TextColumn get rounding =>
+      text().withDefault(const Constant('round'))(); // floor/round/ceil/keep
+  TextColumn get totalRounding => text().withDefault(const Constant('round'))();
+  TextColumn get calcBasis => text().withDefault(
+      const Constant('transaction_date'))(); // transaction_date/settlement_date
+  TextColumn get interval => text().withDefault(
+      const Constant('billing_cycle'))(); // billing_cycle/calendar_month
+
+  RealColumn get minSpendThreshold => real().nullable()();
+  RealColumn get minTxAmount => real().nullable()();
+  RealColumn get capAmount => real().nullable()();
+  TextColumn get capSharedKey => text().nullable()();
+
+  DateTimeColumn get startsAt => dateTime().nullable()();
+  DateTimeColumn get endsAt => dateTime().nullable()();
+
+  TextColumn get settlementType => text().withDefault(const Constant(
+      'manual'))(); // immediate_after_tx/after_posting_date/period_end/manual
+  IntColumn get settlementDays => integer().nullable()();
+  IntColumn get settlementMonthOffset => integer().nullable()();
+  IntColumn get settlementDayOfMonth => integer().nullable()();
+
+  /// 回饋入帳帐户(本地 int id,nullable——manual 结算类型允许不设)。
+  IntColumn get rewardAccountId => integer().nullable()();
+
+  TextColumn get note => text().nullable()();
+  BoolColumn get enabled => boolean().withDefault(const Constant(true))();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+
+  DateTimeColumn get createdAt => dateTime().nullable()();
+  DateTimeColumn get updatedAt => dateTime().nullable()();
+}
+
+/// [Transaction.rewardRuleIdsJson] 的解码辅助——JSON list of card_reward_rule
+/// syncId。放这里而不是各调用点各自 jsonDecode,避免格式错误处理散落各处。
+extension TransactionRewardRuleIds on Transaction {
+  List<String> get rewardRuleIds {
+    final raw = rewardRuleIdsJson;
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) return decoded.whereType<String>().toList();
+    } catch (_) {
+      // 忽略格式错误的旧数据,当作没有勾选。
+    }
+    return const [];
+  }
+}
+
+/// [CardRewardRule.categoryIdsJson] 的解码辅助,同 [TransactionRewardRuleIds]。
+extension CardRewardRuleCategoryIds on CardRewardRule {
+  List<String> get categoryIds {
+    final raw = categoryIdsJson;
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) return decoded.whereType<String>().toList();
+    } catch (_) {
+      // 忽略格式错误的旧数据。
+    }
+    return const [];
+  }
 }
 
 class RecurringTransactions extends Table {
@@ -462,6 +563,7 @@ class SharedLedgerTags extends Table {
   SyncPullErrors,
   ExchangeRates,
   ExchangeRateOverrides,
+  CardRewardRules,
 ])
 class BeeDatabase extends _$BeeDatabase {
   BeeDatabase() : super(_openConnection());
@@ -472,7 +574,8 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 34; // v34: 退款关联 — transactions.refundOfSyncId
+  int get schemaVersion =>
+      35; // v35: 信用卡紅利回饋 — card_reward_rules 表 + transactions.rewardRuleIdsJson
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1214,6 +1317,14 @@ class BeeDatabase extends _$BeeDatabase {
             await _addColumnIfMissing('transactions', 'refund_of_sync_id',
                 'ALTER TABLE transactions ADD COLUMN refund_of_sync_id TEXT;');
             logger.info('DBMigration', 'v34 迁移完成');
+          }
+          if (from < 35) {
+            logger.info('DBMigration', '开始迁移到 v35: 信用卡紅利回饋(card_reward_rules)');
+            await _createTableIfMissing(
+                migrator, 'card_reward_rules', cardRewardRules);
+            await _addColumnIfMissing('transactions', 'reward_rule_ids_json',
+                'ALTER TABLE transactions ADD COLUMN reward_rule_ids_json TEXT;');
+            logger.info('DBMigration', 'v35 迁移完成');
           }
         },
         onCreate: (m) async {

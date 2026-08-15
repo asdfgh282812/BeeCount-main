@@ -61,7 +61,8 @@ void main() {
       await engine.pull('');
       final prefs = await SharedPreferences.getInstance();
       // 应该还没有 app cursor key
-      final keys = prefs.getKeys().where((k) => k.startsWith('app_pull_cursor_'));
+      final keys =
+          prefs.getKeys().where((k) => k.startsWith('app_pull_cursor_'));
       expect(keys, isEmpty, reason: '空 pull 不应推进 cursor');
     });
   });
@@ -112,8 +113,8 @@ void main() {
     });
 
     test('apply 成功后 cursor 推进到本页末尾', () async {
-      await db.into(db.ledgers).insert(LedgersCompanion.insert(
-          name: 'L', syncId: const Value('L1')));
+      await db.into(db.ledgers).insert(
+          LedgersCompanion.insert(name: 'L', syncId: const Value('L1')));
       await db.into(db.categories).insert(CategoriesCompanion.insert(
           name: 'C', kind: 'expense', syncId: const Value('C1')));
 
@@ -220,12 +221,13 @@ void main() {
       expect(cursor, 0);
     });
 
-    test('apply 时单条 change payload 异常 → 整页 rollback + 错误入 sync_pull_errors + cursor 不推进',
+    test(
+        'apply 时单条 change payload 异常 → 整页 rollback + 错误入 sync_pull_errors + cursor 不推进',
         () async {
       // 推 5 条 change,第 3 条 payload 用错误类型(categoryId 传 int 而不是 string)
       // 让 _applyTransactionChange 内 `payload['categoryId'] as String?` 抛 TypeError
-      await db.into(db.ledgers).insert(LedgersCompanion.insert(
-          name: 'L', syncId: const Value('L1')));
+      await db.into(db.ledgers).insert(
+          LedgersCompanion.insert(name: 'L', syncId: const Value('L1')));
 
       for (var i = 0; i < 5; i++) {
         final payload = <String, dynamic>{
@@ -252,8 +254,7 @@ void main() {
 
       // 本地 transactions 表应该是空(rollback 生效,不是只插了前两条)
       final txs = await db.select(db.transactions).get();
-      expect(txs, isEmpty,
-          reason: 'apply 抛错时整页 rollback,前面已 INSERT 的也应回滚');
+      expect(txs, isEmpty, reason: 'apply 抛错时整页 rollback,前面已 INSERT 的也应回滚');
 
       // cursor 不推进(读 0)
       expect(await engine.appCursor.read(), 0);
@@ -268,8 +269,8 @@ void main() {
     });
 
     test('修复后 server 推同 change_id 新版本 → markResolved', () async {
-      await db.into(db.ledgers).insert(LedgersCompanion.insert(
-          name: 'L', syncId: const Value('L1')));
+      await db.into(db.ledgers).insert(
+          LedgersCompanion.insert(name: 'L', syncId: const Value('L1')));
 
       // 先推一条会抛错的
       provider.pushFakeChange(
@@ -294,8 +295,8 @@ void main() {
 
   group('cursor 持久化', () {
     test('apply 成功后 cursor 写入 SharedPreferences,跨 SyncEngine 实例可读', () async {
-      await db.into(db.ledgers).insert(LedgersCompanion.insert(
-          name: 'L', syncId: const Value('L1')));
+      await db.into(db.ledgers).insert(
+          LedgersCompanion.insert(name: 'L', syncId: const Value('L1')));
       await db.into(db.categories).insert(CategoriesCompanion.insert(
           name: 'C', kind: 'expense', syncId: const Value('C1')));
 
@@ -328,7 +329,8 @@ void main() {
         repo: repo,
       );
       final cursor2 = await engine2.appCursor.read();
-      expect(cursor2, 3, reason: '新 SyncEngine 实例应从 SharedPreferences 读到上次 cursor');
+      expect(cursor2, 3,
+          reason: '新 SyncEngine 实例应从 SharedPreferences 读到上次 cursor');
 
       // 第二个 engine pull 应该看到"无变更"(空 pull)
       final applied = await engine2.pull('');
@@ -340,8 +342,8 @@ void main() {
 
   group('replay (sinceOverride=0)', () {
     test('replay 从头拉所有 change,即使 cursor 已推进', () async {
-      await db.into(db.ledgers).insert(LedgersCompanion.insert(
-          name: 'L', syncId: const Value('L1')));
+      await db.into(db.ledgers).insert(
+          LedgersCompanion.insert(name: 'L', syncId: const Value('L1')));
       await db.into(db.categories).insert(CategoriesCompanion.insert(
           name: 'C', kind: 'expense', syncId: const Value('C1')));
 
@@ -370,12 +372,98 @@ void main() {
       provider.pullCalls.clear();
       final applied = await engine.pull('', sinceOverride: 0);
       expect(applied, 3, reason: 'replay 应重新 apply 3 条');
-      expect(provider.pullCalls.first.since, 0,
-          reason: 'replay 必须从 since=0 拉');
+      expect(provider.pullCalls.first.since, 0, reason: 'replay 必须从 since=0 拉');
 
       // 本地 transactions 仍是 3 条(没 dup)
       final txs = await db.select(db.transactions).get();
       expect(txs, hasLength(3));
+    });
+  });
+
+  group('entity-type 一次性 backfill(v35 card_reward_rule)', () {
+    test('首次 sync 用一次性 replayAllChanges 补齐,之后恢复增量 pull', () async {
+      final ledgerId = await db.into(db.ledgers).insert(
+          LedgersCompanion.insert(name: 'L', syncId: const Value('L1')));
+      await db.into(db.categories).insert(CategoriesCompanion.insert(
+          name: 'C', kind: 'expense', syncId: const Value('C1')));
+      provider.pushFakeLedgerSnapshot(ledgerId: 'L1');
+
+      for (var i = 0; i < 3; i++) {
+        provider.pushFakeChange(
+          entityType: 'transaction',
+          entitySyncId: 'tx-$i',
+          ledgerId: 'L1',
+          payload: {
+            'syncId': 'tx-$i',
+            'type': 'expense',
+            'amount': 10.0,
+            'happenedAt': '2026-05-01T10:00:00Z',
+            'categoryId': 'C1',
+            'categoryName': 'C',
+            'categoryKind': 'expense',
+          },
+        );
+      }
+
+      // 模拟"旧版本已经用一段时间,cursor 早就推进过"——直接调 pull(不经过
+      // sync()/_pullWithOneTimeBackfills),cursor 推到 3,但 backfill 标记未写。
+      await engine.pull('');
+      expect(await engine.appCursor.read(), 3);
+      expect(await engine.appCursor.hasBackfilled('card_reward_rule_v35'),
+          isFalse);
+
+      // 模拟升级后 server 端多了一条新变更
+      provider.pushFakeChange(
+        entityType: 'transaction',
+        entitySyncId: 'tx-3',
+        ledgerId: 'L1',
+        payload: {
+          'syncId': 'tx-3',
+          'type': 'expense',
+          'amount': 20.0,
+          'happenedAt': '2026-05-02T10:00:00Z',
+          'categoryId': 'C1',
+          'categoryName': 'C',
+          'categoryKind': 'expense',
+        },
+      );
+
+      provider.pullCalls.clear();
+      final result = await engine.sync(ledgerId: ledgerId.toString());
+      expect(result.hasError, isFalse);
+      expect(provider.pullCalls, isNotEmpty);
+      expect(provider.pullCalls.first.since, 0,
+          reason: '一次性 backfill 应从 change_id=0 重放,而不是从已推进的 cursor 继续');
+      expect(
+          await engine.appCursor.hasBackfilled('card_reward_rule_v35'), isTrue);
+      expect(await engine.appCursor.read(), 4);
+
+      final txs = await db.select(db.transactions).get();
+      expect(txs, hasLength(4),
+          reason: '4 条 tx 都应落地,前 3 条 replay 幂等 upsert 不重复插入');
+
+      // 第二次 sync:backfill 已标记过,应该恢复正常增量 pull(since=当前 cursor,不是 0)
+      provider.pullCalls.clear();
+      final result2 = await engine.sync(ledgerId: ledgerId.toString());
+      expect(result2.hasError, isFalse);
+      if (provider.pullCalls.isNotEmpty) {
+        expect(provider.pullCalls.first.since, isNot(0),
+            reason: 'backfill 只应触发一次,第二次应是正常增量 pull');
+      }
+    });
+
+    test('backfill replay 失败时不阻塞 sync(),也不标记完成(下次重试)', () async {
+      final ledgerId = await db.into(db.ledgers).insert(
+          LedgersCompanion.insert(name: 'L', syncId: const Value('L1')));
+      provider.pushFakeLedgerSnapshot(ledgerId: 'L1');
+      provider.pullErrorInjector = (since) => Exception('network error');
+
+      final result = await engine.sync(ledgerId: ledgerId.toString());
+
+      expect(result.hasError, isTrue);
+      expect(
+          await engine.appCursor.hasBackfilled('card_reward_rule_v35'), isFalse,
+          reason: 'replay 失败不应标记完成,下次 sync 要重试');
     });
   });
 
@@ -384,7 +472,8 @@ void main() {
       // 本地通过 repo 写一条 tx(会触发 changeTracker.recordLedgerChange)
       final ledgerId = await db.into(db.ledgers).insert(
             LedgersCompanion.insert(
-              name: 'L', syncId: const Value('L1'),
+              name: 'L',
+              syncId: const Value('L1'),
             ),
           );
       await repo.insertTransactionsBatch([
@@ -413,7 +502,8 @@ void main() {
       expect(provider.pushedBatches.first.first['action'], 'upsert');
 
       // local_changes 已 markPushed
-      final remaining = await changeTracker.getUnpushedChangesForLedger(ledgerId);
+      final remaining =
+          await changeTracker.getUnpushedChangesForLedger(ledgerId);
       expect(remaining, isEmpty);
     });
 
@@ -438,7 +528,8 @@ void main() {
   });
 
   group('recordChanges=false:fullPull 不反向回流', () {
-    test('LocalRepository.insertTransactionsBatch(recordChanges: false) → 不写 local_changes',
+    test(
+        'LocalRepository.insertTransactionsBatch(recordChanges: false) → 不写 local_changes',
         () async {
       final ledgerId = await db.into(db.ledgers).insert(
           LedgersCompanion.insert(name: 'L', syncId: const Value('L1')));
@@ -459,8 +550,7 @@ void main() {
       // 本地有 50 条 tx,但 local_changes 表为空(不会反向 push)
       final txs = await db.select(db.transactions).get();
       expect(txs, hasLength(50));
-      final changes =
-          await changeTracker.getUnpushedChangesForLedger(ledgerId);
+      final changes = await changeTracker.getUnpushedChangesForLedger(ledgerId);
       expect(changes, isEmpty,
           reason: 'fullPull 写入不应触发 changeTracker.recordLedgerChange');
     });
@@ -475,8 +565,7 @@ void main() {
             amount: 1.0,
             syncId: const Value('normal-tx')),
       ]); // 不传 recordChanges,走默认 true
-      final changes =
-          await changeTracker.getUnpushedChangesForLedger(ledgerId);
+      final changes = await changeTracker.getUnpushedChangesForLedger(ledgerId);
       expect(changes, hasLength(1));
     });
   });
@@ -485,8 +574,7 @@ void main() {
     test('uploadAttachments 上传未同步附件 → 回填 cloudFileId + 登记 update change',
         () async {
       final ledgerId = await db.into(db.ledgers).insert(
-            LedgersCompanion.insert(
-                name: 'L', syncId: const Value('L1')),
+            LedgersCompanion.insert(name: 'L', syncId: const Value('L1')),
           );
       // 插一条 tx + 一个未上传的 attachment
       final txId = await db.into(db.transactions).insert(
@@ -699,8 +787,8 @@ void main() {
 
   group('SyncEvent stream(PR 1 解耦改造)', () {
     test('WS pull 完成 emit PullCompleted 到 events stream', () async {
-      await db.into(db.ledgers).insert(LedgersCompanion.insert(
-          name: 'L', syncId: const Value('L1')));
+      await db.into(db.ledgers).insert(
+          LedgersCompanion.insert(name: 'L', syncId: const Value('L1')));
       await db.into(db.categories).insert(CategoriesCompanion.insert(
           name: 'C', kind: 'expense', syncId: const Value('C1')));
 
@@ -741,7 +829,8 @@ void main() {
       expect(pullEvents.last.applied, greaterThan(0));
     });
 
-    test('sync push 后清缓存 + emit,getStatus 从 localNewer 刷新为 inSync'
+    test(
+        'sync push 后清缓存 + emit,getStatus 从 localNewer 刷新为 inSync'
         '(修复:同步完成后「我的」页状态自动更新,不用手动下拉)', () async {
       final ledgerId = await db.into(db.ledgers).insert(
             LedgersCompanion.insert(
@@ -791,8 +880,8 @@ void main() {
       // 直接调 _emit 不容易(私有),但 syncMyProfile / pull 路径会 emit。
       // 这里用 syncMyProfile 路径:fake provider 抛 UnimplementedError →
       // 整个流程进 catch 不 emit。我们改测 pull → PullCompleted
-      await db.into(db.ledgers).insert(LedgersCompanion.insert(
-          name: 'L', syncId: const Value('L1')));
+      await db.into(db.ledgers).insert(
+          LedgersCompanion.insert(name: 'L', syncId: const Value('L1')));
       engine.startListeningRealtime();
       provider.emitRealtimeEvent(BeeCountCloudRealtimeEvent(
         type: 'sync_change',
@@ -810,8 +899,8 @@ void main() {
   group('WS realtime', () {
     test('startListeningRealtime + 模拟 WS sync_change → 1s debounce 后触发 pull',
         () async {
-      await db.into(db.ledgers).insert(LedgersCompanion.insert(
-          name: 'L', syncId: const Value('L1')));
+      await db.into(db.ledgers).insert(
+          LedgersCompanion.insert(name: 'L', syncId: const Value('L1')));
       await db.into(db.categories).insert(CategoriesCompanion.insert(
           name: 'C', kind: 'expense', syncId: const Value('C1')));
 
@@ -851,4 +940,3 @@ void main() {
     });
   });
 }
-

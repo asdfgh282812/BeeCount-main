@@ -16,8 +16,10 @@ import '../../services/attachment_service.dart';
 import '../../providers.dart';
 import '../../utils/ui_scale_extensions.dart';
 import '../../utils/amount_calculator.dart';
+import '../../utils/currencies.dart' show getCurrencySymbol;
 import '../../utils/shared_ledger_picker_filter.dart';
 import '../../pages/tag/widgets/tag_selector.dart';
+import 'card_reward_rule_selector.dart';
 import '../category/category_selector.dart';
 import '../category_icon.dart';
 import 'account_card_picker.dart';
@@ -47,6 +49,8 @@ typedef AmountEditorResult = ({
   // 与折本位币快照(同币种 == amount;外币 = amount × 汇率,缺汇率已在提交前阻断)。
   String? currencyCode,
   double? nativeAmount,
+  // v35:信用卡紅利回饋——使用者勾選的回饋規則 syncId 列表(空 list = 沒勾)。
+  List<String> rewardRuleIds,
 });
 
 /// 支出/收入新增交易的單頁式表單(比照 Moze 參考圖):類別、金額、名稱、
@@ -73,6 +77,8 @@ class TransactionEntryForm extends ConsumerStatefulWidget {
   final bool initialExcludeFromBudget;
   final String? initialCurrencyCode;
   final double? initialNativeAmount;
+  // v35:編輯模式回填已勾選的信用卡紅利回饋規則(syncId 列表)。
+  final List<String>? initialRewardRuleIds;
   final void Function(Category category, AmountEditorResult result) onSubmit;
 
   const TransactionEntryForm({
@@ -91,6 +97,7 @@ class TransactionEntryForm extends ConsumerStatefulWidget {
     this.initialExcludeFromBudget = false,
     this.initialCurrencyCode,
     this.initialNativeAmount,
+    this.initialRewardRuleIds,
     required this.onSubmit,
   });
 
@@ -121,6 +128,7 @@ class _TransactionEntryFormState extends ConsumerState<TransactionEntryForm> {
   bool _isSubmitting = false;
 
   late List<int> _selectedTagIds;
+  late List<String> _selectedRewardRuleIds;
   List<File> _pendingAttachments = [];
 
   bool _excludeFromStats = false;
@@ -130,6 +138,8 @@ class _TransactionEntryFormState extends ConsumerState<TransactionEntryForm> {
   String? _pickedCurrency;
   String? _selectedAccountCurrency;
   String? _selectedAccountName;
+  // v35:信用卡紅利回饋——只有選中帳戶是 credit_card 時才啟用回饋選單。
+  String? _selectedAccountType;
   String? _rateStr;
   bool _rateManuallySet = false;
   bool _fetchingRate = false;
@@ -145,6 +155,7 @@ class _TransactionEntryFormState extends ConsumerState<TransactionEntryForm> {
     _excludeFromBudget = widget.initialExcludeFromBudget;
     _selectedAccountId = widget.initialAccountId;
     _selectedTagIds = List.from(widget.initialTagIds ?? []);
+    _selectedRewardRuleIds = List.from(widget.initialRewardRuleIds ?? []);
     _pickedCurrency = widget.initialCurrencyCode?.toUpperCase();
 
     final initAmount = widget.initialAmount ?? 0;
@@ -289,6 +300,7 @@ class _TransactionEntryFormState extends ConsumerState<TransactionEntryForm> {
     if (!mounted) return;
     setState(() {
       _selectedAccountName = acc?.name;
+      _selectedAccountType = acc?.type;
       _selectedAccountCurrency = (acc?.currency.isNotEmpty ?? false)
           ? acc!.currency.toUpperCase()
           : null;
@@ -347,6 +359,8 @@ class _TransactionEntryFormState extends ConsumerState<TransactionEntryForm> {
       _selectedAccountId = null;
       _selectedAccountCurrency = null;
       _selectedAccountName = null;
+      _selectedAccountType = null;
+      _selectedRewardRuleIds = [];
     });
   }
 
@@ -585,10 +599,15 @@ class _TransactionEntryFormState extends ConsumerState<TransactionEntryForm> {
     // result.accountId == null:明确选了「不选择账户」,清空。
     if (result == null || !mounted) return;
     final id = result.accountId;
+    final accountChanged = id != _selectedAccountId;
     setState(() {
       _selectedAccountId = id;
       _selectedAccountCurrency = null;
       _selectedAccountName = null;
+      _selectedAccountType = null;
+      // 換帳戶時清掉舊選的回饋規則——規則綁定特定信用卡帳戶,換帳戶後舊選
+      // 擇不再有意義(甚至可能不屬於新帳戶,寫入會被 write 校驗擋掉)。
+      if (accountChanged) _selectedRewardRuleIds = [];
     });
     if (id != null) _loadSelectedAccount(id);
   }
@@ -634,6 +653,7 @@ class _TransactionEntryFormState extends ConsumerState<TransactionEntryForm> {
         excludeFromBudget: _excludeFromBudget,
         currencyCode: txCurrency,
         nativeAmount: nativeAmount,
+        rewardRuleIds: _selectedRewardRuleIds,
       ),
     );
     // 不重置 _isSubmitting:提交后整个页面会被关闭,State 会被销毁。
@@ -814,6 +834,7 @@ class _TransactionEntryFormState extends ConsumerState<TransactionEntryForm> {
                 _buildAccountRow(context),
                 const SizedBox(height: 8),
                 _buildTagAndAttachmentRow(),
+                _buildEstimatedRewardRow(),
                 const SizedBox(height: 8),
                 _buildDateRow(context),
                 const SizedBox(height: 10),
@@ -1043,6 +1064,71 @@ class _TransactionEntryFormState extends ConsumerState<TransactionEntryForm> {
     );
   }
 
+  /// 純前端估算,不 call server——真正入帳金額仍由 BeeCount Cloud 排程計算
+  /// (門檻/上限/共同上限群組等跨交易邏輯只有 server 端看得到完整資料)。
+  /// 這裡只是金額輸入當下的即時提示,幫使用者判斷「大概能拿多少」。
+  double _estimatedReward() {
+    final rules = _selectedRewardRules();
+    if (rules.isEmpty) return 0;
+    final amount = _op == null
+        ? _parsedAmount()
+        : computeAmountOp(_acc, _op!, _parsedAmount());
+    if (amount.abs() <= 0) return 0;
+    var total = 0.0;
+    for (final rule in rules) {
+      double contribution;
+      if (rule.rateType == 'fixed_amount') {
+        contribution = rule.rateValue;
+      } else {
+        final raw = amount.abs() * rule.rateValue / 100;
+        contribution = _applyRounding(raw, rule.rounding);
+      }
+      if (rule.capAmount != null && contribution > rule.capAmount!) {
+        contribution = rule.capAmount!;
+      }
+      total += contribution;
+    }
+    return total;
+  }
+
+  double _applyRounding(double value, String rounding) {
+    switch (rounding) {
+      case 'floor':
+        return (value * 100).floorToDouble() / 100;
+      case 'ceil':
+        return (value * 100).ceilToDouble() / 100;
+      case 'keep':
+        return value;
+      case 'round':
+      default:
+        return (value * 100).roundToDouble() / 100;
+    }
+  }
+
+  Widget _buildEstimatedRewardRow() {
+    if (!_rewardRuleSelectionEnabled || _selectedRewardRuleIds.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final l10n = AppLocalizations.of(context);
+    final estimated = _estimatedReward();
+    final currency = _txCurrency();
+    final amountStr =
+        '${getCurrencySymbol(currency)}${estimated.toStringAsFixed(2)}';
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 2),
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: Text(
+          l10n.cardRewardRuleEstimatedReward(amountStr),
+          style: TextStyle(
+            fontSize: 12.5,
+            color: BeeTokens.textSecondary(context),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildTagAndAttachmentRow() {
     final allTagsAsync = ref.watch(tagsForCurrentLedgerProvider);
     final allTags = allTagsAsync.valueOrNull ?? [];
@@ -1150,10 +1236,48 @@ class _TransactionEntryFormState extends ConsumerState<TransactionEntryForm> {
     );
   }
 
+  /// v35:選中帳戶是信用卡時,才能挑紅利回饋規則——回饋方案綁定特定信用卡,
+  /// 非信用卡帳戶(或沒選帳戶)選單裡不會有任何規則可挑。
+  bool get _rewardRuleSelectionEnabled => _selectedAccountType == 'credit_card';
+
+  List<CardRewardRule> _selectedRewardRules() {
+    if (_selectedRewardRuleIds.isEmpty || _selectedAccountId == null) {
+      return const [];
+    }
+    final all = ref
+            .watch(cardRewardRulesForAccountProvider(_selectedAccountId!))
+            .valueOrNull ??
+        const [];
+    return all.where((r) => _selectedRewardRuleIds.contains(r.syncId)).toList();
+  }
+
+  String _rewardChipLabel(CardRewardRule r) {
+    final v = r.rateValue;
+    final vs = v.toStringAsFixed(v == v.truncateToDouble() ? 0 : 2);
+    return r.rateType == 'fixed_amount'
+        ? '${r.label} ($vs)'
+        : '${r.label} ($vs%)';
+  }
+
+  Future<void> _openRewardRuleSelector() async {
+    if (_selectedAccountId == null) return;
+    final result = await CardRewardRuleSelector.show(
+      context,
+      accountId: _selectedAccountId!,
+      selectedSyncIds: _selectedRewardRuleIds,
+    );
+    if (result != null) {
+      setState(() => _selectedRewardRuleIds = result);
+    }
+  }
+
   Widget _buildRowContent(List<Tag> selectedTags, int attachmentCount,
       List<TransactionAttachment> savedAttachments) {
     final l10n = AppLocalizations.of(context);
     final hasAttachments = attachmentCount > 0;
+    final selectedRewardRules = _selectedRewardRules();
+    final hasAnyChip =
+        selectedTags.isNotEmpty || selectedRewardRules.isNotEmpty;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1173,7 +1297,7 @@ class _TransactionEntryFormState extends ConsumerState<TransactionEntryForm> {
                 }
               },
               behavior: HitTestBehavior.opaque,
-              child: selectedTags.isEmpty
+              child: !hasAnyChip
                   ? Text(
                       l10n.tagSelectTitle,
                       style: TextStyle(
@@ -1182,19 +1306,48 @@ class _TransactionEntryFormState extends ConsumerState<TransactionEntryForm> {
                   : SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
-                        children: selectedTags
-                            .map((tag) => Padding(
-                                  padding: const EdgeInsets.only(right: 6),
-                                  child: TagChip(
-                                      name: tag.name,
-                                      color: tag.color,
-                                      size: TagChipSize.small),
-                                ))
-                            .toList(),
+                        children: [
+                          ...selectedTags.map((tag) => Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: TagChip(
+                                    name: tag.name,
+                                    color: tag.color,
+                                    size: TagChipSize.small),
+                              )),
+                          ...selectedRewardRules.map((rule) => Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: TagChip(
+                                  name: _rewardChipLabel(rule),
+                                  size: TagChipSize.small,
+                                  showDelete: true,
+                                  onDelete: () => setState(() =>
+                                      _selectedRewardRuleIds =
+                                          _selectedRewardRuleIds
+                                              .where((id) => id != rule.syncId)
+                                              .toList()),
+                                ),
+                              )),
+                        ],
                       ),
                     ),
             ),
           ),
+          if (_rewardRuleSelectionEnabled) ...[
+            const SizedBox(width: 16),
+            GestureDetector(
+              onTap: _openRewardRuleSelector,
+              behavior: HitTestBehavior.opaque,
+              child: Icon(
+                selectedRewardRules.isNotEmpty
+                    ? Icons.card_giftcard
+                    : Icons.card_giftcard_outlined,
+                size: 18,
+                color: selectedRewardRules.isNotEmpty
+                    ? Theme.of(context).colorScheme.primary
+                    : BeeTokens.iconSecondary(context),
+              ),
+            ),
+          ],
           const SizedBox(width: 16),
           GestureDetector(
             onTap: () => _handleAttachmentTap(savedAttachments),

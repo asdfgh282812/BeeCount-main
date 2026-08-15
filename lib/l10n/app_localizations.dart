@@ -14555,6 +14555,438 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Paid Off'**
   String get billingSummaryPaidOff;
+
+  /// No description provided for @cardRewardRuleEntryLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reward Rules'**
+  String get cardRewardRuleEntryLabel;
+
+  /// No description provided for @cardRewardRuleCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} rule(s)'**
+  String cardRewardRuleCount(int count);
+
+  /// No description provided for @cardRewardRuleListTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reward Rules'**
+  String get cardRewardRuleListTitle;
+
+  /// No description provided for @cardRewardRuleActiveSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Active ({count})'**
+  String cardRewardRuleActiveSection(int count);
+
+  /// No description provided for @cardRewardRuleEndedSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Ended ({count})'**
+  String cardRewardRuleEndedSection(int count);
+
+  /// No description provided for @cardRewardRuleCapNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No cap'**
+  String get cardRewardRuleCapNone;
+
+  /// No description provided for @cardRewardRuleCapUpTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Cap {amount}'**
+  String cardRewardRuleCapUpTo(String amount);
+
+  /// No description provided for @cardRewardRuleEmptyState.
+  ///
+  /// In en, this message translates to:
+  /// **'No reward rules yet. Tap + to add one.'**
+  String get cardRewardRuleEmptyState;
+
+  /// No description provided for @cardRewardRuleEditorTitleNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New Reward Rule'**
+  String get cardRewardRuleEditorTitleNew;
+
+  /// No description provided for @cardRewardRuleEditorTitleEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Reward Rule'**
+  String get cardRewardRuleEditorTitleEdit;
+
+  /// No description provided for @cardRewardRuleLabelField.
+  ///
+  /// In en, this message translates to:
+  /// **'Activity Name'**
+  String get cardRewardRuleLabelField;
+
+  /// No description provided for @cardRewardRuleLabelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a name'**
+  String get cardRewardRuleLabelHint;
+
+  /// No description provided for @cardRewardRuleAccountField.
+  ///
+  /// In en, this message translates to:
+  /// **'Bound Account'**
+  String get cardRewardRuleAccountField;
+
+  /// No description provided for @cardRewardRuleRateTypeField.
+  ///
+  /// In en, this message translates to:
+  /// **'Reward Method'**
+  String get cardRewardRuleRateTypeField;
+
+  /// No description provided for @cardRewardRuleRateTypePercentage.
+  ///
+  /// In en, this message translates to:
+  /// **'By percentage'**
+  String get cardRewardRuleRateTypePercentage;
+
+  /// No description provided for @cardRewardRuleRateTypeFixedAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed amount per transaction'**
+  String get cardRewardRuleRateTypeFixedAmount;
+
+  /// No description provided for @cardRewardRuleRateValuePercentField.
+  ///
+  /// In en, this message translates to:
+  /// **'Percentage'**
+  String get cardRewardRuleRateValuePercentField;
+
+  /// No description provided for @cardRewardRuleRateValueFixedField.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount per transaction'**
+  String get cardRewardRuleRateValueFixedField;
+
+  /// No description provided for @cardRewardRuleMechanismSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Reward Mechanism'**
+  String get cardRewardRuleMechanismSection;
+
+  /// No description provided for @cardRewardRuleIntervalField.
+  ///
+  /// In en, this message translates to:
+  /// **'Calculation Interval'**
+  String get cardRewardRuleIntervalField;
+
+  /// No description provided for @cardRewardRuleIntervalBillingCycle.
+  ///
+  /// In en, this message translates to:
+  /// **'Billing cycle'**
+  String get cardRewardRuleIntervalBillingCycle;
+
+  /// No description provided for @cardRewardRuleIntervalCalendarMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Calendar month'**
+  String get cardRewardRuleIntervalCalendarMonth;
+
+  /// No description provided for @cardRewardRuleCalcBasisField.
+  ///
+  /// In en, this message translates to:
+  /// **'Calculation Basis'**
+  String get cardRewardRuleCalcBasisField;
+
+  /// No description provided for @cardRewardRuleCalcBasisTransactionDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Transaction date'**
+  String get cardRewardRuleCalcBasisTransactionDate;
+
+  /// No description provided for @cardRewardRuleCalcBasisSettlementDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Settlement date'**
+  String get cardRewardRuleCalcBasisSettlementDate;
+
+  /// No description provided for @cardRewardRuleSettlementTypeField.
+  ///
+  /// In en, this message translates to:
+  /// **'Posting Timing'**
+  String get cardRewardRuleSettlementTypeField;
+
+  /// No description provided for @cardRewardRuleSettlementImmediate.
+  ///
+  /// In en, this message translates to:
+  /// **'Right after each transaction'**
+  String get cardRewardRuleSettlementImmediate;
+
+  /// No description provided for @cardRewardRuleSettlementAfterPostingDate.
+  ///
+  /// In en, this message translates to:
+  /// **'After posting date'**
+  String get cardRewardRuleSettlementAfterPostingDate;
+
+  /// No description provided for @cardRewardRuleSettlementPeriodEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'After period ends'**
+  String get cardRewardRuleSettlementPeriodEnd;
+
+  /// No description provided for @cardRewardRuleSettlementManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual only'**
+  String get cardRewardRuleSettlementManual;
+
+  /// No description provided for @cardRewardRuleSettlementMonthOffsetField.
+  ///
+  /// In en, this message translates to:
+  /// **'Posting Month Offset'**
+  String get cardRewardRuleSettlementMonthOffsetField;
+
+  /// No description provided for @cardRewardRuleSettlementDayOfMonthField.
+  ///
+  /// In en, this message translates to:
+  /// **'Posting Day of Month'**
+  String get cardRewardRuleSettlementDayOfMonthField;
+
+  /// No description provided for @cardRewardRuleThresholdSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Activation Threshold'**
+  String get cardRewardRuleThresholdSection;
+
+  /// No description provided for @cardRewardRuleMinSpendThresholdField.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum Period Spend'**
+  String get cardRewardRuleMinSpendThresholdField;
+
+  /// No description provided for @cardRewardRuleMinTxAmountField.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum Transaction Amount'**
+  String get cardRewardRuleMinTxAmountField;
+
+  /// No description provided for @cardRewardRuleNoThreshold.
+  ///
+  /// In en, this message translates to:
+  /// **'No threshold'**
+  String get cardRewardRuleNoThreshold;
+
+  /// No description provided for @cardRewardRuleCalcSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Calculation Method'**
+  String get cardRewardRuleCalcSection;
+
+  /// No description provided for @cardRewardRuleRoundingField.
+  ///
+  /// In en, this message translates to:
+  /// **'Per-transaction Rounding'**
+  String get cardRewardRuleRoundingField;
+
+  /// No description provided for @cardRewardRuleTotalRoundingField.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Rounding'**
+  String get cardRewardRuleTotalRoundingField;
+
+  /// No description provided for @cardRewardRuleRoundingFloor.
+  ///
+  /// In en, this message translates to:
+  /// **'Round down'**
+  String get cardRewardRuleRoundingFloor;
+
+  /// No description provided for @cardRewardRuleRoundingRound.
+  ///
+  /// In en, this message translates to:
+  /// **'Round to nearest'**
+  String get cardRewardRuleRoundingRound;
+
+  /// No description provided for @cardRewardRuleRoundingCeil.
+  ///
+  /// In en, this message translates to:
+  /// **'Round up'**
+  String get cardRewardRuleRoundingCeil;
+
+  /// No description provided for @cardRewardRuleRoundingKeep.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep decimals'**
+  String get cardRewardRuleRoundingKeep;
+
+  /// No description provided for @cardRewardRuleCapSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Reward Cap'**
+  String get cardRewardRuleCapSection;
+
+  /// No description provided for @cardRewardRuleCapTotalField.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Cap'**
+  String get cardRewardRuleCapTotalField;
+
+  /// No description provided for @cardRewardRuleCapNoLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'No cap'**
+  String get cardRewardRuleCapNoLimit;
+
+  /// No description provided for @cardRewardRuleCapSharedKeyField.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared Cap Group'**
+  String get cardRewardRuleCapSharedKeyField;
+
+  /// No description provided for @cardRewardRuleCapSharedKeyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional — rules sharing this key share one combined cap'**
+  String get cardRewardRuleCapSharedKeyHint;
+
+  /// No description provided for @cardRewardRuleOtherSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Other Settings'**
+  String get cardRewardRuleOtherSection;
+
+  /// No description provided for @cardRewardRuleRewardAccountField.
+  ///
+  /// In en, this message translates to:
+  /// **'Reward Deposit Account'**
+  String get cardRewardRuleRewardAccountField;
+
+  /// No description provided for @cardRewardRuleNoRewardAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Not selected'**
+  String get cardRewardRuleNoRewardAccount;
+
+  /// No description provided for @cardRewardRuleStartsAtField.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Date'**
+  String get cardRewardRuleStartsAtField;
+
+  /// No description provided for @cardRewardRuleEndsAtField.
+  ///
+  /// In en, this message translates to:
+  /// **'End Date'**
+  String get cardRewardRuleEndsAtField;
+
+  /// No description provided for @cardRewardRuleNoEndDate.
+  ///
+  /// In en, this message translates to:
+  /// **'No end date'**
+  String get cardRewardRuleNoEndDate;
+
+  /// No description provided for @cardRewardRuleNoteField.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get cardRewardRuleNoteField;
+
+  /// No description provided for @cardRewardRuleNotePlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes about this reward campaign'**
+  String get cardRewardRuleNotePlaceholder;
+
+  /// No description provided for @cardRewardRuleCategoryIdsField.
+  ///
+  /// In en, this message translates to:
+  /// **'Applicable Categories (optional, display only)'**
+  String get cardRewardRuleCategoryIdsField;
+
+  /// No description provided for @cardRewardRuleLockedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This rule already has linked transactions or payouts. Calculation fields can no longer be edited — only the name, note, enabled state and dates can still change.'**
+  String get cardRewardRuleLockedHint;
+
+  /// No description provided for @cardRewardRuleDeleteConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this reward rule?'**
+  String get cardRewardRuleDeleteConfirmTitle;
+
+  /// No description provided for @cardRewardRuleDeleteConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This cannot be undone.'**
+  String get cardRewardRuleDeleteConfirmBody;
+
+  /// No description provided for @cardRewardRuleSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save: {error}'**
+  String cardRewardRuleSaveFailed(String error);
+
+  /// No description provided for @cardRewardRuleSelectorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Reward Rules'**
+  String get cardRewardRuleSelectorTitle;
+
+  /// No description provided for @cardRewardRuleSelectorEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No active reward rules for this account'**
+  String get cardRewardRuleSelectorEmpty;
+
+  /// No description provided for @cardRewardRuleEstimatedReward.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated reward: {amount}'**
+  String cardRewardRuleEstimatedReward(String amount);
+
+  /// No description provided for @cardRewardRuleCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate'**
+  String get cardRewardRuleCopy;
+
+  /// No description provided for @cardRewardRuleDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get cardRewardRuleDelete;
+
+  /// No description provided for @cardRewardRuleCopyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} (Copy)'**
+  String cardRewardRuleCopyLabel(String name);
+
+  /// No description provided for @cardRewardRuleCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Reward rule duplicated'**
+  String get cardRewardRuleCopied;
+
+  /// No description provided for @cardRewardRuleDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Reward rule deleted'**
+  String get cardRewardRuleDeleted;
+
+  /// No description provided for @cardRewardRuleDeleteLockedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This rule has linked transactions'**
+  String get cardRewardRuleDeleteLockedTitle;
+
+  /// No description provided for @cardRewardRuleDeleteLockedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This reward rule already has transactions referencing it, so it can\'t be permanently deleted. It will be disabled instead and moved to the Ended section.'**
+  String get cardRewardRuleDeleteLockedBody;
+
+  /// No description provided for @cardRewardRuleDisabledInsteadOfDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Rule has linked transactions — disabled instead of deleted'**
+  String get cardRewardRuleDisabledInsteadOfDeleted;
 }
 
 class _AppLocalizationsDelegate

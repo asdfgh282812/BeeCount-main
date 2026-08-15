@@ -3,7 +3,7 @@
 // 主题相关
 export 'theme_providers.dart';
 
-// 数据库相关  
+// 数据库相关
 export 'database_providers.dart';
 
 // 统计相关
@@ -35,6 +35,7 @@ export 'widget_provider.dart';
 
 // 标签相关
 export 'tag_providers.dart';
+export 'card_reward_rule_providers.dart';
 
 // 智能记账相关
 export 'smart_billing_providers.dart';

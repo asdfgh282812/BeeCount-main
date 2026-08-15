@@ -36,6 +36,9 @@ extension SyncEngineApplyExt on SyncEngine {
       case 'budget':
         await _applyBudgetChange(change);
         return true;
+      case 'card_reward_rule':
+        await _applyCardRewardRuleChange(change);
+        return true;
       case 'exchange_rate_override':
         await _applyExchangeRateOverrideChange(change);
         return true;
@@ -221,6 +224,17 @@ extension SyncEngineApplyExt on SyncEngine {
     final payloadNative =
         hasNativeKey ? (payload['nativeAmount'] as num?)?.toDouble() : null;
 
+    // v35:信用卡紅利回饋——跟 excludeFromStats 同款「缺键不覆盖」,旧 payload
+    // (老版本 App / 尚未支持此字段的其它客户端)不带这个键时不要清空本地已
+    // 有的勾选。
+    final hasRewardRuleIdsKey = payload.containsKey('rewardRuleIds');
+    final rawRewardRuleIds = payload['rewardRuleIds'];
+    final rewardRuleIdsJson = hasRewardRuleIdsKey
+        ? (rawRewardRuleIds is List
+            ? jsonEncode(rawRewardRuleIds.whereType<String>().toList())
+            : null)
+        : null;
+
     if (existingId != null) {
       // 更新 — createdByUserId 走"本地为 null 就回填,否则保持"的策略。
       final shouldBackfillCreator =
@@ -269,6 +283,9 @@ extension SyncEngineApplyExt on SyncEngine {
         nativeAmount: nativeValue,
         refundOfSyncId:
             hasRefundKey ? d.Value(refundOfSyncId) : const d.Value.absent(),
+        rewardRuleIdsJson: hasRewardRuleIdsKey
+            ? d.Value(rewardRuleIdsJson)
+            : const d.Value.absent(),
       ));
       // 更新标签和附件(existing 路径)
       await _syncTransactionTags(existingId, syncId, payload);
@@ -301,6 +318,7 @@ extension SyncEngineApplyExt on SyncEngine {
               currencyCode: d.Value(payloadCurrency),
               nativeAmount: d.Value(hasNativeKey ? payloadNative : amount),
               refundOfSyncId: d.Value(refundOfSyncId),
+              rewardRuleIdsJson: d.Value(rewardRuleIdsJson),
             ),
           );
       // 写回 cache,后续同 syncId 的 update change 能命中
@@ -807,6 +825,129 @@ extension SyncEngineApplyExt on SyncEngine {
           ));
       logger.debug('SyncEngine', 'pull: 新增预算 $syncId');
     }
+  }
+
+  /// 应用信用卡紅利回饋規則变更。user-global 实体,按 syncId upsert,跟
+  /// account/tag 同款「全量覆盖」路径——App 自己 push 时(entity_serializer.dart
+  /// serializeCardRewardRule)本来就无条件带出全部字段的当前真值,对齐
+  /// BeeCount Cloud `projection.upsert_card_reward_rule` 的全量 UPSERT 语义
+  /// (不是 partial merge,见该方法注释),这里 apply 不需要 containsKey 保护。
+  ///
+  /// 绑定的信用卡帐户(accountId)本地还没同步到时:先跳过,留给下次 pull
+  /// 重试(账户是 user-global 实体,通常紧跟着一起推/拉,极少长期缺失)。
+  Future<void> _applyCardRewardRuleChange(
+      BeeCountCloudSyncChange change) async {
+    final syncId = change.entitySyncId;
+
+    if (change.action == 'delete') {
+      final existing = await (db.select(db.cardRewardRules)
+            ..where((r) => r.syncId.equals(syncId)))
+          .getSingleOrNull();
+      if (existing != null) {
+        await (db.delete(db.cardRewardRules)
+              ..where((r) => r.id.equals(existing.id)))
+            .go();
+        logger.debug('SyncEngine', 'pull: 删除信用卡紅利回饋規則 $syncId');
+      }
+      return;
+    }
+
+    final payload = change.payload!;
+    final accountSyncId = payload['accountId'] as String?;
+    final localAccountId = await _resolveAccountIdBySyncId(accountSyncId);
+    if (localAccountId == null) {
+      logger.info('SyncEngine',
+          'pull: 紅利回饋規則 $syncId 的 accountId=$accountSyncId 本地未就绪,跳过');
+      return;
+    }
+
+    final label = payload['label'] as String? ?? '';
+    final rawCategoryIds = payload['categoryIds'];
+    final categoryIdsJson =
+        (rawCategoryIds is List && rawCategoryIds.isNotEmpty)
+            ? jsonEncode(rawCategoryIds.whereType<String>().toList())
+            : null;
+    final rateType = payload['rateType'] as String? ?? 'percentage';
+    final rateValue = (payload['rateValue'] as num?)?.toDouble() ?? 0.0;
+    final rounding = payload['rounding'] as String? ?? 'round';
+    final totalRounding = payload['totalRounding'] as String? ?? 'round';
+    final calcBasis = payload['calcBasis'] as String? ?? 'transaction_date';
+    final interval = payload['interval'] as String? ?? 'billing_cycle';
+    final minSpendThreshold =
+        (payload['minSpendThreshold'] as num?)?.toDouble();
+    final minTxAmount = (payload['minTxAmount'] as num?)?.toDouble();
+    final capAmount = (payload['capAmount'] as num?)?.toDouble();
+    final capSharedKey = payload['capSharedKey'] as String?;
+    final startsAt = (payload['startsAt'] as String?) != null
+        ? DateTime.tryParse(payload['startsAt'] as String)?.toLocal()
+        : null;
+    final endsAt = (payload['endsAt'] as String?) != null
+        ? DateTime.tryParse(payload['endsAt'] as String)?.toLocal()
+        : null;
+    final settlementType = payload['settlementType'] as String? ?? 'manual';
+    final settlementDays = (payload['settlementDays'] as num?)?.toInt();
+    final settlementMonthOffset =
+        (payload['settlementMonthOffset'] as num?)?.toInt();
+    final settlementDayOfMonth =
+        (payload['settlementDayOfMonth'] as num?)?.toInt();
+    final rewardAccountSyncId = payload['rewardAccountId'] as String?;
+    final localRewardAccountId =
+        await _resolveAccountIdBySyncId(rewardAccountSyncId);
+    final note = payload['note'] as String?;
+    final enabled = payload['enabled'] as bool? ?? true;
+
+    final existing = await (db.select(db.cardRewardRules)
+          ..where((r) => r.syncId.equals(syncId)))
+        .getSingleOrNull();
+
+    final companion = CardRewardRulesCompanion(
+      accountId: d.Value(localAccountId),
+      label: d.Value(label),
+      categoryIdsJson: d.Value(categoryIdsJson),
+      rateType: d.Value(rateType),
+      rateValue: d.Value(rateValue),
+      rounding: d.Value(rounding),
+      totalRounding: d.Value(totalRounding),
+      calcBasis: d.Value(calcBasis),
+      interval: d.Value(interval),
+      minSpendThreshold: d.Value(minSpendThreshold),
+      minTxAmount: d.Value(minTxAmount),
+      capAmount: d.Value(capAmount),
+      capSharedKey: d.Value(capSharedKey),
+      startsAt: d.Value(startsAt),
+      endsAt: d.Value(endsAt),
+      settlementType: d.Value(settlementType),
+      settlementDays: d.Value(settlementDays),
+      settlementMonthOffset: d.Value(settlementMonthOffset),
+      settlementDayOfMonth: d.Value(settlementDayOfMonth),
+      rewardAccountId: d.Value(localRewardAccountId),
+      note: d.Value(note),
+      enabled: d.Value(enabled),
+      updatedAt: d.Value(DateTime.now()),
+    );
+
+    final int localId;
+    if (existing != null) {
+      localId = existing.id;
+      await (db.update(db.cardRewardRules)..where((r) => r.id.equals(localId)))
+          .write(companion);
+      logger.debug('SyncEngine', 'pull: 更新紅利回饋規則 $syncId');
+    } else {
+      localId = await db.into(db.cardRewardRules).insert(
+            companion.copyWith(
+              syncId: d.Value(syncId),
+              createdAt: d.Value(DateTime.now()),
+            ),
+          );
+      logger.debug('SyncEngine', 'pull: 新增紅利回饋規則 $syncId');
+    }
+
+    await changeTracker.recordPulledFromServer(
+      entityType: 'card_reward_rule',
+      entityId: localId,
+      entitySyncId: syncId,
+      ledgerId: 0,
+    );
   }
 
   /// 按币对收敛:双端离线各建同币对会产生两个 syncId,按 syncId insert 会撞
