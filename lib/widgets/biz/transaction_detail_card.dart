@@ -39,6 +39,7 @@ Future<void> showTransactionDetailCard(
     ),
     builder: (sheetContext) => TransactionDetailCard(
       hostContext: context,
+      hostRef: ref,
       transaction: transaction,
       category: category,
     ),
@@ -71,12 +72,24 @@ class TransactionDetailCard extends ConsumerStatefulWidget {
   /// 打开卡片那个页面的 context——用来在卡片关闭"之后"继续 push 编辑器
   /// 页面(卡片自己的 context 在 pop 之后就失效了)。
   final BuildContext hostContext;
+
+  /// 打开卡片那个页面的 ref——同 [hostContext],卡片自己的 `ref`(来自这个
+  /// State 自己的 `ConsumerState`)在 `Navigator.pop()` 之后、State 被
+  /// dispose 掉就不能再用了。`_handleEdit` 等方法 pop 卡片后还要
+  /// `await` 一段可能很久的使用者互动(例如週期規則的選擇彈窗),如果那之後
+  /// 才用卡片自己的 `ref` 去 `ref.read(...)`,dispose 早就跑完了,会直接
+  /// 丟 Riverpod 的 "used after dispose" 例外——整段 await 链没有
+  /// try/catch,例外会静默变成 unhandled Future error,表现成「彈窗關閉但
+  /// 沒有跳轉」。改用呼叫端(卡片還沒開啟前)傳進來、生命週期比卡片長的
+  /// [hostRef]。
+  final WidgetRef hostRef;
   final Transaction transaction;
   final Category? category;
 
   const TransactionDetailCard({
     super.key,
     required this.hostContext,
+    required this.hostRef,
     required this.transaction,
     required this.category,
   });
@@ -153,7 +166,8 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
     final hostContext = widget.hostContext;
     Navigator.of(context).pop();
     if (!hostContext.mounted) return;
-    await showTransactionDetailCard(hostContext, ref, target, targetCategory);
+    await showTransactionDetailCard(
+        hostContext, widget.hostRef, target, targetCategory);
   }
 
   Future<void> _handleDelete() async {
@@ -202,15 +216,20 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
     Navigator.of(context).pop();
     if (!hostContext.mounted) return;
     await TransactionEditUtils.copyTransaction(
-        hostContext, ref, widget.transaction, widget.category);
+        hostContext, widget.hostRef, widget.transaction, widget.category);
   }
 
   Future<void> _handleEdit() async {
     final hostContext = widget.hostContext;
     Navigator.of(context).pop();
     if (!hostContext.mounted) return;
+    // 用 widget.hostRef(呼叫端、生命週期比這張卡片長的 ref),不要用這個
+    // State 自己的 ref——上面这行 pop 之后卡片马上开始 dispose,
+    // `editTransaction` 内部会先 `await showRecurringEditChoiceSheet(...)`
+    // 等使用者选「此記錄/連同未來週期」,这段等待通常比卡片的 dispose 慢
+    // 得多,等使用者选完,这个 State 早就 dispose 完了,自己的 ref 已失效。
     await TransactionEditUtils.editTransaction(
-        hostContext, ref, widget.transaction, widget.category);
+        hostContext, widget.hostRef, widget.transaction, widget.category);
   }
 
   Future<void> _handleRefund() async {
@@ -218,7 +237,7 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
     Navigator.of(context).pop();
     if (!hostContext.mounted) return;
     await TransactionEditUtils.refundTransaction(
-        hostContext, ref, widget.transaction, widget.category);
+        hostContext, widget.hostRef, widget.transaction, widget.category);
   }
 
   @override

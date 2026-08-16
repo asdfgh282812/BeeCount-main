@@ -138,13 +138,42 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
   /// 直接比對 `index != _lastTabIndex` 就能在「index 真的變了」那一刻恰好
   /// 觸發一次,不用額外判斷 `indexIsChanging`(那個只反映動畫有沒有在跑,
   /// 用來擋這裡反而會在動畫結束又多觸發一次)。
+  ///
+  /// 這個 listener 是在 `initState` 註冊的,比 `TabBarView` 內部訂閱
+  /// `_tab` 的 listener 還早(`TabBarView` 要等到 `build()` 才建立、才訂
+  /// 閱)。`ChangeNotifier` 依註冊順序同步呼叫 listener,所以「切到的那個
+  /// 分頁」在這個 method 執行的當下**還沒被 `TabBarView` build 出來**——
+  /// 新分頁的 `GlobalKey.currentState` 還是 null,`_applySharedFields`
+  /// 會整個 no-op,新分頁接著才用自己預設的空白狀態 build 出來(表現成
+  /// 「金額被重置為 0」)。
+  ///
+  /// 套用動作要延後,但延後「一幀」不夠:`TabBarView` 底層是 `PageView`,
+  /// 切分頁是 `_tab.animateTo(...)` 驅動、跨越 `kTabScrollDuration`
+  /// (300ms、約 18 幀)的動畫,`PageView` 的 cache 視窗要等動畫推進到一定
+  /// 進度、目標分頁真的進到 cache 範圍內才會把它 build 出來——不是「換頁那
+  /// 一刻」就已經 mount 完成。用單次 `addPostFrameCallback` 太早,新分頁的
+  /// `GlobalKey.currentState` 常常還是 null。改成「每一幀都檢查一次,還沒
+  /// build 出來就排下一幀繼續等」,直到套用成功或超過重試上限(30 幀,約
+  /// 500ms,遠超過切頁動畫本身的時長)才放棄。
   void _syncSharedFieldsOnTabChange() {
     if (_tab.index == _lastTabIndex) return;
     final fromIndex = _lastTabIndex;
     final toIndex = _tab.index;
     _lastTabIndex = toIndex;
     final exported = _exportSharedFields(fromIndex);
-    if (exported != null) _applySharedFields(toIndex, exported);
+    if (exported == null) return;
+    _applySharedFieldsWhenReady(toIndex, exported);
+  }
+
+  void _applySharedFieldsWhenReady(int tabIndex, SharedEntryFields fields,
+      {int attemptsLeft = 30}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_applySharedFields(tabIndex, fields)) return;
+      if (attemptsLeft <= 0) return;
+      _applySharedFieldsWhenReady(tabIndex, fields,
+          attemptsLeft: attemptsLeft - 1);
+    });
   }
 
   SharedEntryFields? _exportSharedFields(int tabIndex) {
@@ -159,15 +188,24 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
     return null;
   }
 
-  void _applySharedFields(int tabIndex, SharedEntryFields fields) {
-    switch (tabIndex) {
-      case 0:
-        _expenseFormKey.currentState?.applySharedFields(fields);
-      case 1:
-        _incomeFormKey.currentState?.applySharedFields(fields);
-      case 2:
-        _transferFormKey.currentState?.applySharedFields(fields);
+  /// 回傳是否真的套用成功(目標分頁的 `GlobalKey.currentState` 已 mount)
+  /// ——`_applySharedFieldsWhenReady` 靠這個回傳值判斷要不要排下一幀重試。
+  bool _applySharedFields(int tabIndex, SharedEntryFields fields) {
+    final GlobalKey<TransactionEntryFormState>? entryKey = switch (tabIndex) {
+      0 => _expenseFormKey,
+      1 => _incomeFormKey,
+      _ => null,
+    };
+    if (entryKey != null) {
+      final state = entryKey.currentState;
+      if (state == null) return false;
+      state.applySharedFields(fields);
+      return true;
     }
+    final transferState = _transferFormKey.currentState;
+    if (transferState == null) return false;
+    transferState.applySharedFields(fields);
+    return true;
   }
 
   @override
