@@ -7411,6 +7411,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get txDetailRecurring => '정기';
 
   @override
+  String get txDetailRewardSectionTitle => '보너스 리워드:';
+
+  @override
   String get txCurrencyLabel => 'Currency';
 
   @override
@@ -7944,6 +7947,13 @@ class AppLocalizationsKo extends AppLocalizations {
   String get cardRewardRuleSettlementDayOfMonthField => '적립일(매월 며칠)';
 
   @override
+  String get cardRewardRuleSettlementDaysField => '일수';
+
+  @override
+  String get cardRewardRuleSettlementDaysHint =>
+      '0 = 결제 당일 적립, 1 = 다음 날 적립, 이런 식으로 계산됩니다';
+
+  @override
   String get cardRewardRuleThresholdSection => '적립 시작 조건';
 
   @override
@@ -8072,4 +8082,51 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String get cardRewardRuleDisabledInsteadOfDeleted =>
       '연결된 거래가 있어 삭제 대신 비활성화되었습니다';
+
+  @override
+  String cardRewardSummaryCardTitle(int count) {
+    return '보너스 리워드 ($count)';
+  }
+
+  @override
+  String get cardRewardDetailTitle => '보너스 리워드 상세';
+
+  @override
+  String get cardRewardDetailNoCap => '리워드 상한 없음';
+
+  @override
+  String get cardRewardDetailCapReached => '최대 리워드에 도달했습니다';
+
+  @override
+  String cardRewardDetailCapRemaining(String amount) {
+    return '$amount 더 사용하면 최대 리워드에 도달합니다';
+  }
+
+  @override
+  String cardRewardDetailCapAmount(String amount) {
+    return '리워드 상한 $amount';
+  }
+
+  @override
+  String cardRewardDetailSettlementBadge(String date) {
+    return '$date에 적립 예정';
+  }
+
+  @override
+  String cardRewardDetailSettledBadge(String date) {
+    return '$date에 적립됨';
+  }
+
+  @override
+  String get cardRewardDetailEmptyState => '이번 기간에는 이 리워드가 적용된 거래가 없습니다';
+
+  @override
+  String cardRewardDetailMonthLabel(int month, String range) {
+    return '$month월 ($range)';
+  }
+
+  @override
+  String cardRewardDetailQualifiedSpend(String amount) {
+    return '적용 대상 소비: $amount';
+  }
 }

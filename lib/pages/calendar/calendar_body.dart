@@ -219,6 +219,9 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
         ),
 
         // 选中日期的交易列表（无日期标题和统计）—— 独立滚动区域
+        // 底部 padding 需盖过悬浮 TabBar（56 高 + 安全区 + 12dp 浮动间距，
+        // 与 app.dart _BeeBottomBar 的 SizedBox 高度算式一致），否则最后
+        // 几笔会被 Bar 遮住/贴住，滚不出来。
         Expanded(
           child: _selectedDay == null
               ? const SizedBox.shrink()
@@ -227,7 +230,11 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
                     horizontalPadding,
                     12.0.scaled(context, ref),
                     horizontalPadding,
-                    verticalPadding,
+                    verticalPadding +
+                        56.0 +
+                        MediaQuery.of(context).padding.bottom +
+                        12 +
+                        16,
                   ),
                   child: _buildDateTransactionsList(
                       context, ledgerId, _selectedDay!),

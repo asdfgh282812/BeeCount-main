@@ -7631,6 +7631,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get txDetailRecurring => 'Recurring';
 
   @override
+  String get txDetailRewardSectionTitle => 'Bonus reward:';
+
+  @override
   String get txCurrencyLabel => 'Currency';
 
   @override
@@ -8166,6 +8169,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cardRewardRuleSettlementDayOfMonthField => 'Posting Day of Month';
 
   @override
+  String get cardRewardRuleSettlementDaysField => 'Days';
+
+  @override
+  String get cardRewardRuleSettlementDaysHint =>
+      '0 = same day as the transaction, 1 = next day, and so on';
+
+  @override
   String get cardRewardRuleThresholdSection => 'Activation Threshold';
 
   @override
@@ -8298,4 +8308,52 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get cardRewardRuleDisabledInsteadOfDeleted =>
       'Rule has linked transactions — disabled instead of deleted';
+
+  @override
+  String cardRewardSummaryCardTitle(int count) {
+    return 'Rewards ($count)';
+  }
+
+  @override
+  String get cardRewardDetailTitle => 'Reward Details';
+
+  @override
+  String get cardRewardDetailNoCap => 'No reward cap';
+
+  @override
+  String get cardRewardDetailCapReached => 'Maximum reward reached';
+
+  @override
+  String cardRewardDetailCapRemaining(String amount) {
+    return 'Spend $amount more to reach the maximum reward';
+  }
+
+  @override
+  String cardRewardDetailCapAmount(String amount) {
+    return 'Reward cap $amount';
+  }
+
+  @override
+  String cardRewardDetailSettlementBadge(String date) {
+    return 'Posts on $date';
+  }
+
+  @override
+  String cardRewardDetailSettledBadge(String date) {
+    return 'Posted on $date';
+  }
+
+  @override
+  String get cardRewardDetailEmptyState =>
+      'No transactions used this reward this period';
+
+  @override
+  String cardRewardDetailMonthLabel(int month, String range) {
+    return 'Month $month ($range)';
+  }
+
+  @override
+  String cardRewardDetailQualifiedSpend(String amount) {
+    return 'Qualifying spend: $amount';
+  }
 }

@@ -2557,6 +2557,7 @@
   "txDetailRefundedTotal": "已退款",
   "txDetailOnce": "单次",
   "txDetailRecurring": "周期",
+  "txDetailRewardSectionTitle": "红利回馈：",
   "txCurrencyLabel": "币种",
   "txRateLabel": "汇率",
   "txConvertedPreview": "≈ {amount} {currency}",
@@ -2734,6 +2735,8 @@
   "cardRewardRuleSettlementManual": "仅手动入账",
   "cardRewardRuleSettlementMonthOffsetField": "回馈入账月份偏移",
   "cardRewardRuleSettlementDayOfMonthField": "回馈日期(当月第几号)",
+  "cardRewardRuleSettlementDaysField": "天数",
+  "cardRewardRuleSettlementDaysHint": "0 = 消费当天入账，1 = 隔天入账，以此类推",
   "cardRewardRuleThresholdSection": "回馈启动门槛",
   "cardRewardRuleMinSpendThresholdField": "期间累积消费门槛",
   "cardRewardRuleMinTxAmountField": "单笔消费门槛",
@@ -2773,5 +2776,68 @@
   "cardRewardRuleDeleted": "回馈规则已删除",
   "cardRewardRuleDeleteLockedTitle": "这条规则已有交易关联",
   "cardRewardRuleDeleteLockedBody": "这条回馈规则已有交易引用,无法彻底删除,系统会改成停用并归入「已结束」分组。",
-  "cardRewardRuleDisabledInsteadOfDeleted": "规则已有交易关联,已改为停用而非删除"
+  "cardRewardRuleDisabledInsteadOfDeleted": "规则已有交易关联,已改为停用而非删除",
+  "cardRewardSummaryCardTitle": "红利回馈 ({count})",
+  "@cardRewardSummaryCardTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cardRewardDetailTitle": "红利回馈明细",
+  "cardRewardDetailNoCap": "回馈无上限",
+  "cardRewardDetailCapReached": "已达最高回馈",
+  "cardRewardDetailCapRemaining": "剩下 {amount} 的消费可达到最高回馈",
+  "@cardRewardDetailCapRemaining": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "cardRewardDetailCapAmount": "回馈上限 {amount}",
+  "@cardRewardDetailCapAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "cardRewardDetailSettlementBadge": "将于 {date} 入账",
+  "@cardRewardDetailSettlementBadge": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "cardRewardDetailSettledBadge": "已于 {date} 入账",
+  "@cardRewardDetailSettledBadge": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "cardRewardDetailEmptyState": "本期尚无套用此回馈的交易",
+  "cardRewardDetailMonthLabel": "{month}月（{range}）",
+  "@cardRewardDetailMonthLabel": {
+    "placeholders": {
+      "month": {
+        "type": "int"
+      },
+      "range": {
+        "type": "String"
+      }
+    }
+  },
+  "cardRewardDetailQualifiedSpend": "符合条件消费：{amount}",
+  "@cardRewardDetailQualifiedSpend": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -16,6 +16,7 @@ import '../../services/attachment_service.dart';
 import '../../providers.dart';
 import '../../utils/ui_scale_extensions.dart';
 import '../../utils/amount_calculator.dart';
+import '../../utils/card_reward_calc.dart';
 import '../../utils/currencies.dart' show getCurrencySymbol;
 import '../../utils/shared_ledger_picker_filter.dart';
 import '../../pages/tag/widgets/tag_selector.dart';
@@ -1073,36 +1074,7 @@ class _TransactionEntryFormState extends ConsumerState<TransactionEntryForm> {
     final amount = _op == null
         ? _parsedAmount()
         : computeAmountOp(_acc, _op!, _parsedAmount());
-    if (amount.abs() <= 0) return 0;
-    var total = 0.0;
-    for (final rule in rules) {
-      double contribution;
-      if (rule.rateType == 'fixed_amount') {
-        contribution = rule.rateValue;
-      } else {
-        final raw = amount.abs() * rule.rateValue / 100;
-        contribution = _applyRounding(raw, rule.rounding);
-      }
-      if (rule.capAmount != null && contribution > rule.capAmount!) {
-        contribution = rule.capAmount!;
-      }
-      total += contribution;
-    }
-    return total;
-  }
-
-  double _applyRounding(double value, String rounding) {
-    switch (rounding) {
-      case 'floor':
-        return (value * 100).floorToDouble() / 100;
-      case 'ceil':
-        return (value * 100).ceilToDouble() / 100;
-      case 'keep':
-        return value;
-      case 'round':
-      default:
-        return (value * 100).roundToDouble() / 100;
-    }
+    return estimateCardRewardTotal(rules, amount);
   }
 
   Widget _buildEstimatedRewardRow() {

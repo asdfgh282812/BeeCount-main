@@ -2849,6 +2849,7 @@
   "txDetailRefundedTotal": "已退款",
   "txDetailOnce": "單次",
   "txDetailRecurring": "週期",
+  "txDetailRewardSectionTitle": "紅利回饋：",
   "txCurrencyLabel": "幣種",
   "txRateLabel": "匯率",
   "txConvertedPreview": "≈ {amount} {currency}",
@@ -3030,6 +3031,8 @@
   "cardRewardRuleSettlementManual": "僅手動入帳",
   "cardRewardRuleSettlementMonthOffsetField": "回饋入帳月份偏移",
   "cardRewardRuleSettlementDayOfMonthField": "回饋日期(當月第幾號)",
+  "cardRewardRuleSettlementDaysField": "天數",
+  "cardRewardRuleSettlementDaysHint": "0 = 消費當天入帳，1 = 隔天入帳，以此類推",
   "cardRewardRuleThresholdSection": "回饋啟動門檻",
   "cardRewardRuleMinSpendThresholdField": "期間累積消費門檻",
   "cardRewardRuleMinTxAmountField": "單筆消費門檻",
@@ -3069,5 +3072,68 @@
   "cardRewardRuleDeleted": "回饋規則已刪除",
   "cardRewardRuleDeleteLockedTitle": "這條規則已有交易關聯",
   "cardRewardRuleDeleteLockedBody": "這條回饋規則已有交易引用,無法徹底刪除,系統會改成停用並歸入「已結束」分組。",
-  "cardRewardRuleDisabledInsteadOfDeleted": "規則已有交易關聯,已改為停用而非刪除"
+  "cardRewardRuleDisabledInsteadOfDeleted": "規則已有交易關聯,已改為停用而非刪除",
+  "cardRewardSummaryCardTitle": "紅利回饋 ({count})",
+  "@cardRewardSummaryCardTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cardRewardDetailTitle": "紅利回饋明細",
+  "cardRewardDetailNoCap": "回饋無上限",
+  "cardRewardDetailCapReached": "已達最高回饋",
+  "cardRewardDetailCapRemaining": "剩下 {amount} 的消費可達到最高回饋",
+  "@cardRewardDetailCapRemaining": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "cardRewardDetailCapAmount": "回饋上限 {amount}",
+  "@cardRewardDetailCapAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "cardRewardDetailSettlementBadge": "將於 {date} 入帳",
+  "@cardRewardDetailSettlementBadge": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "cardRewardDetailSettledBadge": "已於 {date} 入帳",
+  "@cardRewardDetailSettledBadge": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "cardRewardDetailEmptyState": "本期尚無套用此回饋的交易",
+  "cardRewardDetailMonthLabel": "{month}月（{range}）",
+  "@cardRewardDetailMonthLabel": {
+    "placeholders": {
+      "month": {
+        "type": "int"
+      },
+      "range": {
+        "type": "String"
+      }
+    }
+  },
+  "cardRewardDetailQualifiedSpend": "符合條件消費：{amount}",
+  "@cardRewardDetailQualifiedSpend": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  }
 }

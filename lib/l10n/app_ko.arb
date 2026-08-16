@@ -2209,6 +2209,7 @@
   "txDetailRefundedTotal": "환불됨",
   "txDetailOnce": "일회성",
   "txDetailRecurring": "정기",
+  "txDetailRewardSectionTitle": "보너스 리워드:",
   "accountDetailTabTransactions": "거래 내역",
   "accountDetailTabInfo": "계좌 정보",
   "accountSubAccountsLabel": "하위 계좌",
@@ -2266,6 +2267,8 @@
   "cardRewardRuleSettlementManual": "수동 적립만",
   "cardRewardRuleSettlementMonthOffsetField": "적립 월 오프셋",
   "cardRewardRuleSettlementDayOfMonthField": "적립일(매월 며칠)",
+  "cardRewardRuleSettlementDaysField": "일수",
+  "cardRewardRuleSettlementDaysHint": "0 = 결제 당일 적립, 1 = 다음 날 적립, 이런 식으로 계산됩니다",
   "cardRewardRuleThresholdSection": "적립 시작 조건",
   "cardRewardRuleMinSpendThresholdField": "기간 누적 사용 금액 조건",
   "cardRewardRuleMinTxAmountField": "건당 최소 사용 금액",
@@ -2305,5 +2308,68 @@
   "cardRewardRuleDeleted": "리워드 규칙이 삭제되었습니다",
   "cardRewardRuleDeleteLockedTitle": "이미 연결된 거래가 있는 규칙입니다",
   "cardRewardRuleDeleteLockedBody": "이 리워드 규칙은 이미 거래에서 참조하고 있어 완전히 삭제할 수 없습니다. 대신 비활성화되어 '종료됨' 그룹으로 이동합니다.",
-  "cardRewardRuleDisabledInsteadOfDeleted": "연결된 거래가 있어 삭제 대신 비활성화되었습니다"
+  "cardRewardRuleDisabledInsteadOfDeleted": "연결된 거래가 있어 삭제 대신 비활성화되었습니다",
+  "cardRewardSummaryCardTitle": "보너스 리워드 ({count})",
+  "@cardRewardSummaryCardTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cardRewardDetailTitle": "보너스 리워드 상세",
+  "cardRewardDetailNoCap": "리워드 상한 없음",
+  "cardRewardDetailCapReached": "최대 리워드에 도달했습니다",
+  "cardRewardDetailCapRemaining": "{amount} 더 사용하면 최대 리워드에 도달합니다",
+  "@cardRewardDetailCapRemaining": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "cardRewardDetailCapAmount": "리워드 상한 {amount}",
+  "@cardRewardDetailCapAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "cardRewardDetailSettlementBadge": "{date}에 적립 예정",
+  "@cardRewardDetailSettlementBadge": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "cardRewardDetailSettledBadge": "{date}에 적립됨",
+  "@cardRewardDetailSettledBadge": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "cardRewardDetailEmptyState": "이번 기간에는 이 리워드가 적용된 거래가 없습니다",
+  "cardRewardDetailMonthLabel": "{month}월 ({range})",
+  "@cardRewardDetailMonthLabel": {
+    "placeholders": {
+      "month": {
+        "type": "int"
+      },
+      "range": {
+        "type": "String"
+      }
+    }
+  },
+  "cardRewardDetailQualifiedSpend": "적용 대상 소비: {amount}",
+  "@cardRewardDetailQualifiedSpend": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  }
 }

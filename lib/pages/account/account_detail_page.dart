@@ -8,13 +8,14 @@ import '../../widgets/biz/biz.dart';
 import '../../styles/tokens.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/ui_scale_extensions.dart';
-import '../../utils/transaction_edit_utils.dart';
 import '../../utils/currencies.dart';
 import '../../widgets/category_icon.dart';
 import '../../utils/account_type_utils.dart';
 import '../../widgets/charts/account_category_pie_chart.dart';
+import '../../utils/card_reward_period.dart';
 import '../transaction/transaction_editor_page.dart';
 import 'account_edit_page.dart';
+import 'card_reward_detail_page.dart';
 import 'card_reward_rule_list_page.dart';
 
 // ============================================
@@ -360,6 +361,9 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
         padding: EdgeInsets.symmetric(vertical: 8.0.scaled(context, ref)),
         children: [
           _buildBillingSummaryCard(
+              context, account, children, l10n, primaryColor, currencyCode),
+          SizedBox(height: 8.0.scaled(context, ref)),
+          _buildRewardSummaryCard(
               context, account, children, l10n, primaryColor, currencyCode),
           SizedBox(height: 8.0.scaled(context, ref)),
           _buildBillingTransactionList(
@@ -1109,32 +1113,8 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
   /// 帳單週期起訖:[offset]=0 為涵蓋今天的本期,負數往前推一期一期算。
   /// 沒設 billingDay 時退化成「每月 1 號」起算的自然月。
   ({DateTime start, DateTime end}) _billingPeriod(
-      db.Account account, int offset) {
-    final day = account.billingDay ?? 1;
-    final now = DateTime.now();
-    var anchorYear = now.year;
-    var anchorMonth = now.month;
-    if (now.day < day) {
-      anchorMonth -= 1;
-      if (anchorMonth == 0) {
-        anchorMonth = 12;
-        anchorYear -= 1;
-      }
-    }
-    anchorMonth += offset;
-    while (anchorMonth <= 0) {
-      anchorMonth += 12;
-      anchorYear -= 1;
-    }
-    while (anchorMonth > 12) {
-      anchorMonth -= 12;
-      anchorYear += 1;
-    }
-    final start = DateTime(anchorYear, anchorMonth, day);
-    final nextStart = DateTime(anchorYear, anchorMonth + 1, day);
-    final end = nextStart.subtract(const Duration(days: 1));
-    return (start: start, end: end);
-  }
+          db.Account account, int offset) =>
+      billingCyclePeriod(account.billingDay, offset);
 
   /// 繳款期限(帳戶資訊 tab):帳單週期結束後的第一個 paymentDueDay。
   DateTime _dueDate(DateTime periodEnd, int paymentDueDay) {
@@ -1328,6 +1308,177 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
         ),
       ],
     );
+  }
+
+  // ============================================
+  // 「交易明細」tab:紅利回饋分組卡片
+  // ============================================
+
+  /// 啟用中的紅利回饋規則各自本期(依規則自己的 interval 算,非帳單彙總卡
+  /// 片的 _billingPeriodOffset 導覽)累積回饋金——沒有啟用任何規則時整塊不
+  /// 佔空間。點擊單條規則進 [CardRewardDetailPage] 看逐筆明細。
+  Widget _buildRewardSummaryCard(
+    BuildContext context,
+    db.Account account,
+    List<db.Account> children,
+    AppLocalizations l10n,
+    Color primaryColor,
+    String currencyCode,
+  ) {
+    final summaryAsync = ref.watch(cardRewardAccountSummaryProvider((
+      accountId: account.id,
+      extraIdsKey: _extraIdsKey(children),
+      billingDay: account.billingDay,
+    )));
+    final summaries = summaryAsync.valueOrNull ?? const [];
+    if (summaryAsync.isLoading && summaryAsync.valueOrNull == null) {
+      return const SizedBox.shrink();
+    }
+    if (summaries.isEmpty) return const SizedBox.shrink();
+    final useCompact = ref.watch(compactAmountProvider);
+
+    void openRuleList() => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => CardRewardRuleListPage(
+              accountId: account.id,
+              accountName: account.name,
+            ),
+          ),
+        );
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 12.0.scaled(context, ref)),
+      child: SectionCard(
+        margin: EdgeInsets.zero,
+        padding: EdgeInsets.zero,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: EdgeInsets.all(12.0.scaled(context, ref)),
+              child: Row(
+                children: [
+                  Text(
+                    l10n.cardRewardSummaryCardTitle(summaries.length),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: BeeTokens.textPrimary(context),
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    icon: Icon(Icons.list_alt,
+                        size: 18, color: BeeTokens.iconSecondary(context)),
+                    tooltip: l10n.cardRewardRuleEntryLabel,
+                    onPressed: openRuleList,
+                  ),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    icon: Icon(Icons.settings_outlined,
+                        size: 18, color: BeeTokens.iconSecondary(context)),
+                    tooltip: l10n.cardRewardRuleEntryLabel,
+                    onPressed: openRuleList,
+                  ),
+                ],
+              ),
+            ),
+            ...summaries.asMap().entries.map((entry) {
+              final index = entry.key;
+              final summary = entry.value;
+              final rule = summary.rule;
+              final rateLabel = rule.rateType == 'percentage'
+                  ? '${rule.label} ${_trimRateZeros(rule.rateValue)}%'
+                  : rule.label;
+              return Column(
+                children: [
+                  if (index > 0) BeeTokens.cardDivider(context),
+                  InkWell(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => CardRewardDetailPage(
+                          account: account,
+                          children: children,
+                          ruleId: rule.id,
+                          currencyCode: currencyCode,
+                        ),
+                      ),
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 12.0.scaled(context, ref),
+                        vertical: 10.0.scaled(context, ref),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: primaryColor.withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Icon(Icons.card_giftcard,
+                                size: 18, color: primaryColor),
+                          ),
+                          SizedBox(width: 10.0.scaled(context, ref)),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  rateLabel,
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: BeeTokens.textPrimary(context),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${_formatYmd(summary.periodStart)} – ${_formatYmd(summary.periodEnd)}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: BeeTokens.textTertiary(context),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          AmountText(
+                            value: summary.totalReward,
+                            signed: true,
+                            showCurrency: false,
+                            useCompactFormat: useCompact,
+                            currencyCode: currencyCode,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: BeeTokens.incomeColor(context, ref),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _trimRateZeros(double v) {
+    final s = v.toStringAsFixed(2);
+    return s.contains('.')
+        ? s.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '')
+        : s;
   }
 
   /// 帳單週期交易列表(信用卡):跟彙總卡片同一份 [accountBillingPeriodTransactionsProvider]
@@ -1647,7 +1798,8 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
                   categories: categories,
                   currentAccountId: widget.account.id,
                   accountTagName: accountNameById[tx.accountId],
-                  onTap: () => _editTransaction(context, ref, tx),
+                  onTap: (category) =>
+                      _openTransactionDetail(context, ref, tx, category),
                 ),
               ],
             );
@@ -1682,18 +1834,12 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     );
   }
 
-  Future<void> _editTransaction(
-      BuildContext context, WidgetRef ref, db.Transaction tx) async {
-    final categoryAsync = tx.categoryId != null
-        ? await ref.read(categoriesProvider.future)
-        : null;
-    final category = categoryAsync?.cast<db.Category?>().firstWhere(
-          (c) => c?.id == tx.categoryId,
-          orElse: () => null,
-        );
-
+  /// 交易明細列表點擊:彈出唯讀詳情卡(比照首頁),而非直接跳編輯頁——編輯
+  /// 只能透過卡片右上角的編輯圖示進入,見 [showTransactionDetailCard]。
+  Future<void> _openTransactionDetail(BuildContext context, WidgetRef ref,
+      db.Transaction tx, db.Category? category) async {
+    await showTransactionDetailCard(context, ref, tx, category);
     if (!context.mounted) return;
-    await TransactionEditUtils.editTransaction(context, ref, tx, category);
 
     // 刷新数据
     ref.invalidate(accountStatsProvider(widget.account.id));
@@ -1712,6 +1858,8 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
         (accountId: widget.account.id, type: 'expense')));
     ref.invalidate(accountCategoryStatsProvider(
         (accountId: widget.account.id, type: 'income')));
+    // 紅利回饋彙總卡片:交易可能在詳情卡的編輯流程裡改了勾選的規則。
+    ref.invalidate(cardRewardAccountSummaryProvider);
   }
 
   void _quickTransfer(
@@ -1931,7 +2079,7 @@ class _TransactionTile extends ConsumerWidget {
   final Color primaryColor;
   final List<db.Ledger> ledgers;
   final List<db.Category> categories;
-  final VoidCallback onTap;
+  final void Function(db.Category?) onTap;
   final int? currentAccountId;
 
   /// 主帳戶(合併帳單分組)聚合視圖用:這筆交易實際所屬的子帳戶名稱,非空時
@@ -2034,7 +2182,7 @@ class _TransactionTile extends ConsumerWidget {
     }
 
     return InkWell(
-      onTap: onTap,
+      onTap: () => onTap(category),
       child: Padding(
         padding: EdgeInsets.symmetric(
           horizontal: 12.0.scaled(context, ref),

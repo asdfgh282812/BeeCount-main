@@ -12,6 +12,7 @@ import '../../services/attachment_service.dart';
 import '../../services/billing/post_processor.dart';
 import '../../styles/tokens.dart';
 import '../../utils/account_type_utils.dart';
+import '../../utils/card_reward_calc.dart';
 import '../../utils/category_utils.dart';
 import '../../utils/transaction_edit_utils.dart';
 import '../../pages/attachment/attachment_preview_page.dart';
@@ -54,12 +55,14 @@ class _DetailBundle {
   final List<Tag> tags;
   final List<TransactionAttachment> attachments;
   final List<Transaction> refunds;
+  final List<CardRewardRule> rewardRules;
 
   const _DetailBundle({
     required this.account,
     required this.tags,
     required this.attachments,
     required this.refunds,
+    required this.rewardRules,
   });
 }
 
@@ -117,16 +120,23 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
     final refundsFuture = tx.syncId != null
         ? repo.getRefundsOf(tx.syncId!)
         : Future.value(<Transaction>[]);
+    final rewardRuleIds = tx.rewardRuleIds;
+    final rewardRulesFuture = rewardRuleIds.isEmpty
+        ? Future.value(<CardRewardRule>[])
+        : Future.wait(rewardRuleIds.map(repo.getCardRewardRuleBySyncId))
+            .then((rules) => rules.whereType<CardRewardRule>().toList());
 
     final account = await accountFuture;
     final tags = await tagsFuture;
     final attachments = await attachmentsFuture;
     final refunds = await refundsFuture;
+    final rewardRules = await rewardRulesFuture;
     return _DetailBundle(
       account: account,
       tags: tags,
       attachments: attachments,
       refunds: refunds,
+      rewardRules: rewardRules,
     );
   }
 
@@ -238,6 +248,7 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
                       isAdjustment, isRefundTx),
                   const SizedBox(height: 8),
                   _buildDetailRows(context, l10n, bundle),
+                  _buildRewardSection(context, l10n, bundle),
                   if (alreadyRefunded)
                     _buildRefundedList(context, l10n, refunds),
                   const SizedBox(height: 16),
@@ -540,6 +551,83 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
         ],
       ),
     );
+  }
+
+  /// 若交易有勾選紅利回饋規則,在日期/時間下方顯示每條規則的名稱、費率與
+  /// 該筆交易的預估回饋金——沒有套用任何規則時整塊不佔空間。實際入帳金額
+  /// 仍由 Server 端排程計算,這裡只用 [estimateCardRewardForRule] 現場估算
+  /// (同記帳表單的估算公式,見 lib/utils/card_reward_calc.dart)。
+  Widget _buildRewardSection(
+      BuildContext context, AppLocalizations l10n, _DetailBundle? bundle) {
+    final rules = bundle?.rewardRules ?? const <CardRewardRule>[];
+    if (rules.isEmpty) return const SizedBox.shrink();
+    final tx = widget.transaction;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.txDetailRewardSectionTitle,
+            style: TextStyle(
+              fontSize: 13,
+              color: BeeTokens.textSecondary(context),
+            ),
+          ),
+          const SizedBox(height: 4),
+          ...rules.map((rule) {
+            final estimated = estimateCardRewardForRule(rule, tx.amount);
+            final rateLabel = rule.rateType == 'percentage'
+                ? '${rule.label} ${_trimRateZeros(rule.rateValue)}%'
+                : rule.label;
+            return Padding(
+              padding: const EdgeInsets.only(top: 2, bottom: 2),
+              child: Row(
+                children: [
+                  Text(
+                    '➤ ',
+                    style: TextStyle(
+                        fontSize: 13, color: BeeTokens.textTertiary(context)),
+                  ),
+                  Expanded(
+                    child: Text(
+                      rateLabel,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: BeeTokens.textPrimary(context),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  AmountText(
+                    value: estimated,
+                    signed: false,
+                    currencyCode: tx.currencyCode,
+                    showCurrency: true,
+                    decimals: 2,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: BeeTokens.incomeColor(context, ref),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  String _trimRateZeros(double v) {
+    final s = v.toStringAsFixed(2);
+    return s.contains('.')
+        ? s.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '')
+        : s;
   }
 
   Widget _buildRefundedList(

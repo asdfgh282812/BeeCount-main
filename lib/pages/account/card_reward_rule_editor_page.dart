@@ -108,11 +108,22 @@ class _CardRewardRuleEditorPageState
     _enabled = r?.enabled ?? true;
     _startsAt = r?.startsAt;
     _endsAt = r?.endsAt;
-    _rewardAccountId = r?.rewardAccountId;
+    // 回饋入帳帳戶為必填欄位,預設帶入本卡本身,不允許「未選擇」狀態——
+    // 舊資料若剛好是 null(修改需求前建立的規則)一樣回退到本卡。
+    _rewardAccountId = r?.rewardAccountId ?? widget.accountId;
+    _rewardAccountName =
+        _rewardAccountId == widget.accountId ? widget.accountName : null;
 
-    if (_rewardAccountId != null) {
+    if (_rewardAccountId != widget.accountId) {
       _loadRewardAccountName(_rewardAccountId!);
     }
+    // 「消費後立即入帳」的天數欄位預設 0(=消費當天入帳);既有規則(此需求
+    // 之前建立、settlementDays 還是 null)一樣回退成 0,語意上等同舊行為。
+    if (_settlementType == 'immediate_after_tx' &&
+        _settlementDaysCtrl.text.isEmpty) {
+      _settlementDaysCtrl.text = '0';
+    }
+
     if (r?.syncId != null) {
       _checkLocked(r!.syncId!);
     } else {
@@ -431,16 +442,34 @@ class _CardRewardRuleEditorPageState
             ],
             onChanged: _locked
                 ? null
-                : (v) => setState(() => _settlementType = v ?? 'manual'),
+                : (v) => setState(() {
+                      _settlementType = v ?? 'manual';
+                      // 切到「消費後立即入帳」且天數欄位還沒填過時,預設帶 0
+                      // (=消費當天入帳),對齊 server 端「0/1/2...」的天數語意。
+                      if (_settlementType == 'immediate_after_tx' &&
+                          _settlementDaysCtrl.text.isEmpty) {
+                        _settlementDaysCtrl.text = '0';
+                      }
+                    }),
           ),
-          if (_settlementType == 'after_posting_date') ...[
+          if (_settlementType == 'after_posting_date' ||
+              _settlementType == 'immediate_after_tx') ...[
             const SizedBox(height: 12),
-            _sectionLabel(l10n.cardRewardRuleSettlementDayOfMonthField),
+            _sectionLabel(l10n.cardRewardRuleSettlementDaysField),
             TextFormField(
               controller: _settlementDaysCtrl,
               enabled: !_locked,
               keyboardType: TextInputType.number,
-              decoration: _dec(),
+              decoration: _dec(hint: l10n.cardRewardRuleSettlementDaysHint),
+              validator: (v) {
+                if (_settlementType != 'after_posting_date' &&
+                    _settlementType != 'immediate_after_tx') {
+                  return null;
+                }
+                final parsed = int.tryParse(v?.trim() ?? '');
+                if (parsed == null || parsed < 0) return l10n.commonError;
+                return null;
+              },
             ),
           ],
           if (_settlementType == 'period_end') ...[
@@ -730,21 +759,21 @@ class _CardRewardRuleEditorPageState
   }
 
   Future<void> _pickRewardAccount() async {
+    // 必填欄位,不給清空——AccountCardPicker allowNull:false 时不会返回
+    // accountId == null 的结果。
     final ledgerId = ref.read(currentLedgerIdProvider);
     final result = await AccountCardPicker.show(
       context,
       ledgerId: ledgerId,
       selectedAccountId: _rewardAccountId,
-      allowNull: true,
+      allowNull: false,
     );
-    if (result == null) return;
+    if (result == null || result.accountId == null) return;
     setState(() {
       _rewardAccountId = result.accountId;
       _rewardAccountName = null;
     });
-    if (result.accountId != null) {
-      await _loadRewardAccountName(result.accountId!);
-    }
+    await _loadRewardAccountName(result.accountId!);
   }
 
   Future<void> _onMenuSelected(String value) async {

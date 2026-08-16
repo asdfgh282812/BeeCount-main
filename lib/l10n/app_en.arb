@@ -3225,6 +3225,7 @@
   "txDetailRefundedTotal": "Refunded",
   "txDetailOnce": "One-time",
   "txDetailRecurring": "Recurring",
+  "txDetailRewardSectionTitle": "Bonus reward:",
   "txCurrencyLabel": "Currency",
   "txRateLabel": "Rate",
   "txConvertedPreview": "≈ {amount} {currency}",
@@ -3434,6 +3435,8 @@
   "cardRewardRuleSettlementManual": "Manual only",
   "cardRewardRuleSettlementMonthOffsetField": "Posting Month Offset",
   "cardRewardRuleSettlementDayOfMonthField": "Posting Day of Month",
+  "cardRewardRuleSettlementDaysField": "Days",
+  "cardRewardRuleSettlementDaysHint": "0 = same day as the transaction, 1 = next day, and so on",
   "cardRewardRuleThresholdSection": "Activation Threshold",
   "cardRewardRuleMinSpendThresholdField": "Minimum Period Spend",
   "cardRewardRuleMinTxAmountField": "Minimum Transaction Amount",
@@ -3494,5 +3497,68 @@
   "cardRewardRuleDeleted": "Reward rule deleted",
   "cardRewardRuleDeleteLockedTitle": "This rule has linked transactions",
   "cardRewardRuleDeleteLockedBody": "This reward rule already has transactions referencing it, so it can't be permanently deleted. It will be disabled instead and moved to the Ended section.",
-  "cardRewardRuleDisabledInsteadOfDeleted": "Rule has linked transactions — disabled instead of deleted"
+  "cardRewardRuleDisabledInsteadOfDeleted": "Rule has linked transactions — disabled instead of deleted",
+  "cardRewardSummaryCardTitle": "Rewards ({count})",
+  "@cardRewardSummaryCardTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cardRewardDetailTitle": "Reward Details",
+  "cardRewardDetailNoCap": "No reward cap",
+  "cardRewardDetailCapReached": "Maximum reward reached",
+  "cardRewardDetailCapRemaining": "Spend {amount} more to reach the maximum reward",
+  "@cardRewardDetailCapRemaining": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "cardRewardDetailCapAmount": "Reward cap {amount}",
+  "@cardRewardDetailCapAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "cardRewardDetailSettlementBadge": "Posts on {date}",
+  "@cardRewardDetailSettlementBadge": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "cardRewardDetailSettledBadge": "Posted on {date}",
+  "@cardRewardDetailSettledBadge": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "cardRewardDetailEmptyState": "No transactions used this reward this period",
+  "cardRewardDetailMonthLabel": "Month {month} ({range})",
+  "@cardRewardDetailMonthLabel": {
+    "placeholders": {
+      "month": {
+        "type": "int"
+      },
+      "range": {
+        "type": "String"
+      }
+    }
+  },
+  "cardRewardDetailQualifiedSpend": "Qualifying spend: {amount}",
+  "@cardRewardDetailQualifiedSpend": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  }
 }

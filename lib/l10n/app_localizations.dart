@@ -13728,6 +13728,12 @@ abstract class AppLocalizations {
   /// **'Recurring'**
   String get txDetailRecurring;
 
+  /// No description provided for @txDetailRewardSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Bonus reward:'**
+  String get txDetailRewardSectionTitle;
+
   /// No description provided for @txCurrencyLabel.
   ///
   /// In en, this message translates to:
@@ -14748,6 +14754,18 @@ abstract class AppLocalizations {
   /// **'Posting Day of Month'**
   String get cardRewardRuleSettlementDayOfMonthField;
 
+  /// No description provided for @cardRewardRuleSettlementDaysField.
+  ///
+  /// In en, this message translates to:
+  /// **'Days'**
+  String get cardRewardRuleSettlementDaysField;
+
+  /// No description provided for @cardRewardRuleSettlementDaysHint.
+  ///
+  /// In en, this message translates to:
+  /// **'0 = same day as the transaction, 1 = next day, and so on'**
+  String get cardRewardRuleSettlementDaysHint;
+
   /// No description provided for @cardRewardRuleThresholdSection.
   ///
   /// In en, this message translates to:
@@ -14987,6 +15005,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Rule has linked transactions — disabled instead of deleted'**
   String get cardRewardRuleDisabledInsteadOfDeleted;
+
+  /// No description provided for @cardRewardSummaryCardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rewards ({count})'**
+  String cardRewardSummaryCardTitle(int count);
+
+  /// No description provided for @cardRewardDetailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reward Details'**
+  String get cardRewardDetailTitle;
+
+  /// No description provided for @cardRewardDetailNoCap.
+  ///
+  /// In en, this message translates to:
+  /// **'No reward cap'**
+  String get cardRewardDetailNoCap;
+
+  /// No description provided for @cardRewardDetailCapReached.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum reward reached'**
+  String get cardRewardDetailCapReached;
+
+  /// No description provided for @cardRewardDetailCapRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'Spend {amount} more to reach the maximum reward'**
+  String cardRewardDetailCapRemaining(String amount);
+
+  /// No description provided for @cardRewardDetailCapAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Reward cap {amount}'**
+  String cardRewardDetailCapAmount(String amount);
+
+  /// No description provided for @cardRewardDetailSettlementBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Posts on {date}'**
+  String cardRewardDetailSettlementBadge(String date);
+
+  /// No description provided for @cardRewardDetailSettledBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Posted on {date}'**
+  String cardRewardDetailSettledBadge(String date);
+
+  /// No description provided for @cardRewardDetailEmptyState.
+  ///
+  /// In en, this message translates to:
+  /// **'No transactions used this reward this period'**
+  String get cardRewardDetailEmptyState;
+
+  /// No description provided for @cardRewardDetailMonthLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Month {month} ({range})'**
+  String cardRewardDetailMonthLabel(int month, String range);
+
+  /// No description provided for @cardRewardDetailQualifiedSpend.
+  ///
+  /// In en, this message translates to:
+  /// **'Qualifying spend: {amount}'**
+  String cardRewardDetailQualifiedSpend(String amount);
 }
 
 class _AppLocalizationsDelegate

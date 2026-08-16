@@ -7327,6 +7327,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get txDetailRecurring => '周期';
 
   @override
+  String get txDetailRewardSectionTitle => '红利回馈：';
+
+  @override
   String get txCurrencyLabel => '币种';
 
   @override
@@ -7855,6 +7858,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cardRewardRuleSettlementDayOfMonthField => '回馈日期(当月第几号)';
 
   @override
+  String get cardRewardRuleSettlementDaysField => '天数';
+
+  @override
+  String get cardRewardRuleSettlementDaysHint => '0 = 消费当天入账，1 = 隔天入账，以此类推';
+
+  @override
   String get cardRewardRuleThresholdSection => '回馈启动门槛';
 
   @override
@@ -7981,6 +7990,53 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cardRewardRuleDisabledInsteadOfDeleted => '规则已有交易关联,已改为停用而非删除';
+
+  @override
+  String cardRewardSummaryCardTitle(int count) {
+    return '红利回馈 ($count)';
+  }
+
+  @override
+  String get cardRewardDetailTitle => '红利回馈明细';
+
+  @override
+  String get cardRewardDetailNoCap => '回馈无上限';
+
+  @override
+  String get cardRewardDetailCapReached => '已达最高回馈';
+
+  @override
+  String cardRewardDetailCapRemaining(String amount) {
+    return '剩下 $amount 的消费可达到最高回馈';
+  }
+
+  @override
+  String cardRewardDetailCapAmount(String amount) {
+    return '回馈上限 $amount';
+  }
+
+  @override
+  String cardRewardDetailSettlementBadge(String date) {
+    return '将于 $date 入账';
+  }
+
+  @override
+  String cardRewardDetailSettledBadge(String date) {
+    return '已于 $date 入账';
+  }
+
+  @override
+  String get cardRewardDetailEmptyState => '本期尚无套用此回馈的交易';
+
+  @override
+  String cardRewardDetailMonthLabel(int month, String range) {
+    return '$month月（$range）';
+  }
+
+  @override
+  String cardRewardDetailQualifiedSpend(String amount) {
+    return '符合条件消费：$amount';
+  }
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -15306,6 +15362,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get txDetailRecurring => '週期';
 
   @override
+  String get txDetailRewardSectionTitle => '紅利回饋：';
+
+  @override
   String get txCurrencyLabel => '幣種';
 
   @override
@@ -15834,6 +15893,12 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get cardRewardRuleSettlementDayOfMonthField => '回饋日期(當月第幾號)';
 
   @override
+  String get cardRewardRuleSettlementDaysField => '天數';
+
+  @override
+  String get cardRewardRuleSettlementDaysHint => '0 = 消費當天入帳，1 = 隔天入帳，以此類推';
+
+  @override
   String get cardRewardRuleThresholdSection => '回饋啟動門檻';
 
   @override
@@ -15960,4 +16025,51 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get cardRewardRuleDisabledInsteadOfDeleted => '規則已有交易關聯,已改為停用而非刪除';
+
+  @override
+  String cardRewardSummaryCardTitle(int count) {
+    return '紅利回饋 ($count)';
+  }
+
+  @override
+  String get cardRewardDetailTitle => '紅利回饋明細';
+
+  @override
+  String get cardRewardDetailNoCap => '回饋無上限';
+
+  @override
+  String get cardRewardDetailCapReached => '已達最高回饋';
+
+  @override
+  String cardRewardDetailCapRemaining(String amount) {
+    return '剩下 $amount 的消費可達到最高回饋';
+  }
+
+  @override
+  String cardRewardDetailCapAmount(String amount) {
+    return '回饋上限 $amount';
+  }
+
+  @override
+  String cardRewardDetailSettlementBadge(String date) {
+    return '將於 $date 入帳';
+  }
+
+  @override
+  String cardRewardDetailSettledBadge(String date) {
+    return '已於 $date 入帳';
+  }
+
+  @override
+  String get cardRewardDetailEmptyState => '本期尚無套用此回饋的交易';
+
+  @override
+  String cardRewardDetailMonthLabel(int month, String range) {
+    return '$month月（$range）';
+  }
+
+  @override
+  String cardRewardDetailQualifiedSpend(String amount) {
+    return '符合條件消費：$amount';
+  }
 }
