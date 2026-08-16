@@ -19,6 +19,7 @@ import '../../providers/ai_chat_providers.dart';
 import '../../ai/core/bill_info.dart';
 import '../../pages/transaction/transaction_editor_page.dart';
 import '../../pages/ai/ai_settings_page.dart';
+import '../../widgets/biz/recurring_occurrence_dialogs.dart';
 import '../../widgets/biz/ledger_selector_dialog.dart';
 import '../../data/db.dart';
 import '../../l10n/app_localizations.dart';
@@ -841,6 +842,15 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
         return;
       }
 
+      // v36 修正:跟明細頁「編輯」鉛筆入口一致——週期規則生成的 occurrence
+      // 要先問「修改此記錄/連同未來週期」,再進編輯頁。
+      RecurringEditScope? recurringScope;
+      if (transaction.recurringRuleId != null) {
+        if (!mounted) return;
+        recurringScope = await showRecurringEditChoiceSheet(context);
+        if (recurringScope == null || !mounted) return;
+      }
+
       if (mounted) {
         await Navigator.of(context).push(
           MaterialPageRoute(
@@ -855,6 +865,7 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
               initialAccountId: transaction.accountId,
               initialToAccountId: transaction.toAccountId,
               initialRewardRuleIds: transaction.rewardRuleIds,
+              initialRecurringEditScope: recurringScope,
             ),
           ),
         );

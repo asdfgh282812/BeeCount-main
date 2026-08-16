@@ -4,10 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/biz.dart';
 import '../../styles/tokens.dart';
-import '../transaction/recurring_transaction_page.dart';
 import '../settings/reminder_settings_page.dart';
+import '../transaction/recurring_rule_list_page.dart';
 import '../../l10n/app_localizations.dart';
-import '../../utils/ui_scale_extensions.dart';
 
 /// 自动化功能二级页面
 class AutomationPage extends ConsumerWidget {
@@ -32,26 +31,32 @@ class AutomationPage extends ConsumerWidget {
                   margin: EdgeInsets.zero,
                   child: Column(
                     children: [
-                      // 周期记账
+                      // v36:週期記帳對齐 BeeCount Cloud recurring_rule 後的新入
+                      // 口,見 docs/changes/2026-08-17-recurring-transactions-cloud-sync.md。
                       AppListTile(
                         leading: Icons.repeat,
-                        title: AppLocalizations.of(context).mineRecurringTransactions,
-                        subtitle: AppLocalizations.of(context).mineRecurringTransactionsSubtitle,
+                        title: AppLocalizations.of(context)
+                            .automationRecurringTile,
+                        subtitle: AppLocalizations.of(context)
+                            .automationRecurringTileSubtitle,
                         onTap: () async {
                           await Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const RecurringTransactionPage()),
+                            MaterialPageRoute(
+                                builder: (_) => const RecurringRuleListPage()),
                           );
                         },
                       ),
-                      BeeTokens.cardDivider(context),
                       // 记账提醒
                       AppListTile(
                         leading: Icons.notifications_outlined,
-                        title: AppLocalizations.of(context).mineReminderSettings,
-                        subtitle: AppLocalizations.of(context).mineReminderSettingsSubtitle,
+                        title:
+                            AppLocalizations.of(context).mineReminderSettings,
+                        subtitle: AppLocalizations.of(context)
+                            .mineReminderSettingsSubtitle,
                         onTap: () async {
                           await Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const ReminderSettingsPage()),
+                            MaterialPageRoute(
+                                builder: (_) => const ReminderSettingsPage()),
                           );
                         },
                       ),

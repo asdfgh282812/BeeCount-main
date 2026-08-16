@@ -3135,5 +3135,64 @@
         "type": "String"
       }
     }
-  }
+  },
+
+  "recurringSheetTitle": "進階設定",
+  "recurringTabOnce": "單次",
+  "recurringTabRecurring": "週期",
+  "recurringTabInstallment": "分期",
+  "recurringTabInstallmentComingSoon": "即將推出",
+  "recurringEveryPrefix": "每",
+  "recurringUnitDay": "天",
+  "recurringUnitWeek": "週",
+  "recurringUnitMonth": "月",
+  "recurringUnitYear": "年",
+  "recurringWeekdaysLabel": "重複於",
+  "recurringMonthDayLabel": "每月幾號",
+  "recurringCountLabel": "結束方式",
+  "recurringCountUnlimited": "無限期",
+  "recurringCountFixed": "指定次數",
+  "recurringCountUnit": "次",
+  "recurringCountDate": "截止日期",
+  "recurringCountEditTitle": "週期次數",
+  "recurringPostingModeLabel": "入帳方式",
+  "recurringPostingModeImmediate": "立即入帳",
+  "recurringSummaryUntil": "至 {date}",
+  "@recurringSummaryUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "recurringSummaryUnlimited": "無限期",
+  "recurringSummaryMonthDay": "{day} 號",
+  "@recurringSummaryMonthDay": {
+    "placeholders": {
+      "day": {
+        "type": "int"
+      }
+    }
+  },
+  "recurringWeekdayMon": "一",
+  "recurringWeekdayTue": "二",
+  "recurringWeekdayWed": "三",
+  "recurringWeekdayThu": "四",
+  "recurringWeekdayFri": "五",
+  "recurringWeekdaySat": "六",
+  "recurringWeekdaySun": "日",
+  "recurringRuleListTitle": "週期記帳",
+  "recurringRuleListActive": "進行中",
+  "recurringRuleListEnded": "已結束",
+  "recurringRuleListEmpty": "尚未建立週期規則",
+  "recurringRuleDeleteConfirmTitle": "刪除週期規則",
+  "recurringRuleDeleteConfirmMessage": "將刪除此規則與所有未來週期，已發生的記錄會保留。",
+  "recurringEditChoiceTitle": "這是一筆週期性交易",
+  "recurringEditChoiceThisOnly": "修改此記錄",
+  "recurringEditChoiceThisAndFuture": "修改連同未來週期",
+  "recurringDeleteChoiceTitle": "這是一筆週期性交易",
+  "recurringDeleteChoiceThisOnly": "刪除此記錄",
+  "recurringDeleteChoiceThisAndFuture": "刪除連同未來週期",
+  "automationRecurringTile": "週期記帳",
+  "automationRecurringTileSubtitle": "管理定期收支與轉帳規則"
 }

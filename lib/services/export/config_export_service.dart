@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yaml/yaml.dart';
@@ -760,7 +761,10 @@ class RecurringTransactionsConfig {
   }
 }
 
-/// 周期账单项
+/// 週期性收支規則項。v36 起對齊 BeeCount Cloud recurring_rule 欄位——標籤/
+/// 信用卡紅利回饋連動不在匯出範圍(見
+/// docs/changes/2026-08-17-recurring-transactions-cloud-sync.md 的刻意縮小
+/// 範圍決定),匯入後這兩項留空,使用者可在規則裡重新勾選。
 class RecurringTransactionItem {
   final String ledgerName; // 账本名称（用于导出/导入匹配）
   final String type; // expense / income / transfer
@@ -769,13 +773,12 @@ class RecurringTransactionItem {
   final String? accountName; // 账户名称（用于导出/导入匹配）
   final String? toAccountName; // 转账目标账户名称（用于导出/导入匹配）
   final String? note;
+  final String? merchant;
   final String frequency; // daily / weekly / monthly / yearly
   final int interval;
-  final int? dayOfMonth;
-  final int? dayOfWeek;
-  final int? monthOfYear;
-  final String startDate; // ISO 8601 format
-  final String? endDate;
+  final String? advancedRuleJson; // {"type":"weekly_days"/"monthly_day",...}
+  final String nextRunAt; // ISO 8601 format
+  final String? endAt;
   final bool enabled;
 
   const RecurringTransactionItem({
@@ -786,13 +789,12 @@ class RecurringTransactionItem {
     this.accountName,
     this.toAccountName,
     this.note,
+    this.merchant,
     required this.frequency,
     required this.interval,
-    this.dayOfMonth,
-    this.dayOfWeek,
-    this.monthOfYear,
-    required this.startDate,
-    this.endDate,
+    this.advancedRuleJson,
+    required this.nextRunAt,
+    this.endAt,
     required this.enabled,
   });
 
@@ -803,17 +805,16 @@ class RecurringTransactionItem {
       'amount': amount,
       'frequency': frequency,
       'interval': interval,
-      'start_date': startDate,
+      'next_run_at': nextRunAt,
       'enabled': enabled,
     };
     if (categoryName != null) map['category_name'] = categoryName;
     if (accountName != null) map['account_name'] = accountName;
     if (toAccountName != null) map['to_account_name'] = toAccountName;
     if (note != null && note!.isNotEmpty) map['note'] = note;
-    if (dayOfMonth != null) map['day_of_month'] = dayOfMonth;
-    if (dayOfWeek != null) map['day_of_week'] = dayOfWeek;
-    if (monthOfYear != null) map['month_of_year'] = monthOfYear;
-    if (endDate != null) map['end_date'] = endDate;
+    if (merchant != null && merchant!.isNotEmpty) map['merchant'] = merchant;
+    if (advancedRuleJson != null) map['advanced_rule_json'] = advancedRuleJson;
+    if (endAt != null) map['end_at'] = endAt;
     return map;
   }
 
@@ -826,13 +827,13 @@ class RecurringTransactionItem {
       accountName: map['account_name'] as String?,
       toAccountName: map['to_account_name'] as String?,
       note: map['note'] as String?,
+      merchant: map['merchant'] as String?,
       frequency: map['frequency'] as String,
       interval: map['interval'] as int,
-      dayOfMonth: map['day_of_month'] as int?,
-      dayOfWeek: map['day_of_week'] as int?,
-      monthOfYear: map['month_of_year'] as int?,
-      startDate: map['start_date'] as String,
-      endDate: map['end_date'] as String?,
+      advancedRuleJson: map['advanced_rule_json'] as String?,
+      // 舊版匯出檔沒有 next_run_at,退回舊欄位名 start_date 相容讀取。
+      nextRunAt: (map['next_run_at'] ?? map['start_date']) as String,
+      endAt: (map['end_at'] ?? map['end_date']) as String?,
       enabled: map['enabled'] as bool,
     );
   }
@@ -852,13 +853,12 @@ class RecurringTransactionItem {
       accountName: rt.accountId != null ? accountIdToName[rt.accountId] : null,
       toAccountName: rt.toAccountId != null ? accountIdToName[rt.toAccountId] : null,
       note: rt.note,
+      merchant: rt.merchant,
       frequency: rt.frequency,
       interval: rt.interval,
-      dayOfMonth: rt.dayOfMonth,
-      dayOfWeek: rt.dayOfWeek,
-      monthOfYear: rt.monthOfYear,
-      startDate: rt.startDate.toIso8601String(),
-      endDate: rt.endDate?.toIso8601String(),
+      advancedRuleJson: rt.advancedRuleJson,
+      nextRunAt: rt.nextRunAt.toIso8601String(),
+      endAt: rt.endAt?.toIso8601String(),
       enabled: rt.enabled,
     );
   }
@@ -1502,7 +1502,7 @@ class ConfigExportService {
     RecurringTransactionsConfig? recurringConfig;
     if (options.recurringTransactions && repository != null) {
       try {
-        final recurringList = await repository.getAllRecurringTransactions();
+        final recurringList = await repository.getAllRulesForExport();
 
         if (recurringList.isNotEmpty) {
           // 收集周期账单关联的账本、分类、账户ID
@@ -2736,22 +2736,30 @@ class ConfigExportService {
             }
           }
 
-          await repository.addRecurringTransaction(
+          Map<String, dynamic>? advancedRule;
+          if (item.advancedRuleJson != null) {
+            try {
+              advancedRule =
+                  jsonDecode(item.advancedRuleJson!) as Map<String, dynamic>;
+            } catch (_) {
+              // 忽略格式错误的旧数据。
+            }
+          }
+          await repository.createRule(
             ledgerId: targetLedgerId,
             type: item.type,
             amount: item.amount,
             categoryId: categoryId,
-            accountId: accountId,
+            accountId: item.type == 'transfer' ? null : accountId,
+            fromAccountId: item.type == 'transfer' ? accountId : null,
             toAccountId: toAccountId,
             note: item.note,
+            merchant: item.merchant,
             frequency: item.frequency,
             interval: item.interval,
-            dayOfMonth: item.dayOfMonth,
-            dayOfWeek: item.dayOfWeek,
-            monthOfYear: item.monthOfYear,
-            startDate: DateTime.parse(item.startDate),
-            endDate: item.endDate != null ? DateTime.parse(item.endDate!) : null,
-            enabled: item.enabled,
+            advancedRule: advancedRule,
+            nextRunAt: DateTime.parse(item.nextRunAt),
+            endAt: item.endAt != null ? DateTime.parse(item.endAt!) : null,
           );
           importedCount++;
         }

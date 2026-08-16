@@ -85,6 +85,13 @@ class EntitySerializer {
       // `[]`)——本地已经用 syncId 存,不用像 tagIds 那样做本地 id→syncId
       // 转换。空 list 代表"这笔交易没有勾选任何回饋规则"(包含用户清空的场景)。
       'rewardRuleIds': tx.rewardRuleIds,
+      // v36:週期性收支(recurring_rule)——這筆交易是哪條規則生成的 occurrence。
+      // 跟 refundOfId 同款「有值才發」:目前沒有會把這個關聯清空的操作(刪除
+      // occurrence 是整筆刪 tx,不是清空這個欄位),省略等價"不更新"。
+      if (tx.recurringRuleId != null) 'recurringRuleId': tx.recurringRuleId,
+      // 恒發(同 excludeFromStats/excludeFromBudget)——這個 bool 會被
+      // 「修改此記錄」單筆改成 true,必須每次都帶上讓對端能同步這個切換。
+      'recurringOccurrenceOverridden': tx.recurringOccurrenceOverridden,
     };
   }
 
@@ -257,6 +264,59 @@ class EntitySerializer {
       'rewardAccountId': rewardAccountSyncId,
       'note': rule.note,
       'enabled': rule.enabled,
+    };
+  }
+
+  // ==================== RecurringRule ====================
+
+  /// 週期性收支規則(v36,對齐 BeeCount Cloud recurring_rule)。ledger-scope,
+  /// 跟 [serializeBudget] 同款語意:BeeCount Cloud
+  /// `sync_applier.py::_LEDGER_MERGE_SPECS["recurring_rule"]` 走
+  /// `projection.upsert_recurring_rule` 全量 UPSERT(缺鍵/null 由 server 端
+  /// merge 從既有列補齐),所以這裡把規則當下的完整值都帶上,`if != null`
+  /// 只是省略空值(效果等同顯式傳 null,不是「刻意不更新」)。
+  ///
+  /// **範圍決策(2026-08-17)**:刻意不帶 `projectId` /
+  /// `baseAmount`/`feeAmount`/`feeLabel`/`discountAmount`/`discountLabel`
+  /// ——App 端尚未實作專案關聯與手續費/折扣功能,本地 `RecurringTransactions`
+  /// 表也没有对应列。
+  static Map<String, dynamic> serializeRecurringRule(
+    RecurringTransaction rule, {
+    String? categorySyncId,
+    String? accountSyncId,
+    String? fromAccountSyncId,
+    String? toAccountSyncId,
+  }) {
+    return {
+      'syncId': rule.syncId,
+      // 注意:wire 字段是 txType,不是 type——跟 Transaction 的
+      // serializeTransaction 不同(那边就叫 type),这里照抄 Cloud
+      // ReadRecurringRuleProjection.tx_type 的 merge spec key 名。
+      'txType': rule.type,
+      'amount': rule.amount,
+      'note': rule.note,
+      if (categorySyncId != null && categorySyncId.isNotEmpty)
+        'categoryId': categorySyncId,
+      if (accountSyncId != null && accountSyncId.isNotEmpty)
+        'accountId': accountSyncId,
+      if (fromAccountSyncId != null && fromAccountSyncId.isNotEmpty)
+        'fromAccountId': fromAccountSyncId,
+      if (toAccountSyncId != null && toAccountSyncId.isNotEmpty)
+        'toAccountId': toAccountSyncId,
+      'merchant': rule.merchant,
+      'tagIds': rule.tagSyncIds,
+      'frequency': rule.frequency,
+      'interval': rule.interval,
+      'nextRunAt': rule.nextRunAt.toUtc().toIso8601String(),
+      if (rule.endAt != null) 'endAt': rule.endAt!.toUtc().toIso8601String(),
+      'enabled': rule.enabled,
+      if (rule.generatedUntilAt != null)
+        'generatedUntilAt': rule.generatedUntilAt!.toUtc().toIso8601String(),
+      // advancedRuleJson 本地存 TEXT 列(json 字串),wire 上跟 Cloud
+      // snapshot_builder 的形状对齐——傳解碼後的 Map,不是雙重編碼的字串。
+      if (rule.advancedRuleJson != null && rule.advancedRuleJson!.isNotEmpty)
+        'advancedRuleJson': jsonDecode(rule.advancedRuleJson!),
+      'rewardRuleIds': rule.rewardRuleIds,
     };
   }
 

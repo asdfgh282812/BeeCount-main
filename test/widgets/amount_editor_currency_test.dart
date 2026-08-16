@@ -63,7 +63,7 @@ void main() {
             initialCurrencyCode: initialCurrencyCode,
             initialNativeAmount: initialNativeAmount,
             ledgerId: 1,
-            onSubmit: (_, __) {},
+            onSubmit: (_, __) async {},
           ),
         ),
       ),

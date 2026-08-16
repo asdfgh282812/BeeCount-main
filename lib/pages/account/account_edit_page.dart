@@ -1285,8 +1285,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     }
 
     // E2:隐藏前查活跃周期模板数,>0 则确认框追加提示。
-    final recurringCount =
-        await repo.getActiveRecurringCountByAccount(account.id);
+    final recurringCount = await repo.getActiveRuleCountByAccount(account.id);
 
     if (!mounted) return;
     final confirm = await showDialog<bool>(

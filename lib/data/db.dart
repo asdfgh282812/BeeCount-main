@@ -130,7 +130,6 @@ class Transactions extends Table {
   IntColumn get toAccountId => integer().nullable()();
   DateTimeColumn get happenedAt => dateTime().withDefault(currentDateAndTime)();
   TextColumn get note => text().nullable()();
-  IntColumn get recurringId => integer().nullable()(); // 关联到重复交易模板
   TextColumn get syncId => text().nullable()(); // 跨设备同步唯一标识 (UUID)
   // v24: 共享账本"谁记的"显示
   TextColumn get createdByUserId => text().nullable()();
@@ -184,6 +183,20 @@ class Transactions extends Table {
   /// 改版后规则不再靠 category_ids 自动比对,这里是权威的"哪笔消费适用哪个
   /// 回馈方案"来源。
   TextColumn get rewardRuleIdsJson => text().nullable()();
+
+  /// v36 週期性收支(recurring_rule):这笔交易是哪条規則生成的 occurrence,
+  /// 存規則的 **syncId**(不是本地 int id——本地 id 跨装置不稳定,同
+  /// [refundOfSyncId] 的模式)。null = 单次交易(非週期生成)。BeeCount Cloud
+  /// 端字段是 read_tx_projection.recurring_rule_sync_id,wire 字段名
+  /// recurringRuleId,见 sync_applier.py 的 transaction merge spec。
+  TextColumn get recurringRuleId => text().nullable()();
+
+  /// v36:这期是否被「修改此記錄」单独编辑过——true 时,規則之后的「修改/
+  /// 刪除連同未來週期」批次操作要跳过这一笔,不能被批次覆盖。BeeCount Cloud
+  /// 端字段是 read_tx_projection.recurring_occurrence_overridden,wire 字段
+  /// 名 recurringOccurrenceOverridden。
+  BoolColumn get recurringOccurrenceOverridden =>
+      boolean().withDefault(const Constant(false))();
 }
 
 /// v35:信用卡紅利回饋規則。user-global 实体(同 Accounts/Categories/Tags 那组
@@ -278,35 +291,121 @@ extension CardRewardRuleCategoryIds on CardRewardRule {
   }
 }
 
+/// v36 週期性收支規則。redesign 前(v3-v35)是純本地功能,不接
+/// [ChangeTracker],Web/其它裝置看不到。v36 起对齐 BeeCount Cloud 的
+/// `recurring_rule` sync entity(ledger-scoped,同 [Transactions]/[Budgets]
+/// 那组),字段/wire key 对照 `BeeCount-Cloud/src/sync_applier.py` 的
+/// `_LEDGER_MERGE_SPECS["recurring_rule"]`——改字段前先去那边核对。
+///
+/// **没有独立的"单期(occurrence)"表**:規則只定义"要怎么循环",每一期实际
+/// 发生的交易就是 [Transactions] 里的普通列,靠
+/// [Transaction.recurringRuleId] 反查回本表的 [syncId]、靠
+/// [Transaction.recurringOccurrenceOverridden] 标记这期是否被单独编辑过。
+/// v1 范围**不做** `project` 关联与手续费/折扣(feeAmount/feeLabel/
+/// discountAmount/discountLabel)——同 BeeCount Cloud 已有的字段集但刻意
+/// 缩小范围,見 docs/changes/2026-08-17-recurring-transactions-cloud-sync.md。
 class RecurringTransactions extends Table {
   IntColumn get id => integer().autoIncrement()();
+
+  /// 跨设备同步 syncId(UUID)。本地建规则时就地产生(同 transaction/account
+  /// 的产生时机),不等 server 回传。
+  TextColumn get syncId => text().nullable()();
+
   IntColumn get ledgerId => integer()();
   TextColumn get type => text()(); // expense / income / transfer
   RealColumn get amount => real()();
   IntColumn get categoryId => integer().nullable()(); // 转账时为null
-  IntColumn get accountId => integer().nullable()();
+  IntColumn get accountId => integer().nullable()(); // expense/income 的账户
+
+  /// 轉帳來源帳戶。跟 Cloud `recurring_rule` 一样把 accountId(收支用)跟
+  /// fromAccountId(转帐来源)分开存,不像 [Transactions] 表本身转账时借用
+  /// accountId 当来源——這張規則表序列化/反序列化时要各自对应正确的 key。
+  IntColumn get fromAccountId => integer().nullable()();
   IntColumn get toAccountId => integer().nullable()(); // 转账的目标账户
   TextColumn get note => text().nullable()();
+
+  /// 商家名称,同 [Transaction.merchant] 语意,规则生成的每期 occurrence 都
+  /// 继承这个值。wire 字段 merchant。
+  TextColumn get merchant => text().nullable()();
+
+  /// JSON list of tag syncId,规则生成的每期 occurrence 都带上这些标签。
+  /// wire 字段 tagIds,同 [TransactionRewardRuleIds] 那种"JSON list 存
+  /// string"写法,配 [RecurringTransactionTagIds] extension 用。
+  TextColumn get tagSyncIdsJson => text().nullable()();
+
+  /// JSON list of card_reward_rule syncId,同 [Transaction.rewardRuleIdsJson]
+  /// 语意,规则生成的每期 occurrence 都带上。wire 字段 rewardRuleIds。
+  TextColumn get rewardRuleIdsJson => text().nullable()();
 
   // 重复规则
   TextColumn get frequency => text()(); // daily / weekly / monthly / yearly
   IntColumn get interval =>
       integer().withDefault(const Constant(1))(); // 间隔（每1天、每2周等）
-  IntColumn get dayOfMonth => integer().nullable()(); // 月的第几天（1-31）
-  IntColumn get dayOfWeek => integer().nullable()(); // 周几（1=周一, 7=周日）
-  IntColumn get monthOfYear => integer().nullable()(); // 哪个月（1-12，用于yearly）
 
-  // 时间范围
-  DateTimeColumn get startDate => dateTime()();
-  DateTimeColumn get endDate => dateTime().nullable()(); // 为空表示永久
-  DateTimeColumn get lastGeneratedDate =>
-      dateTime().nullable()(); // 最后一次生成交易的日期
+  /// 進階規則(JSON),只支援兩種、不過度泛化,对齐 Cloud
+  /// `services/recurring_schedule.py` 的 `advanced_rule`:
+  /// - `{"type":"weekly_days","days":[0,6]}`:每週指定星期几(Dart
+  ///   `DateTime.weekday` 惯例转换过的 Monday=0..Sunday=6,注意**跟 Dart
+  ///   原生 `weekday`(Monday=1..Sunday=7)不同**,存取都要过一层转换,不要
+  ///   直接拿 `DateTime.weekday` 存进来)。
+  /// - `{"type":"monthly_day","day":10}`:每隔 interval 个月的第 N 天,超过
+  ///   当月天数会夹断到月底。
+  /// null = 不用進階規則,单纯"每 interval 个 frequency"重复(如"每2周")。
+  /// wire 字段 advancedRuleJson。
+  TextColumn get advancedRuleJson => text().nullable()();
 
-  // 状态
+  /// 規則定義的循环起点(建规则当下就固定,之后不会被续产生逻辑推进——同
+  /// Cloud `recurring_rule.next_run_at` 语意)。取代旧版 `startDate`。
+  DateTimeColumn get nextRunAt => dateTime()();
+
+  /// 為空表示無限期。取代旧版 `endDate`(改名对齐 wire 字段 endAt)。
+  DateTimeColumn get endAt => dateTime().nullable()();
+
+  /// 已經生成到哪个时间点(視窗批次预生成的进度指标)。取代旧版
+  /// "最后一次生成交易的日期"(`lastGeneratedDate`)语意上从"上次生成
+  /// 日"变成"已生成到哪"——续产生逻辑靠这个欄位判断要不要补窗口。wire 字段
+  /// generatedUntilAt。
+  DateTimeColumn get generatedUntilAt => dateTime().nullable()();
+
+  // 状态。fully_generated(有 endAt 且已经生成到底)或使用者手动「刪除連同
+  // 未來週期」时会被设成 false,規則列表页「進行中/已結束」两个分组純用这
+  // 个欄位现算,不额外存状态。
   BoolColumn get enabled => boolean().withDefault(const Constant(true))();
 
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+/// [RecurringTransaction.tagSyncIdsJson] 的解码辅助,同
+/// [TransactionRewardRuleIds] 那套写法。
+extension RecurringTransactionTagIds on RecurringTransaction {
+  List<String> get tagSyncIds {
+    final raw = tagSyncIdsJson;
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) return decoded.whereType<String>().toList();
+    } catch (_) {
+      // 忽略格式错误的旧数据,当作没有勾选。
+    }
+    return const [];
+  }
+}
+
+/// [RecurringTransaction.rewardRuleIdsJson] 的解码辅助,同
+/// [TransactionRewardRuleIds] 那套写法。
+extension RecurringTransactionRewardRuleIds on RecurringTransaction {
+  List<String> get rewardRuleIds {
+    final raw = rewardRuleIdsJson;
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) return decoded.whereType<String>().toList();
+    } catch (_) {
+      // 忽略格式错误的旧数据,当作没有勾选。
+    }
+    return const [];
+  }
 }
 
 // AI 对话表
@@ -575,7 +674,7 @@ class BeeDatabase extends _$BeeDatabase {
 
   @override
   int get schemaVersion =>
-      35; // v35: 信用卡紅利回饋 — card_reward_rules 表 + transactions.rewardRuleIdsJson
+      36; // v36: 週期性收支對齐 BeeCount Cloud recurring_rule(見 §recurring_transactions redesign)
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1325,6 +1424,130 @@ class BeeDatabase extends _$BeeDatabase {
             await _addColumnIfMissing('transactions', 'reward_rule_ids_json',
                 'ALTER TABLE transactions ADD COLUMN reward_rule_ids_json TEXT;');
             logger.info('DBMigration', 'v35 迁移完成');
+          }
+          if (from < 36) {
+            logger.info('DBMigration',
+                '开始迁移到 v36: 週期性收支對齐 BeeCount Cloud recurring_rule');
+
+            // 1. transactions 新增两栏(旧的 recurring_id 整数栏保留在物理
+            // 表里不动——Drift 不声明就不会读它,不需要冒险 DROP COLUMN)。
+            await _addColumnIfMissing('transactions', 'recurring_rule_id',
+                'ALTER TABLE transactions ADD COLUMN recurring_rule_id TEXT;');
+            await _addColumnIfMissing(
+                'transactions',
+                'recurring_occurrence_overridden',
+                'ALTER TABLE transactions ADD COLUMN recurring_occurrence_overridden '
+                    'INTEGER NOT NULL DEFAULT 0;');
+
+            // 2. recurring_transactions 整表 redesign(旧表字段跟新模型差异
+            // 太大,SQLite 不支持改列约束/删列,沿用 v7 迁移同款"建新表→搬
+            // 数据→删旧表→改名"套路)。
+            await customStatement('''
+              CREATE TABLE IF NOT EXISTS recurring_transactions_new (
+                id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                sync_id TEXT,
+                ledger_id INTEGER NOT NULL,
+                type TEXT NOT NULL,
+                amount REAL NOT NULL,
+                category_id INTEGER,
+                account_id INTEGER,
+                from_account_id INTEGER,
+                to_account_id INTEGER,
+                note TEXT,
+                merchant TEXT,
+                tag_sync_ids_json TEXT,
+                reward_rule_ids_json TEXT,
+                frequency TEXT NOT NULL,
+                interval INTEGER NOT NULL DEFAULT 1,
+                advanced_rule_json TEXT,
+                next_run_at INTEGER NOT NULL,
+                end_at INTEGER,
+                generated_until_at INTEGER,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+                updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+              );
+            ''');
+
+            // id 原样保留(不重新编号)——下面回填 transactions.recurring_rule_id
+            // 要靠旧 recurring_id 直接 join 新表的 id。舊 day_of_month/
+            // day_of_week 换算成 advanced_rule_json(monthly_day 用天数原样;
+            // weekly 用旧"1=周一..7=周日"减一换算成新"Monday=0..Sunday=6"),
+            // monthOfYear 没有对应的进阶规则概念,直接丢弃(yearly 频率本来
+            // 就靠 next_run_at 自身的月/日重复,这是历史小功能的可接受精度
+            // 损失,不是遗漏)。旧 accountId 在 transfer 类型里当"来源账户"用,
+            // 新表比照 Cloud 把它搬到独立的 from_account_id,让 accountId 只
+            // 用于 expense/income。sync_id 用 SQLite 惯用的 randomblob UUID v4
+            // 表达式当场产生(不留 null——留 null 会让"這條規則之前有沒有推過
+            // 雲端"这个语意变得模糊)。
+            await customStatement('''
+              INSERT INTO recurring_transactions_new
+              (id, sync_id, ledger_id, type, amount, category_id, account_id,
+               from_account_id, to_account_id, note, merchant,
+               tag_sync_ids_json, reward_rule_ids_json, frequency, interval,
+               advanced_rule_json, next_run_at, end_at, generated_until_at,
+               enabled, created_at, updated_at)
+              SELECT
+                id,
+                lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' ||
+                  substr(hex(randomblob(2)), 2) || '-' ||
+                  substr('89ab', abs(random()) % 4 + 1, 1) ||
+                  substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6))),
+                ledger_id, type, amount, category_id,
+                CASE WHEN type = 'transfer' THEN NULL ELSE account_id END,
+                CASE WHEN type = 'transfer' THEN account_id ELSE NULL END,
+                to_account_id, note, NULL, NULL, NULL,
+                frequency, interval,
+                CASE
+                  WHEN frequency = 'monthly' AND day_of_month IS NOT NULL THEN
+                    '{"type":"monthly_day","day":' || day_of_month || '}'
+                  WHEN frequency = 'weekly' AND day_of_week IS NOT NULL THEN
+                    '{"type":"weekly_days","days":[' || (day_of_week - 1) || ']}'
+                  ELSE NULL
+                END,
+                start_date, end_date, last_generated_date,
+                enabled, created_at, updated_at
+              FROM recurring_transactions;
+            ''');
+            await customStatement('DROP TABLE recurring_transactions;');
+            await customStatement(
+                'ALTER TABLE recurring_transactions_new RENAME TO recurring_transactions;');
+
+            // 3. 回填历史生成交易的 recurring_rule_id(旧 recurring_id 整数
+            // 关联换成新的 syncId 字符串关联)。
+            await customStatement('''
+              UPDATE transactions
+              SET recurring_rule_id = (
+                SELECT sync_id FROM recurring_transactions rt
+                WHERE rt.id = transactions.recurring_id
+              )
+              WHERE recurring_id IS NOT NULL
+                AND EXISTS (
+                  SELECT 1 FROM recurring_transactions rt
+                  WHERE rt.id = transactions.recurring_id
+                );
+            ''');
+
+            // 4. 这些規則/歷史交易之前从未接过 ChangeTracker,记一笔
+            // local_changes 让它们在下次同步时当"新建"补推上云(没开雲端同步
+            // 的使用者 push 循环本来就不会跑,这几行是 no-op)。push 时序列
+            // 化会重新查询 live row 组 payload,这里不用填 payload_json。
+            await customStatement('''
+              INSERT INTO local_changes
+                (entity_type, entity_id, entity_sync_id, ledger_id, action)
+              SELECT 'recurring_rule', id, sync_id, ledger_id, 'upsert'
+              FROM recurring_transactions
+              WHERE sync_id IS NOT NULL;
+            ''');
+            await customStatement('''
+              INSERT INTO local_changes
+                (entity_type, entity_id, entity_sync_id, ledger_id, action)
+              SELECT 'transaction', id, sync_id, ledger_id, 'upsert'
+              FROM transactions
+              WHERE recurring_rule_id IS NOT NULL AND sync_id IS NOT NULL;
+            ''');
+
+            logger.info('DBMigration', 'v36 迁移完成');
           }
         },
         onCreate: (m) async {

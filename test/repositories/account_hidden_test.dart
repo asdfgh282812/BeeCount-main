@@ -139,59 +139,64 @@ void main() {
   });
 
   // ==========================================================================
-  // getActiveRecurringCountByAccount(账户隐藏 #240 E2):隐藏确认框计数依赖。
+  // getActiveRuleCountByAccount(账户隐藏 #240 E2):隐藏确认框计数依赖。
+  // v36:週期性收支對齐 BeeCount Cloud recurring_rule,取代旧版
+  // getActiveRecurringCountByAccount / addRecurringTransaction。
   // ==========================================================================
 
-  test('getActiveRecurringCountByAccount 统计引用该账户的活跃周期(转出/转入任一端)',
+  test('getActiveRuleCountByAccount 统计引用该账户的活跃规则(转出/转入任一端)',
       () async {
     final lid = await repo.createLedger(name: 'L');
     final aid = await repo.createAccount(ledgerId: lid, name: 'A');
     final bid = await repo.createAccount(ledgerId: lid, name: 'B');
 
     // 命中:accountId = aid,启用
-    await repo.addRecurringTransaction(
+    await repo.createRule(
       ledgerId: lid,
       type: 'expense',
       amount: 10,
       accountId: aid,
       frequency: 'monthly',
       interval: 1,
-      startDate: DateTime.now(),
+      nextRunAt: DateTime.now(),
     );
-    // 命中:toAccountId = aid(转账转入端),启用
-    await repo.addRecurringTransaction(
+    // 命中:toAccountId = aid(转账转入端),启用(transfer 不预生成 occurrence,
+    // enabled 维持建规则时的默认值 true)。
+    await repo.createRule(
       ledgerId: lid,
       type: 'transfer',
       amount: 10,
-      accountId: bid,
+      fromAccountId: bid,
       toAccountId: aid,
       frequency: 'monthly',
       interval: 1,
-      startDate: DateTime.now(),
+      nextRunAt: DateTime.now(),
     );
     // 不命中:关联账户是 bid,与 aid 无关
-    await repo.addRecurringTransaction(
+    await repo.createRule(
       ledgerId: lid,
       type: 'expense',
       amount: 10,
       accountId: bid,
       frequency: 'monthly',
       interval: 1,
-      startDate: DateTime.now(),
+      nextRunAt: DateTime.now(),
     );
-    // 不命中:关联 aid 但已禁用(enabled=false 不算"活跃")
-    final disabledId = await repo.addRecurringTransaction(
+    // 不命中:关联 aid 但已禁用(enabled=false 不算"活跃")。terminateFuture
+    // (「删除连同未来周期」)是当前公开 API 里会把规则标记 enabled=false 的
+    // 方法,借来把这条规则变成非活跃状态。
+    final disabledId = await repo.createRule(
       ledgerId: lid,
       type: 'expense',
       amount: 10,
       accountId: aid,
       frequency: 'monthly',
       interval: 1,
-      startDate: DateTime.now(),
+      nextRunAt: DateTime.now(),
     );
-    await repo.toggleRecurringTransaction(disabledId, false);
+    await repo.terminateFuture(disabledId);
 
-    final count = await repo.getActiveRecurringCountByAccount(aid);
+    final count = await repo.getActiveRuleCountByAccount(aid);
     expect(count, 2);
   });
 }

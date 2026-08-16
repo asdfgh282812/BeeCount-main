@@ -8037,6 +8037,146 @@ class AppLocalizationsZh extends AppLocalizations {
   String cardRewardDetailQualifiedSpend(String amount) {
     return '符合条件消费：$amount';
   }
+
+  @override
+  String get recurringSheetTitle => 'Advanced Settings';
+
+  @override
+  String get recurringTabOnce => 'One-time';
+
+  @override
+  String get recurringTabRecurring => 'Recurring';
+
+  @override
+  String get recurringTabInstallment => 'Installment';
+
+  @override
+  String get recurringTabInstallmentComingSoon => 'Coming soon';
+
+  @override
+  String get recurringEveryPrefix => 'Every';
+
+  @override
+  String get recurringUnitDay => 'Day(s)';
+
+  @override
+  String get recurringUnitWeek => 'Week(s)';
+
+  @override
+  String get recurringUnitMonth => 'Month(s)';
+
+  @override
+  String get recurringUnitYear => 'Year(s)';
+
+  @override
+  String get recurringWeekdaysLabel => 'Repeat on';
+
+  @override
+  String get recurringMonthDayLabel => 'Day of month';
+
+  @override
+  String get recurringCountLabel => 'Ends';
+
+  @override
+  String get recurringCountUnlimited => 'Never';
+
+  @override
+  String get recurringCountFixed => 'After a number of times';
+
+  @override
+  String get recurringCountUnit => 'times';
+
+  @override
+  String get recurringCountDate => 'On date';
+
+  @override
+  String get recurringCountEditTitle => 'Number of occurrences';
+
+  @override
+  String get recurringPostingModeLabel => 'Posting';
+
+  @override
+  String get recurringPostingModeImmediate => 'Post immediately';
+
+  @override
+  String recurringSummaryUntil(String date) {
+    return 'Until $date';
+  }
+
+  @override
+  String get recurringSummaryUnlimited => 'No end date';
+
+  @override
+  String recurringSummaryMonthDay(int day) {
+    return 'Day $day';
+  }
+
+  @override
+  String get recurringWeekdayMon => 'Mon';
+
+  @override
+  String get recurringWeekdayTue => 'Tue';
+
+  @override
+  String get recurringWeekdayWed => 'Wed';
+
+  @override
+  String get recurringWeekdayThu => 'Thu';
+
+  @override
+  String get recurringWeekdayFri => 'Fri';
+
+  @override
+  String get recurringWeekdaySat => 'Sat';
+
+  @override
+  String get recurringWeekdaySun => 'Sun';
+
+  @override
+  String get recurringRuleListTitle => 'Recurring Transactions';
+
+  @override
+  String get recurringRuleListActive => 'Active';
+
+  @override
+  String get recurringRuleListEnded => 'Ended';
+
+  @override
+  String get recurringRuleListEmpty => 'No recurring rules yet';
+
+  @override
+  String get recurringRuleDeleteConfirmTitle => 'Delete Recurring Rule';
+
+  @override
+  String get recurringRuleDeleteConfirmMessage =>
+      'This deletes the rule and all its future occurrences. Past records are kept.';
+
+  @override
+  String get recurringEditChoiceTitle => 'This is a recurring transaction';
+
+  @override
+  String get recurringEditChoiceThisOnly => 'Edit this occurrence';
+
+  @override
+  String get recurringEditChoiceThisAndFuture =>
+      'Edit this and future occurrences';
+
+  @override
+  String get recurringDeleteChoiceTitle => 'This is a recurring transaction';
+
+  @override
+  String get recurringDeleteChoiceThisOnly => 'Delete this occurrence';
+
+  @override
+  String get recurringDeleteChoiceThisAndFuture =>
+      'Delete this and future occurrences';
+
+  @override
+  String get automationRecurringTile => 'Recurring Transactions';
+
+  @override
+  String get automationRecurringTileSubtitle =>
+      'Manage recurring income, expenses and transfers';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -16072,4 +16212,140 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String cardRewardDetailQualifiedSpend(String amount) {
     return '符合條件消費：$amount';
   }
+
+  @override
+  String get recurringSheetTitle => '進階設定';
+
+  @override
+  String get recurringTabOnce => '單次';
+
+  @override
+  String get recurringTabRecurring => '週期';
+
+  @override
+  String get recurringTabInstallment => '分期';
+
+  @override
+  String get recurringTabInstallmentComingSoon => '即將推出';
+
+  @override
+  String get recurringEveryPrefix => '每';
+
+  @override
+  String get recurringUnitDay => '天';
+
+  @override
+  String get recurringUnitWeek => '週';
+
+  @override
+  String get recurringUnitMonth => '月';
+
+  @override
+  String get recurringUnitYear => '年';
+
+  @override
+  String get recurringWeekdaysLabel => '重複於';
+
+  @override
+  String get recurringMonthDayLabel => '每月幾號';
+
+  @override
+  String get recurringCountLabel => '結束方式';
+
+  @override
+  String get recurringCountUnlimited => '無限期';
+
+  @override
+  String get recurringCountFixed => '指定次數';
+
+  @override
+  String get recurringCountUnit => '次';
+
+  @override
+  String get recurringCountDate => '截止日期';
+
+  @override
+  String get recurringCountEditTitle => '週期次數';
+
+  @override
+  String get recurringPostingModeLabel => '入帳方式';
+
+  @override
+  String get recurringPostingModeImmediate => '立即入帳';
+
+  @override
+  String recurringSummaryUntil(String date) {
+    return '至 $date';
+  }
+
+  @override
+  String get recurringSummaryUnlimited => '無限期';
+
+  @override
+  String recurringSummaryMonthDay(int day) {
+    return '$day 號';
+  }
+
+  @override
+  String get recurringWeekdayMon => '一';
+
+  @override
+  String get recurringWeekdayTue => '二';
+
+  @override
+  String get recurringWeekdayWed => '三';
+
+  @override
+  String get recurringWeekdayThu => '四';
+
+  @override
+  String get recurringWeekdayFri => '五';
+
+  @override
+  String get recurringWeekdaySat => '六';
+
+  @override
+  String get recurringWeekdaySun => '日';
+
+  @override
+  String get recurringRuleListTitle => '週期記帳';
+
+  @override
+  String get recurringRuleListActive => '進行中';
+
+  @override
+  String get recurringRuleListEnded => '已結束';
+
+  @override
+  String get recurringRuleListEmpty => '尚未建立週期規則';
+
+  @override
+  String get recurringRuleDeleteConfirmTitle => '刪除週期規則';
+
+  @override
+  String get recurringRuleDeleteConfirmMessage => '將刪除此規則與所有未來週期，已發生的記錄會保留。';
+
+  @override
+  String get recurringEditChoiceTitle => '這是一筆週期性交易';
+
+  @override
+  String get recurringEditChoiceThisOnly => '修改此記錄';
+
+  @override
+  String get recurringEditChoiceThisAndFuture => '修改連同未來週期';
+
+  @override
+  String get recurringDeleteChoiceTitle => '這是一筆週期性交易';
+
+  @override
+  String get recurringDeleteChoiceThisOnly => '刪除此記錄';
+
+  @override
+  String get recurringDeleteChoiceThisAndFuture => '刪除連同未來週期';
+
+  @override
+  String get automationRecurringTile => '週期記帳';
+
+  @override
+  String get automationRecurringTileSubtitle => '管理定期收支與轉帳規則';
 }

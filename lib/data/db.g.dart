@@ -2032,12 +2032,6 @@ class $TransactionsTable extends Transactions
   late final GeneratedColumn<String> note = GeneratedColumn<String>(
       'note', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _recurringIdMeta =
-      const VerificationMeta('recurringId');
-  @override
-  late final GeneratedColumn<int> recurringId = GeneratedColumn<int>(
-      'recurring_id', aliasedName, true,
-      type: DriftSqlType.int, requiredDuringInsert: false);
   static const VerificationMeta _syncIdMeta = const VerificationMeta('syncId');
   @override
   late final GeneratedColumn<String> syncId = GeneratedColumn<String>(
@@ -2129,6 +2123,23 @@ class $TransactionsTable extends Transactions
   late final GeneratedColumn<String> rewardRuleIdsJson =
       GeneratedColumn<String>('reward_rule_ids_json', aliasedName, true,
           type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _recurringRuleIdMeta =
+      const VerificationMeta('recurringRuleId');
+  @override
+  late final GeneratedColumn<String> recurringRuleId = GeneratedColumn<String>(
+      'recurring_rule_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _recurringOccurrenceOverriddenMeta =
+      const VerificationMeta('recurringOccurrenceOverridden');
+  @override
+  late final GeneratedColumn<bool> recurringOccurrenceOverridden =
+      GeneratedColumn<bool>(
+          'recurring_occurrence_overridden', aliasedName, false,
+          type: DriftSqlType.bool,
+          requiredDuringInsert: false,
+          defaultConstraints: GeneratedColumn.constraintIsAlways(
+              'CHECK ("recurring_occurrence_overridden" IN (0, 1))'),
+          defaultValue: const Constant(false));
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -2140,7 +2151,6 @@ class $TransactionsTable extends Transactions
         toAccountId,
         happenedAt,
         note,
-        recurringId,
         syncId,
         createdByUserId,
         lastEditedByUserId,
@@ -2154,7 +2164,9 @@ class $TransactionsTable extends Transactions
         nativeAmount,
         merchant,
         refundOfSyncId,
-        rewardRuleIdsJson
+        rewardRuleIdsJson,
+        recurringRuleId,
+        recurringOccurrenceOverridden
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2212,12 +2224,6 @@ class $TransactionsTable extends Transactions
     if (data.containsKey('note')) {
       context.handle(
           _noteMeta, note.isAcceptableOrUnknown(data['note']!, _noteMeta));
-    }
-    if (data.containsKey('recurring_id')) {
-      context.handle(
-          _recurringIdMeta,
-          recurringId.isAcceptableOrUnknown(
-              data['recurring_id']!, _recurringIdMeta));
     }
     if (data.containsKey('sync_id')) {
       context.handle(_syncIdMeta,
@@ -2300,6 +2306,19 @@ class $TransactionsTable extends Transactions
           rewardRuleIdsJson.isAcceptableOrUnknown(
               data['reward_rule_ids_json']!, _rewardRuleIdsJsonMeta));
     }
+    if (data.containsKey('recurring_rule_id')) {
+      context.handle(
+          _recurringRuleIdMeta,
+          recurringRuleId.isAcceptableOrUnknown(
+              data['recurring_rule_id']!, _recurringRuleIdMeta));
+    }
+    if (data.containsKey('recurring_occurrence_overridden')) {
+      context.handle(
+          _recurringOccurrenceOverriddenMeta,
+          recurringOccurrenceOverridden.isAcceptableOrUnknown(
+              data['recurring_occurrence_overridden']!,
+              _recurringOccurrenceOverriddenMeta));
+    }
     return context;
   }
 
@@ -2327,8 +2346,6 @@ class $TransactionsTable extends Transactions
           .read(DriftSqlType.dateTime, data['${effectivePrefix}happened_at'])!,
       note: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}note']),
-      recurringId: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}recurring_id']),
       syncId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}sync_id']),
       createdByUserId: attachedDatabase.typeMapping.read(
@@ -2360,6 +2377,11 @@ class $TransactionsTable extends Transactions
           DriftSqlType.string, data['${effectivePrefix}refund_of_sync_id']),
       rewardRuleIdsJson: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}reward_rule_ids_json']),
+      recurringRuleId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}recurring_rule_id']),
+      recurringOccurrenceOverridden: attachedDatabase.typeMapping.read(
+          DriftSqlType.bool,
+          data['${effectivePrefix}recurring_occurrence_overridden'])!,
     );
   }
 
@@ -2379,7 +2401,6 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   final int? toAccountId;
   final DateTime happenedAt;
   final String? note;
-  final int? recurringId;
   final String? syncId;
   final String? createdByUserId;
   final String? lastEditedByUserId;
@@ -2423,6 +2444,19 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   /// 改版后规则不再靠 category_ids 自动比对,这里是权威的"哪笔消费适用哪个
   /// 回馈方案"来源。
   final String? rewardRuleIdsJson;
+
+  /// v36 週期性收支(recurring_rule):这笔交易是哪条規則生成的 occurrence,
+  /// 存規則的 **syncId**(不是本地 int id——本地 id 跨装置不稳定,同
+  /// [refundOfSyncId] 的模式)。null = 单次交易(非週期生成)。BeeCount Cloud
+  /// 端字段是 read_tx_projection.recurring_rule_sync_id,wire 字段名
+  /// recurringRuleId,见 sync_applier.py 的 transaction merge spec。
+  final String? recurringRuleId;
+
+  /// v36:这期是否被「修改此記錄」单独编辑过——true 时,規則之后的「修改/
+  /// 刪除連同未來週期」批次操作要跳过这一笔,不能被批次覆盖。BeeCount Cloud
+  /// 端字段是 read_tx_projection.recurring_occurrence_overridden,wire 字段
+  /// 名 recurringOccurrenceOverridden。
+  final bool recurringOccurrenceOverridden;
   const Transaction(
       {required this.id,
       required this.ledgerId,
@@ -2433,7 +2467,6 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       this.toAccountId,
       required this.happenedAt,
       this.note,
-      this.recurringId,
       this.syncId,
       this.createdByUserId,
       this.lastEditedByUserId,
@@ -2447,7 +2480,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       this.nativeAmount,
       this.merchant,
       this.refundOfSyncId,
-      this.rewardRuleIdsJson});
+      this.rewardRuleIdsJson,
+      this.recurringRuleId,
+      required this.recurringOccurrenceOverridden});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2467,9 +2502,6 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     map['happened_at'] = Variable<DateTime>(happenedAt);
     if (!nullToAbsent || note != null) {
       map['note'] = Variable<String>(note);
-    }
-    if (!nullToAbsent || recurringId != null) {
-      map['recurring_id'] = Variable<int>(recurringId);
     }
     if (!nullToAbsent || syncId != null) {
       map['sync_id'] = Variable<String>(syncId);
@@ -2511,6 +2543,11 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     if (!nullToAbsent || rewardRuleIdsJson != null) {
       map['reward_rule_ids_json'] = Variable<String>(rewardRuleIdsJson);
     }
+    if (!nullToAbsent || recurringRuleId != null) {
+      map['recurring_rule_id'] = Variable<String>(recurringRuleId);
+    }
+    map['recurring_occurrence_overridden'] =
+        Variable<bool>(recurringOccurrenceOverridden);
     return map;
   }
 
@@ -2531,9 +2568,6 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           : Value(toAccountId),
       happenedAt: Value(happenedAt),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
-      recurringId: recurringId == null && nullToAbsent
-          ? const Value.absent()
-          : Value(recurringId),
       syncId:
           syncId == null && nullToAbsent ? const Value.absent() : Value(syncId),
       createdByUserId: createdByUserId == null && nullToAbsent
@@ -2571,6 +2605,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       rewardRuleIdsJson: rewardRuleIdsJson == null && nullToAbsent
           ? const Value.absent()
           : Value(rewardRuleIdsJson),
+      recurringRuleId: recurringRuleId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(recurringRuleId),
+      recurringOccurrenceOverridden: Value(recurringOccurrenceOverridden),
     );
   }
 
@@ -2587,7 +2625,6 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       toAccountId: serializer.fromJson<int?>(json['toAccountId']),
       happenedAt: serializer.fromJson<DateTime>(json['happenedAt']),
       note: serializer.fromJson<String?>(json['note']),
-      recurringId: serializer.fromJson<int?>(json['recurringId']),
       syncId: serializer.fromJson<String?>(json['syncId']),
       createdByUserId: serializer.fromJson<String?>(json['createdByUserId']),
       lastEditedByUserId:
@@ -2608,6 +2645,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       refundOfSyncId: serializer.fromJson<String?>(json['refundOfSyncId']),
       rewardRuleIdsJson:
           serializer.fromJson<String?>(json['rewardRuleIdsJson']),
+      recurringRuleId: serializer.fromJson<String?>(json['recurringRuleId']),
+      recurringOccurrenceOverridden:
+          serializer.fromJson<bool>(json['recurringOccurrenceOverridden']),
     );
   }
   @override
@@ -2623,7 +2663,6 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'toAccountId': serializer.toJson<int?>(toAccountId),
       'happenedAt': serializer.toJson<DateTime>(happenedAt),
       'note': serializer.toJson<String?>(note),
-      'recurringId': serializer.toJson<int?>(recurringId),
       'syncId': serializer.toJson<String?>(syncId),
       'createdByUserId': serializer.toJson<String?>(createdByUserId),
       'lastEditedByUserId': serializer.toJson<String?>(lastEditedByUserId),
@@ -2641,6 +2680,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'merchant': serializer.toJson<String?>(merchant),
       'refundOfSyncId': serializer.toJson<String?>(refundOfSyncId),
       'rewardRuleIdsJson': serializer.toJson<String?>(rewardRuleIdsJson),
+      'recurringRuleId': serializer.toJson<String?>(recurringRuleId),
+      'recurringOccurrenceOverridden':
+          serializer.toJson<bool>(recurringOccurrenceOverridden),
     };
   }
 
@@ -2654,7 +2696,6 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           Value<int?> toAccountId = const Value.absent(),
           DateTime? happenedAt,
           Value<String?> note = const Value.absent(),
-          Value<int?> recurringId = const Value.absent(),
           Value<String?> syncId = const Value.absent(),
           Value<String?> createdByUserId = const Value.absent(),
           Value<String?> lastEditedByUserId = const Value.absent(),
@@ -2668,7 +2709,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           Value<double?> nativeAmount = const Value.absent(),
           Value<String?> merchant = const Value.absent(),
           Value<String?> refundOfSyncId = const Value.absent(),
-          Value<String?> rewardRuleIdsJson = const Value.absent()}) =>
+          Value<String?> rewardRuleIdsJson = const Value.absent(),
+          Value<String?> recurringRuleId = const Value.absent(),
+          bool? recurringOccurrenceOverridden}) =>
       Transaction(
         id: id ?? this.id,
         ledgerId: ledgerId ?? this.ledgerId,
@@ -2679,7 +2722,6 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         toAccountId: toAccountId.present ? toAccountId.value : this.toAccountId,
         happenedAt: happenedAt ?? this.happenedAt,
         note: note.present ? note.value : this.note,
-        recurringId: recurringId.present ? recurringId.value : this.recurringId,
         syncId: syncId.present ? syncId.value : this.syncId,
         createdByUserId: createdByUserId.present
             ? createdByUserId.value
@@ -2711,6 +2753,11 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         rewardRuleIdsJson: rewardRuleIdsJson.present
             ? rewardRuleIdsJson.value
             : this.rewardRuleIdsJson,
+        recurringRuleId: recurringRuleId.present
+            ? recurringRuleId.value
+            : this.recurringRuleId,
+        recurringOccurrenceOverridden:
+            recurringOccurrenceOverridden ?? this.recurringOccurrenceOverridden,
       );
   Transaction copyWithCompanion(TransactionsCompanion data) {
     return Transaction(
@@ -2726,8 +2773,6 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       happenedAt:
           data.happenedAt.present ? data.happenedAt.value : this.happenedAt,
       note: data.note.present ? data.note.value : this.note,
-      recurringId:
-          data.recurringId.present ? data.recurringId.value : this.recurringId,
       syncId: data.syncId.present ? data.syncId.value : this.syncId,
       createdByUserId: data.createdByUserId.present
           ? data.createdByUserId.value
@@ -2766,6 +2811,12 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       rewardRuleIdsJson: data.rewardRuleIdsJson.present
           ? data.rewardRuleIdsJson.value
           : this.rewardRuleIdsJson,
+      recurringRuleId: data.recurringRuleId.present
+          ? data.recurringRuleId.value
+          : this.recurringRuleId,
+      recurringOccurrenceOverridden: data.recurringOccurrenceOverridden.present
+          ? data.recurringOccurrenceOverridden.value
+          : this.recurringOccurrenceOverridden,
     );
   }
 
@@ -2781,7 +2832,6 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('toAccountId: $toAccountId, ')
           ..write('happenedAt: $happenedAt, ')
           ..write('note: $note, ')
-          ..write('recurringId: $recurringId, ')
           ..write('syncId: $syncId, ')
           ..write('createdByUserId: $createdByUserId, ')
           ..write('lastEditedByUserId: $lastEditedByUserId, ')
@@ -2795,7 +2845,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('nativeAmount: $nativeAmount, ')
           ..write('merchant: $merchant, ')
           ..write('refundOfSyncId: $refundOfSyncId, ')
-          ..write('rewardRuleIdsJson: $rewardRuleIdsJson')
+          ..write('rewardRuleIdsJson: $rewardRuleIdsJson, ')
+          ..write('recurringRuleId: $recurringRuleId, ')
+          ..write(
+              'recurringOccurrenceOverridden: $recurringOccurrenceOverridden')
           ..write(')'))
         .toString();
   }
@@ -2811,7 +2864,6 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         toAccountId,
         happenedAt,
         note,
-        recurringId,
         syncId,
         createdByUserId,
         lastEditedByUserId,
@@ -2825,7 +2877,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         nativeAmount,
         merchant,
         refundOfSyncId,
-        rewardRuleIdsJson
+        rewardRuleIdsJson,
+        recurringRuleId,
+        recurringOccurrenceOverridden
       ]);
   @override
   bool operator ==(Object other) =>
@@ -2840,7 +2894,6 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.toAccountId == this.toAccountId &&
           other.happenedAt == this.happenedAt &&
           other.note == this.note &&
-          other.recurringId == this.recurringId &&
           other.syncId == this.syncId &&
           other.createdByUserId == this.createdByUserId &&
           other.lastEditedByUserId == this.lastEditedByUserId &&
@@ -2854,7 +2907,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.nativeAmount == this.nativeAmount &&
           other.merchant == this.merchant &&
           other.refundOfSyncId == this.refundOfSyncId &&
-          other.rewardRuleIdsJson == this.rewardRuleIdsJson);
+          other.rewardRuleIdsJson == this.rewardRuleIdsJson &&
+          other.recurringRuleId == this.recurringRuleId &&
+          other.recurringOccurrenceOverridden ==
+              this.recurringOccurrenceOverridden);
 }
 
 class TransactionsCompanion extends UpdateCompanion<Transaction> {
@@ -2867,7 +2923,6 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<int?> toAccountId;
   final Value<DateTime> happenedAt;
   final Value<String?> note;
-  final Value<int?> recurringId;
   final Value<String?> syncId;
   final Value<String?> createdByUserId;
   final Value<String?> lastEditedByUserId;
@@ -2882,6 +2937,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<String?> merchant;
   final Value<String?> refundOfSyncId;
   final Value<String?> rewardRuleIdsJson;
+  final Value<String?> recurringRuleId;
+  final Value<bool> recurringOccurrenceOverridden;
   const TransactionsCompanion({
     this.id = const Value.absent(),
     this.ledgerId = const Value.absent(),
@@ -2892,7 +2949,6 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.toAccountId = const Value.absent(),
     this.happenedAt = const Value.absent(),
     this.note = const Value.absent(),
-    this.recurringId = const Value.absent(),
     this.syncId = const Value.absent(),
     this.createdByUserId = const Value.absent(),
     this.lastEditedByUserId = const Value.absent(),
@@ -2907,6 +2963,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.merchant = const Value.absent(),
     this.refundOfSyncId = const Value.absent(),
     this.rewardRuleIdsJson = const Value.absent(),
+    this.recurringRuleId = const Value.absent(),
+    this.recurringOccurrenceOverridden = const Value.absent(),
   });
   TransactionsCompanion.insert({
     this.id = const Value.absent(),
@@ -2918,7 +2976,6 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.toAccountId = const Value.absent(),
     this.happenedAt = const Value.absent(),
     this.note = const Value.absent(),
-    this.recurringId = const Value.absent(),
     this.syncId = const Value.absent(),
     this.createdByUserId = const Value.absent(),
     this.lastEditedByUserId = const Value.absent(),
@@ -2933,6 +2990,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.merchant = const Value.absent(),
     this.refundOfSyncId = const Value.absent(),
     this.rewardRuleIdsJson = const Value.absent(),
+    this.recurringRuleId = const Value.absent(),
+    this.recurringOccurrenceOverridden = const Value.absent(),
   })  : ledgerId = Value(ledgerId),
         type = Value(type),
         amount = Value(amount);
@@ -2946,7 +3005,6 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<int>? toAccountId,
     Expression<DateTime>? happenedAt,
     Expression<String>? note,
-    Expression<int>? recurringId,
     Expression<String>? syncId,
     Expression<String>? createdByUserId,
     Expression<String>? lastEditedByUserId,
@@ -2961,6 +3019,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<String>? merchant,
     Expression<String>? refundOfSyncId,
     Expression<String>? rewardRuleIdsJson,
+    Expression<String>? recurringRuleId,
+    Expression<bool>? recurringOccurrenceOverridden,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2972,7 +3032,6 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (toAccountId != null) 'to_account_id': toAccountId,
       if (happenedAt != null) 'happened_at': happenedAt,
       if (note != null) 'note': note,
-      if (recurringId != null) 'recurring_id': recurringId,
       if (syncId != null) 'sync_id': syncId,
       if (createdByUserId != null) 'created_by_user_id': createdByUserId,
       if (lastEditedByUserId != null)
@@ -2992,6 +3051,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (merchant != null) 'merchant': merchant,
       if (refundOfSyncId != null) 'refund_of_sync_id': refundOfSyncId,
       if (rewardRuleIdsJson != null) 'reward_rule_ids_json': rewardRuleIdsJson,
+      if (recurringRuleId != null) 'recurring_rule_id': recurringRuleId,
+      if (recurringOccurrenceOverridden != null)
+        'recurring_occurrence_overridden': recurringOccurrenceOverridden,
     });
   }
 
@@ -3005,7 +3067,6 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       Value<int?>? toAccountId,
       Value<DateTime>? happenedAt,
       Value<String?>? note,
-      Value<int?>? recurringId,
       Value<String?>? syncId,
       Value<String?>? createdByUserId,
       Value<String?>? lastEditedByUserId,
@@ -3019,7 +3080,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       Value<double?>? nativeAmount,
       Value<String?>? merchant,
       Value<String?>? refundOfSyncId,
-      Value<String?>? rewardRuleIdsJson}) {
+      Value<String?>? rewardRuleIdsJson,
+      Value<String?>? recurringRuleId,
+      Value<bool>? recurringOccurrenceOverridden}) {
     return TransactionsCompanion(
       id: id ?? this.id,
       ledgerId: ledgerId ?? this.ledgerId,
@@ -3030,7 +3093,6 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       toAccountId: toAccountId ?? this.toAccountId,
       happenedAt: happenedAt ?? this.happenedAt,
       note: note ?? this.note,
-      recurringId: recurringId ?? this.recurringId,
       syncId: syncId ?? this.syncId,
       createdByUserId: createdByUserId ?? this.createdByUserId,
       lastEditedByUserId: lastEditedByUserId ?? this.lastEditedByUserId,
@@ -3048,6 +3110,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       merchant: merchant ?? this.merchant,
       refundOfSyncId: refundOfSyncId ?? this.refundOfSyncId,
       rewardRuleIdsJson: rewardRuleIdsJson ?? this.rewardRuleIdsJson,
+      recurringRuleId: recurringRuleId ?? this.recurringRuleId,
+      recurringOccurrenceOverridden:
+          recurringOccurrenceOverridden ?? this.recurringOccurrenceOverridden,
     );
   }
 
@@ -3080,9 +3145,6 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     }
     if (note.present) {
       map['note'] = Variable<String>(note.value);
-    }
-    if (recurringId.present) {
-      map['recurring_id'] = Variable<int>(recurringId.value);
     }
     if (syncId.present) {
       map['sync_id'] = Variable<String>(syncId.value);
@@ -3130,6 +3192,13 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     if (rewardRuleIdsJson.present) {
       map['reward_rule_ids_json'] = Variable<String>(rewardRuleIdsJson.value);
     }
+    if (recurringRuleId.present) {
+      map['recurring_rule_id'] = Variable<String>(recurringRuleId.value);
+    }
+    if (recurringOccurrenceOverridden.present) {
+      map['recurring_occurrence_overridden'] =
+          Variable<bool>(recurringOccurrenceOverridden.value);
+    }
     return map;
   }
 
@@ -3145,7 +3214,6 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('toAccountId: $toAccountId, ')
           ..write('happenedAt: $happenedAt, ')
           ..write('note: $note, ')
-          ..write('recurringId: $recurringId, ')
           ..write('syncId: $syncId, ')
           ..write('createdByUserId: $createdByUserId, ')
           ..write('lastEditedByUserId: $lastEditedByUserId, ')
@@ -3159,7 +3227,10 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('nativeAmount: $nativeAmount, ')
           ..write('merchant: $merchant, ')
           ..write('refundOfSyncId: $refundOfSyncId, ')
-          ..write('rewardRuleIdsJson: $rewardRuleIdsJson')
+          ..write('rewardRuleIdsJson: $rewardRuleIdsJson, ')
+          ..write('recurringRuleId: $recurringRuleId, ')
+          ..write(
+              'recurringOccurrenceOverridden: $recurringOccurrenceOverridden')
           ..write(')'))
         .toString();
   }
@@ -3180,6 +3251,11 @@ class $RecurringTransactionsTable extends RecurringTransactions
       requiredDuringInsert: false,
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _syncIdMeta = const VerificationMeta('syncId');
+  @override
+  late final GeneratedColumn<String> syncId = GeneratedColumn<String>(
+      'sync_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _ledgerIdMeta =
       const VerificationMeta('ledgerId');
   @override
@@ -3208,6 +3284,12 @@ class $RecurringTransactionsTable extends RecurringTransactions
   late final GeneratedColumn<int> accountId = GeneratedColumn<int>(
       'account_id', aliasedName, true,
       type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _fromAccountIdMeta =
+      const VerificationMeta('fromAccountId');
+  @override
+  late final GeneratedColumn<int> fromAccountId = GeneratedColumn<int>(
+      'from_account_id', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
   static const VerificationMeta _toAccountIdMeta =
       const VerificationMeta('toAccountId');
   @override
@@ -3219,6 +3301,24 @@ class $RecurringTransactionsTable extends RecurringTransactions
   late final GeneratedColumn<String> note = GeneratedColumn<String>(
       'note', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _merchantMeta =
+      const VerificationMeta('merchant');
+  @override
+  late final GeneratedColumn<String> merchant = GeneratedColumn<String>(
+      'merchant', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _tagSyncIdsJsonMeta =
+      const VerificationMeta('tagSyncIdsJson');
+  @override
+  late final GeneratedColumn<String> tagSyncIdsJson = GeneratedColumn<String>(
+      'tag_sync_ids_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _rewardRuleIdsJsonMeta =
+      const VerificationMeta('rewardRuleIdsJson');
+  @override
+  late final GeneratedColumn<String> rewardRuleIdsJson =
+      GeneratedColumn<String>('reward_rule_ids_json', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _frequencyMeta =
       const VerificationMeta('frequency');
   @override
@@ -3233,41 +3333,28 @@ class $RecurringTransactionsTable extends RecurringTransactions
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(1));
-  static const VerificationMeta _dayOfMonthMeta =
-      const VerificationMeta('dayOfMonth');
+  static const VerificationMeta _advancedRuleJsonMeta =
+      const VerificationMeta('advancedRuleJson');
   @override
-  late final GeneratedColumn<int> dayOfMonth = GeneratedColumn<int>(
-      'day_of_month', aliasedName, true,
-      type: DriftSqlType.int, requiredDuringInsert: false);
-  static const VerificationMeta _dayOfWeekMeta =
-      const VerificationMeta('dayOfWeek');
+  late final GeneratedColumn<String> advancedRuleJson = GeneratedColumn<String>(
+      'advanced_rule_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _nextRunAtMeta =
+      const VerificationMeta('nextRunAt');
   @override
-  late final GeneratedColumn<int> dayOfWeek = GeneratedColumn<int>(
-      'day_of_week', aliasedName, true,
-      type: DriftSqlType.int, requiredDuringInsert: false);
-  static const VerificationMeta _monthOfYearMeta =
-      const VerificationMeta('monthOfYear');
-  @override
-  late final GeneratedColumn<int> monthOfYear = GeneratedColumn<int>(
-      'month_of_year', aliasedName, true,
-      type: DriftSqlType.int, requiredDuringInsert: false);
-  static const VerificationMeta _startDateMeta =
-      const VerificationMeta('startDate');
-  @override
-  late final GeneratedColumn<DateTime> startDate = GeneratedColumn<DateTime>(
-      'start_date', aliasedName, false,
+  late final GeneratedColumn<DateTime> nextRunAt = GeneratedColumn<DateTime>(
+      'next_run_at', aliasedName, false,
       type: DriftSqlType.dateTime, requiredDuringInsert: true);
-  static const VerificationMeta _endDateMeta =
-      const VerificationMeta('endDate');
+  static const VerificationMeta _endAtMeta = const VerificationMeta('endAt');
   @override
-  late final GeneratedColumn<DateTime> endDate = GeneratedColumn<DateTime>(
-      'end_date', aliasedName, true,
+  late final GeneratedColumn<DateTime> endAt = GeneratedColumn<DateTime>(
+      'end_at', aliasedName, true,
       type: DriftSqlType.dateTime, requiredDuringInsert: false);
-  static const VerificationMeta _lastGeneratedDateMeta =
-      const VerificationMeta('lastGeneratedDate');
+  static const VerificationMeta _generatedUntilAtMeta =
+      const VerificationMeta('generatedUntilAt');
   @override
-  late final GeneratedColumn<DateTime> lastGeneratedDate =
-      GeneratedColumn<DateTime>('last_generated_date', aliasedName, true,
+  late final GeneratedColumn<DateTime> generatedUntilAt =
+      GeneratedColumn<DateTime>('generated_until_at', aliasedName, true,
           type: DriftSqlType.dateTime, requiredDuringInsert: false);
   static const VerificationMeta _enabledMeta =
       const VerificationMeta('enabled');
@@ -3298,21 +3385,24 @@ class $RecurringTransactionsTable extends RecurringTransactions
   @override
   List<GeneratedColumn> get $columns => [
         id,
+        syncId,
         ledgerId,
         type,
         amount,
         categoryId,
         accountId,
+        fromAccountId,
         toAccountId,
         note,
+        merchant,
+        tagSyncIdsJson,
+        rewardRuleIdsJson,
         frequency,
         interval,
-        dayOfMonth,
-        dayOfWeek,
-        monthOfYear,
-        startDate,
-        endDate,
-        lastGeneratedDate,
+        advancedRuleJson,
+        nextRunAt,
+        endAt,
+        generatedUntilAt,
         enabled,
         createdAt,
         updatedAt
@@ -3330,6 +3420,10 @@ class $RecurringTransactionsTable extends RecurringTransactions
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('sync_id')) {
+      context.handle(_syncIdMeta,
+          syncId.isAcceptableOrUnknown(data['sync_id']!, _syncIdMeta));
     }
     if (data.containsKey('ledger_id')) {
       context.handle(_ledgerIdMeta,
@@ -3359,6 +3453,12 @@ class $RecurringTransactionsTable extends RecurringTransactions
       context.handle(_accountIdMeta,
           accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta));
     }
+    if (data.containsKey('from_account_id')) {
+      context.handle(
+          _fromAccountIdMeta,
+          fromAccountId.isAcceptableOrUnknown(
+              data['from_account_id']!, _fromAccountIdMeta));
+    }
     if (data.containsKey('to_account_id')) {
       context.handle(
           _toAccountIdMeta,
@@ -3368,6 +3468,22 @@ class $RecurringTransactionsTable extends RecurringTransactions
     if (data.containsKey('note')) {
       context.handle(
           _noteMeta, note.isAcceptableOrUnknown(data['note']!, _noteMeta));
+    }
+    if (data.containsKey('merchant')) {
+      context.handle(_merchantMeta,
+          merchant.isAcceptableOrUnknown(data['merchant']!, _merchantMeta));
+    }
+    if (data.containsKey('tag_sync_ids_json')) {
+      context.handle(
+          _tagSyncIdsJsonMeta,
+          tagSyncIdsJson.isAcceptableOrUnknown(
+              data['tag_sync_ids_json']!, _tagSyncIdsJsonMeta));
+    }
+    if (data.containsKey('reward_rule_ids_json')) {
+      context.handle(
+          _rewardRuleIdsJsonMeta,
+          rewardRuleIdsJson.isAcceptableOrUnknown(
+              data['reward_rule_ids_json']!, _rewardRuleIdsJsonMeta));
     }
     if (data.containsKey('frequency')) {
       context.handle(_frequencyMeta,
@@ -3379,39 +3495,29 @@ class $RecurringTransactionsTable extends RecurringTransactions
       context.handle(_intervalMeta,
           interval.isAcceptableOrUnknown(data['interval']!, _intervalMeta));
     }
-    if (data.containsKey('day_of_month')) {
+    if (data.containsKey('advanced_rule_json')) {
       context.handle(
-          _dayOfMonthMeta,
-          dayOfMonth.isAcceptableOrUnknown(
-              data['day_of_month']!, _dayOfMonthMeta));
+          _advancedRuleJsonMeta,
+          advancedRuleJson.isAcceptableOrUnknown(
+              data['advanced_rule_json']!, _advancedRuleJsonMeta));
     }
-    if (data.containsKey('day_of_week')) {
+    if (data.containsKey('next_run_at')) {
       context.handle(
-          _dayOfWeekMeta,
-          dayOfWeek.isAcceptableOrUnknown(
-              data['day_of_week']!, _dayOfWeekMeta));
-    }
-    if (data.containsKey('month_of_year')) {
-      context.handle(
-          _monthOfYearMeta,
-          monthOfYear.isAcceptableOrUnknown(
-              data['month_of_year']!, _monthOfYearMeta));
-    }
-    if (data.containsKey('start_date')) {
-      context.handle(_startDateMeta,
-          startDate.isAcceptableOrUnknown(data['start_date']!, _startDateMeta));
+          _nextRunAtMeta,
+          nextRunAt.isAcceptableOrUnknown(
+              data['next_run_at']!, _nextRunAtMeta));
     } else if (isInserting) {
-      context.missing(_startDateMeta);
+      context.missing(_nextRunAtMeta);
     }
-    if (data.containsKey('end_date')) {
-      context.handle(_endDateMeta,
-          endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta));
-    }
-    if (data.containsKey('last_generated_date')) {
+    if (data.containsKey('end_at')) {
       context.handle(
-          _lastGeneratedDateMeta,
-          lastGeneratedDate.isAcceptableOrUnknown(
-              data['last_generated_date']!, _lastGeneratedDateMeta));
+          _endAtMeta, endAt.isAcceptableOrUnknown(data['end_at']!, _endAtMeta));
+    }
+    if (data.containsKey('generated_until_at')) {
+      context.handle(
+          _generatedUntilAtMeta,
+          generatedUntilAt.isAcceptableOrUnknown(
+              data['generated_until_at']!, _generatedUntilAtMeta));
     }
     if (data.containsKey('enabled')) {
       context.handle(_enabledMeta,
@@ -3436,6 +3542,8 @@ class $RecurringTransactionsTable extends RecurringTransactions
     return RecurringTransaction(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      syncId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sync_id']),
       ledgerId: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}ledger_id'])!,
       type: attachedDatabase.typeMapping
@@ -3446,26 +3554,30 @@ class $RecurringTransactionsTable extends RecurringTransactions
           .read(DriftSqlType.int, data['${effectivePrefix}category_id']),
       accountId: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}account_id']),
+      fromAccountId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}from_account_id']),
       toAccountId: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}to_account_id']),
       note: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}note']),
+      merchant: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}merchant']),
+      tagSyncIdsJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}tag_sync_ids_json']),
+      rewardRuleIdsJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}reward_rule_ids_json']),
       frequency: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}frequency'])!,
       interval: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}interval'])!,
-      dayOfMonth: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}day_of_month']),
-      dayOfWeek: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}day_of_week']),
-      monthOfYear: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}month_of_year']),
-      startDate: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}start_date'])!,
-      endDate: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}end_date']),
-      lastGeneratedDate: attachedDatabase.typeMapping.read(
-          DriftSqlType.dateTime, data['${effectivePrefix}last_generated_date']),
+      advancedRuleJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}advanced_rule_json']),
+      nextRunAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}next_run_at'])!,
+      endAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}end_at']),
+      generatedUntilAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}generated_until_at']),
       enabled: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}enabled'])!,
       createdAt: attachedDatabase.typeMapping
@@ -3484,41 +3596,85 @@ class $RecurringTransactionsTable extends RecurringTransactions
 class RecurringTransaction extends DataClass
     implements Insertable<RecurringTransaction> {
   final int id;
+
+  /// 跨设备同步 syncId(UUID)。本地建规则时就地产生(同 transaction/account
+  /// 的产生时机),不等 server 回传。
+  final String? syncId;
   final int ledgerId;
   final String type;
   final double amount;
   final int? categoryId;
   final int? accountId;
+
+  /// 轉帳來源帳戶。跟 Cloud `recurring_rule` 一样把 accountId(收支用)跟
+  /// fromAccountId(转帐来源)分开存,不像 [Transactions] 表本身转账时借用
+  /// accountId 当来源——這張規則表序列化/反序列化时要各自对应正确的 key。
+  final int? fromAccountId;
   final int? toAccountId;
   final String? note;
+
+  /// 商家名称,同 [Transaction.merchant] 语意,规则生成的每期 occurrence 都
+  /// 继承这个值。wire 字段 merchant。
+  final String? merchant;
+
+  /// JSON list of tag syncId,规则生成的每期 occurrence 都带上这些标签。
+  /// wire 字段 tagIds,同 [TransactionRewardRuleIds] 那种"JSON list 存
+  /// string"写法,配 [RecurringTransactionTagIds] extension 用。
+  final String? tagSyncIdsJson;
+
+  /// JSON list of card_reward_rule syncId,同 [Transaction.rewardRuleIdsJson]
+  /// 语意,规则生成的每期 occurrence 都带上。wire 字段 rewardRuleIds。
+  final String? rewardRuleIdsJson;
   final String frequency;
   final int interval;
-  final int? dayOfMonth;
-  final int? dayOfWeek;
-  final int? monthOfYear;
-  final DateTime startDate;
-  final DateTime? endDate;
-  final DateTime? lastGeneratedDate;
+
+  /// 進階規則(JSON),只支援兩種、不過度泛化,对齐 Cloud
+  /// `services/recurring_schedule.py` 的 `advanced_rule`:
+  /// - `{"type":"weekly_days","days":[0,6]}`:每週指定星期几(Dart
+  ///   `DateTime.weekday` 惯例转换过的 Monday=0..Sunday=6,注意**跟 Dart
+  ///   原生 `weekday`(Monday=1..Sunday=7)不同**,存取都要过一层转换,不要
+  ///   直接拿 `DateTime.weekday` 存进来)。
+  /// - `{"type":"monthly_day","day":10}`:每隔 interval 个月的第 N 天,超过
+  ///   当月天数会夹断到月底。
+  /// null = 不用進階規則,单纯"每 interval 个 frequency"重复(如"每2周")。
+  /// wire 字段 advancedRuleJson。
+  final String? advancedRuleJson;
+
+  /// 規則定義的循环起点(建规则当下就固定,之后不会被续产生逻辑推进——同
+  /// Cloud `recurring_rule.next_run_at` 语意)。取代旧版 `startDate`。
+  final DateTime nextRunAt;
+
+  /// 為空表示無限期。取代旧版 `endDate`(改名对齐 wire 字段 endAt)。
+  final DateTime? endAt;
+
+  /// 已經生成到哪个时间点(視窗批次预生成的进度指标)。取代旧版
+  /// "最后一次生成交易的日期"(`lastGeneratedDate`)语意上从"上次生成
+  /// 日"变成"已生成到哪"——续产生逻辑靠这个欄位判断要不要补窗口。wire 字段
+  /// generatedUntilAt。
+  final DateTime? generatedUntilAt;
   final bool enabled;
   final DateTime createdAt;
   final DateTime updatedAt;
   const RecurringTransaction(
       {required this.id,
+      this.syncId,
       required this.ledgerId,
       required this.type,
       required this.amount,
       this.categoryId,
       this.accountId,
+      this.fromAccountId,
       this.toAccountId,
       this.note,
+      this.merchant,
+      this.tagSyncIdsJson,
+      this.rewardRuleIdsJson,
       required this.frequency,
       required this.interval,
-      this.dayOfMonth,
-      this.dayOfWeek,
-      this.monthOfYear,
-      required this.startDate,
-      this.endDate,
-      this.lastGeneratedDate,
+      this.advancedRuleJson,
+      required this.nextRunAt,
+      this.endAt,
+      this.generatedUntilAt,
       required this.enabled,
       required this.createdAt,
       required this.updatedAt});
@@ -3526,6 +3682,9 @@ class RecurringTransaction extends DataClass
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
+    if (!nullToAbsent || syncId != null) {
+      map['sync_id'] = Variable<String>(syncId);
+    }
     map['ledger_id'] = Variable<int>(ledgerId);
     map['type'] = Variable<String>(type);
     map['amount'] = Variable<double>(amount);
@@ -3535,29 +3694,35 @@ class RecurringTransaction extends DataClass
     if (!nullToAbsent || accountId != null) {
       map['account_id'] = Variable<int>(accountId);
     }
+    if (!nullToAbsent || fromAccountId != null) {
+      map['from_account_id'] = Variable<int>(fromAccountId);
+    }
     if (!nullToAbsent || toAccountId != null) {
       map['to_account_id'] = Variable<int>(toAccountId);
     }
     if (!nullToAbsent || note != null) {
       map['note'] = Variable<String>(note);
     }
+    if (!nullToAbsent || merchant != null) {
+      map['merchant'] = Variable<String>(merchant);
+    }
+    if (!nullToAbsent || tagSyncIdsJson != null) {
+      map['tag_sync_ids_json'] = Variable<String>(tagSyncIdsJson);
+    }
+    if (!nullToAbsent || rewardRuleIdsJson != null) {
+      map['reward_rule_ids_json'] = Variable<String>(rewardRuleIdsJson);
+    }
     map['frequency'] = Variable<String>(frequency);
     map['interval'] = Variable<int>(interval);
-    if (!nullToAbsent || dayOfMonth != null) {
-      map['day_of_month'] = Variable<int>(dayOfMonth);
+    if (!nullToAbsent || advancedRuleJson != null) {
+      map['advanced_rule_json'] = Variable<String>(advancedRuleJson);
     }
-    if (!nullToAbsent || dayOfWeek != null) {
-      map['day_of_week'] = Variable<int>(dayOfWeek);
+    map['next_run_at'] = Variable<DateTime>(nextRunAt);
+    if (!nullToAbsent || endAt != null) {
+      map['end_at'] = Variable<DateTime>(endAt);
     }
-    if (!nullToAbsent || monthOfYear != null) {
-      map['month_of_year'] = Variable<int>(monthOfYear);
-    }
-    map['start_date'] = Variable<DateTime>(startDate);
-    if (!nullToAbsent || endDate != null) {
-      map['end_date'] = Variable<DateTime>(endDate);
-    }
-    if (!nullToAbsent || lastGeneratedDate != null) {
-      map['last_generated_date'] = Variable<DateTime>(lastGeneratedDate);
+    if (!nullToAbsent || generatedUntilAt != null) {
+      map['generated_until_at'] = Variable<DateTime>(generatedUntilAt);
     }
     map['enabled'] = Variable<bool>(enabled);
     map['created_at'] = Variable<DateTime>(createdAt);
@@ -3568,6 +3733,8 @@ class RecurringTransaction extends DataClass
   RecurringTransactionsCompanion toCompanion(bool nullToAbsent) {
     return RecurringTransactionsCompanion(
       id: Value(id),
+      syncId:
+          syncId == null && nullToAbsent ? const Value.absent() : Value(syncId),
       ledgerId: Value(ledgerId),
       type: Value(type),
       amount: Value(amount),
@@ -3577,28 +3744,33 @@ class RecurringTransaction extends DataClass
       accountId: accountId == null && nullToAbsent
           ? const Value.absent()
           : Value(accountId),
+      fromAccountId: fromAccountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fromAccountId),
       toAccountId: toAccountId == null && nullToAbsent
           ? const Value.absent()
           : Value(toAccountId),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      merchant: merchant == null && nullToAbsent
+          ? const Value.absent()
+          : Value(merchant),
+      tagSyncIdsJson: tagSyncIdsJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tagSyncIdsJson),
+      rewardRuleIdsJson: rewardRuleIdsJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rewardRuleIdsJson),
       frequency: Value(frequency),
       interval: Value(interval),
-      dayOfMonth: dayOfMonth == null && nullToAbsent
+      advancedRuleJson: advancedRuleJson == null && nullToAbsent
           ? const Value.absent()
-          : Value(dayOfMonth),
-      dayOfWeek: dayOfWeek == null && nullToAbsent
+          : Value(advancedRuleJson),
+      nextRunAt: Value(nextRunAt),
+      endAt:
+          endAt == null && nullToAbsent ? const Value.absent() : Value(endAt),
+      generatedUntilAt: generatedUntilAt == null && nullToAbsent
           ? const Value.absent()
-          : Value(dayOfWeek),
-      monthOfYear: monthOfYear == null && nullToAbsent
-          ? const Value.absent()
-          : Value(monthOfYear),
-      startDate: Value(startDate),
-      endDate: endDate == null && nullToAbsent
-          ? const Value.absent()
-          : Value(endDate),
-      lastGeneratedDate: lastGeneratedDate == null && nullToAbsent
-          ? const Value.absent()
-          : Value(lastGeneratedDate),
+          : Value(generatedUntilAt),
       enabled: Value(enabled),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -3610,22 +3782,26 @@ class RecurringTransaction extends DataClass
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return RecurringTransaction(
       id: serializer.fromJson<int>(json['id']),
+      syncId: serializer.fromJson<String?>(json['syncId']),
       ledgerId: serializer.fromJson<int>(json['ledgerId']),
       type: serializer.fromJson<String>(json['type']),
       amount: serializer.fromJson<double>(json['amount']),
       categoryId: serializer.fromJson<int?>(json['categoryId']),
       accountId: serializer.fromJson<int?>(json['accountId']),
+      fromAccountId: serializer.fromJson<int?>(json['fromAccountId']),
       toAccountId: serializer.fromJson<int?>(json['toAccountId']),
       note: serializer.fromJson<String?>(json['note']),
+      merchant: serializer.fromJson<String?>(json['merchant']),
+      tagSyncIdsJson: serializer.fromJson<String?>(json['tagSyncIdsJson']),
+      rewardRuleIdsJson:
+          serializer.fromJson<String?>(json['rewardRuleIdsJson']),
       frequency: serializer.fromJson<String>(json['frequency']),
       interval: serializer.fromJson<int>(json['interval']),
-      dayOfMonth: serializer.fromJson<int?>(json['dayOfMonth']),
-      dayOfWeek: serializer.fromJson<int?>(json['dayOfWeek']),
-      monthOfYear: serializer.fromJson<int?>(json['monthOfYear']),
-      startDate: serializer.fromJson<DateTime>(json['startDate']),
-      endDate: serializer.fromJson<DateTime?>(json['endDate']),
-      lastGeneratedDate:
-          serializer.fromJson<DateTime?>(json['lastGeneratedDate']),
+      advancedRuleJson: serializer.fromJson<String?>(json['advancedRuleJson']),
+      nextRunAt: serializer.fromJson<DateTime>(json['nextRunAt']),
+      endAt: serializer.fromJson<DateTime?>(json['endAt']),
+      generatedUntilAt:
+          serializer.fromJson<DateTime?>(json['generatedUntilAt']),
       enabled: serializer.fromJson<bool>(json['enabled']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -3636,21 +3812,24 @@ class RecurringTransaction extends DataClass
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
+      'syncId': serializer.toJson<String?>(syncId),
       'ledgerId': serializer.toJson<int>(ledgerId),
       'type': serializer.toJson<String>(type),
       'amount': serializer.toJson<double>(amount),
       'categoryId': serializer.toJson<int?>(categoryId),
       'accountId': serializer.toJson<int?>(accountId),
+      'fromAccountId': serializer.toJson<int?>(fromAccountId),
       'toAccountId': serializer.toJson<int?>(toAccountId),
       'note': serializer.toJson<String?>(note),
+      'merchant': serializer.toJson<String?>(merchant),
+      'tagSyncIdsJson': serializer.toJson<String?>(tagSyncIdsJson),
+      'rewardRuleIdsJson': serializer.toJson<String?>(rewardRuleIdsJson),
       'frequency': serializer.toJson<String>(frequency),
       'interval': serializer.toJson<int>(interval),
-      'dayOfMonth': serializer.toJson<int?>(dayOfMonth),
-      'dayOfWeek': serializer.toJson<int?>(dayOfWeek),
-      'monthOfYear': serializer.toJson<int?>(monthOfYear),
-      'startDate': serializer.toJson<DateTime>(startDate),
-      'endDate': serializer.toJson<DateTime?>(endDate),
-      'lastGeneratedDate': serializer.toJson<DateTime?>(lastGeneratedDate),
+      'advancedRuleJson': serializer.toJson<String?>(advancedRuleJson),
+      'nextRunAt': serializer.toJson<DateTime>(nextRunAt),
+      'endAt': serializer.toJson<DateTime?>(endAt),
+      'generatedUntilAt': serializer.toJson<DateTime?>(generatedUntilAt),
       'enabled': serializer.toJson<bool>(enabled),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -3659,43 +3838,55 @@ class RecurringTransaction extends DataClass
 
   RecurringTransaction copyWith(
           {int? id,
+          Value<String?> syncId = const Value.absent(),
           int? ledgerId,
           String? type,
           double? amount,
           Value<int?> categoryId = const Value.absent(),
           Value<int?> accountId = const Value.absent(),
+          Value<int?> fromAccountId = const Value.absent(),
           Value<int?> toAccountId = const Value.absent(),
           Value<String?> note = const Value.absent(),
+          Value<String?> merchant = const Value.absent(),
+          Value<String?> tagSyncIdsJson = const Value.absent(),
+          Value<String?> rewardRuleIdsJson = const Value.absent(),
           String? frequency,
           int? interval,
-          Value<int?> dayOfMonth = const Value.absent(),
-          Value<int?> dayOfWeek = const Value.absent(),
-          Value<int?> monthOfYear = const Value.absent(),
-          DateTime? startDate,
-          Value<DateTime?> endDate = const Value.absent(),
-          Value<DateTime?> lastGeneratedDate = const Value.absent(),
+          Value<String?> advancedRuleJson = const Value.absent(),
+          DateTime? nextRunAt,
+          Value<DateTime?> endAt = const Value.absent(),
+          Value<DateTime?> generatedUntilAt = const Value.absent(),
           bool? enabled,
           DateTime? createdAt,
           DateTime? updatedAt}) =>
       RecurringTransaction(
         id: id ?? this.id,
+        syncId: syncId.present ? syncId.value : this.syncId,
         ledgerId: ledgerId ?? this.ledgerId,
         type: type ?? this.type,
         amount: amount ?? this.amount,
         categoryId: categoryId.present ? categoryId.value : this.categoryId,
         accountId: accountId.present ? accountId.value : this.accountId,
+        fromAccountId:
+            fromAccountId.present ? fromAccountId.value : this.fromAccountId,
         toAccountId: toAccountId.present ? toAccountId.value : this.toAccountId,
         note: note.present ? note.value : this.note,
+        merchant: merchant.present ? merchant.value : this.merchant,
+        tagSyncIdsJson:
+            tagSyncIdsJson.present ? tagSyncIdsJson.value : this.tagSyncIdsJson,
+        rewardRuleIdsJson: rewardRuleIdsJson.present
+            ? rewardRuleIdsJson.value
+            : this.rewardRuleIdsJson,
         frequency: frequency ?? this.frequency,
         interval: interval ?? this.interval,
-        dayOfMonth: dayOfMonth.present ? dayOfMonth.value : this.dayOfMonth,
-        dayOfWeek: dayOfWeek.present ? dayOfWeek.value : this.dayOfWeek,
-        monthOfYear: monthOfYear.present ? monthOfYear.value : this.monthOfYear,
-        startDate: startDate ?? this.startDate,
-        endDate: endDate.present ? endDate.value : this.endDate,
-        lastGeneratedDate: lastGeneratedDate.present
-            ? lastGeneratedDate.value
-            : this.lastGeneratedDate,
+        advancedRuleJson: advancedRuleJson.present
+            ? advancedRuleJson.value
+            : this.advancedRuleJson,
+        nextRunAt: nextRunAt ?? this.nextRunAt,
+        endAt: endAt.present ? endAt.value : this.endAt,
+        generatedUntilAt: generatedUntilAt.present
+            ? generatedUntilAt.value
+            : this.generatedUntilAt,
         enabled: enabled ?? this.enabled,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
@@ -3703,27 +3894,36 @@ class RecurringTransaction extends DataClass
   RecurringTransaction copyWithCompanion(RecurringTransactionsCompanion data) {
     return RecurringTransaction(
       id: data.id.present ? data.id.value : this.id,
+      syncId: data.syncId.present ? data.syncId.value : this.syncId,
       ledgerId: data.ledgerId.present ? data.ledgerId.value : this.ledgerId,
       type: data.type.present ? data.type.value : this.type,
       amount: data.amount.present ? data.amount.value : this.amount,
       categoryId:
           data.categoryId.present ? data.categoryId.value : this.categoryId,
       accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      fromAccountId: data.fromAccountId.present
+          ? data.fromAccountId.value
+          : this.fromAccountId,
       toAccountId:
           data.toAccountId.present ? data.toAccountId.value : this.toAccountId,
       note: data.note.present ? data.note.value : this.note,
+      merchant: data.merchant.present ? data.merchant.value : this.merchant,
+      tagSyncIdsJson: data.tagSyncIdsJson.present
+          ? data.tagSyncIdsJson.value
+          : this.tagSyncIdsJson,
+      rewardRuleIdsJson: data.rewardRuleIdsJson.present
+          ? data.rewardRuleIdsJson.value
+          : this.rewardRuleIdsJson,
       frequency: data.frequency.present ? data.frequency.value : this.frequency,
       interval: data.interval.present ? data.interval.value : this.interval,
-      dayOfMonth:
-          data.dayOfMonth.present ? data.dayOfMonth.value : this.dayOfMonth,
-      dayOfWeek: data.dayOfWeek.present ? data.dayOfWeek.value : this.dayOfWeek,
-      monthOfYear:
-          data.monthOfYear.present ? data.monthOfYear.value : this.monthOfYear,
-      startDate: data.startDate.present ? data.startDate.value : this.startDate,
-      endDate: data.endDate.present ? data.endDate.value : this.endDate,
-      lastGeneratedDate: data.lastGeneratedDate.present
-          ? data.lastGeneratedDate.value
-          : this.lastGeneratedDate,
+      advancedRuleJson: data.advancedRuleJson.present
+          ? data.advancedRuleJson.value
+          : this.advancedRuleJson,
+      nextRunAt: data.nextRunAt.present ? data.nextRunAt.value : this.nextRunAt,
+      endAt: data.endAt.present ? data.endAt.value : this.endAt,
+      generatedUntilAt: data.generatedUntilAt.present
+          ? data.generatedUntilAt.value
+          : this.generatedUntilAt,
       enabled: data.enabled.present ? data.enabled.value : this.enabled,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -3734,21 +3934,24 @@ class RecurringTransaction extends DataClass
   String toString() {
     return (StringBuffer('RecurringTransaction(')
           ..write('id: $id, ')
+          ..write('syncId: $syncId, ')
           ..write('ledgerId: $ledgerId, ')
           ..write('type: $type, ')
           ..write('amount: $amount, ')
           ..write('categoryId: $categoryId, ')
           ..write('accountId: $accountId, ')
+          ..write('fromAccountId: $fromAccountId, ')
           ..write('toAccountId: $toAccountId, ')
           ..write('note: $note, ')
+          ..write('merchant: $merchant, ')
+          ..write('tagSyncIdsJson: $tagSyncIdsJson, ')
+          ..write('rewardRuleIdsJson: $rewardRuleIdsJson, ')
           ..write('frequency: $frequency, ')
           ..write('interval: $interval, ')
-          ..write('dayOfMonth: $dayOfMonth, ')
-          ..write('dayOfWeek: $dayOfWeek, ')
-          ..write('monthOfYear: $monthOfYear, ')
-          ..write('startDate: $startDate, ')
-          ..write('endDate: $endDate, ')
-          ..write('lastGeneratedDate: $lastGeneratedDate, ')
+          ..write('advancedRuleJson: $advancedRuleJson, ')
+          ..write('nextRunAt: $nextRunAt, ')
+          ..write('endAt: $endAt, ')
+          ..write('generatedUntilAt: $generatedUntilAt, ')
           ..write('enabled: $enabled, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -3757,46 +3960,53 @@ class RecurringTransaction extends DataClass
   }
 
   @override
-  int get hashCode => Object.hash(
-      id,
-      ledgerId,
-      type,
-      amount,
-      categoryId,
-      accountId,
-      toAccountId,
-      note,
-      frequency,
-      interval,
-      dayOfMonth,
-      dayOfWeek,
-      monthOfYear,
-      startDate,
-      endDate,
-      lastGeneratedDate,
-      enabled,
-      createdAt,
-      updatedAt);
+  int get hashCode => Object.hashAll([
+        id,
+        syncId,
+        ledgerId,
+        type,
+        amount,
+        categoryId,
+        accountId,
+        fromAccountId,
+        toAccountId,
+        note,
+        merchant,
+        tagSyncIdsJson,
+        rewardRuleIdsJson,
+        frequency,
+        interval,
+        advancedRuleJson,
+        nextRunAt,
+        endAt,
+        generatedUntilAt,
+        enabled,
+        createdAt,
+        updatedAt
+      ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is RecurringTransaction &&
           other.id == this.id &&
+          other.syncId == this.syncId &&
           other.ledgerId == this.ledgerId &&
           other.type == this.type &&
           other.amount == this.amount &&
           other.categoryId == this.categoryId &&
           other.accountId == this.accountId &&
+          other.fromAccountId == this.fromAccountId &&
           other.toAccountId == this.toAccountId &&
           other.note == this.note &&
+          other.merchant == this.merchant &&
+          other.tagSyncIdsJson == this.tagSyncIdsJson &&
+          other.rewardRuleIdsJson == this.rewardRuleIdsJson &&
           other.frequency == this.frequency &&
           other.interval == this.interval &&
-          other.dayOfMonth == this.dayOfMonth &&
-          other.dayOfWeek == this.dayOfWeek &&
-          other.monthOfYear == this.monthOfYear &&
-          other.startDate == this.startDate &&
-          other.endDate == this.endDate &&
-          other.lastGeneratedDate == this.lastGeneratedDate &&
+          other.advancedRuleJson == this.advancedRuleJson &&
+          other.nextRunAt == this.nextRunAt &&
+          other.endAt == this.endAt &&
+          other.generatedUntilAt == this.generatedUntilAt &&
           other.enabled == this.enabled &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -3805,62 +4015,71 @@ class RecurringTransaction extends DataClass
 class RecurringTransactionsCompanion
     extends UpdateCompanion<RecurringTransaction> {
   final Value<int> id;
+  final Value<String?> syncId;
   final Value<int> ledgerId;
   final Value<String> type;
   final Value<double> amount;
   final Value<int?> categoryId;
   final Value<int?> accountId;
+  final Value<int?> fromAccountId;
   final Value<int?> toAccountId;
   final Value<String?> note;
+  final Value<String?> merchant;
+  final Value<String?> tagSyncIdsJson;
+  final Value<String?> rewardRuleIdsJson;
   final Value<String> frequency;
   final Value<int> interval;
-  final Value<int?> dayOfMonth;
-  final Value<int?> dayOfWeek;
-  final Value<int?> monthOfYear;
-  final Value<DateTime> startDate;
-  final Value<DateTime?> endDate;
-  final Value<DateTime?> lastGeneratedDate;
+  final Value<String?> advancedRuleJson;
+  final Value<DateTime> nextRunAt;
+  final Value<DateTime?> endAt;
+  final Value<DateTime?> generatedUntilAt;
   final Value<bool> enabled;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const RecurringTransactionsCompanion({
     this.id = const Value.absent(),
+    this.syncId = const Value.absent(),
     this.ledgerId = const Value.absent(),
     this.type = const Value.absent(),
     this.amount = const Value.absent(),
     this.categoryId = const Value.absent(),
     this.accountId = const Value.absent(),
+    this.fromAccountId = const Value.absent(),
     this.toAccountId = const Value.absent(),
     this.note = const Value.absent(),
+    this.merchant = const Value.absent(),
+    this.tagSyncIdsJson = const Value.absent(),
+    this.rewardRuleIdsJson = const Value.absent(),
     this.frequency = const Value.absent(),
     this.interval = const Value.absent(),
-    this.dayOfMonth = const Value.absent(),
-    this.dayOfWeek = const Value.absent(),
-    this.monthOfYear = const Value.absent(),
-    this.startDate = const Value.absent(),
-    this.endDate = const Value.absent(),
-    this.lastGeneratedDate = const Value.absent(),
+    this.advancedRuleJson = const Value.absent(),
+    this.nextRunAt = const Value.absent(),
+    this.endAt = const Value.absent(),
+    this.generatedUntilAt = const Value.absent(),
     this.enabled = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
   RecurringTransactionsCompanion.insert({
     this.id = const Value.absent(),
+    this.syncId = const Value.absent(),
     required int ledgerId,
     required String type,
     required double amount,
     this.categoryId = const Value.absent(),
     this.accountId = const Value.absent(),
+    this.fromAccountId = const Value.absent(),
     this.toAccountId = const Value.absent(),
     this.note = const Value.absent(),
+    this.merchant = const Value.absent(),
+    this.tagSyncIdsJson = const Value.absent(),
+    this.rewardRuleIdsJson = const Value.absent(),
     required String frequency,
     this.interval = const Value.absent(),
-    this.dayOfMonth = const Value.absent(),
-    this.dayOfWeek = const Value.absent(),
-    this.monthOfYear = const Value.absent(),
-    required DateTime startDate,
-    this.endDate = const Value.absent(),
-    this.lastGeneratedDate = const Value.absent(),
+    this.advancedRuleJson = const Value.absent(),
+    required DateTime nextRunAt,
+    this.endAt = const Value.absent(),
+    this.generatedUntilAt = const Value.absent(),
     this.enabled = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -3868,45 +4087,51 @@ class RecurringTransactionsCompanion
         type = Value(type),
         amount = Value(amount),
         frequency = Value(frequency),
-        startDate = Value(startDate);
+        nextRunAt = Value(nextRunAt);
   static Insertable<RecurringTransaction> custom({
     Expression<int>? id,
+    Expression<String>? syncId,
     Expression<int>? ledgerId,
     Expression<String>? type,
     Expression<double>? amount,
     Expression<int>? categoryId,
     Expression<int>? accountId,
+    Expression<int>? fromAccountId,
     Expression<int>? toAccountId,
     Expression<String>? note,
+    Expression<String>? merchant,
+    Expression<String>? tagSyncIdsJson,
+    Expression<String>? rewardRuleIdsJson,
     Expression<String>? frequency,
     Expression<int>? interval,
-    Expression<int>? dayOfMonth,
-    Expression<int>? dayOfWeek,
-    Expression<int>? monthOfYear,
-    Expression<DateTime>? startDate,
-    Expression<DateTime>? endDate,
-    Expression<DateTime>? lastGeneratedDate,
+    Expression<String>? advancedRuleJson,
+    Expression<DateTime>? nextRunAt,
+    Expression<DateTime>? endAt,
+    Expression<DateTime>? generatedUntilAt,
     Expression<bool>? enabled,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (syncId != null) 'sync_id': syncId,
       if (ledgerId != null) 'ledger_id': ledgerId,
       if (type != null) 'type': type,
       if (amount != null) 'amount': amount,
       if (categoryId != null) 'category_id': categoryId,
       if (accountId != null) 'account_id': accountId,
+      if (fromAccountId != null) 'from_account_id': fromAccountId,
       if (toAccountId != null) 'to_account_id': toAccountId,
       if (note != null) 'note': note,
+      if (merchant != null) 'merchant': merchant,
+      if (tagSyncIdsJson != null) 'tag_sync_ids_json': tagSyncIdsJson,
+      if (rewardRuleIdsJson != null) 'reward_rule_ids_json': rewardRuleIdsJson,
       if (frequency != null) 'frequency': frequency,
       if (interval != null) 'interval': interval,
-      if (dayOfMonth != null) 'day_of_month': dayOfMonth,
-      if (dayOfWeek != null) 'day_of_week': dayOfWeek,
-      if (monthOfYear != null) 'month_of_year': monthOfYear,
-      if (startDate != null) 'start_date': startDate,
-      if (endDate != null) 'end_date': endDate,
-      if (lastGeneratedDate != null) 'last_generated_date': lastGeneratedDate,
+      if (advancedRuleJson != null) 'advanced_rule_json': advancedRuleJson,
+      if (nextRunAt != null) 'next_run_at': nextRunAt,
+      if (endAt != null) 'end_at': endAt,
+      if (generatedUntilAt != null) 'generated_until_at': generatedUntilAt,
       if (enabled != null) 'enabled': enabled,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -3915,41 +4140,47 @@ class RecurringTransactionsCompanion
 
   RecurringTransactionsCompanion copyWith(
       {Value<int>? id,
+      Value<String?>? syncId,
       Value<int>? ledgerId,
       Value<String>? type,
       Value<double>? amount,
       Value<int?>? categoryId,
       Value<int?>? accountId,
+      Value<int?>? fromAccountId,
       Value<int?>? toAccountId,
       Value<String?>? note,
+      Value<String?>? merchant,
+      Value<String?>? tagSyncIdsJson,
+      Value<String?>? rewardRuleIdsJson,
       Value<String>? frequency,
       Value<int>? interval,
-      Value<int?>? dayOfMonth,
-      Value<int?>? dayOfWeek,
-      Value<int?>? monthOfYear,
-      Value<DateTime>? startDate,
-      Value<DateTime?>? endDate,
-      Value<DateTime?>? lastGeneratedDate,
+      Value<String?>? advancedRuleJson,
+      Value<DateTime>? nextRunAt,
+      Value<DateTime?>? endAt,
+      Value<DateTime?>? generatedUntilAt,
       Value<bool>? enabled,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt}) {
     return RecurringTransactionsCompanion(
       id: id ?? this.id,
+      syncId: syncId ?? this.syncId,
       ledgerId: ledgerId ?? this.ledgerId,
       type: type ?? this.type,
       amount: amount ?? this.amount,
       categoryId: categoryId ?? this.categoryId,
       accountId: accountId ?? this.accountId,
+      fromAccountId: fromAccountId ?? this.fromAccountId,
       toAccountId: toAccountId ?? this.toAccountId,
       note: note ?? this.note,
+      merchant: merchant ?? this.merchant,
+      tagSyncIdsJson: tagSyncIdsJson ?? this.tagSyncIdsJson,
+      rewardRuleIdsJson: rewardRuleIdsJson ?? this.rewardRuleIdsJson,
       frequency: frequency ?? this.frequency,
       interval: interval ?? this.interval,
-      dayOfMonth: dayOfMonth ?? this.dayOfMonth,
-      dayOfWeek: dayOfWeek ?? this.dayOfWeek,
-      monthOfYear: monthOfYear ?? this.monthOfYear,
-      startDate: startDate ?? this.startDate,
-      endDate: endDate ?? this.endDate,
-      lastGeneratedDate: lastGeneratedDate ?? this.lastGeneratedDate,
+      advancedRuleJson: advancedRuleJson ?? this.advancedRuleJson,
+      nextRunAt: nextRunAt ?? this.nextRunAt,
+      endAt: endAt ?? this.endAt,
+      generatedUntilAt: generatedUntilAt ?? this.generatedUntilAt,
       enabled: enabled ?? this.enabled,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -3961,6 +4192,9 @@ class RecurringTransactionsCompanion
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<int>(id.value);
+    }
+    if (syncId.present) {
+      map['sync_id'] = Variable<String>(syncId.value);
     }
     if (ledgerId.present) {
       map['ledger_id'] = Variable<int>(ledgerId.value);
@@ -3977,11 +4211,23 @@ class RecurringTransactionsCompanion
     if (accountId.present) {
       map['account_id'] = Variable<int>(accountId.value);
     }
+    if (fromAccountId.present) {
+      map['from_account_id'] = Variable<int>(fromAccountId.value);
+    }
     if (toAccountId.present) {
       map['to_account_id'] = Variable<int>(toAccountId.value);
     }
     if (note.present) {
       map['note'] = Variable<String>(note.value);
+    }
+    if (merchant.present) {
+      map['merchant'] = Variable<String>(merchant.value);
+    }
+    if (tagSyncIdsJson.present) {
+      map['tag_sync_ids_json'] = Variable<String>(tagSyncIdsJson.value);
+    }
+    if (rewardRuleIdsJson.present) {
+      map['reward_rule_ids_json'] = Variable<String>(rewardRuleIdsJson.value);
     }
     if (frequency.present) {
       map['frequency'] = Variable<String>(frequency.value);
@@ -3989,23 +4235,17 @@ class RecurringTransactionsCompanion
     if (interval.present) {
       map['interval'] = Variable<int>(interval.value);
     }
-    if (dayOfMonth.present) {
-      map['day_of_month'] = Variable<int>(dayOfMonth.value);
+    if (advancedRuleJson.present) {
+      map['advanced_rule_json'] = Variable<String>(advancedRuleJson.value);
     }
-    if (dayOfWeek.present) {
-      map['day_of_week'] = Variable<int>(dayOfWeek.value);
+    if (nextRunAt.present) {
+      map['next_run_at'] = Variable<DateTime>(nextRunAt.value);
     }
-    if (monthOfYear.present) {
-      map['month_of_year'] = Variable<int>(monthOfYear.value);
+    if (endAt.present) {
+      map['end_at'] = Variable<DateTime>(endAt.value);
     }
-    if (startDate.present) {
-      map['start_date'] = Variable<DateTime>(startDate.value);
-    }
-    if (endDate.present) {
-      map['end_date'] = Variable<DateTime>(endDate.value);
-    }
-    if (lastGeneratedDate.present) {
-      map['last_generated_date'] = Variable<DateTime>(lastGeneratedDate.value);
+    if (generatedUntilAt.present) {
+      map['generated_until_at'] = Variable<DateTime>(generatedUntilAt.value);
     }
     if (enabled.present) {
       map['enabled'] = Variable<bool>(enabled.value);
@@ -4023,21 +4263,24 @@ class RecurringTransactionsCompanion
   String toString() {
     return (StringBuffer('RecurringTransactionsCompanion(')
           ..write('id: $id, ')
+          ..write('syncId: $syncId, ')
           ..write('ledgerId: $ledgerId, ')
           ..write('type: $type, ')
           ..write('amount: $amount, ')
           ..write('categoryId: $categoryId, ')
           ..write('accountId: $accountId, ')
+          ..write('fromAccountId: $fromAccountId, ')
           ..write('toAccountId: $toAccountId, ')
           ..write('note: $note, ')
+          ..write('merchant: $merchant, ')
+          ..write('tagSyncIdsJson: $tagSyncIdsJson, ')
+          ..write('rewardRuleIdsJson: $rewardRuleIdsJson, ')
           ..write('frequency: $frequency, ')
           ..write('interval: $interval, ')
-          ..write('dayOfMonth: $dayOfMonth, ')
-          ..write('dayOfWeek: $dayOfWeek, ')
-          ..write('monthOfYear: $monthOfYear, ')
-          ..write('startDate: $startDate, ')
-          ..write('endDate: $endDate, ')
-          ..write('lastGeneratedDate: $lastGeneratedDate, ')
+          ..write('advancedRuleJson: $advancedRuleJson, ')
+          ..write('nextRunAt: $nextRunAt, ')
+          ..write('endAt: $endAt, ')
+          ..write('generatedUntilAt: $generatedUntilAt, ')
           ..write('enabled: $enabled, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -13239,7 +13482,6 @@ typedef $$TransactionsTableCreateCompanionBuilder = TransactionsCompanion
   Value<int?> toAccountId,
   Value<DateTime> happenedAt,
   Value<String?> note,
-  Value<int?> recurringId,
   Value<String?> syncId,
   Value<String?> createdByUserId,
   Value<String?> lastEditedByUserId,
@@ -13254,6 +13496,8 @@ typedef $$TransactionsTableCreateCompanionBuilder = TransactionsCompanion
   Value<String?> merchant,
   Value<String?> refundOfSyncId,
   Value<String?> rewardRuleIdsJson,
+  Value<String?> recurringRuleId,
+  Value<bool> recurringOccurrenceOverridden,
 });
 typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
     Function({
@@ -13266,7 +13510,6 @@ typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
   Value<int?> toAccountId,
   Value<DateTime> happenedAt,
   Value<String?> note,
-  Value<int?> recurringId,
   Value<String?> syncId,
   Value<String?> createdByUserId,
   Value<String?> lastEditedByUserId,
@@ -13281,6 +13524,8 @@ typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
   Value<String?> merchant,
   Value<String?> refundOfSyncId,
   Value<String?> rewardRuleIdsJson,
+  Value<String?> recurringRuleId,
+  Value<bool> recurringOccurrenceOverridden,
 });
 
 class $$TransactionsTableFilterComposer
@@ -13318,9 +13563,6 @@ class $$TransactionsTableFilterComposer
 
   ColumnFilters<String> get note => $composableBuilder(
       column: $table.note, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<int> get recurringId => $composableBuilder(
-      column: $table.recurringId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get syncId => $composableBuilder(
       column: $table.syncId, builder: (column) => ColumnFilters(column));
@@ -13373,6 +13615,14 @@ class $$TransactionsTableFilterComposer
   ColumnFilters<String> get rewardRuleIdsJson => $composableBuilder(
       column: $table.rewardRuleIdsJson,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get recurringRuleId => $composableBuilder(
+      column: $table.recurringRuleId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get recurringOccurrenceOverridden => $composableBuilder(
+      column: $table.recurringOccurrenceOverridden,
+      builder: (column) => ColumnFilters(column));
 }
 
 class $$TransactionsTableOrderingComposer
@@ -13410,9 +13660,6 @@ class $$TransactionsTableOrderingComposer
 
   ColumnOrderings<String> get note => $composableBuilder(
       column: $table.note, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<int> get recurringId => $composableBuilder(
-      column: $table.recurringId, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get syncId => $composableBuilder(
       column: $table.syncId, builder: (column) => ColumnOrderings(column));
@@ -13467,6 +13714,14 @@ class $$TransactionsTableOrderingComposer
   ColumnOrderings<String> get rewardRuleIdsJson => $composableBuilder(
       column: $table.rewardRuleIdsJson,
       builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get recurringRuleId => $composableBuilder(
+      column: $table.recurringRuleId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get recurringOccurrenceOverridden => $composableBuilder(
+      column: $table.recurringOccurrenceOverridden,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$TransactionsTableAnnotationComposer
@@ -13504,9 +13759,6 @@ class $$TransactionsTableAnnotationComposer
 
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
-
-  GeneratedColumn<int> get recurringId => $composableBuilder(
-      column: $table.recurringId, builder: (column) => column);
 
   GeneratedColumn<String> get syncId =>
       $composableBuilder(column: $table.syncId, builder: (column) => column);
@@ -13549,6 +13801,13 @@ class $$TransactionsTableAnnotationComposer
 
   GeneratedColumn<String> get rewardRuleIdsJson => $composableBuilder(
       column: $table.rewardRuleIdsJson, builder: (column) => column);
+
+  GeneratedColumn<String> get recurringRuleId => $composableBuilder(
+      column: $table.recurringRuleId, builder: (column) => column);
+
+  GeneratedColumn<bool> get recurringOccurrenceOverridden => $composableBuilder(
+      column: $table.recurringOccurrenceOverridden,
+      builder: (column) => column);
 }
 
 class $$TransactionsTableTableManager extends RootTableManager<
@@ -13586,7 +13845,6 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<int?> toAccountId = const Value.absent(),
             Value<DateTime> happenedAt = const Value.absent(),
             Value<String?> note = const Value.absent(),
-            Value<int?> recurringId = const Value.absent(),
             Value<String?> syncId = const Value.absent(),
             Value<String?> createdByUserId = const Value.absent(),
             Value<String?> lastEditedByUserId = const Value.absent(),
@@ -13601,6 +13859,8 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<String?> merchant = const Value.absent(),
             Value<String?> refundOfSyncId = const Value.absent(),
             Value<String?> rewardRuleIdsJson = const Value.absent(),
+            Value<String?> recurringRuleId = const Value.absent(),
+            Value<bool> recurringOccurrenceOverridden = const Value.absent(),
           }) =>
               TransactionsCompanion(
             id: id,
@@ -13612,7 +13872,6 @@ class $$TransactionsTableTableManager extends RootTableManager<
             toAccountId: toAccountId,
             happenedAt: happenedAt,
             note: note,
-            recurringId: recurringId,
             syncId: syncId,
             createdByUserId: createdByUserId,
             lastEditedByUserId: lastEditedByUserId,
@@ -13627,6 +13886,8 @@ class $$TransactionsTableTableManager extends RootTableManager<
             merchant: merchant,
             refundOfSyncId: refundOfSyncId,
             rewardRuleIdsJson: rewardRuleIdsJson,
+            recurringRuleId: recurringRuleId,
+            recurringOccurrenceOverridden: recurringOccurrenceOverridden,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
@@ -13638,7 +13899,6 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<int?> toAccountId = const Value.absent(),
             Value<DateTime> happenedAt = const Value.absent(),
             Value<String?> note = const Value.absent(),
-            Value<int?> recurringId = const Value.absent(),
             Value<String?> syncId = const Value.absent(),
             Value<String?> createdByUserId = const Value.absent(),
             Value<String?> lastEditedByUserId = const Value.absent(),
@@ -13653,6 +13913,8 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<String?> merchant = const Value.absent(),
             Value<String?> refundOfSyncId = const Value.absent(),
             Value<String?> rewardRuleIdsJson = const Value.absent(),
+            Value<String?> recurringRuleId = const Value.absent(),
+            Value<bool> recurringOccurrenceOverridden = const Value.absent(),
           }) =>
               TransactionsCompanion.insert(
             id: id,
@@ -13664,7 +13926,6 @@ class $$TransactionsTableTableManager extends RootTableManager<
             toAccountId: toAccountId,
             happenedAt: happenedAt,
             note: note,
-            recurringId: recurringId,
             syncId: syncId,
             createdByUserId: createdByUserId,
             lastEditedByUserId: lastEditedByUserId,
@@ -13679,6 +13940,8 @@ class $$TransactionsTableTableManager extends RootTableManager<
             merchant: merchant,
             refundOfSyncId: refundOfSyncId,
             rewardRuleIdsJson: rewardRuleIdsJson,
+            recurringRuleId: recurringRuleId,
+            recurringOccurrenceOverridden: recurringOccurrenceOverridden,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -13705,21 +13968,24 @@ typedef $$TransactionsTableProcessedTableManager = ProcessedTableManager<
 typedef $$RecurringTransactionsTableCreateCompanionBuilder
     = RecurringTransactionsCompanion Function({
   Value<int> id,
+  Value<String?> syncId,
   required int ledgerId,
   required String type,
   required double amount,
   Value<int?> categoryId,
   Value<int?> accountId,
+  Value<int?> fromAccountId,
   Value<int?> toAccountId,
   Value<String?> note,
+  Value<String?> merchant,
+  Value<String?> tagSyncIdsJson,
+  Value<String?> rewardRuleIdsJson,
   required String frequency,
   Value<int> interval,
-  Value<int?> dayOfMonth,
-  Value<int?> dayOfWeek,
-  Value<int?> monthOfYear,
-  required DateTime startDate,
-  Value<DateTime?> endDate,
-  Value<DateTime?> lastGeneratedDate,
+  Value<String?> advancedRuleJson,
+  required DateTime nextRunAt,
+  Value<DateTime?> endAt,
+  Value<DateTime?> generatedUntilAt,
   Value<bool> enabled,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
@@ -13727,21 +13993,24 @@ typedef $$RecurringTransactionsTableCreateCompanionBuilder
 typedef $$RecurringTransactionsTableUpdateCompanionBuilder
     = RecurringTransactionsCompanion Function({
   Value<int> id,
+  Value<String?> syncId,
   Value<int> ledgerId,
   Value<String> type,
   Value<double> amount,
   Value<int?> categoryId,
   Value<int?> accountId,
+  Value<int?> fromAccountId,
   Value<int?> toAccountId,
   Value<String?> note,
+  Value<String?> merchant,
+  Value<String?> tagSyncIdsJson,
+  Value<String?> rewardRuleIdsJson,
   Value<String> frequency,
   Value<int> interval,
-  Value<int?> dayOfMonth,
-  Value<int?> dayOfWeek,
-  Value<int?> monthOfYear,
-  Value<DateTime> startDate,
-  Value<DateTime?> endDate,
-  Value<DateTime?> lastGeneratedDate,
+  Value<String?> advancedRuleJson,
+  Value<DateTime> nextRunAt,
+  Value<DateTime?> endAt,
+  Value<DateTime?> generatedUntilAt,
   Value<bool> enabled,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
@@ -13759,6 +14028,9 @@ class $$RecurringTransactionsTableFilterComposer
   ColumnFilters<int> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<String> get syncId => $composableBuilder(
+      column: $table.syncId, builder: (column) => ColumnFilters(column));
+
   ColumnFilters<int> get ledgerId => $composableBuilder(
       column: $table.ledgerId, builder: (column) => ColumnFilters(column));
 
@@ -13774,11 +14046,25 @@ class $$RecurringTransactionsTableFilterComposer
   ColumnFilters<int> get accountId => $composableBuilder(
       column: $table.accountId, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<int> get fromAccountId => $composableBuilder(
+      column: $table.fromAccountId, builder: (column) => ColumnFilters(column));
+
   ColumnFilters<int> get toAccountId => $composableBuilder(
       column: $table.toAccountId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get note => $composableBuilder(
       column: $table.note, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get merchant => $composableBuilder(
+      column: $table.merchant, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get tagSyncIdsJson => $composableBuilder(
+      column: $table.tagSyncIdsJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get rewardRuleIdsJson => $composableBuilder(
+      column: $table.rewardRuleIdsJson,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get frequency => $composableBuilder(
       column: $table.frequency, builder: (column) => ColumnFilters(column));
@@ -13786,23 +14072,18 @@ class $$RecurringTransactionsTableFilterComposer
   ColumnFilters<int> get interval => $composableBuilder(
       column: $table.interval, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<int> get dayOfMonth => $composableBuilder(
-      column: $table.dayOfMonth, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get advancedRuleJson => $composableBuilder(
+      column: $table.advancedRuleJson,
+      builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<int> get dayOfWeek => $composableBuilder(
-      column: $table.dayOfWeek, builder: (column) => ColumnFilters(column));
+  ColumnFilters<DateTime> get nextRunAt => $composableBuilder(
+      column: $table.nextRunAt, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<int> get monthOfYear => $composableBuilder(
-      column: $table.monthOfYear, builder: (column) => ColumnFilters(column));
+  ColumnFilters<DateTime> get endAt => $composableBuilder(
+      column: $table.endAt, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<DateTime> get startDate => $composableBuilder(
-      column: $table.startDate, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<DateTime> get endDate => $composableBuilder(
-      column: $table.endDate, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<DateTime> get lastGeneratedDate => $composableBuilder(
-      column: $table.lastGeneratedDate,
+  ColumnFilters<DateTime> get generatedUntilAt => $composableBuilder(
+      column: $table.generatedUntilAt,
       builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get enabled => $composableBuilder(
@@ -13827,6 +14108,9 @@ class $$RecurringTransactionsTableOrderingComposer
   ColumnOrderings<int> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get syncId => $composableBuilder(
+      column: $table.syncId, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get ledgerId => $composableBuilder(
       column: $table.ledgerId, builder: (column) => ColumnOrderings(column));
 
@@ -13842,11 +14126,26 @@ class $$RecurringTransactionsTableOrderingComposer
   ColumnOrderings<int> get accountId => $composableBuilder(
       column: $table.accountId, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<int> get fromAccountId => $composableBuilder(
+      column: $table.fromAccountId,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get toAccountId => $composableBuilder(
       column: $table.toAccountId, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get note => $composableBuilder(
       column: $table.note, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get merchant => $composableBuilder(
+      column: $table.merchant, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get tagSyncIdsJson => $composableBuilder(
+      column: $table.tagSyncIdsJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get rewardRuleIdsJson => $composableBuilder(
+      column: $table.rewardRuleIdsJson,
+      builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get frequency => $composableBuilder(
       column: $table.frequency, builder: (column) => ColumnOrderings(column));
@@ -13854,23 +14153,18 @@ class $$RecurringTransactionsTableOrderingComposer
   ColumnOrderings<int> get interval => $composableBuilder(
       column: $table.interval, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<int> get dayOfMonth => $composableBuilder(
-      column: $table.dayOfMonth, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get advancedRuleJson => $composableBuilder(
+      column: $table.advancedRuleJson,
+      builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<int> get dayOfWeek => $composableBuilder(
-      column: $table.dayOfWeek, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<DateTime> get nextRunAt => $composableBuilder(
+      column: $table.nextRunAt, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<int> get monthOfYear => $composableBuilder(
-      column: $table.monthOfYear, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<DateTime> get endAt => $composableBuilder(
+      column: $table.endAt, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<DateTime> get startDate => $composableBuilder(
-      column: $table.startDate, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<DateTime> get endDate => $composableBuilder(
-      column: $table.endDate, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<DateTime> get lastGeneratedDate => $composableBuilder(
-      column: $table.lastGeneratedDate,
+  ColumnOrderings<DateTime> get generatedUntilAt => $composableBuilder(
+      column: $table.generatedUntilAt,
       builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<bool> get enabled => $composableBuilder(
@@ -13895,6 +14189,9 @@ class $$RecurringTransactionsTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
+  GeneratedColumn<String> get syncId =>
+      $composableBuilder(column: $table.syncId, builder: (column) => column);
+
   GeneratedColumn<int> get ledgerId =>
       $composableBuilder(column: $table.ledgerId, builder: (column) => column);
 
@@ -13910,11 +14207,23 @@ class $$RecurringTransactionsTableAnnotationComposer
   GeneratedColumn<int> get accountId =>
       $composableBuilder(column: $table.accountId, builder: (column) => column);
 
+  GeneratedColumn<int> get fromAccountId => $composableBuilder(
+      column: $table.fromAccountId, builder: (column) => column);
+
   GeneratedColumn<int> get toAccountId => $composableBuilder(
       column: $table.toAccountId, builder: (column) => column);
 
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get merchant =>
+      $composableBuilder(column: $table.merchant, builder: (column) => column);
+
+  GeneratedColumn<String> get tagSyncIdsJson => $composableBuilder(
+      column: $table.tagSyncIdsJson, builder: (column) => column);
+
+  GeneratedColumn<String> get rewardRuleIdsJson => $composableBuilder(
+      column: $table.rewardRuleIdsJson, builder: (column) => column);
 
   GeneratedColumn<String> get frequency =>
       $composableBuilder(column: $table.frequency, builder: (column) => column);
@@ -13922,23 +14231,17 @@ class $$RecurringTransactionsTableAnnotationComposer
   GeneratedColumn<int> get interval =>
       $composableBuilder(column: $table.interval, builder: (column) => column);
 
-  GeneratedColumn<int> get dayOfMonth => $composableBuilder(
-      column: $table.dayOfMonth, builder: (column) => column);
+  GeneratedColumn<String> get advancedRuleJson => $composableBuilder(
+      column: $table.advancedRuleJson, builder: (column) => column);
 
-  GeneratedColumn<int> get dayOfWeek =>
-      $composableBuilder(column: $table.dayOfWeek, builder: (column) => column);
+  GeneratedColumn<DateTime> get nextRunAt =>
+      $composableBuilder(column: $table.nextRunAt, builder: (column) => column);
 
-  GeneratedColumn<int> get monthOfYear => $composableBuilder(
-      column: $table.monthOfYear, builder: (column) => column);
+  GeneratedColumn<DateTime> get endAt =>
+      $composableBuilder(column: $table.endAt, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get startDate =>
-      $composableBuilder(column: $table.startDate, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get endDate =>
-      $composableBuilder(column: $table.endDate, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get lastGeneratedDate => $composableBuilder(
-      column: $table.lastGeneratedDate, builder: (column) => column);
+  GeneratedColumn<DateTime> get generatedUntilAt => $composableBuilder(
+      column: $table.generatedUntilAt, builder: (column) => column);
 
   GeneratedColumn<bool> get enabled =>
       $composableBuilder(column: $table.enabled, builder: (column) => column);
@@ -13982,84 +14285,96 @@ class $$RecurringTransactionsTableTableManager extends RootTableManager<
                   $db: db, $table: table),
           updateCompanionCallback: ({
             Value<int> id = const Value.absent(),
+            Value<String?> syncId = const Value.absent(),
             Value<int> ledgerId = const Value.absent(),
             Value<String> type = const Value.absent(),
             Value<double> amount = const Value.absent(),
             Value<int?> categoryId = const Value.absent(),
             Value<int?> accountId = const Value.absent(),
+            Value<int?> fromAccountId = const Value.absent(),
             Value<int?> toAccountId = const Value.absent(),
             Value<String?> note = const Value.absent(),
+            Value<String?> merchant = const Value.absent(),
+            Value<String?> tagSyncIdsJson = const Value.absent(),
+            Value<String?> rewardRuleIdsJson = const Value.absent(),
             Value<String> frequency = const Value.absent(),
             Value<int> interval = const Value.absent(),
-            Value<int?> dayOfMonth = const Value.absent(),
-            Value<int?> dayOfWeek = const Value.absent(),
-            Value<int?> monthOfYear = const Value.absent(),
-            Value<DateTime> startDate = const Value.absent(),
-            Value<DateTime?> endDate = const Value.absent(),
-            Value<DateTime?> lastGeneratedDate = const Value.absent(),
+            Value<String?> advancedRuleJson = const Value.absent(),
+            Value<DateTime> nextRunAt = const Value.absent(),
+            Value<DateTime?> endAt = const Value.absent(),
+            Value<DateTime?> generatedUntilAt = const Value.absent(),
             Value<bool> enabled = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
           }) =>
               RecurringTransactionsCompanion(
             id: id,
+            syncId: syncId,
             ledgerId: ledgerId,
             type: type,
             amount: amount,
             categoryId: categoryId,
             accountId: accountId,
+            fromAccountId: fromAccountId,
             toAccountId: toAccountId,
             note: note,
+            merchant: merchant,
+            tagSyncIdsJson: tagSyncIdsJson,
+            rewardRuleIdsJson: rewardRuleIdsJson,
             frequency: frequency,
             interval: interval,
-            dayOfMonth: dayOfMonth,
-            dayOfWeek: dayOfWeek,
-            monthOfYear: monthOfYear,
-            startDate: startDate,
-            endDate: endDate,
-            lastGeneratedDate: lastGeneratedDate,
+            advancedRuleJson: advancedRuleJson,
+            nextRunAt: nextRunAt,
+            endAt: endAt,
+            generatedUntilAt: generatedUntilAt,
             enabled: enabled,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
+            Value<String?> syncId = const Value.absent(),
             required int ledgerId,
             required String type,
             required double amount,
             Value<int?> categoryId = const Value.absent(),
             Value<int?> accountId = const Value.absent(),
+            Value<int?> fromAccountId = const Value.absent(),
             Value<int?> toAccountId = const Value.absent(),
             Value<String?> note = const Value.absent(),
+            Value<String?> merchant = const Value.absent(),
+            Value<String?> tagSyncIdsJson = const Value.absent(),
+            Value<String?> rewardRuleIdsJson = const Value.absent(),
             required String frequency,
             Value<int> interval = const Value.absent(),
-            Value<int?> dayOfMonth = const Value.absent(),
-            Value<int?> dayOfWeek = const Value.absent(),
-            Value<int?> monthOfYear = const Value.absent(),
-            required DateTime startDate,
-            Value<DateTime?> endDate = const Value.absent(),
-            Value<DateTime?> lastGeneratedDate = const Value.absent(),
+            Value<String?> advancedRuleJson = const Value.absent(),
+            required DateTime nextRunAt,
+            Value<DateTime?> endAt = const Value.absent(),
+            Value<DateTime?> generatedUntilAt = const Value.absent(),
             Value<bool> enabled = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
           }) =>
               RecurringTransactionsCompanion.insert(
             id: id,
+            syncId: syncId,
             ledgerId: ledgerId,
             type: type,
             amount: amount,
             categoryId: categoryId,
             accountId: accountId,
+            fromAccountId: fromAccountId,
             toAccountId: toAccountId,
             note: note,
+            merchant: merchant,
+            tagSyncIdsJson: tagSyncIdsJson,
+            rewardRuleIdsJson: rewardRuleIdsJson,
             frequency: frequency,
             interval: interval,
-            dayOfMonth: dayOfMonth,
-            dayOfWeek: dayOfWeek,
-            monthOfYear: monthOfYear,
-            startDate: startDate,
-            endDate: endDate,
-            lastGeneratedDate: lastGeneratedDate,
+            advancedRuleJson: advancedRuleJson,
+            nextRunAt: nextRunAt,
+            endAt: endAt,
+            generatedUntilAt: generatedUntilAt,
             enabled: enabled,
             createdAt: createdAt,
             updatedAt: updatedAt,

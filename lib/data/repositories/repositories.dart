@@ -5,7 +5,7 @@ export 'transaction_repository.dart';
 export 'category_repository.dart';
 export 'account_repository.dart';
 export 'statistics_repository.dart';
-export 'recurring_transaction_repository.dart';
+export 'recurring_rule_repository.dart';
 export 'ai_repository.dart';
 export 'tag_repository.dart';
 

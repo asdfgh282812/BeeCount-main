@@ -233,7 +233,7 @@ class _TransactionDatePickerSheetState
     super.initState();
     final clamped = _clamp(widget.initial);
     _selectedDay = DateTime(clamped.year, clamped.month, clamped.day);
-    _focusedMonth = DateTime(clamped.year, clamped.month, 1);
+    _focusedMonth = _monthStart(clamped);
   }
 
   @override
@@ -248,6 +248,13 @@ class _TransactionDatePickerSheetState
     if (d.isAfter(widget.maxDate)) return widget.maxDate;
     return d;
   }
+
+  /// 該日期所在月份的「1 號」,再夾回 [minDate, maxDate]——`minDate` 不見得
+  /// 剛好是月初(例如週期規則「截止日期」的下限是 anchorDate,可能是月中任一
+  /// 天),直接回傳月初會落在 `firstDay`(=minDate)之前,傳給 `TableCalendar`
+  /// 的 `focusedDay` 觸發它內部 `isSameDay(focusedDay, firstDay) ||
+  /// focusedDay.isAfter(firstDay)` 斷言失敗、紅屏崩潰。
+  DateTime _monthStart(DateTime d) => _clamp(DateTime(d.year, d.month, 1));
 
   void _toggleJump() {
     final opening = !_jumpOpen;
@@ -276,7 +283,7 @@ class _TransactionDatePickerSheetState
     final target = _clamp(DateTime(year, month, clampedDay));
     setState(() {
       _selectedDay = target;
-      _focusedMonth = DateTime(target.year, target.month, 1);
+      _focusedMonth = _monthStart(target);
     });
   }
 
@@ -284,7 +291,7 @@ class _TransactionDatePickerSheetState
     final today = _clamp(DateTime.now());
     setState(() {
       _selectedDay = DateTime(today.year, today.month, today.day);
-      _focusedMonth = DateTime(today.year, today.month, 1);
+      _focusedMonth = _monthStart(today);
     });
   }
 
@@ -324,13 +331,13 @@ class _TransactionDatePickerSheetState
             selectedDayPredicate: (d) => isSameDay(d, _selectedDay),
             onDaySelected: (selected, focused) {
               setState(() {
-                _selectedDay = DateTime(selected.year, selected.month, selected.day);
-                _focusedMonth = DateTime(focused.year, focused.month, 1);
+                _selectedDay =
+                    DateTime(selected.year, selected.month, selected.day);
+                _focusedMonth = _monthStart(focused);
               });
             },
             onPageChanged: (focused) {
-              setState(
-                  () => _focusedMonth = DateTime(focused.year, focused.month, 1));
+              setState(() => _focusedMonth = _monthStart(focused));
             },
             calendarFormat: CalendarFormat.month,
             availableCalendarFormats: const {CalendarFormat.month: ''},
@@ -348,10 +355,10 @@ class _TransactionDatePickerSheetState
               ),
             ),
             daysOfWeekStyle: DaysOfWeekStyle(
-              weekdayStyle:
-                  TextStyle(color: BeeTokens.textSecondary(context), fontSize: 12),
-              weekendStyle:
-                  TextStyle(color: BeeTokens.textSecondary(context), fontSize: 12),
+              weekdayStyle: TextStyle(
+                  color: BeeTokens.textSecondary(context), fontSize: 12),
+              weekendStyle: TextStyle(
+                  color: BeeTokens.textSecondary(context), fontSize: 12),
             ),
             calendarStyle: CalendarStyle(
               outsideDaysVisible: true,
@@ -363,12 +370,15 @@ class _TransactionDatePickerSheetState
                   TextStyle(color: primary, fontWeight: FontWeight.bold),
               selectedDecoration:
                   BoxDecoration(color: primary, shape: BoxShape.circle),
-              selectedTextStyle:
-                  const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-              defaultTextStyle: TextStyle(color: BeeTokens.textPrimary(context)),
-              weekendTextStyle: TextStyle(color: BeeTokens.textPrimary(context)),
+              selectedTextStyle: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.bold),
+              defaultTextStyle:
+                  TextStyle(color: BeeTokens.textPrimary(context)),
+              weekendTextStyle:
+                  TextStyle(color: BeeTokens.textPrimary(context)),
               outsideTextStyle: TextStyle(
-                  color: BeeTokens.textTertiary(context).withValues(alpha: 0.4)),
+                  color:
+                      BeeTokens.textTertiary(context).withValues(alpha: 0.4)),
             ),
           ),
           _PickerBottomActions(
@@ -496,7 +506,8 @@ class _TransactionTimePickerSheetState
                         child: Text(
                           i.toString().padLeft(2, '0'),
                           style: TextStyle(
-                              fontSize: 20, color: BeeTokens.textPrimary(context)),
+                              fontSize: 20,
+                              color: BeeTokens.textPrimary(context)),
                         ),
                       ),
                     ),
@@ -518,7 +529,8 @@ class _TransactionTimePickerSheetState
                         child: Text(
                           i.toString().padLeft(2, '0'),
                           style: TextStyle(
-                              fontSize: 20, color: BeeTokens.textPrimary(context)),
+                              fontSize: 20,
+                              color: BeeTokens.textPrimary(context)),
                         ),
                       ),
                     ),

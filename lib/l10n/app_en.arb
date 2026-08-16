@@ -3560,5 +3560,64 @@
         "type": "String"
       }
     }
-  }
+  },
+
+  "recurringSheetTitle": "Advanced Settings",
+  "recurringTabOnce": "One-time",
+  "recurringTabRecurring": "Recurring",
+  "recurringTabInstallment": "Installment",
+  "recurringTabInstallmentComingSoon": "Coming soon",
+  "recurringEveryPrefix": "Every",
+  "recurringUnitDay": "Day(s)",
+  "recurringUnitWeek": "Week(s)",
+  "recurringUnitMonth": "Month(s)",
+  "recurringUnitYear": "Year(s)",
+  "recurringWeekdaysLabel": "Repeat on",
+  "recurringMonthDayLabel": "Day of month",
+  "recurringCountLabel": "Ends",
+  "recurringCountUnlimited": "Never",
+  "recurringCountFixed": "After a number of times",
+  "recurringCountUnit": "times",
+  "recurringCountDate": "On date",
+  "recurringCountEditTitle": "Number of occurrences",
+  "recurringPostingModeLabel": "Posting",
+  "recurringPostingModeImmediate": "Post immediately",
+  "recurringSummaryUntil": "Until {date}",
+  "@recurringSummaryUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "recurringSummaryUnlimited": "No end date",
+  "recurringSummaryMonthDay": "Day {day}",
+  "@recurringSummaryMonthDay": {
+    "placeholders": {
+      "day": {
+        "type": "int"
+      }
+    }
+  },
+  "recurringWeekdayMon": "Mon",
+  "recurringWeekdayTue": "Tue",
+  "recurringWeekdayWed": "Wed",
+  "recurringWeekdayThu": "Thu",
+  "recurringWeekdayFri": "Fri",
+  "recurringWeekdaySat": "Sat",
+  "recurringWeekdaySun": "Sun",
+  "recurringRuleListTitle": "Recurring Transactions",
+  "recurringRuleListActive": "Active",
+  "recurringRuleListEnded": "Ended",
+  "recurringRuleListEmpty": "No recurring rules yet",
+  "recurringRuleDeleteConfirmTitle": "Delete Recurring Rule",
+  "recurringRuleDeleteConfirmMessage": "This deletes the rule and all its future occurrences. Past records are kept.",
+  "recurringEditChoiceTitle": "This is a recurring transaction",
+  "recurringEditChoiceThisOnly": "Edit this occurrence",
+  "recurringEditChoiceThisAndFuture": "Edit this and future occurrences",
+  "recurringDeleteChoiceTitle": "This is a recurring transaction",
+  "recurringDeleteChoiceThisOnly": "Delete this occurrence",
+  "recurringDeleteChoiceThisAndFuture": "Delete this and future occurrences",
+  "automationRecurringTile": "Recurring Transactions",
+  "automationRecurringTileSubtitle": "Manage recurring income, expenses and transfers"
 }

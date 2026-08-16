@@ -129,21 +129,14 @@ final transferCategoryProvider = FutureProvider<Category>((ref) async {
   return await repo.getTransferCategory();
 });
 
-// 重复交易Provider（按账本过滤）
-// 注意：此 provider 已废弃，请使用 allRecurringTransactionsProvider 并在业务层过滤
-final recurringTransactionsProvider =
-    FutureProvider.family<List<RecurringTransaction>, int>(
-        (ref, ledgerId) async {
+// 週期性收支規則Provider（按账本过滤）。v36 起对齐 BeeCount Cloud
+// recurring_rule,取代旧版不限账本的 allRecurringTransactionsProvider(規則是
+// ledger-scoped,旧的"不限账本"用法本来就不对齐新模型,且无任何调用点)。
+final recurringRulesProvider =
+    StreamProvider.autoDispose.family<List<RecurringTransaction>, int>(
+        (ref, ledgerId) {
   final repo = ref.watch(repositoryProvider);
-  final all = await repo.watchRecurringTransactionsByLedger(ledgerId).first;
-  return all;
-});
-
-// 所有重复交易Provider（不限账本）
-final allRecurringTransactionsProvider =
-    StreamProvider.autoDispose<List<RecurringTransaction>>((ref) {
-  final repo = ref.watch(repositoryProvider);
-  return repo.watchAllRecurringTransactions();
+  return repo.watchRulesByLedger(ledgerId);
 });
 
 // 账户Provider（按账本过滤）

@@ -49,8 +49,7 @@ void main() {
       );
 
   Widget host({
-    required void Function(Category category, AmountEditorResult result)
-        onSubmit,
+    required TransactionSubmitCallback onSubmit,
     int? initialCategoryId,
   }) {
     return ProviderScope(
@@ -80,7 +79,7 @@ void main() {
     Category? submittedCategory;
     AmountEditorResult? submittedResult;
 
-    await tester.pumpWidget(host(onSubmit: (c, r) {
+    await tester.pumpWidget(host(onSubmit: (c, r) async {
       submittedCategory = c;
       submittedResult = r;
     }));
@@ -122,7 +121,7 @@ void main() {
 
   testWidgets('editingCategoryId 帶入時直接回顯已選類別(grid 收合)', (tester) async {
     await tester.pumpWidget(host(
-      onSubmit: (_, __) {},
+      onSubmit: (_, __) async {},
       initialCategoryId: categoryId,
     ));
     await tester.pumpAndSettle();

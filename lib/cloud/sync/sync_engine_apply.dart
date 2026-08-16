@@ -36,6 +36,9 @@ extension SyncEngineApplyExt on SyncEngine {
       case 'budget':
         await _applyBudgetChange(change);
         return true;
+      case 'recurring_rule':
+        await _applyRecurringRuleChange(change);
+        return true;
       case 'card_reward_rule':
         await _applyCardRewardRuleChange(change);
         return true;
@@ -235,6 +238,20 @@ extension SyncEngineApplyExt on SyncEngine {
             : null)
         : null;
 
+    // v36:週期性收支(recurring_rule)反查字段。recurringRuleId 跟 refundOfId
+    // 同款「缺键不覆盖」——entity_serializer.dart 只在非 null 时才发这个键。
+    // recurringOccurrenceOverridden 跟 excludeFromStats 同款,恒发但仍做
+    // containsKey 保护(旧客户端 / 尚未支持这个字段的其它来源不带这个键时,
+    // 不要把本地已经标记的 true 冲回默认值 false)。
+    final hasRecurringRuleIdKey = payload.containsKey('recurringRuleId');
+    final recurringRuleId =
+        hasRecurringRuleIdKey ? payload['recurringRuleId'] as String? : null;
+    final hasRecurringOverriddenKey =
+        payload.containsKey('recurringOccurrenceOverridden');
+    final recurringOccurrenceOverridden = hasRecurringOverriddenKey
+        ? (payload['recurringOccurrenceOverridden'] as bool? ?? false)
+        : null;
+
     if (existingId != null) {
       // 更新 — createdByUserId 走"本地为 null 就回填,否则保持"的策略。
       final shouldBackfillCreator =
@@ -286,6 +303,12 @@ extension SyncEngineApplyExt on SyncEngine {
         rewardRuleIdsJson: hasRewardRuleIdsKey
             ? d.Value(rewardRuleIdsJson)
             : const d.Value.absent(),
+        recurringRuleId: hasRecurringRuleIdKey
+            ? d.Value(recurringRuleId)
+            : const d.Value.absent(),
+        recurringOccurrenceOverridden: hasRecurringOverriddenKey
+            ? d.Value(recurringOccurrenceOverridden!)
+            : const d.Value.absent(),
       ));
       // 更新标签和附件(existing 路径)
       await _syncTransactionTags(existingId, syncId, payload);
@@ -319,6 +342,9 @@ extension SyncEngineApplyExt on SyncEngine {
               nativeAmount: d.Value(hasNativeKey ? payloadNative : amount),
               refundOfSyncId: d.Value(refundOfSyncId),
               rewardRuleIdsJson: d.Value(rewardRuleIdsJson),
+              recurringRuleId: d.Value(recurringRuleId),
+              recurringOccurrenceOverridden:
+                  d.Value(recurringOccurrenceOverridden ?? false),
             ),
           );
       // 写回 cache,后续同 syncId 的 update change 能命中
@@ -824,6 +850,140 @@ extension SyncEngineApplyExt on SyncEngine {
             syncId: d.Value(syncId),
           ));
       logger.debug('SyncEngine', 'pull: 新增预算 $syncId');
+    }
+  }
+
+  /// 應用週期性收支規則(v36,對齐 BeeCount Cloud recurring_rule)变更。
+  /// ledger-scope,跟 [_applyBudgetChange] 同款「全量覆盖」語意——本端
+  /// [EntitySerializer.serializeRecurringRule] push 时已经恆發規則的完整
+  /// 當前值(BeeCount Cloud `_LEDGER_MERGE_SPECS["recurring_rule"]` 缺鍵才
+  /// 由 server 補齐既有值),这里不用做 containsKey 保護。
+  ///
+  /// 規則生成的 occurrence 交易走既有 [_applyTransactionChange] 路徑(認得
+  /// payload 里的 `recurringRuleId`/`recurringOccurrenceOverridden` 两个键
+  /// 即可),这里只处理規則本身那一列。
+  ///
+  /// 範圍決策(2026-08-17):不解析 `projectId` /
+  /// `baseAmount`/`feeAmount`/`feeLabel`/`discountAmount`/`discountLabel`
+  /// ——App 端尚未實作,本地表也没有对应列,即使远端(Web)帶了這些欄位也
+  /// 直接忽略。
+  Future<void> _applyRecurringRuleChange(BeeCountCloudSyncChange change) async {
+    final syncId = change.entitySyncId;
+
+    if (change.action == 'delete') {
+      final existing = await (db.select(db.recurringTransactions)
+            ..where((r) => r.syncId.equals(syncId)))
+          .getSingleOrNull();
+      if (existing != null) {
+        await (db.delete(db.recurringTransactions)
+              ..where((r) => r.id.equals(existing.id)))
+            .go();
+        logger.debug('SyncEngine', 'pull: 刪除週期規則 $syncId');
+      }
+      return;
+    }
+
+    // upsert —— 跟 transaction/account 同款:change.ledgerId 是 server 的
+    // external_id(string),recurring_rule payload 本身不带 ledgerSyncId
+    // (Cloud merge spec 没有这个键,靠信封层的 ledger_id 反查)。
+    final ledgerIdInt = await _resolveLedgerIdBySyncId(change.ledgerId) ??
+        int.tryParse(change.ledgerId);
+    if (ledgerIdInt == null) {
+      logger.info('SyncEngine',
+          'pull: 週期規則 $syncId 的 ledgerId=${change.ledgerId} 本地未就绪,跳过');
+      return;
+    }
+
+    final payload = change.payload!;
+    final type = payload['txType'] as String? ?? 'expense';
+    final amount = (payload['amount'] as num?)?.toDouble() ?? 0.0;
+    final note = payload['note'] as String?;
+    final merchant = payload['merchant'] as String?;
+    final frequency = payload['frequency'] as String? ?? 'monthly';
+    final interval = (payload['interval'] as num?)?.toInt() ?? 1;
+    final nextRunAtStr = payload['nextRunAt'] as String?;
+    final nextRunAt = nextRunAtStr != null
+        ? DateTime.tryParse(nextRunAtStr)?.toLocal() ?? DateTime.now()
+        : DateTime.now();
+    final endAtStr = payload['endAt'] as String?;
+    final endAt =
+        endAtStr != null ? DateTime.tryParse(endAtStr)?.toLocal() : null;
+    final generatedUntilAtStr = payload['generatedUntilAt'] as String?;
+    final generatedUntilAt = generatedUntilAtStr != null
+        ? DateTime.tryParse(generatedUntilAtStr)?.toLocal()
+        : null;
+    final enabled = payload['enabled'] as bool? ?? true;
+
+    // advancedRuleJson 在 wire 上是解码后的 Map(同 Cloud snapshot_builder 的
+    // 形状),本地存 TEXT 列——这里重新 json.encode 回字串落库。防御性地也接受
+    // 已经是字串的情况(理论上不该出现,但不因为格式意外而整条规则 apply 失败)。
+    final rawAdvancedRule = payload['advancedRuleJson'];
+    String? advancedRuleJson;
+    if (rawAdvancedRule is Map || rawAdvancedRule is List) {
+      advancedRuleJson = jsonEncode(rawAdvancedRule);
+    } else if (rawAdvancedRule is String && rawAdvancedRule.isNotEmpty) {
+      advancedRuleJson = rawAdvancedRule;
+    }
+
+    final categorySyncId = payload['categoryId'] as String?;
+    final localCategoryId = await _resolveCategoryIdBySyncId(categorySyncId);
+    final accountSyncId = payload['accountId'] as String?;
+    final localAccountId = await _resolveAccountIdBySyncId(accountSyncId);
+    final fromAccountSyncId = payload['fromAccountId'] as String?;
+    final localFromAccountId =
+        await _resolveAccountIdBySyncId(fromAccountSyncId);
+    final toAccountSyncId = payload['toAccountId'] as String?;
+    final localToAccountId = await _resolveAccountIdBySyncId(toAccountSyncId);
+
+    final rawTagIds = payload['tagIds'];
+    final tagSyncIdsJson = (rawTagIds is List && rawTagIds.isNotEmpty)
+        ? jsonEncode(rawTagIds.whereType<String>().toList())
+        : null;
+    final rawRewardRuleIds = payload['rewardRuleIds'];
+    final rewardRuleIdsJson =
+        (rawRewardRuleIds is List && rawRewardRuleIds.isNotEmpty)
+            ? jsonEncode(rawRewardRuleIds.whereType<String>().toList())
+            : null;
+
+    final existing = await (db.select(db.recurringTransactions)
+          ..where((r) => r.syncId.equals(syncId)))
+        .getSingleOrNull();
+
+    final companion = RecurringTransactionsCompanion(
+      ledgerId: d.Value(ledgerIdInt),
+      type: d.Value(type),
+      amount: d.Value(amount),
+      note: d.Value(note),
+      merchant: d.Value(merchant),
+      categoryId: d.Value(localCategoryId),
+      accountId: d.Value(localAccountId),
+      fromAccountId: d.Value(localFromAccountId),
+      toAccountId: d.Value(localToAccountId),
+      tagSyncIdsJson: d.Value(tagSyncIdsJson),
+      rewardRuleIdsJson: d.Value(rewardRuleIdsJson),
+      frequency: d.Value(frequency),
+      interval: d.Value(interval),
+      advancedRuleJson: d.Value(advancedRuleJson),
+      nextRunAt: d.Value(nextRunAt),
+      endAt: d.Value(endAt),
+      generatedUntilAt: d.Value(generatedUntilAt),
+      enabled: d.Value(enabled),
+      updatedAt: d.Value(DateTime.now()),
+    );
+
+    if (existing != null) {
+      await (db.update(db.recurringTransactions)
+            ..where((r) => r.id.equals(existing.id)))
+          .write(companion);
+      logger.debug('SyncEngine', 'pull: 更新週期規則 $syncId');
+    } else {
+      await db.into(db.recurringTransactions).insert(
+            companion.copyWith(
+              syncId: d.Value(syncId),
+              createdAt: d.Value(DateTime.now()),
+            ),
+          );
+      logger.debug('SyncEngine', 'pull: 新增週期規則 $syncId');
     }
   }
 

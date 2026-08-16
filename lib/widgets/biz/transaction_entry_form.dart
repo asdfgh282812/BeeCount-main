@@ -31,6 +31,8 @@ import '../currency/currency_flag.dart';
 import '../ui/toast.dart';
 import 'tag_chip.dart';
 import '../../pages/attachment/attachment_preview_page.dart';
+import 'recurring_rule_advanced_sheet.dart';
+import 'shared_entry_fields.dart';
 
 /// 表單提交結果——原本定義在 `amount_editor_sheet.dart`(該檔案已刪除,
 /// `AmountEditorSheet` modal 的唯一呼叫方 `transfer_form.dart` 已改成單頁式
@@ -52,7 +54,20 @@ typedef AmountEditorResult = ({
   double? nativeAmount,
   // v35:信用卡紅利回饋——使用者勾選的回饋規則 syncId 列表(空 list = 沒勾)。
   List<String> rewardRuleIds,
+  // v36:週期性收支——非 null 時上層改呼叫 createRule 而不是 addTransaction。
+  // 只在新增模式(editingTransactionId == null)才可能非 null,見表單內
+  // `_buildRecurringRow` 只在新增模式渲染的註解。
+  RecurringRuleDraft? recurringDraft,
 });
+
+/// v36:`onSubmit` 回傳 `Future<void>`(原本是 `void`)——編輯「週期規則
+/// occurrence」時上層要先跳「此記錄/連同未來週期」選擇彈窗,使用者取消時整
+/// 個存檔動作會中止且不會 pop 頁面,表單需要知道「等它做完」才能解除
+/// `_isSubmitting`,不然存檔鍵會卡在禁用狀態。正常存檔成功的路徑上層仍會
+/// `Navigator.pop`,`_submit()` 的 `whenComplete` 在那之後才跑,`mounted`
+/// 已经是 false,`if (mounted)` 保護下自然是 no-op,行為不變。
+typedef TransactionSubmitCallback = Future<void> Function(
+    Category category, AmountEditorResult result);
 
 /// 支出/收入新增交易的單頁式表單(比照 Moze 參考圖):類別、金額、名稱、
 /// 商家、帳戶、標籤/附件/旗標、日期一次呈現,不再是「先選類別 → 再彈金額
@@ -80,7 +95,7 @@ class TransactionEntryForm extends ConsumerStatefulWidget {
   final double? initialNativeAmount;
   // v35:編輯模式回填已勾選的信用卡紅利回饋規則(syncId 列表)。
   final List<String>? initialRewardRuleIds;
-  final void Function(Category category, AmountEditorResult result) onSubmit;
+  final TransactionSubmitCallback onSubmit;
 
   const TransactionEntryForm({
     super.key,
@@ -104,10 +119,23 @@ class TransactionEntryForm extends ConsumerStatefulWidget {
 
   @override
   ConsumerState<TransactionEntryForm> createState() =>
-      _TransactionEntryFormState();
+      TransactionEntryFormState();
 }
 
-class _TransactionEntryFormState extends ConsumerState<TransactionEntryForm> {
+/// 公開(非底線開頭)是刻意的——`transaction_editor_page.dart` 需要透過
+/// `GlobalKey<TransactionEntryFormState>` 呼叫 [exportSharedFields] /
+/// [applySharedFields] 在切 tab 時同步共用欄位,見該檔案 `_syncSharedFieldsOnTabChange`。
+class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
+    with AutomaticKeepAliveClientMixin<TransactionEntryForm> {
+  // v36:支出/收入兩個 tab 各自是一個長駐的 TransactionEntryForm 實例,包在
+  // 同一個 TabBarView 裡。TabBarView 底層的 PageView 用 SliverChildListDelegate
+  // 管理 children,預設會依 cacheExtent 把捲出畫面範圍的分頁 State 整個丟棄
+  // 重建——不加這個 mixin 的話,切到別的 tab 再切回來,使用者已輸入的金額/
+  // 名稱/商家/帳戶/標籤等欄位會被清空回到 initState 的初始值(等於重置)。
+  // wantKeepAlive=true 強制這個 State 全程留在樹上,不受捲動快取範圍影響。
+  @override
+  bool get wantKeepAlive => true;
+
   // ===== 類別選擇 =====
   Category? _selectedCategory;
   bool _categoryGridExpanded = true; // 未選類別時預設展開
@@ -131,6 +159,10 @@ class _TransactionEntryFormState extends ConsumerState<TransactionEntryForm> {
   late List<int> _selectedTagIds;
   late List<String> _selectedRewardRuleIds;
   List<File> _pendingAttachments = [];
+  // v36:週期性收支——只在新增模式提供入口(見 _buildRecurringRow),編輯既有
+  // 交易一律走原本的單筆更新流程,不支援回填/再次調整規則(範圍決策,詳見
+  // docs/changes)。
+  RecurringRuleDraft? _recurringDraft;
 
   bool _excludeFromStats = false;
   bool _excludeFromBudget = false;
@@ -200,6 +232,47 @@ class _TransactionEntryFormState extends ConsumerState<TransactionEntryForm> {
   }
 
   bool get _textFieldFocused => _nameFocus.hasFocus || _merchantFocus.hasFocus;
+
+  /// 供 `transaction_editor_page.dart` 切 tab 時讀出目前已輸入的共用欄位。
+  SharedEntryFields exportSharedFields() => (
+        amountStr: _amountStr,
+        amountAcc: _acc,
+        amountOp: _op,
+        date: _date,
+        note: _nameCtrl.text,
+        merchant: _merchantCtrl.text,
+        tagIds: List.of(_selectedTagIds),
+        accountId: _selectedAccountId,
+      );
+
+  /// 把另一個分頁匯出的共用欄位套用到這裡——切 tab 時讓支出/收入/轉帳「看起
+  /// 來像同一份草稿」,取代原本各分頁獨立 `AutomaticKeepAliveClientMixin`
+  /// 只保留「自己那份」輸入、切過去仍是空白的體驗。`accountId` 為 null 代表
+  /// 來源分頁沒選帳戶,維持這裡原本的選擇不動;非 null 且跟目前不同才觸發
+  /// 帳戶詳情重新載入(幣種/名稱/類型),避免不必要的請求跟回饋規則被誤清空。
+  void applySharedFields(SharedEntryFields f) {
+    if (!mounted) return;
+    setState(() {
+      _amountStr = f.amountStr;
+      _acc = f.amountAcc;
+      _op = f.amountOp;
+      _date = f.date;
+      _nameCtrl.text = f.note;
+      _merchantCtrl.text = f.merchant;
+      _selectedTagIds = List.of(f.tagIds);
+    });
+    if (f.accountId != null && f.accountId != _selectedAccountId) {
+      final accountChanged = _selectedAccountId != null;
+      setState(() {
+        _selectedAccountId = f.accountId;
+        _selectedAccountCurrency = null;
+        _selectedAccountName = null;
+        _selectedAccountType = null;
+        if (accountChanged) _selectedRewardRuleIds = [];
+      });
+      _loadSelectedAccount(f.accountId!);
+    }
+  }
 
   /// 回顯已選類別(編輯模式 / 呼叫端帶入 initialCategoryId 預選時)。
   /// §7 共享账本:initialCategoryId 可能是 synthetic(< 0),要走
@@ -655,13 +728,20 @@ class _TransactionEntryFormState extends ConsumerState<TransactionEntryForm> {
         currencyCode: txCurrency,
         nativeAmount: nativeAmount,
         rewardRuleIds: _selectedRewardRuleIds,
+        recurringDraft:
+            widget.editingTransactionId == null ? _recurringDraft : null,
       ),
-    );
-    // 不重置 _isSubmitting:提交后整个页面会被关闭,State 会被销毁。
+    ).whenComplete(() {
+      // 正常存檔成功:上層已經 pop 頁面,這裡 mounted 已是 false,no-op。
+      // 中止路徑(v36:使用者取消「此記錄/連同未來週期」選擇彈窗):頁面沒被
+      // pop,要解除禁用狀態讓使用者能重新操作存檔鍵。
+      if (mounted) setState(() => _isSubmitting = false);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // AutomaticKeepAliveClientMixin 要求
     final primary = Theme.of(context).colorScheme.primary;
     final text = Theme.of(context).textTheme;
 
@@ -838,6 +918,10 @@ class _TransactionEntryFormState extends ConsumerState<TransactionEntryForm> {
                 _buildEstimatedRewardRow(),
                 const SizedBox(height: 8),
                 _buildDateRow(context),
+                if (widget.editingTransactionId == null) ...[
+                  const SizedBox(height: 8),
+                  _buildRecurringRow(context),
+                ],
                 const SizedBox(height: 10),
                 if (_recentAmounts.isNotEmpty) ...[
                   _buildRecentAmountsRow(context),
@@ -1025,6 +1109,55 @@ class _TransactionEntryFormState extends ConsumerState<TransactionEntryForm> {
           ),
         ],
       ],
+    );
+  }
+
+  Future<void> _openRecurringSheet() async {
+    final result = await RecurringRuleAdvancedSheet.show(
+      context,
+      anchorDate: _date,
+      initialDraft: _recurringDraft,
+    );
+    // showModalBottomSheet 滑動關閉(未 pop 值)時 result 也是 null,跟「使用
+    // 者主動選單次」無法區分——两种情况下都应该关掉週期,行为一致,不用像
+    // AccountCardPicker 那样額外包一層區分。
+    if (!mounted) return;
+    setState(() => _recurringDraft = result);
+  }
+
+  Widget _buildRecurringRow(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final draft = _recurringDraft;
+    final label = draft == null ? l10n.txDetailOnce : draft.summary(l10n);
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: _openRecurringSheet,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: BeeTokens.surfaceInput(context),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.repeat,
+                size: 16, color: BeeTokens.iconSecondary(context)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    color: BeeTokens.textPrimary(context), fontSize: 14),
+              ),
+            ),
+            Icon(Icons.chevron_right,
+                size: 18, color: BeeTokens.iconTertiary(context)),
+          ],
+        ),
+      ),
     );
   }
 

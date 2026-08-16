@@ -3,7 +3,7 @@ import 'transaction_repository.dart';
 import 'category_repository.dart';
 import 'account_repository.dart';
 import 'statistics_repository.dart';
-import 'recurring_transaction_repository.dart';
+import 'recurring_rule_repository.dart';
 import 'ai_repository.dart';
 import 'tag_repository.dart';
 import 'budget_repository.dart';
@@ -26,7 +26,7 @@ abstract class BaseRepository
         CategoryRepository,
         AccountRepository,
         StatisticsRepository,
-        RecurringTransactionRepository,
+        RecurringRuleRepository,
         AIRepository,
         TagRepository,
         BudgetRepository,

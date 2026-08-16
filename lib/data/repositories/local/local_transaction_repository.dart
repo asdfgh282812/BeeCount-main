@@ -434,6 +434,7 @@ class LocalTransactionRepository implements TransactionRepository {
     double? nativeAmount,
     String? refundOfSyncId,
     List<String>? rewardRuleIds,
+    String? recurringRuleId,
   }) async {
     // v30:子仓收「已定值」直写;带折算的兜底(查账户/汇率)在聚合
     // LocalRepository 包装层(子仓拿不到汇率)。
@@ -457,7 +458,19 @@ class LocalTransactionRepository implements TransactionRepository {
           nativeAmount: d.Value(nativeAmount),
           refundOfSyncId: d.Value(refundOfSyncId),
           rewardRuleIdsJson: d.Value(_encodeRewardRuleIds(rewardRuleIds)),
+          recurringRuleId: d.Value(recurringRuleId),
         ));
+  }
+
+  /// 「修改此記錄」標記:這筆 occurrence 交易被單獨編輯過,之後規則的「修改
+  /// 連同未來週期」批次更新要跳過它。只在
+  /// `LocalRepository.updateRecurringOccurrence` 這個編排方法裡呼叫。
+  Future<void> markRecurringOccurrenceOverridden(int id) async {
+    await (db.update(db.transactions)..where((t) => t.id.equals(id))).write(
+      const TransactionsCompanion(
+        recurringOccurrenceOverridden: d.Value(true),
+      ),
+    );
   }
 
   static String? _encodeRewardRuleIds(List<String>? ids) {

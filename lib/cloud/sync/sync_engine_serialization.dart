@@ -329,6 +329,47 @@ extension SyncEngineSerializationExt on SyncEngine {
           categorySyncId: categorySyncId,
         );
 
+      case 'recurring_rule':
+        final rule = await (db.select(db.recurringTransactions)
+              ..where((r) => r.id.equals(entityId)))
+            .getSingleOrNull();
+        if (rule == null) return <String, dynamic>{};
+        String? ruleCategorySyncId;
+        if (rule.categoryId != null) {
+          final cat = await (db.select(db.categories)
+                ..where((c) => c.id.equals(rule.categoryId!)))
+              .getSingleOrNull();
+          ruleCategorySyncId = cat?.syncId;
+        }
+        String? ruleAccountSyncId;
+        if (rule.accountId != null) {
+          final acc = await (db.select(db.accounts)
+                ..where((a) => a.id.equals(rule.accountId!)))
+              .getSingleOrNull();
+          ruleAccountSyncId = acc?.syncId;
+        }
+        String? ruleFromAccountSyncId;
+        if (rule.fromAccountId != null) {
+          final acc = await (db.select(db.accounts)
+                ..where((a) => a.id.equals(rule.fromAccountId!)))
+              .getSingleOrNull();
+          ruleFromAccountSyncId = acc?.syncId;
+        }
+        String? ruleToAccountSyncId;
+        if (rule.toAccountId != null) {
+          final acc = await (db.select(db.accounts)
+                ..where((a) => a.id.equals(rule.toAccountId!)))
+              .getSingleOrNull();
+          ruleToAccountSyncId = acc?.syncId;
+        }
+        return EntitySerializer.serializeRecurringRule(
+          rule,
+          categorySyncId: ruleCategorySyncId,
+          accountSyncId: ruleAccountSyncId,
+          fromAccountSyncId: ruleFromAccountSyncId,
+          toAccountSyncId: ruleToAccountSyncId,
+        );
+
       case 'ledger':
         // 账本元数据(名字 / 币种)。entityId 是本地 int id,取出后按 syncId
         // 推送,server materialize 时更新 `ledger_snapshot.ledgerName/currency`
@@ -534,6 +575,61 @@ extension SyncEngineSerializationExt on SyncEngine {
       });
     }
 
+    // 週期性收支規則(v36):按账本过滤推,不跨账本,同 budget 同一套模式。
+    final recurringRules = await (db.select(db.recurringTransactions)
+          ..where((r) => r.ledgerId.equals(ledger.id)))
+        .get();
+    for (final rule in recurringRules) {
+      final syncId = rule.syncId ?? _uuid.v4();
+      if (rule.syncId == null) {
+        await (db.update(db.recurringTransactions)
+              ..where((r) => r.id.equals(rule.id)))
+            .write(RecurringTransactionsCompanion(syncId: d.Value(syncId)));
+      }
+      String? ruleCategorySyncId;
+      if (rule.categoryId != null) {
+        final cat = categories
+            .cast<Category?>()
+            .firstWhere((c) => c?.id == rule.categoryId, orElse: () => null);
+        ruleCategorySyncId = cat?.syncId;
+      }
+      String? ruleAccountSyncId;
+      if (rule.accountId != null) {
+        final acc = accounts
+            .cast<Account?>()
+            .firstWhere((a) => a?.id == rule.accountId, orElse: () => null);
+        ruleAccountSyncId = acc?.syncId;
+      }
+      String? ruleFromAccountSyncId;
+      if (rule.fromAccountId != null) {
+        final acc = accounts
+            .cast<Account?>()
+            .firstWhere((a) => a?.id == rule.fromAccountId, orElse: () => null);
+        ruleFromAccountSyncId = acc?.syncId;
+      }
+      String? ruleToAccountSyncId;
+      if (rule.toAccountId != null) {
+        final acc = accounts
+            .cast<Account?>()
+            .firstWhere((a) => a?.id == rule.toAccountId, orElse: () => null);
+        ruleToAccountSyncId = acc?.syncId;
+      }
+      syncChanges.add({
+        'ledger_id': ledgerId,
+        'entity_type': 'recurring_rule',
+        'entity_sync_id': syncId,
+        'action': 'upsert',
+        'payload': EntitySerializer.serializeRecurringRule(
+          rule,
+          categorySyncId: ruleCategorySyncId,
+          accountSyncId: ruleAccountSyncId,
+          fromAccountSyncId: ruleFromAccountSyncId,
+          toAccountSyncId: ruleToAccountSyncId,
+        ),
+        'updated_at': now,
+      });
+    }
+
     // 交易
     final transactions = await (db.select(db.transactions)
           ..where((t) => t.ledgerId.equals(ledger.id)))
@@ -634,10 +730,11 @@ extension SyncEngineSerializationExt on SyncEngine {
     final categoryCount = categories.length;
     final tagCount = tags.length;
     final txCount = transactions.length;
+    final recurringRuleCount = recurringRules.length;
     logger.info(
         'SyncEngine',
         '开始推送个体变更 共${syncChanges.length}条 '
-            '(accounts=$accountCount, categories=$categoryCount, tags=$tagCount, transactions=$txCount)');
+            '(accounts=$accountCount, categories=$categoryCount, tags=$tagCount, transactions=$txCount, recurringRules=$recurringRuleCount)');
 
     // 分批推送:每条 change 平均 ~500 字节,500 条 ≈ 250KB,远低于网关限制,
     // 但单次请求内 server 事务处理时间 ~100ms 可接受。

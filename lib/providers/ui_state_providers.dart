@@ -13,7 +13,7 @@ import 'update_providers.dart';
 import 'smart_billing_providers.dart';
 import '../data/db.dart';
 import '../utils/month_range.dart';
-import '../services/data/recurring_transaction_service.dart';
+import '../utils/notification_factory.dart';
 import '../services/billing/post_processor.dart';
 import '../services/system/logger_service.dart';
 import '../ai/providers/ai_constants.dart';
@@ -331,20 +331,51 @@ final appSplashInitProvider = FutureProvider<void>((ref) async {
       logger.info(tag, '账本统计(异步): ${DateTime.now().difference(start).inMilliseconds}ms');
     });
 
-    // 生成待处理的周期交易
+    // 週期性收支:視窗續產生(非 transfer)+ transfer 自動扣繳到期生成
+    // (見 RecurringRuleRepository.refillWindows / materializeDueTransferRules
+    // 注释)。
     try {
-      final generatedLedgerIds = await RecurringTransactionService.generatePendingTransactionsStatic(
-        repository: repo,
-        verbose: false,
-      );
-      logger.info(tag, '周期交易生成完成: ${DateTime.now().difference(stepTime).inMilliseconds}ms');
+      final refillResult = await repo.refillWindows();
+      final transferResult = await repo.materializeDueTransferRules();
+      final generatedLedgerIds = <int>{
+        ...refillResult.ledgerIds,
+        ...transferResult.ledgerIds,
+      };
+      logger.info(
+          tag,
+          '週期性收支生成完成: refill=${refillResult.generatedCount} '
+          'transfer=${transferResult.materialized} '
+          'skipped=${transferResult.skipped.length} '
+          '(${DateTime.now().difference(stepTime).inMilliseconds}ms)');
 
       // 统一后处理：刷新UI + 触发云同步（如果有生成交易）
       for (final genLedgerId in generatedLedgerIds) {
         await PostProcessor.runR(ref, ledgerId: genLedgerId);
       }
+
+      // repository 層不碰通知平台依賴,餘額不足的自動扣繳跳過在這裡(有
+      // NotificationUtil 存取權的 UI 層)自己觸發本地通知。用 ruleId 當通知
+      // id:同一條規則重複跳過會覆蓋舊通知而不是刷屏。
+      if (transferResult.skipped.isNotEmpty) {
+        final notificationUtil = NotificationFactory.getInstance();
+        for (final skip in transferResult.skipped) {
+          final title = skip.note != null && skip.note!.isNotEmpty
+              ? '自動扣繳未執行：${skip.note}'
+              : '自動扣繳未執行';
+          final body = '帳戶餘額不足(需要 ${skip.requiredAmount.toStringAsFixed(2)},'
+              '目前餘額 ${skip.currentBalance.toStringAsFixed(2)}),'
+              '本次啟動時系統會持續嘗試。';
+          try {
+            await notificationUtil.showNotification(
+                id: skip.ruleId, title: title, body: body);
+          } catch (e) {
+            // 通知子系统任何异常都不允许影响记账主流程,同其它通知调用点惯例。
+            logger.warning(tag, '自動扣繳不足額通知失敗: $e');
+          }
+        }
+      }
     } catch (e, stackTrace) {
-      logger.error(tag, '周期交易生成失败', e, stackTrace);
+      logger.error(tag, '週期性收支生成失败', e, stackTrace);
     }
   } catch (e, stackTrace) {
     logger.error(tag, '预加载数据失败', e, stackTrace);

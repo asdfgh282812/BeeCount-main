@@ -15071,6 +15071,270 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Qualifying spend: {amount}'**
   String cardRewardDetailQualifiedSpend(String amount);
+
+  /// No description provided for @recurringSheetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced Settings'**
+  String get recurringSheetTitle;
+
+  /// No description provided for @recurringTabOnce.
+  ///
+  /// In en, this message translates to:
+  /// **'One-time'**
+  String get recurringTabOnce;
+
+  /// No description provided for @recurringTabRecurring.
+  ///
+  /// In en, this message translates to:
+  /// **'Recurring'**
+  String get recurringTabRecurring;
+
+  /// No description provided for @recurringTabInstallment.
+  ///
+  /// In en, this message translates to:
+  /// **'Installment'**
+  String get recurringTabInstallment;
+
+  /// No description provided for @recurringTabInstallmentComingSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Coming soon'**
+  String get recurringTabInstallmentComingSoon;
+
+  /// No description provided for @recurringEveryPrefix.
+  ///
+  /// In en, this message translates to:
+  /// **'Every'**
+  String get recurringEveryPrefix;
+
+  /// No description provided for @recurringUnitDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Day(s)'**
+  String get recurringUnitDay;
+
+  /// No description provided for @recurringUnitWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Week(s)'**
+  String get recurringUnitWeek;
+
+  /// No description provided for @recurringUnitMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Month(s)'**
+  String get recurringUnitMonth;
+
+  /// No description provided for @recurringUnitYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Year(s)'**
+  String get recurringUnitYear;
+
+  /// No description provided for @recurringWeekdaysLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat on'**
+  String get recurringWeekdaysLabel;
+
+  /// No description provided for @recurringMonthDayLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Day of month'**
+  String get recurringMonthDayLabel;
+
+  /// No description provided for @recurringCountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Ends'**
+  String get recurringCountLabel;
+
+  /// No description provided for @recurringCountUnlimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Never'**
+  String get recurringCountUnlimited;
+
+  /// No description provided for @recurringCountFixed.
+  ///
+  /// In en, this message translates to:
+  /// **'After a number of times'**
+  String get recurringCountFixed;
+
+  /// No description provided for @recurringCountUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'times'**
+  String get recurringCountUnit;
+
+  /// No description provided for @recurringCountDate.
+  ///
+  /// In en, this message translates to:
+  /// **'On date'**
+  String get recurringCountDate;
+
+  /// No description provided for @recurringCountEditTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Number of occurrences'**
+  String get recurringCountEditTitle;
+
+  /// No description provided for @recurringPostingModeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Posting'**
+  String get recurringPostingModeLabel;
+
+  /// No description provided for @recurringPostingModeImmediate.
+  ///
+  /// In en, this message translates to:
+  /// **'Post immediately'**
+  String get recurringPostingModeImmediate;
+
+  /// No description provided for @recurringSummaryUntil.
+  ///
+  /// In en, this message translates to:
+  /// **'Until {date}'**
+  String recurringSummaryUntil(String date);
+
+  /// No description provided for @recurringSummaryUnlimited.
+  ///
+  /// In en, this message translates to:
+  /// **'No end date'**
+  String get recurringSummaryUnlimited;
+
+  /// No description provided for @recurringSummaryMonthDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Day {day}'**
+  String recurringSummaryMonthDay(int day);
+
+  /// No description provided for @recurringWeekdayMon.
+  ///
+  /// In en, this message translates to:
+  /// **'Mon'**
+  String get recurringWeekdayMon;
+
+  /// No description provided for @recurringWeekdayTue.
+  ///
+  /// In en, this message translates to:
+  /// **'Tue'**
+  String get recurringWeekdayTue;
+
+  /// No description provided for @recurringWeekdayWed.
+  ///
+  /// In en, this message translates to:
+  /// **'Wed'**
+  String get recurringWeekdayWed;
+
+  /// No description provided for @recurringWeekdayThu.
+  ///
+  /// In en, this message translates to:
+  /// **'Thu'**
+  String get recurringWeekdayThu;
+
+  /// No description provided for @recurringWeekdayFri.
+  ///
+  /// In en, this message translates to:
+  /// **'Fri'**
+  String get recurringWeekdayFri;
+
+  /// No description provided for @recurringWeekdaySat.
+  ///
+  /// In en, this message translates to:
+  /// **'Sat'**
+  String get recurringWeekdaySat;
+
+  /// No description provided for @recurringWeekdaySun.
+  ///
+  /// In en, this message translates to:
+  /// **'Sun'**
+  String get recurringWeekdaySun;
+
+  /// No description provided for @recurringRuleListTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recurring Transactions'**
+  String get recurringRuleListTitle;
+
+  /// No description provided for @recurringRuleListActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get recurringRuleListActive;
+
+  /// No description provided for @recurringRuleListEnded.
+  ///
+  /// In en, this message translates to:
+  /// **'Ended'**
+  String get recurringRuleListEnded;
+
+  /// No description provided for @recurringRuleListEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No recurring rules yet'**
+  String get recurringRuleListEmpty;
+
+  /// No description provided for @recurringRuleDeleteConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Recurring Rule'**
+  String get recurringRuleDeleteConfirmTitle;
+
+  /// No description provided for @recurringRuleDeleteConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This deletes the rule and all its future occurrences. Past records are kept.'**
+  String get recurringRuleDeleteConfirmMessage;
+
+  /// No description provided for @recurringEditChoiceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This is a recurring transaction'**
+  String get recurringEditChoiceTitle;
+
+  /// No description provided for @recurringEditChoiceThisOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit this occurrence'**
+  String get recurringEditChoiceThisOnly;
+
+  /// No description provided for @recurringEditChoiceThisAndFuture.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit this and future occurrences'**
+  String get recurringEditChoiceThisAndFuture;
+
+  /// No description provided for @recurringDeleteChoiceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This is a recurring transaction'**
+  String get recurringDeleteChoiceTitle;
+
+  /// No description provided for @recurringDeleteChoiceThisOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this occurrence'**
+  String get recurringDeleteChoiceThisOnly;
+
+  /// No description provided for @recurringDeleteChoiceThisAndFuture.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this and future occurrences'**
+  String get recurringDeleteChoiceThisAndFuture;
+
+  /// No description provided for @automationRecurringTile.
+  ///
+  /// In en, this message translates to:
+  /// **'Recurring Transactions'**
+  String get automationRecurringTile;
+
+  /// No description provided for @automationRecurringTileSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage recurring income, expenses and transfers'**
+  String get automationRecurringTileSubtitle;
 }
 
 class _AppLocalizationsDelegate

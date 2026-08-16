@@ -207,6 +207,9 @@ abstract class TransactionRepository {
     // id,原因同 refundOfSyncId:本地 id 跨设备不稳定)。null/空 = 不挂任何
     // 回饋规则。
     List<String>? rewardRuleIds,
+    // v36:週期性收支——這筆交易是哪條規則生成的 occurrence,存規則的
+    // syncId。只在生成當下寫入,後續編輯不改(overridden 標記走專用方法)。
+    String? recurringRuleId,
   });
 
   /// 批量新增交易，单事务内插入，返回插入条数。

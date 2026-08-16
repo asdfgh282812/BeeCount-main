@@ -1,14 +1,18 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart' as d;
 import 'package:uuid/uuid.dart';
 
 import '../../db.dart';
 import '../../../cloud/sync/change_tracker.dart';
 import '../../../services/currency/rate_math.dart';
+import '../../../services/data/recurring_rule_schedule.dart' as recurring_schedule;
 import '../../../utils/shared_ledger_picker_filter.dart';
 import '../../../services/system/logger_service.dart';
 import '../../../models/note_history.dart';
 import '../base_repository.dart';
 import '../budget_repository.dart';
+import '../recurring_rule_repository.dart';
 import '../transaction_repository.dart'
     show BatchAttachmentData, TransactionUpdateBySyncIdData;
 import 'local_ledger_repository.dart';
@@ -16,7 +20,7 @@ import 'local_transaction_repository.dart';
 import 'local_category_repository.dart';
 import 'local_account_repository.dart';
 import 'local_statistics_repository.dart';
-import 'local_recurring_transaction_repository.dart';
+import 'local_recurring_rule_repository.dart';
 import 'local_ai_repository.dart';
 import 'local_tag_repository.dart';
 import 'local_budget_repository.dart';
@@ -44,7 +48,7 @@ class LocalRepository extends BaseRepository {
   late final LocalCategoryRepository _categoryRepo;
   late final LocalAccountRepository _accountRepo;
   late final LocalStatisticsRepository _statisticsRepo;
-  late final LocalRecurringTransactionRepository _recurringTransactionRepo;
+  late final LocalRecurringRuleRepository _recurringRuleRepo;
   late final LocalAIRepository _aiRepo;
   late final LocalTagRepository _tagRepo;
   late final LocalBudgetRepository _budgetRepo;
@@ -58,7 +62,7 @@ class LocalRepository extends BaseRepository {
     _categoryRepo = LocalCategoryRepository(db);
     _accountRepo = LocalAccountRepository(db);
     _statisticsRepo = LocalStatisticsRepository(db);
-    _recurringTransactionRepo = LocalRecurringTransactionRepository(db);
+    _recurringRuleRepo = LocalRecurringRuleRepository(db);
     _aiRepo = LocalAIRepository(db);
     _tagRepo = LocalTagRepository(db);
     _budgetRepo = LocalBudgetRepository(db);
@@ -363,6 +367,7 @@ class LocalRepository extends BaseRepository {
     double? nativeAmount,
     String? refundOfSyncId,
     List<String>? rewardRuleIds,
+    String? recurringRuleId,
   }) async {
     // v30 带折算兜底(02 §六):任何调用方(单币种记账/AI/周期模板)未传两字段
     // 时在此补齐 —— 外币先查有效汇率,取不到才 =amount(命中 L11 检测可捞回)。
@@ -393,6 +398,7 @@ class LocalRepository extends BaseRepository {
       nativeAmount: na,
       refundOfSyncId: refundOfSyncId,
       rewardRuleIds: rewardRuleIds,
+      recurringRuleId: recurringRuleId,
     );
     if (changeTracker != null) {
       final tx = await _transactionRepo.getTransactionById(id);
@@ -2289,128 +2295,500 @@ class LocalRepository extends BaseRepository {
       _statisticsRepo.getSharedSyntheticCategoriesForLedger(ledgerId);
 
   // ============================================
-  // RecurringTransactionRepository 接口实现 - 委托给 LocalRecurringTransactionRepository
+  // RecurringRuleRepository 接口实现
+  //
+  // 單表 CRUD 委托給 _recurringRuleRepo;跨表編排(建規則當場批次生成
+  // occurrence、「此記錄 vs 連同未來週期」、視窗續產生、transfer 自動扣繳)
+  // 直接寫在這裡——同 budget/account 那組既有慣例,見
+  // docs/CLOUD_SYNC_INTEGRATION.md §2「實際呼叫點在哪」。
   // ============================================
 
-  @override
-  Future<List<RecurringTransaction>> getAllRecurringTransactions() =>
-      _recurringTransactionRepo.getAllRecurringTransactions();
+  Future<List<int>> _tagIdsForSyncIds(List<String> syncIds) async {
+    if (syncIds.isEmpty) return const [];
+    final rows =
+        await (db.select(db.tags)..where((t) => t.syncId.isIn(syncIds))).get();
+    return rows.map((t) => t.id).toList();
+  }
+
+  Map<String, dynamic>? _decodeAdvancedRule(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) return decoded;
+    } catch (_) {
+      // 忽略格式错误的旧数据。
+    }
+    return null;
+  }
+
+  /// #240 E2:規則引用的帳戶(收支用 accountId,或轉帳 from/to)任一被隱藏,
+  /// 整體跳過生成(不推進 generatedUntilAt),帳戶恢復後續產生邏輯會自動追
+  /// 上遺漏的期數。
+  Future<bool> _anyLinkedAccountHidden(RecurringTransaction rule) async {
+    for (final id in {rule.accountId, rule.fromAccountId, rule.toAccountId}
+        .whereType<int>()) {
+      final acc = await getAccount(id);
+      if (acc?.hidden ?? false) return true;
+    }
+    return false;
+  }
+
+  Future<int> _createOccurrenceTransaction({
+    required RecurringTransaction rule,
+    required DateTime happenedAt,
+    int? accountId,
+    int? toAccountId,
+  }) async {
+    final tagIds = await _tagIdsForSyncIds(rule.tagSyncIds);
+    final rewardIds = rule.rewardRuleIds;
+    final txId = await addTransaction(
+      ledgerId: rule.ledgerId,
+      type: rule.type,
+      amount: rule.amount,
+      categoryId: rule.categoryId,
+      accountId: accountId,
+      toAccountId: toAccountId,
+      happenedAt: happenedAt,
+      note: rule.note,
+      merchant: rule.merchant,
+      rewardRuleIds: rewardIds.isEmpty ? null : rewardIds,
+      recurringRuleId: rule.syncId,
+    );
+    if (tagIds.isNotEmpty) {
+      await addTagsToTransaction(transactionId: txId, tagIds: tagIds);
+    }
+    return txId;
+  }
+
+  Future<void> _recordRuleChange(RecurringTransaction rule, String action) async {
+    if (changeTracker == null || rule.syncId == null) return;
+    await changeTracker!.recordLedgerChange(
+      entityType: 'recurring_rule',
+      entityId: rule.id,
+      entitySyncId: rule.syncId!,
+      ledgerId: rule.ledgerId,
+      action: action,
+    );
+  }
 
   @override
-  Future<List<RecurringTransaction>> getRecurringTransactionsByLedger(
-          int ledgerId) =>
-      _recurringTransactionRepo.getRecurringTransactionsByLedger(ledgerId);
-
-  @override
-  Future<List<RecurringTransaction>> getEnabledRecurringTransactions(
-          int ledgerId) =>
-      _recurringTransactionRepo.getEnabledRecurringTransactions(ledgerId);
-
-  @override
-  Future<int> addRecurringTransaction({
+  Future<int> createRule({
     required int ledgerId,
     required String type,
     required double amount,
     int? categoryId,
     int? accountId,
+    int? fromAccountId,
     int? toAccountId,
     String? note,
+    String? merchant,
+    List<String> tagSyncIds = const [],
+    List<String> rewardRuleSyncIds = const [],
     required String frequency,
-    required int interval,
-    int? dayOfMonth,
-    int? dayOfWeek,
-    int? monthOfYear,
-    required DateTime startDate,
-    DateTime? endDate,
-    bool enabled = true,
-  }) =>
-      _recurringTransactionRepo.addRecurringTransaction(
-        ledgerId: ledgerId,
-        type: type,
-        amount: amount,
-        categoryId: categoryId,
-        accountId: accountId,
-        toAccountId: toAccountId,
-        note: note,
+    int interval = 1,
+    Map<String, dynamic>? advancedRule,
+    required DateTime nextRunAt,
+    DateTime? endAt,
+  }) async {
+    final ruleId = await _recurringRuleRepo.createRule(
+      ledgerId: ledgerId,
+      type: type,
+      amount: amount,
+      categoryId: categoryId,
+      accountId: accountId,
+      fromAccountId: fromAccountId,
+      toAccountId: toAccountId,
+      note: note,
+      merchant: merchant,
+      tagSyncIds: tagSyncIds,
+      rewardRuleSyncIds: rewardRuleSyncIds,
+      frequency: frequency,
+      interval: interval,
+      advancedRule: advancedRule,
+      nextRunAt: nextRunAt,
+      endAt: endAt,
+    );
+    var rule = await _recurringRuleRepo.getRuleById(ruleId);
+    if (rule == null) return ruleId;
+
+    // transfer(自動扣繳):不預生成,交給 materializeDueTransferRules 到期
+    // 才逐筆生成 + 查餘額(見該方法註釋)。
+    if (type != 'transfer') {
+      final plan = recurring_schedule.planInitialGeneration(
+        start: nextRunAt,
+        end: endAt,
         frequency: frequency,
         interval: interval,
-        dayOfMonth: dayOfMonth,
-        dayOfWeek: dayOfWeek,
-        monthOfYear: monthOfYear,
-        startDate: startDate,
-        endDate: endDate,
-        enabled: enabled,
+        advancedRule: advancedRule,
       );
+      for (final occurrenceAt in plan.occurrences) {
+        await _createOccurrenceTransaction(
+          rule: rule,
+          happenedAt: occurrenceAt,
+          accountId: accountId,
+          toAccountId: toAccountId,
+        );
+      }
+      await _recurringRuleRepo.updateRuleFields(
+        ruleId,
+        generatedUntilAt: plan.generatedUntilAt,
+        enabled: !plan.fullyGenerated,
+      );
+      rule = await _recurringRuleRepo.getRuleById(ruleId);
+    }
+
+    if (rule != null) await _recordRuleChange(rule, 'create');
+    return ruleId;
+  }
 
   @override
-  Future<void> updateRecurringTransaction({
-    required int id,
-    required int ledgerId,
-    required String type,
-    required double amount,
+  Future<RecurringTransaction?> getRuleById(int id) =>
+      _recurringRuleRepo.getRuleById(id);
+
+  @override
+  Future<RecurringTransaction?> getRuleBySyncId(String syncId) =>
+      _recurringRuleRepo.getRuleBySyncId(syncId);
+
+  @override
+  Future<List<RecurringTransaction>> getRulesByLedger(int ledgerId) =>
+      _recurringRuleRepo.getRulesByLedger(ledgerId);
+
+  @override
+  Future<List<RecurringTransaction>> getAllRulesForExport() =>
+      _recurringRuleRepo.getAllRulesForExport();
+
+  @override
+  Stream<List<RecurringTransaction>> watchRulesByLedger(int ledgerId) =>
+      _recurringRuleRepo.watchRulesByLedger(ledgerId);
+
+  @override
+  Future<int> getActiveRuleCountByAccount(int accountId) =>
+      _recurringRuleRepo.getActiveRuleCountByAccount(accountId);
+
+  @override
+  Future<void> updateOccurrence({
+    required int transactionId,
+    String? type,
+    double? amount,
     int? categoryId,
     int? accountId,
     int? toAccountId,
     String? note,
-    required String frequency,
-    required int interval,
-    int? dayOfMonth,
-    int? dayOfWeek,
-    int? monthOfYear,
-    required DateTime startDate,
-    DateTime? endDate,
-    bool? enabled,
-    DateTime? lastGeneratedDate,
-  }) =>
-      _recurringTransactionRepo.updateRecurringTransaction(
-        id: id,
-        ledgerId: ledgerId,
-        type: type,
-        amount: amount,
-        categoryId: categoryId,
-        accountId: accountId,
-        toAccountId: toAccountId,
-        note: note,
-        frequency: frequency,
-        interval: interval,
-        dayOfMonth: dayOfMonth,
-        dayOfWeek: dayOfWeek,
-        monthOfYear: monthOfYear,
-        startDate: startDate,
-        endDate: endDate,
-        enabled: enabled,
-        lastGeneratedDate: lastGeneratedDate,
+    String? merchant,
+    List<String>? tagSyncIds,
+    List<String>? rewardRuleSyncIds,
+  }) async {
+    final old = await _transactionRepo.getTransactionById(transactionId);
+    if (old == null) return;
+    // 先標記 overridden 再走 updateTransaction——updateTransaction 內部會記
+    // ChangeTracker change,push 時重新查live row,兩個欄位改動這樣才會一起
+    // 帶上,不用自己另外補一條 change。
+    await _transactionRepo.markRecurringOccurrenceOverridden(transactionId);
+    await updateTransaction(
+      id: transactionId,
+      type: type ?? old.type,
+      amount: amount ?? old.amount,
+      categoryId: categoryId ?? old.categoryId,
+      note: note ?? old.note,
+      merchant: merchant ?? old.merchant,
+      accountId: accountId ?? old.accountId,
+      rewardRuleIds: rewardRuleSyncIds,
+    );
+    if (toAccountId != null) {
+      await updateTransactionFields(id: transactionId, toAccountId: toAccountId);
+    }
+    if (tagSyncIds != null) {
+      await _tagRepo.removeAllTagsFromTransaction(transactionId);
+      final tagIds = await _tagIdsForSyncIds(tagSyncIds);
+      if (tagIds.isNotEmpty) {
+        await addTagsToTransaction(transactionId: transactionId, tagIds: tagIds);
+      }
+    }
+  }
+
+  @override
+  Future<void> deleteOccurrence(int transactionId) =>
+      deleteTransaction(transactionId);
+
+  @override
+  Future<void> updateRuleAndFuture({
+    required int ruleId,
+    required int anchorTransactionId,
+    String? type,
+    double? amount,
+    int? categoryId,
+    int? accountId,
+    int? fromAccountId,
+    int? toAccountId,
+    String? note,
+    String? merchant,
+    List<String>? tagSyncIds,
+    List<String>? rewardRuleSyncIds,
+    String? frequency,
+    int? interval,
+    Map<String, dynamic>? advancedRule,
+  }) async {
+    final rule = await _recurringRuleRepo.getRuleById(ruleId);
+    if (rule == null) return;
+    final anchor = await _transactionRepo.getTransactionById(anchorTransactionId);
+    if (anchor == null) return;
+
+    // 1. 更新規則本身,供以後新生成的期數延用新值。
+    await _recurringRuleRepo.updateRuleFields(
+      ruleId,
+      type: type,
+      amount: amount,
+      categoryId: categoryId,
+      clearCategoryId: type == 'transfer',
+      accountId: accountId,
+      fromAccountId: fromAccountId,
+      toAccountId: toAccountId,
+      note: note,
+      merchant: merchant,
+      tagSyncIds: tagSyncIds,
+      rewardRuleSyncIds: rewardRuleSyncIds,
+      frequency: frequency,
+      interval: interval,
+      advancedRule: advancedRule,
+    );
+    final updatedRule = await _recurringRuleRepo.getRuleById(ruleId);
+    if (updatedRule != null) await _recordRuleChange(updatedRule, 'update');
+
+    // 2. 批次更新同規則、happenedAt >= anchor.happenedAt、未被單獨編輯過的既
+    // 有 occurrence(不動 happenedAt,只改內容)。
+    final targets = await (db.select(db.transactions)
+          ..where((t) =>
+              t.recurringRuleId.equals(rule.syncId ?? '') &
+              t.recurringOccurrenceOverridden.equals(false) &
+              t.happenedAt.isBiggerOrEqualValue(anchor.happenedAt)))
+        .get();
+    final tagIds = tagSyncIds != null ? await _tagIdsForSyncIds(tagSyncIds) : null;
+    for (final t in targets) {
+      await updateTransaction(
+        id: t.id,
+        type: type ?? t.type,
+        amount: amount ?? t.amount,
+        categoryId: categoryId ?? t.categoryId,
+        note: note ?? t.note,
+        merchant: merchant ?? t.merchant,
+        accountId: accountId ?? t.accountId,
+        rewardRuleIds: rewardRuleSyncIds,
       );
+      if (toAccountId != null) {
+        await updateTransactionFields(id: t.id, toAccountId: toAccountId);
+      }
+      if (tagIds != null) {
+        await _tagRepo.removeAllTagsFromTransaction(t.id);
+        if (tagIds.isNotEmpty) {
+          await addTagsToTransaction(transactionId: t.id, tagIds: tagIds);
+        }
+      }
+    }
+  }
 
   @override
-  Future<void> deleteRecurringTransaction(int id) =>
-      _recurringTransactionRepo.deleteRecurringTransaction(id);
+  Future<void> terminateFuture(int ruleId) async {
+    final rule = await _recurringRuleRepo.getRuleById(ruleId);
+    if (rule == null) return;
+    final now = DateTime.now();
+    final future = await (db.select(db.transactions)
+          ..where((t) =>
+              t.recurringRuleId.equals(rule.syncId ?? '') &
+              t.happenedAt.isBiggerThanValue(now)))
+        .get();
+    for (final t in future) {
+      await deleteTransaction(t.id);
+    }
+    await _recurringRuleRepo.updateRuleFields(ruleId, enabled: false);
+    final updatedRule = await _recurringRuleRepo.getRuleById(ruleId);
+    if (updatedRule != null) await _recordRuleChange(updatedRule, 'update');
+  }
 
   @override
-  Future<void> toggleRecurringTransaction(int id, bool enabled) =>
-      _recurringTransactionRepo.toggleRecurringTransaction(id, enabled);
+  Future<void> deleteRule(int ruleId, {bool deleteFutureOccurrences = true}) async {
+    final rule = await _recurringRuleRepo.getRuleById(ruleId);
+    if (rule == null) return;
+    if (deleteFutureOccurrences) {
+      final now = DateTime.now();
+      final future = await (db.select(db.transactions)
+            ..where((t) =>
+                t.recurringRuleId.equals(rule.syncId ?? '') &
+                t.happenedAt.isBiggerThanValue(now)))
+          .get();
+      for (final t in future) {
+        await deleteTransaction(t.id);
+      }
+    }
+    await _recurringRuleRepo.deleteRuleRow(ruleId);
+    await _recordRuleChange(rule, 'delete');
+  }
 
   @override
-  Future<void> updateLastGeneratedDate(int id, DateTime date) =>
-      _recurringTransactionRepo.updateLastGeneratedDate(id, date);
+  Future<({int generatedCount, Set<int> ledgerIds})> refillWindows() async {
+    final threshold = DateTime.now()
+        .add(const Duration(days: recurring_schedule.kRefillThresholdDays));
+    final rules = await (db.select(db.recurringTransactions)
+          ..where((r) =>
+              r.enabled.equals(true) &
+              r.type.equals('transfer').not() &
+              (r.generatedUntilAt.isNull() |
+                  r.generatedUntilAt.isSmallerOrEqualValue(threshold))))
+        .get();
+
+    var generated = 0;
+    final ledgerIds = <int>{};
+    for (final rule in rules) {
+      if (rule.syncId == null) continue;
+      if (await _anyLinkedAccountHidden(rule)) continue;
+
+      final generatedUntil = rule.generatedUntilAt ?? rule.nextRunAt;
+      if (rule.endAt != null && !generatedUntil.isBefore(rule.endAt!)) continue;
+      final advancedRule = _decodeAdvancedRule(rule.advancedRuleJson);
+
+      // generatedUntil 本身是「上一次已生成的最後一筆」,找它之後的下一筆
+      // (maxCount=2:第一筆一定是 generatedUntil 自己)。
+      final following = recurring_schedule.enumerateOccurrences(
+        start: generatedUntil,
+        end: null,
+        frequency: rule.frequency,
+        interval: rule.interval,
+        advancedRule: advancedRule,
+        maxCount: 2,
+      );
+      if (following.length < 2) continue;
+      final nextStart = following[1];
+
+      if (rule.endAt != null && nextStart.isAfter(rule.endAt!)) {
+        await _recurringRuleRepo.updateRuleFields(rule.id,
+            generatedUntilAt: rule.endAt, enabled: false);
+        final updated = await _recurringRuleRepo.getRuleById(rule.id);
+        if (updated != null) await _recordRuleChange(updated, 'update');
+        ledgerIds.add(rule.ledgerId);
+        continue;
+      }
+
+      var windowEnd =
+          recurring_schedule.addMonths(nextStart, recurring_schedule.kRefillWindowMonths);
+      if (rule.endAt != null && windowEnd.isAfter(rule.endAt!)) {
+        windowEnd = rule.endAt!;
+      }
+      final occurrences = recurring_schedule.enumerateOccurrences(
+        start: nextStart,
+        end: windowEnd,
+        frequency: rule.frequency,
+        interval: rule.interval,
+        advancedRule: advancedRule,
+        maxCount: recurring_schedule.kMaxOccurrencesPerGeneration,
+      );
+      if (occurrences.isEmpty) continue;
+
+      for (final occurrenceAt in occurrences) {
+        await _createOccurrenceTransaction(
+          rule: rule,
+          happenedAt: occurrenceAt,
+          accountId: rule.accountId,
+          toAccountId: rule.toAccountId,
+        );
+        generated++;
+      }
+      final newGeneratedUntil = occurrences.last;
+      final newEnabled =
+          rule.endAt == null || newGeneratedUntil.isBefore(rule.endAt!);
+      await _recurringRuleRepo.updateRuleFields(rule.id,
+          generatedUntilAt: newGeneratedUntil, enabled: newEnabled);
+      final updated = await _recurringRuleRepo.getRuleById(rule.id);
+      if (updated != null) await _recordRuleChange(updated, 'update');
+      ledgerIds.add(rule.ledgerId);
+    }
+    return (generatedCount: generated, ledgerIds: ledgerIds);
+  }
 
   @override
-  Future<int> getActiveRecurringCountByAccount(int accountId) =>
-      _recurringTransactionRepo.getActiveRecurringCountByAccount(accountId);
+  Future<({int materialized, List<RecurringRuleTransferSkip> skipped, Set<int> ledgerIds})>
+      materializeDueTransferRules() async {
+    final now = DateTime.now();
+    final rules = await (db.select(db.recurringTransactions)
+          ..where((r) => r.enabled.equals(true) & r.type.equals('transfer')))
+        .get();
 
-  @override
-  Stream<List<RecurringTransaction>> watchAllRecurringTransactions() =>
-      _recurringTransactionRepo.watchAllRecurringTransactions();
+    var materialized = 0;
+    final skipped = <RecurringRuleTransferSkip>[];
+    final ledgerIds = <int>{};
 
-  @override
-  Stream<List<RecurringTransaction>> watchRecurringTransactionsByLedger(
-          int ledgerId) =>
-      _recurringTransactionRepo.watchRecurringTransactionsByLedger(ledgerId);
+    for (final rule in rules) {
+      if (rule.syncId == null || rule.fromAccountId == null) continue;
+      if (await _anyLinkedAccountHidden(rule)) continue;
+      final advancedRule = _decodeAdvancedRule(rule.advancedRuleJson);
 
-  @override
-  Future<void> batchInsertRecurringTransactions(
-          List<RecurringTransactionsCompanion> items) =>
-      _recurringTransactionRepo.batchInsertRecurringTransactions(items);
+      var currentRule = rule;
+      var ruleChanged = false;
+      while (true) {
+        DateTime? nextOccurrence;
+        final generatedUntil = currentRule.generatedUntilAt;
+        if (generatedUntil == null) {
+          nextOccurrence = currentRule.nextRunAt;
+        } else {
+          final following = recurring_schedule.enumerateOccurrences(
+            start: generatedUntil,
+            end: null,
+            frequency: currentRule.frequency,
+            interval: currentRule.interval,
+            advancedRule: advancedRule,
+            maxCount: 2,
+          );
+          nextOccurrence = following.length > 1 ? following[1] : null;
+        }
+        // 还没到期(或没有下一期),下次呼叫再看。
+        if (nextOccurrence == null || nextOccurrence.isAfter(now)) break;
+
+        if (currentRule.endAt != null && nextOccurrence.isAfter(currentRule.endAt!)) {
+          await _recurringRuleRepo.updateRuleFields(currentRule.id,
+              generatedUntilAt: currentRule.endAt, enabled: false);
+          ruleChanged = true;
+          break;
+        }
+
+        final balance = await getAccountBalance(currentRule.fromAccountId!);
+        if (balance < currentRule.amount - 1e-9) {
+          skipped.add(RecurringRuleTransferSkip(
+            ruleId: currentRule.id,
+            note: currentRule.note,
+            occurrenceAt: nextOccurrence,
+            requiredAmount: currentRule.amount,
+            currentBalance: balance,
+          ));
+          // 這期沒過就先停在這裡,不追後面的期數(避免「這期沒過、下一期直
+          // 接跳過去生成」的錯亂)。
+          break;
+        }
+
+        await _createOccurrenceTransaction(
+          rule: currentRule,
+          happenedAt: nextOccurrence,
+          accountId: currentRule.fromAccountId,
+          toAccountId: currentRule.toAccountId,
+        );
+        materialized++;
+        await _recurringRuleRepo.updateRuleFields(currentRule.id,
+            generatedUntilAt: nextOccurrence);
+        ruleChanged = true;
+        final refreshed = await _recurringRuleRepo.getRuleById(currentRule.id);
+        if (refreshed == null) break;
+        currentRule = refreshed;
+        if (currentRule.endAt != null &&
+            !currentRule.generatedUntilAt!.isBefore(currentRule.endAt!)) {
+          await _recurringRuleRepo.updateRuleFields(currentRule.id, enabled: false);
+          break;
+        }
+      }
+      if (ruleChanged) {
+        final updated = await _recurringRuleRepo.getRuleById(rule.id);
+        if (updated != null) await _recordRuleChange(updated, 'update');
+        ledgerIds.add(rule.ledgerId);
+      }
+    }
+    return (materialized: materialized, skipped: skipped, ledgerIds: ledgerIds);
+  }
 
   // ============================================
   // AIRepository 接口实现 - 委托给 LocalAIRepository

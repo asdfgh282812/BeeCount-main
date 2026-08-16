@@ -24,7 +24,6 @@ import '../../services/export/share_poster_service.dart';
 import '../../l10n/app_localizations.dart';
 import '../category/category_manage_page.dart';
 import '../category/category_migration_page.dart';
-import '../transaction/recurring_transaction_page.dart';
 import '../settings/reminder_settings_page.dart';
 import '../settings/language_settings_page.dart';
 import '../settings/widget_management_page.dart';

@@ -22,6 +22,8 @@ import '../../utils/shared_ledger_picker_filter.dart';
 import '../biz/account_card_picker.dart';
 import '../biz/amount_calculator_keypad.dart';
 import '../biz/amount_text.dart';
+import '../biz/recurring_occurrence_dialogs.dart';
+import '../biz/shared_entry_fields.dart';
 import '../biz/tag_chip.dart';
 import '../currency/currency_flag.dart';
 import '../ui/ui.dart';
@@ -45,6 +47,10 @@ class TransferForm extends ConsumerStatefulWidget {
   final String? initialMerchant;
   final DateTime? initialDate;
   final List<int>? initialTagIds;
+  // v36 修正:編輯「週期規則生成的 occurrence」時,呼叫端(`TransactionEditUtils
+  // .editTransaction`)已經在進頁面之前問過「修改此記錄/連同未來週期」,這裡
+  // 只是把選擇結果帶進來,存檔時直接沿用,不再重問一次。非週期交易維持 null。
+  final RecurringEditScope? recurringEditScope;
 
   const TransferForm({
     super.key,
@@ -57,13 +63,25 @@ class TransferForm extends ConsumerStatefulWidget {
     this.initialMerchant,
     this.initialDate,
     this.initialTagIds,
+    this.recurringEditScope,
   });
 
   @override
-  ConsumerState<TransferForm> createState() => _TransferFormState();
+  ConsumerState<TransferForm> createState() => TransferFormState();
 }
 
-class _TransferFormState extends ConsumerState<TransferForm> {
+/// 公開(非底線開頭)是刻意的——`transaction_editor_page.dart` 需要透過
+/// `GlobalKey<TransferFormState>` 呼叫 [exportSharedFields] /
+/// [applySharedFields] 在切 tab 時同步共用欄位,見該檔案
+/// `_syncSharedFieldsOnTabChange`,跟 `TransactionEntryFormState` 同款寫法。
+class TransferFormState extends ConsumerState<TransferForm>
+    with AutomaticKeepAliveClientMixin<TransferForm> {
+  // 同 transaction_entry_form.dart 的 TransactionEntryFormState:轉帳分頁
+  // 跟另外兩個分頁共用同一個 TabBarView,不加這個會在切 tab 時被 PageView
+  // 的捲動快取丟棄 State,已輸入資料全部清空。
+  @override
+  bool get wantKeepAlive => true;
+
   int? _fromAccountId;
   int? _toAccountId;
   Account? _fromAccount;
@@ -123,6 +141,41 @@ class _TransferFormState extends ConsumerState<TransferForm> {
   }
 
   bool get _textFieldFocused => _nameFocus.hasFocus || _merchantFocus.hasFocus;
+
+  /// 供 `transaction_editor_page.dart` 切 tab 時讀出目前已輸入的共用欄位。
+  /// `accountId` 對應轉出帳戶(`_fromAccountId`)——轉入帳戶語意上不是「選中的
+  /// 帳戶」,不參與同步,見 `shared_entry_fields.dart` 的型別註解。
+  SharedEntryFields exportSharedFields() => (
+        amountStr: _amountStr,
+        amountAcc: _acc,
+        amountOp: _op,
+        date: _date,
+        note: _nameCtrl.text,
+        merchant: _merchantCtrl.text,
+        tagIds: List.of(_selectedTagIds),
+        accountId: _fromAccountId,
+      );
+
+  /// 把另一個分頁匯出的共用欄位套用到這裡,跟
+  /// `TransactionEntryFormState.applySharedFields` 同款寫法。
+  void applySharedFields(SharedEntryFields f) {
+    if (!mounted) return;
+    setState(() {
+      _amountStr = f.amountStr;
+      _acc = f.amountAcc;
+      _op = f.amountOp;
+      _date = f.date;
+      _nameCtrl.text = f.note;
+      _merchantCtrl.text = f.merchant;
+      _selectedTagIds = List.of(f.tagIds);
+    });
+    if (f.accountId != null &&
+        f.accountId != _fromAccountId &&
+        f.accountId != _toAccountId) {
+      setState(() => _fromAccountId = f.accountId);
+      _loadAccount(f.accountId!, isFrom: true);
+    }
+  }
 
   /// 反查账户:正数 id → 主表 accounts;负数 synthetic id → 扫
   /// SharedLedgerAccounts 找 syntheticIdForSyncId 命中(共享账本 Editor
@@ -292,8 +345,8 @@ class _TransferFormState extends ConsumerState<TransferForm> {
     );
     if (res == null || !mounted) return;
     setState(() {
-      _date = DateTime(_date.year, _date.month, _date.day, res.hour,
-          res.minute, _date.second);
+      _date = DateTime(_date.year, _date.month, _date.day, res.hour, res.minute,
+          _date.second);
     });
   }
 
@@ -331,6 +384,28 @@ class _TransferFormState extends ConsumerState<TransferForm> {
     final attachmentService = ref.read(attachmentServiceProvider);
     final transferCategory = await ref.read(transferCategoryProvider.future);
     final transferCategoryId = transferCategory.id;
+
+    // v36 修正:「修改此記錄」vs「修改連同未來週期」的選擇彈窗理想上已經在進
+    // 入編輯頁「之前」由呼叫端(`TransactionEditUtils.editTransaction`)問
+    // 過,結果透過 `widget.recurringEditScope` 帶進來,這裡直接沿用不重問。
+    // 沒有預先問過(呼叫端忘了、或像本檔案的 widget test 直接建構
+    // `TransferForm` 略過入口)時當安全網,存檔這一刻補問一次——維持這個
+    // occurrence 一定會被問過的行為,不會直接無聲單筆覆寫。
+    RecurringEditScope? recurringScope = widget.recurringEditScope;
+    String? editingRecurringRuleId;
+    if (widget.editingTransactionId != null) {
+      final original =
+          await repo.getTransactionById(widget.editingTransactionId!);
+      editingRecurringRuleId = original?.recurringRuleId;
+      if (editingRecurringRuleId != null && recurringScope == null) {
+        if (!mounted) return;
+        recurringScope = await showRecurringEditChoiceSheet(context);
+        if (recurringScope == null) {
+          if (mounted) setState(() => _isSubmitting = false);
+          return;
+        }
+      }
+    }
 
     // §7 共享账本:Editor picker 给的是 synthetic Account(负数 id)。写本地
     // Drift 时 accountId / toAccountId 留 null,override 字段走 Owner 的
@@ -373,6 +448,34 @@ class _TransferFormState extends ConsumerState<TransferForm> {
         );
         // 共享账本:回填编辑人,UI 头像组立即展示
         await TxAuthorService.markEdited(ref, transactionId);
+
+        if (recurringScope == RecurringEditScope.thisOnly) {
+          // 同 transaction_editor_page.dart _handleSubmit 的既有慣例:標記
+          // overridden,不用另外補 change(updateTransaction 已經記過一條,
+          // push 時序列化器統一讀 DB 最新狀態)。
+          if (repo is LocalRepository) {
+            await (repo.db.update(repo.db.transactions)
+                  ..where((t) => t.id.equals(transactionId)))
+                .write(const TransactionsCompanion(
+                    recurringOccurrenceOverridden: d.Value(true)));
+          }
+        } else if (recurringScope == RecurringEditScope.thisAndFuture) {
+          final rule = editingRecurringRuleId != null
+              ? await repo.getRuleBySyncId(editingRecurringRuleId)
+              : null;
+          if (rule != null) {
+            await repo.updateRuleAndFuture(
+              ruleId: rule.id,
+              anchorTransactionId: transactionId,
+              type: 'transfer',
+              amount: total.abs(),
+              accountId: fromAccountForAdd,
+              toAccountId: toAccountForAdd,
+              note: note,
+              merchant: merchant,
+            );
+          }
+        }
 
         if (_selectedTagIds.isNotEmpty) {
           await repo.updateTransactionTags(
@@ -457,6 +560,7 @@ class _TransferFormState extends ConsumerState<TransferForm> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // AutomaticKeepAliveClientMixin 要求
     final text = Theme.of(context).textTheme;
     final primary = Theme.of(context).colorScheme.primary;
     final cur = _parsedAmount();

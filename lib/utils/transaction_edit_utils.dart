@@ -4,6 +4,7 @@ import '../data/db.dart';
 import '../pages/transaction/transaction_editor_page.dart';
 import '../data/repositories/local/local_repository.dart';
 import '../providers/database_providers.dart';
+import '../widgets/biz/recurring_occurrence_dialogs.dart';
 import 'shared_ledger_picker_filter.dart' show syntheticIdForSyncId;
 
 /// 解析交易的标签/类别/账户(含 §7 共享账本 override → synthetic id)三元组,
@@ -70,6 +71,18 @@ class TransactionEditUtils {
     Transaction transaction,
     Category? category,
   ) async {
+    // v36 修正:週期規則生成的 occurrence 要在「進入編輯頁之前」就先問
+    // 「修改此記錄 / 修改連同未來週期」——原本這個彈窗只在存檔那一刻才跳
+    // (transaction_editor_page.dart `_handleSubmit` / transfer_form.dart
+    // `_submit`),使用者從明細頁點編輯鉛筆會直接看到表單,體感上像是
+    // 「完全沒有彈窗」。此處先問清楚,選擇結果透過
+    // `initialRecurringEditScope` 帶進編輯頁,存檔時直接沿用,不再重問。
+    RecurringEditScope? recurringScope;
+    if (transaction.recurringRuleId != null) {
+      recurringScope = await showRecurringEditChoiceSheet(context);
+      if (recurringScope == null || !context.mounted) return;
+    }
+
     final refs = await _resolveRefs(ref, transaction);
     if (!context.mounted) return;
 
@@ -96,6 +109,7 @@ class TransactionEditUtils {
           initialCurrencyCode: transaction.currencyCode,
           initialNativeAmount: transaction.nativeAmount,
           initialRewardRuleIds: transaction.rewardRuleIds,
+          initialRecurringEditScope: recurringScope,
         ),
       ),
     );

@@ -19,6 +19,7 @@ import '../../pages/attachment/attachment_preview_page.dart';
 import '../category_icon.dart';
 import '../ui/ui.dart';
 import 'amount_text.dart';
+import 'recurring_occurrence_dialogs.dart';
 
 /// 点击交易时弹出的资讯卡:唯读展示,右上角退款/删除/复制/编辑四个动作,
 /// 中间最大区块显示附图(没有图就显示分类图示+名称)。取代原本「点击直接进
@@ -157,17 +158,32 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
 
   Future<void> _handleDelete() async {
     final l10n = AppLocalizations.of(context);
-    final confirmed = await AppDialog.confirm<bool>(
-          context,
-          title: l10n.deleteConfirmTitle,
-          message: l10n.deleteConfirmMessage,
-        ) ??
-        false;
-    if (!confirmed || !mounted) return;
-
+    final tx = widget.transaction;
     final repo = ref.read(repositoryProvider);
-    await repo.deleteTransaction(widget.transaction.id);
-    if (!mounted) return;
+
+    // v36:週期規則生成的 occurrence 走「此記錄/連同未來週期」二選一彈窗
+    // (對齐 MOZE 截圖語意,§2.2),純本地一次性交易維持原本的單一確認彈窗。
+    if (tx.recurringRuleId != null) {
+      final scope = await showRecurringDeleteChoiceSheet(context);
+      if (scope == null || !mounted) return;
+      await repo.deleteOccurrence(tx.id);
+      if (scope == RecurringDeleteScope.thisAndFuture) {
+        final rule = await repo.getRuleBySyncId(tx.recurringRuleId!);
+        if (rule != null) await repo.terminateFuture(rule.id);
+      }
+      if (!mounted) return;
+    } else {
+      final confirmed = await AppDialog.confirm<bool>(
+            context,
+            title: l10n.deleteConfirmTitle,
+            message: l10n.deleteConfirmMessage,
+          ) ??
+          false;
+      if (!confirmed || !mounted) return;
+
+      await repo.deleteTransaction(tx.id);
+      if (!mounted) return;
+    }
 
     final curLedger = ref.read(currentLedgerIdProvider);
     ref.invalidate(countsForLedgerProvider(curLedger));
@@ -497,7 +513,7 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
     final merchant =
         (tx.merchant != null && tx.merchant!.isNotEmpty) ? tx.merchant! : '—';
     final repeatText =
-        tx.recurringId == null ? l10n.txDetailOnce : l10n.txDetailRecurring;
+        tx.recurringRuleId == null ? l10n.txDetailOnce : l10n.txDetailRecurring;
     final dateText =
         '${tx.happenedAt.year}/${tx.happenedAt.month.toString().padLeft(2, '0')}/${tx.happenedAt.day.toString().padLeft(2, '0')}';
     final timeText =

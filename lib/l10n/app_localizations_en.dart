@@ -8356,4 +8356,144 @@ class AppLocalizationsEn extends AppLocalizations {
   String cardRewardDetailQualifiedSpend(String amount) {
     return 'Qualifying spend: $amount';
   }
+
+  @override
+  String get recurringSheetTitle => 'Advanced Settings';
+
+  @override
+  String get recurringTabOnce => 'One-time';
+
+  @override
+  String get recurringTabRecurring => 'Recurring';
+
+  @override
+  String get recurringTabInstallment => 'Installment';
+
+  @override
+  String get recurringTabInstallmentComingSoon => 'Coming soon';
+
+  @override
+  String get recurringEveryPrefix => 'Every';
+
+  @override
+  String get recurringUnitDay => 'Day(s)';
+
+  @override
+  String get recurringUnitWeek => 'Week(s)';
+
+  @override
+  String get recurringUnitMonth => 'Month(s)';
+
+  @override
+  String get recurringUnitYear => 'Year(s)';
+
+  @override
+  String get recurringWeekdaysLabel => 'Repeat on';
+
+  @override
+  String get recurringMonthDayLabel => 'Day of month';
+
+  @override
+  String get recurringCountLabel => 'Ends';
+
+  @override
+  String get recurringCountUnlimited => 'Never';
+
+  @override
+  String get recurringCountFixed => 'After a number of times';
+
+  @override
+  String get recurringCountUnit => 'times';
+
+  @override
+  String get recurringCountDate => 'On date';
+
+  @override
+  String get recurringCountEditTitle => 'Number of occurrences';
+
+  @override
+  String get recurringPostingModeLabel => 'Posting';
+
+  @override
+  String get recurringPostingModeImmediate => 'Post immediately';
+
+  @override
+  String recurringSummaryUntil(String date) {
+    return 'Until $date';
+  }
+
+  @override
+  String get recurringSummaryUnlimited => 'No end date';
+
+  @override
+  String recurringSummaryMonthDay(int day) {
+    return 'Day $day';
+  }
+
+  @override
+  String get recurringWeekdayMon => 'Mon';
+
+  @override
+  String get recurringWeekdayTue => 'Tue';
+
+  @override
+  String get recurringWeekdayWed => 'Wed';
+
+  @override
+  String get recurringWeekdayThu => 'Thu';
+
+  @override
+  String get recurringWeekdayFri => 'Fri';
+
+  @override
+  String get recurringWeekdaySat => 'Sat';
+
+  @override
+  String get recurringWeekdaySun => 'Sun';
+
+  @override
+  String get recurringRuleListTitle => 'Recurring Transactions';
+
+  @override
+  String get recurringRuleListActive => 'Active';
+
+  @override
+  String get recurringRuleListEnded => 'Ended';
+
+  @override
+  String get recurringRuleListEmpty => 'No recurring rules yet';
+
+  @override
+  String get recurringRuleDeleteConfirmTitle => 'Delete Recurring Rule';
+
+  @override
+  String get recurringRuleDeleteConfirmMessage =>
+      'This deletes the rule and all its future occurrences. Past records are kept.';
+
+  @override
+  String get recurringEditChoiceTitle => 'This is a recurring transaction';
+
+  @override
+  String get recurringEditChoiceThisOnly => 'Edit this occurrence';
+
+  @override
+  String get recurringEditChoiceThisAndFuture =>
+      'Edit this and future occurrences';
+
+  @override
+  String get recurringDeleteChoiceTitle => 'This is a recurring transaction';
+
+  @override
+  String get recurringDeleteChoiceThisOnly => 'Delete this occurrence';
+
+  @override
+  String get recurringDeleteChoiceThisAndFuture =>
+      'Delete this and future occurrences';
+
+  @override
+  String get automationRecurringTile => 'Recurring Transactions';
+
+  @override
+  String get automationRecurringTileSubtitle =>
+      'Manage recurring income, expenses and transfers';
 }

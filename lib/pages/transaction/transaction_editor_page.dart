@@ -11,7 +11,9 @@ import '../../data/repositories/local/local_repository.dart';
 import '../../utils/shared_ledger_picker_filter.dart';
 import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/transaction_entry_form.dart'
-    show TransactionEntryForm, AmountEditorResult;
+    show TransactionEntryForm, TransactionEntryFormState, AmountEditorResult;
+import '../../widgets/biz/recurring_occurrence_dialogs.dart';
+import '../../widgets/biz/shared_entry_fields.dart';
 import '../../widgets/transaction/transfer_form.dart';
 import '../../styles/tokens.dart';
 import '../../services/billing/post_processor.dart';
@@ -46,6 +48,10 @@ class TransactionEditorPage extends ConsumerStatefulWidget {
   final String? initialRefundOfSyncId;
   // v35:编辑/复制模式回填已勾选的信用卡紅利回饋規則(syncId 列表)。
   final List<String>? initialRewardRuleIds;
+  // v36 修正:編輯「週期規則生成的 occurrence」時,呼叫端(`TransactionEditUtils
+  // .editTransaction`)已經在進頁面之前問過「修改此記錄/連同未來週期」,這裡
+  // 只是把選擇結果帶進來,存檔時直接沿用,不再重問一次。非週期交易維持 null。
+  final RecurringEditScope? initialRecurringEditScope;
 
   const TransactionEditorPage({
     super.key,
@@ -65,6 +71,7 @@ class TransactionEditorPage extends ConsumerStatefulWidget {
     this.initialNativeAmount,
     this.initialRefundOfSyncId,
     this.initialRewardRuleIds,
+    this.initialRecurringEditScope,
   });
 
   @override
@@ -75,6 +82,15 @@ class TransactionEditorPage extends ConsumerStatefulWidget {
 class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
     with SingleTickerProviderStateMixin {
   late TabController _tab;
+  int _lastTabIndex = 0;
+
+  // v36 修正:支出/收入/轉帳三個分頁各自是獨立的 State(`AutomaticKeepAliveClientMixin`
+  // 只保證「切走再切回來」資料不丟,不會讓三個分頁互相同步)。這三個
+  // GlobalKey 讓 `_syncSharedFieldsOnTabChange` 能在切 tab 時讀出離開的分頁
+  // 目前輸入了什麼、寫進新切到的分頁,體感上像是共用同一份草稿。
+  final _expenseFormKey = GlobalKey<TransactionEntryFormState>();
+  final _incomeFormKey = GlobalKey<TransactionEntryFormState>();
+  final _transferFormKey = GlobalKey<TransferFormState>();
 
   @override
   void initState() {
@@ -88,12 +104,15 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
     } else {
       _tab.index = 0;
     }
+    _lastTabIndex = _tab.index;
     _tab.addListener(_unfocusOnTabSwitch);
+    _tab.addListener(_syncSharedFieldsOnTabChange);
   }
 
   @override
   void dispose() {
     _tab.removeListener(_unfocusOnTabSwitch);
+    _tab.removeListener(_syncSharedFieldsOnTabChange);
     _tab.dispose();
     super.dispose();
   }
@@ -108,6 +127,46 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
   void _unfocusOnTabSwitch() {
     if (_tab.indexIsChanging) {
       FocusManager.instance.primaryFocus?.unfocus();
+    }
+  }
+
+  /// 切 tab 時把離開的分頁目前輸入的共用欄位(金額/名稱/商家/日期時間/標籤/
+  /// 帳戶)帶到新切到的分頁——解決「支出輸入 600 後切收入,收入還是空白」
+  /// 的問題(見 docs/changes 對這個 bug 的說明)。
+  ///
+  /// `_tab.index` 在使用者點 tab 的當下就同步更新(動畫只是視覺過場),所以
+  /// 直接比對 `index != _lastTabIndex` 就能在「index 真的變了」那一刻恰好
+  /// 觸發一次,不用額外判斷 `indexIsChanging`(那個只反映動畫有沒有在跑,
+  /// 用來擋這裡反而會在動畫結束又多觸發一次)。
+  void _syncSharedFieldsOnTabChange() {
+    if (_tab.index == _lastTabIndex) return;
+    final fromIndex = _lastTabIndex;
+    final toIndex = _tab.index;
+    _lastTabIndex = toIndex;
+    final exported = _exportSharedFields(fromIndex);
+    if (exported != null) _applySharedFields(toIndex, exported);
+  }
+
+  SharedEntryFields? _exportSharedFields(int tabIndex) {
+    switch (tabIndex) {
+      case 0:
+        return _expenseFormKey.currentState?.exportSharedFields();
+      case 1:
+        return _incomeFormKey.currentState?.exportSharedFields();
+      case 2:
+        return _transferFormKey.currentState?.exportSharedFields();
+    }
+    return null;
+  }
+
+  void _applySharedFields(int tabIndex, SharedEntryFields fields) {
+    switch (tabIndex) {
+      case 0:
+        _expenseFormKey.currentState?.applySharedFields(fields);
+      case 1:
+        _incomeFormKey.currentState?.applySharedFields(fields);
+      case 2:
+        _transferFormKey.currentState?.applySharedFields(fields);
     }
   }
 
@@ -173,6 +232,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
               controller: _tab,
               children: [
                 TransactionEntryForm(
+                  key: _expenseFormKey,
                   kind: 'expense',
                   initialCategoryId: widget.initialCategoryId,
                   initialDate: widget.initialDate ?? DateTime.now(),
@@ -191,6 +251,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
                   onSubmit: (c, r) => _handleSubmit(c, 'expense', r),
                 ),
                 TransactionEntryForm(
+                  key: _incomeFormKey,
                   kind: 'income',
                   initialCategoryId: widget.initialCategoryId,
                   initialDate: widget.initialDate ?? DateTime.now(),
@@ -209,6 +270,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
                   onSubmit: (c, r) => _handleSubmit(c, 'income', r),
                 ),
                 TransferForm(
+                  key: _transferFormKey,
                   onTransferComplete: () {
                     // 关闭交易编辑器
                     Navigator.pop(context);
@@ -221,6 +283,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
                   initialMerchant: widget.initialMerchant,
                   initialDate: widget.initialDate,
                   initialTagIds: widget.initialTagIds,
+                  recurringEditScope: widget.initialRecurringEditScope,
                 ),
               ],
             ),
@@ -258,7 +321,30 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
         ? await _resolveSyncIdByAccountId(res.accountId!, ledgerId)
         : null;
     if (widget.editingTransactionId != null) {
-      // 编辑模式：使用repository更新交易
+      // v36 修正:「修改此記錄」vs「修改連同未來週期」的選擇彈窗理想上已經在
+      // 進入這個編輯頁「之前」由呼叫端(`TransactionEditUtils.editTransaction`)
+      // 問過,結果透過 `widget.initialRecurringEditScope` 帶進來,這裡直接沿
+      // 用不重問(原本在存檔這一刻才問,使用者從明細頁點編輯鉛筆會先看到完
+      // 整表單,體感像是彈窗沒出現)。呼叫端忘了先問(或直接構造這個 page 略
+      // 過入口)時當安全網,存檔這一刻補問一次。純本地一次性交易
+      // (recurringRuleId == null)這個值本來就是 null,不受影響。
+      final original =
+          await repo.getTransactionById(widget.editingTransactionId!);
+      RecurringEditScope? recurringScope = widget.initialRecurringEditScope;
+      if (original?.recurringRuleId != null && recurringScope == null) {
+        if (!mounted) return;
+        recurringScope = await showRecurringEditChoiceSheet(context);
+        if (recurringScope == null) {
+          // 使用者取消選擇——整個存檔動作中止,不寫入任何變更。表單那顆存檔鍵
+          // 靠 onSubmit 回傳的 Future 完成後自動解除 _isSubmitting,不用在
+          // 這裡另外處理。
+          return;
+        }
+      }
+
+      // 编辑模式：使用repository更新交易(不论「此记录」还是「连同未来周期」
+      // 都先执行这一步——被直接编辑的这一笔本来就该拿到完整的欄位变更,附件/
+      // 汇率/账单标记等「連同未來週期」批次不转发的欄位靠这次调用落地)。
       await repo.updateTransaction(
         id: widget.editingTransactionId!,
         type: kind,
@@ -280,6 +366,69 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
       // 共享账本:本地 lastEditedByUserId 立即回填,UI 头像组直接展示
       // 当前 user 为编辑人(否则要等 server 下次 pull 才回来)
       await TxAuthorService.markEdited(ref, transactionId);
+
+      if (recurringScope == RecurringEditScope.thisOnly) {
+        // 「此記錄」:標記 overridden,之后「連同未來週期」的批次更新要跳过
+        // 这一笔。updateTransaction 已经记过一条 change,push 时序列化器统一
+        // 读 DB 最新状态,这里不用再补一条 change(同本文件 TAG override 那段
+        // 注释的既有惯例)。
+        if (repo is LocalRepository) {
+          await (repo.db.update(repo.db.transactions)
+                ..where((t) => t.id.equals(transactionId)))
+              .write(const TransactionsCompanion(
+                  recurringOccurrenceOverridden: d.Value(true)));
+        }
+      } else if (recurringScope == RecurringEditScope.thisAndFuture) {
+        // 「連同未來週期」:把「規則模板」欄位(不含附件/匯率/帳單標記——這些
+        // 是逐筆概念,見 RecurringRuleRepository.updateRuleAndFuture 的窄欄位
+        // 集合)轉發給規則本身 + 同規則、未來、未被單獨編輯過的既有 occurrence。
+        final rule = await repo.getRuleBySyncId(original!.recurringRuleId!);
+        if (rule != null) {
+          await repo.updateRuleAndFuture(
+            ruleId: rule.id,
+            anchorTransactionId: transactionId,
+            type: kind,
+            amount: res.amount,
+            categoryId: categoryIdForWrite,
+            accountId: accountIdForAdd,
+            note: res.note,
+            merchant: res.merchant,
+          );
+        }
+      }
+    } else if (res.recurringDraft != null) {
+      // v36:新增時開啟了「週期」——建規則(內部會依演算法批次生成第一個視窗
+      // 的 occurrence,含當下這一筆),不再另外呼叫 addTransaction。
+      final draft = res.recurringDraft!;
+      final ruleId = await repo.createRule(
+        ledgerId: ledgerId,
+        type: kind,
+        amount: res.amount,
+        categoryId: categoryIdForWrite,
+        accountId: accountIdForAdd,
+        note: res.note,
+        merchant: res.merchant,
+        rewardRuleSyncIds: res.rewardRuleIds,
+        frequency: draft.frequency,
+        interval: draft.interval,
+        advancedRule: draft.advancedRule,
+        nextRunAt: res.date,
+        endAt: draft.endAt,
+      );
+      final rule = await repo.getRuleById(ruleId);
+      int? firstOccurrenceId;
+      if (rule?.syncId != null && repo is LocalRepository) {
+        final first = await (repo.db.select(repo.db.transactions)
+              ..where((t) => t.recurringRuleId.equals(rule!.syncId!))
+              ..orderBy([(t) => d.OrderingTerm.asc(t.happenedAt)])
+              ..limit(1))
+            .getSingleOrNull();
+        firstOccurrenceId = first?.id;
+      }
+      transactionId = firstOccurrenceId ?? -1;
+      if (transactionId != -1) {
+        await TxAuthorService.markCreated(ref, transactionId);
+      }
     } else {
       transactionId = await repo.addTransaction(
         ledgerId: ledgerId,
