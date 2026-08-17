@@ -174,6 +174,14 @@ abstract class AccountRepository {
   /// [startDate]/[endDate] 帳單週期篩選(信用卡「交易明細」tab 按帳單日切期
   /// 用),含端點所在的整個自然日(endDate 當天 23:59:59 前都算,不用調用方
   /// 自己補時分秒),null 代表不限制。
+  ///
+  /// [byEffectiveDate] 為 true 時,[startDate]/[endDate] 比對的是「入帳歸屬日」
+  /// `COALESCE(deferred_posting_at, happened_at)` 而不是原始發生日
+  /// `happened_at`——信用卡帳單彙總卡片下方的交易列表要用這個口徑,延後入帳
+  /// 到下一期的交易才會正確出現在下一期的清單裡,不會卡在原始消費日所在的
+  /// 那一期。跟 [getAccountStatementTransactions] 的差異只有 member 帳戶
+  /// 判斷範圍(這個方法沿用 [flow]/`account_id OR to_account_id` 既有的通用
+  /// 口徑,不收窄成對帳清單專用的 belongs 判斷)。
   Future<List<Transaction>> getAccountTransactions(
     int accountId, {
     int limit = 50,
@@ -182,6 +190,7 @@ abstract class AccountRepository {
     List<int>? extraAccountIds,
     DateTime? startDate,
     DateTime? endDate,
+    bool byEffectiveDate = false,
   });
 
   /// 對帳模式(§2.10 MOZE_FEATURE_GAP_SD.md)專用:依「入帳歸屬日」

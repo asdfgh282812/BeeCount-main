@@ -725,6 +725,7 @@ class LocalAccountRepository implements AccountRepository {
     List<int>? extraAccountIds,
     DateTime? startDate,
     DateTime? endDate,
+    bool byEffectiveDate = false,
   }) async {
     // 主帳戶(合併帳單分組)聚合視圖:accountId + extraAccountIds 一起按
     // IN (...) 查,跟单账户走同一条 SQL,只是集合大小不同。
@@ -745,11 +746,17 @@ class LocalAccountRepository implements AccountRepository {
     final idVariables = ids.map((id) => d.Variable.withInt(id)).toList();
 
     // 帳單週期篩選(信用卡「交易明細」tab):happened_at 落库是 epoch 秒。
+    // byEffectiveDate 時改用 COALESCE(deferred_posting_at, happened_at)——
+    // 對齊 getAccountStatementTransactions 的入帳歸屬日口徑,延後入帳的交易
+    // 才會正確落在延後目標那一期,而不是卡在原始消費日所在的那一期。
+    final dateColumn = byEffectiveDate
+        ? 'COALESCE(deferred_posting_at, happened_at)'
+        : 'happened_at';
     var nextIndex = ids.length + 1;
     final dateVariables = <d.Variable>[];
     var dateWhere = '';
     if (startDate != null) {
-      dateWhere += ' AND happened_at >= ?$nextIndex';
+      dateWhere += ' AND $dateColumn >= ?$nextIndex';
       dateVariables
           .add(d.Variable.withInt(startDate.millisecondsSinceEpoch ~/ 1000));
       nextIndex++;
@@ -759,7 +766,7 @@ class LocalAccountRepository implements AccountRepository {
       // 都补到 23:59:59 再比较,避免当天下午的交易被判成「週期外」。
       final endOfDay =
           DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
-      dateWhere += ' AND happened_at <= ?$nextIndex';
+      dateWhere += ' AND $dateColumn <= ?$nextIndex';
       dateVariables
           .add(d.Variable.withInt(endOfDay.millisecondsSinceEpoch ~/ 1000));
       nextIndex++;

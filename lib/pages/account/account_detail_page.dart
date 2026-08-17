@@ -169,6 +169,10 @@ final accountBillingPeriodTransactionsProvider = FutureProvider.family
       extraAccountIds: extraIds,
       startDate: params.start,
       endDate: params.end,
+      // 延後入帳的交易依「入帳歸屬日」歸類到週期,不是原始消費日,才會正確
+      // 出現在延後目標那一期的交易列表裡(見 account_repository.dart::
+      // getAccountTransactions 的 byEffectiveDate 文件註解)。
+      byEffectiveDate: true,
     );
   },
 );
@@ -1154,6 +1158,15 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
   String _formatYmd(DateTime d) =>
       '${d.year}/${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}';
 
+  /// 帳單週期文字標籤:`billingCyclePeriod` 回傳的 `start` 是查詢用的
+  /// inclusive-both 邊界(上次結帳日隔天),顯示給使用者看的週期文字要換算
+  /// 回結帳日本身(`start` 往前一天),對齊 web 版「結帳日 – 結帳日」的
+  /// label 格式(見 `lib/utils/card_reward_period.dart::billingCyclePeriod`
+  /// 的文件註解)。
+  String _formatCycleLabel(({DateTime start, DateTime end}) period) =>
+      '${_formatYmd(period.start.subtract(const Duration(days: 1)))} – '
+      '${_formatYmd(period.end)}';
+
   // ============================================
   // 「交易明細」tab:信用卡帳單彙總卡片
   // ============================================
@@ -1192,7 +1205,7 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
                   onPressed: () => setState(() => _billingPeriodOffset -= 1),
                 ),
                 Text(
-                  '${_formatYmd(period.start)} – ${_formatYmd(period.end)}',
+                  _formatCycleLabel(period),
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -1460,7 +1473,10 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  '${_formatYmd(summary.periodStart)} – ${_formatYmd(summary.periodEnd)}',
+                                  _formatCycleLabel((
+                                    start: summary.periodStart,
+                                    end: summary.periodEnd
+                                  )),
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: BeeTokens.textTertiary(context),
@@ -1579,7 +1595,7 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
         rows.add(_InfoRow(
           label: l10n.billingDay,
           value: Text(
-            '${_formatYmd(period.start)} – ${_formatYmd(period.end)}',
+            _formatCycleLabel(period),
             style: _infoValueStyle(context),
           ),
         ));
@@ -2298,6 +2314,10 @@ class _TransactionTile extends ConsumerWidget {
                             ),
                           ),
                         ),
+                      ],
+                      if (transaction.deferredPostingAt != null) ...[
+                        SizedBox(width: 6.0.scaled(context, ref)),
+                        InfoTag(l10n.reconciliationDeferredBadge),
                       ],
                     ],
                   ),

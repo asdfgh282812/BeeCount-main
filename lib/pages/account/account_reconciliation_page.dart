@@ -112,7 +112,12 @@ class _AccountReconciliationPageState
         children: [
           PrimaryHeader(
             title: l10n.reconciliationSectionTitle,
-            subtitle: '${_formatYmd(cycle.start)} – ${_formatYmd(cycle.end)}',
+            // cycle.start 是查詢用的 inclusive-both 邊界(上次結帳日隔天),
+            // 顯示文字要換算回結帳日本身,對齊帳戶詳情頁帳單彙總卡片的
+            // label 格式(見 card_reward_period.dart::billingCyclePeriod
+            // 文件註解)。
+            subtitle:
+                '${_formatYmd(cycle.start.subtract(const Duration(days: 1)))} – ${_formatYmd(cycle.end)}',
             showBack: true,
             compact: true,
             actions: [
@@ -408,10 +413,8 @@ class _AccountReconciliationPageState
         setState(() => _sortDesc = !_sortDesc);
         break;
       case 'clear':
-        final confirmedIds = txs
-            .where((t) => t.reconciledAt != null)
-            .map((t) => t.id)
-            .toList();
+        final confirmedIds =
+            txs.where((t) => t.reconciledAt != null).map((t) => t.id).toList();
         if (confirmedIds.isEmpty) return;
         final confirmed = await showDialog<bool>(
           context: context,
@@ -589,7 +592,16 @@ class _StatementRow extends ConsumerWidget {
                       lastDate:
                           DateTime.now().add(const Duration(days: 365 * 3)),
                     );
-                    if (picked != null) onDefer(picked);
+                    // 延後入帳是「純日期」欄位:showDatePicker 回傳的
+                    // DateTime 帶的是機器本地時區 flavor 的年月日,直接
+                    // `.toUtc()` 序列化會依裝置時區把日期往前/後推一天
+                    // (UTC+8 裝置在 App 選 8/5,序列化後變成 UTC 8/4)。
+                    // 這裡改成用選到的年月日重新構造成 UTC 午夜,跟 web 版
+                    // dateInputToIso(`${value}T00:00:00+00:00`)同一個表示法。
+                    if (picked != null) {
+                      onDefer(
+                          DateTime.utc(picked.year, picked.month, picked.day));
+                    }
                   },
             child: Text(tx.deferredPostingAt != null
                 ? l10n.reconciliationUndeferButton

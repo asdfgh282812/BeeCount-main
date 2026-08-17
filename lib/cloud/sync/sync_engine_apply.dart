@@ -260,13 +260,20 @@ extension SyncEngineApplyExt on SyncEngine {
     final hasReconciledKey = payload.containsKey('reconciledAt');
     final reconciledAtStr =
         hasReconciledKey ? payload['reconciledAt'] as String? : null;
-    final reconciledAt =
-        reconciledAtStr != null ? DateTime.tryParse(reconciledAtStr)?.toLocal() : null;
+    final reconciledAt = reconciledAtStr != null
+        ? DateTime.tryParse(reconciledAtStr)?.toLocal()
+        : null;
+    // deferredPostingAt 是「純日期」欄位(對齊哪一期帳單,不是精確時刻),
+    // 刻意不 `.toLocal()`——跟 BeeCount Cloud web 版 isoToDateInput 系列
+    // helper 同一個理由:一律用 UTC 年月日當日期的權威表示,經過本地時區
+    // 位移轉換反而會在寫入/讀出兩端使用不同時區的裝置間造成日期差一天。
+    // 讀取端(reconciliation.dart::effectiveDate 等)一律要用 `.toUtc()`
+    // 取年月日,不能直接讀 Drift 讀回來的本地 flavor 欄位。
     final hasDeferredPostingKey = payload.containsKey('deferredPostingAt');
     final deferredPostingAtStr =
         hasDeferredPostingKey ? payload['deferredPostingAt'] as String? : null;
     final deferredPostingAt = deferredPostingAtStr != null
-        ? DateTime.tryParse(deferredPostingAtStr)?.toLocal()
+        ? DateTime.tryParse(deferredPostingAtStr)
         : null;
 
     if (existingId != null) {

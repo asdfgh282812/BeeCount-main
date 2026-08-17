@@ -194,7 +194,11 @@ class _CardRewardDetailPageState extends ConsumerState<CardRewardDetailPage> {
                   onPressed: () => setState(() => _offset -= 1),
                 ),
                 Text(
-                  '${_formatYmd(summary.periodStart)} – ${_formatYmd(summary.periodEnd)}',
+                  // periodStart 是查詢用的 inclusive-both 邊界(上次結帳日
+                  // 隔天),顯示的週期文字要換算回結帳日本身,對齊帳戶詳情頁
+                  // 帳單彙總卡片的 label 格式(見 card_reward_period.dart::
+                  // billingCyclePeriod 文件註解)。
+                  '${_formatYmd(summary.periodStart.subtract(const Duration(days: 1)))} – ${_formatYmd(summary.periodEnd)}',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,

@@ -2181,6 +2181,7 @@ class LocalRepository extends BaseRepository {
     List<int>? extraAccountIds,
     DateTime? startDate,
     DateTime? endDate,
+    bool byEffectiveDate = false,
   }) =>
       _accountRepo.getAccountTransactions(
         accountId,
@@ -2190,6 +2191,7 @@ class LocalRepository extends BaseRepository {
         extraAccountIds: extraAccountIds,
         startDate: startDate,
         endDate: endDate,
+        byEffectiveDate: byEffectiveDate,
       );
 
   @override
