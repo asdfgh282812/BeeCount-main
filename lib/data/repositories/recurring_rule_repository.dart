@@ -64,6 +64,16 @@ abstract class RecurringRuleRepository {
 
   Stream<List<RecurringTransaction>> watchRulesByLedger(int ledgerId);
 
+  /// 規則列表頁「展開」用:某規則已生成的全部 occurrence 交易,依
+  /// `happenedAt` 由舊到新排序。[ruleSyncId] 是 [RecurringTransaction.syncId]
+  /// (occurrence 交易靠這個字串反查所屬規則,不是本地 int id)。
+  Future<List<Transaction>> getOccurrencesForRule(String ruleSyncId);
+
+  /// 規則列表頁快速啟停 Switch 用的輕量欄位更新(只改 `enabled`,不碰生成
+  /// 邏輯——關閉後 [refillWindows]/[materializeDueTransferRules] 的查詢會自然
+  /// 跳過這條規則,不需要額外清理已生成的 occurrence)。
+  Future<void> setRuleEnabled(int ruleId, bool enabled);
+
   /// 引用該帳戶的**進行中**(enabled=true)規則數量(轉出/轉入/收支任一端命
   /// 中即算)。帳戶隱藏確認框用此數提示「有 N 個週期帳單在用此帳戶」,同舊版
   /// `getActiveRecurringCountByAccount` 語意。
@@ -91,13 +101,26 @@ abstract class RecurringRuleRepository {
   Future<void> deleteOccurrence(int transactionId);
 
   /// 「修改連同未來週期」:更新規則本身(供以後新生成的期數延用新值)+ 批次
-  /// 更新同規則、`happenedAt >= anchor.happenedAt`、且未被單獨編輯過
+  /// 更新同規則、`happenedAt >= 起點`、且未被單獨編輯過
   /// (`recurringOccurrenceOverridden == false`)的既有 occurrence 交易(不動
-  /// `happenedAt`,只改內容)。[anchorTransactionId] 是使用者點進去操作的那
-  /// 一筆,用它的 `happenedAt` 當批次更新的起點。
+  /// `happenedAt`,只改內容)。
+  ///
+  /// 批次更新的起點有兩種來源:
+  /// - [anchorTransactionId] 非 null:使用者從某一筆 occurrence 點「連同以
+  ///   後」進來,起點 = 那一筆的 `happenedAt`(既有語意,不變)。
+  /// - [anchorTransactionId] 為 null:使用者直接從規則列表頁「編輯」進來,
+  ///   沒有一筆具體的 occurrence 可以當 anchor,起點改用 [anchorDate](預設
+  ///   `DateTime.now()`)。
+  ///
+  /// [frequency]/[interval] 變更不會回頭搬動已生成 occurrence 的
+  /// `happenedAt`(只影響規則本身 + 之後「還沒長出來」的期數,跟 Web 現況一
+  /// 致,見 docs/changes 說明)。[nextRunAt]/[endAt] 只寫回規則列;若新
+  /// [endAt] 早於某些已生成、尚未發生(`happenedAt > now`)、未被單獨編輯過
+  /// 的 occurrence,那些 occurrence 會被直接刪除(讓「結束時間」真的生效)。
   Future<void> updateRuleAndFuture({
     required int ruleId,
-    required int anchorTransactionId,
+    int? anchorTransactionId,
+    DateTime? anchorDate,
     String? type,
     double? amount,
     int? categoryId,
@@ -111,6 +134,9 @@ abstract class RecurringRuleRepository {
     String? frequency,
     int? interval,
     Map<String, dynamic>? advancedRule,
+    DateTime? nextRunAt,
+    DateTime? endAt,
+    bool clearEndAt = false,
   });
 
   /// 「刪除連同未來週期」:刪除同規則、`happenedAt > now` 的所有 occurrence

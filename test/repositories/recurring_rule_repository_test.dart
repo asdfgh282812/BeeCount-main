@@ -161,6 +161,167 @@ void main() {
     expect(updatedRule!.amount, 500, reason: '规则本身也要更新,供以后新期数延用');
   });
 
+  test(
+      'updateRuleAndFuture(anchorTransactionId 為 null):用 anchorDate 當起點,'
+      '給規則列表頁「編輯」直接進來的入口用', () async {
+    final lid = await seedLedgerAndAccount();
+    final ruleId = await repo.createRule(
+      ledgerId: lid,
+      type: 'expense',
+      amount: 100,
+      frequency: 'monthly',
+      interval: 1,
+      nextRunAt: DateTime(2026, 1, 1),
+      endAt: DateTime(2026, 4, 1),
+    );
+    final rule = await repo.getRuleById(ruleId);
+    final occurrences = await (db.select(db.transactions)
+          ..where((t) => t.recurringRuleId.equals(rule!.syncId!))
+          ..orderBy([(t) => OrderingTerm(expression: t.happenedAt)]))
+        .get();
+    // Jan/Feb/Mar/Apr。先把 Feb 標記為「此記錄已單獨編輯」。
+    await repo.updateOccurrence(transactionId: occurrences[1].id, amount: 1);
+
+    // 不傳 anchorTransactionId,改用 anchorDate = Mar 1 當起點。
+    await repo.updateRuleAndFuture(
+      ruleId: ruleId,
+      anchorDate: DateTime(2026, 3, 1),
+      amount: 500,
+    );
+
+    final jan = await repo.getTransactionById(occurrences[0].id);
+    final feb = await repo.getTransactionById(occurrences[1].id);
+    final mar = await repo.getTransactionById(occurrences[2].id);
+    final apr = await repo.getTransactionById(occurrences[3].id);
+    expect(jan!.amount, 100, reason: 'Jan 在 anchorDate 之前,不受影响');
+    expect(feb!.amount, 1, reason: 'Feb 已 overridden,批次更新要跳过它');
+    expect(mar!.amount, 500, reason: 'Mar 是 anchorDate 本身,要更新');
+    expect(apr!.amount, 500, reason: 'Apr 在 anchorDate 之后且未 overridden,要更新');
+
+    final updatedRule = await repo.getRuleById(ruleId);
+    expect(updatedRule!.amount, 500);
+  });
+
+  test(
+      'updateRuleAndFuture(anchorTransactionId/anchorDate 皆為 null):'
+      '預設用現在當起點', () async {
+    final lid = await seedLedgerAndAccount();
+    final past = DateTime.now().subtract(const Duration(days: 40));
+    final ruleId = await repo.createRule(
+      ledgerId: lid,
+      type: 'expense',
+      amount: 100,
+      frequency: 'monthly',
+      interval: 1,
+      nextRunAt: past,
+    );
+    final rule = await repo.getRuleById(ruleId);
+    final before = await (db.select(db.transactions)
+          ..where((t) => t.recurringRuleId.equals(rule!.syncId!)))
+        .get();
+    final now = DateTime.now();
+    final pastOnes = before.where((t) => t.happenedAt.isBefore(now)).toList();
+    final futureOnes = before.where((t) => t.happenedAt.isAfter(now)).toList();
+    expect(pastOnes, isNotEmpty);
+    expect(futureOnes, isNotEmpty);
+
+    await repo.updateRuleAndFuture(ruleId: ruleId, amount: 777);
+
+    for (final t in pastOnes) {
+      final after = await repo.getTransactionById(t.id);
+      expect(after!.amount, 100, reason: '過去的期數不受影響');
+    }
+    for (final t in futureOnes) {
+      final after = await repo.getTransactionById(t.id);
+      expect(after!.amount, 777, reason: '未來的期數要被批次更新');
+    }
+  });
+
+  test(
+      'updateRuleAndFuture 縮短 endAt:刪除超出新結束時間、未發生、未 overridden '
+      '的期數;已 overridden 的例外保留', () async {
+    final lid = await seedLedgerAndAccount();
+    final ruleId = await repo.createRule(
+      ledgerId: lid,
+      type: 'expense',
+      amount: 100,
+      frequency: 'monthly',
+      interval: 1,
+      nextRunAt: DateTime.now().add(const Duration(days: 10)),
+      endAt: DateTime.now().add(const Duration(days: 10 + 120)),
+    );
+    final rule = await repo.getRuleById(ruleId);
+    final before = await (db.select(db.transactions)
+          ..where((t) => t.recurringRuleId.equals(rule!.syncId!))
+          ..orderBy([(t) => OrderingTerm(expression: t.happenedAt)]))
+        .get();
+    expect(before.length, greaterThanOrEqualTo(4));
+    // 標記第 2 筆為單獨編輯——縮短 endAt 後即使超出新結束時間也該保留。
+    await repo.updateOccurrence(transactionId: before[1].id, amount: 1);
+
+    // 新 endAt 落在第 0 筆之後、第 1 筆之前。
+    final newEndAt = before[0].happenedAt.add(const Duration(days: 15));
+    await repo.updateRuleAndFuture(ruleId: ruleId, endAt: newEndAt);
+
+    final after = await (db.select(db.transactions)
+          ..where((t) => t.recurringRuleId.equals(rule!.syncId!)))
+        .get();
+    final remainingIds = after.map((t) => t.id).toSet();
+    expect(remainingIds.contains(before[0].id), isTrue,
+        reason: '沒超出新 endAt,保留');
+    expect(remainingIds.contains(before[1].id), isTrue,
+        reason: '超出新 endAt 但已 overridden,例外保留');
+    for (final t in before.skip(2)) {
+      expect(remainingIds.contains(t.id), isFalse,
+          reason: '超出新 endAt 且未 overridden,應該被刪除');
+    }
+
+    final updatedRule = await repo.getRuleById(ruleId);
+    expect(updatedRule!.endAt, newEndAt);
+  });
+
+  test('setRuleEnabled:只切換 enabled 欄位', () async {
+    final lid = await seedLedgerAndAccount();
+    final ruleId = await repo.createRule(
+      ledgerId: lid,
+      type: 'expense',
+      amount: 100,
+      frequency: 'monthly',
+      interval: 1,
+      nextRunAt: DateTime.now().add(const Duration(days: 10)),
+    );
+    expect((await repo.getRuleById(ruleId))!.enabled, isTrue);
+
+    await repo.setRuleEnabled(ruleId, false);
+    expect((await repo.getRuleById(ruleId))!.enabled, isFalse);
+
+    await repo.setRuleEnabled(ruleId, true);
+    expect((await repo.getRuleById(ruleId))!.enabled, isTrue);
+  });
+
+  test('getOccurrencesForRule:依 happenedAt 由舊到新回傳該規則所有 occurrence',
+      () async {
+    final lid = await seedLedgerAndAccount();
+    final ruleId = await repo.createRule(
+      ledgerId: lid,
+      type: 'expense',
+      amount: 100,
+      frequency: 'monthly',
+      interval: 1,
+      nextRunAt: DateTime(2026, 1, 1),
+      endAt: DateTime(2026, 4, 1),
+    );
+    final rule = await repo.getRuleById(ruleId);
+
+    final occurrences = await repo.getOccurrencesForRule(rule!.syncId!);
+
+    expect(occurrences.length, 4);
+    for (var i = 1; i < occurrences.length; i++) {
+      expect(occurrences[i].happenedAt.isAfter(occurrences[i - 1].happenedAt),
+          isTrue);
+    }
+  });
+
   test('terminateFuture(删除连同未来周期):只删未发生的,规则标记 enabled=false',
       () async {
     final lid = await seedLedgerAndAccount();

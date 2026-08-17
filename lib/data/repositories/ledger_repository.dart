@@ -12,6 +12,10 @@ abstract class LedgerRepository {
   /// 根据ID获取单个账本
   Future<Ledger?> getLedgerById(int id);
 
+  /// 按 syncId(对齐 server ledger.external_id)查账本;通知中心等跨端
+  /// syncId → 本地实体的场景用。
+  Future<Ledger?> getLedgerBySyncId(String syncId);
+
   /// 获取账本数量
   Future<int> getLedgerCount();
 

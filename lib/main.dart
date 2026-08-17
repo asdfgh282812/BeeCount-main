@@ -20,7 +20,6 @@ import 'pages/auth/welcome_page.dart';
 import 'pages/auth/app_lock_screen.dart';
 import 'providers/security_providers.dart';
 import 'services/system/reminder_monitor_service.dart';
-import 'providers/credit_card_reminder_providers.dart';
 import 'services/platform/screenshot_monitor_service.dart';
 import 'services/platform/image_share_handler_service.dart';
 import 'services/platform/app_link_service.dart';
@@ -36,10 +35,10 @@ import 'dart:ui';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-
 /// 全局 navigator key — 给 service 层(没有 BuildContext)push 路由使用。
 /// 当前用途:BeeCount Cloud 登录拿到 requires_2fa 时弹出 [Login2FAChallengeView]。
-final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
+final GlobalKey<NavigatorState> globalNavigatorKey =
+    GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -105,11 +104,18 @@ Future<void> main() async {
   // 周期交易生成已移至 appSplashInitProvider 中（等待数据库完全初始化后执行）
   // await _generatePendingRecurringTransactions(container);
 
-  // 恢复信用卡还款提醒
+  // 恢复信用卡还款提醒。BeeCount Cloud 已激活时跳过本地排程,交给 Cloud 端
+  // card_due 通知(通知中心)覆盖 —— 见 CreditCardReminderService.
+  // restoreAllReminders 的 skipIfCloudActive 说明。用同步读取(跟
+  // repositoryProvider 读 activeCloudConfigProvider.valueOrNull 一致的
+  // 写法),不 await 这个 FutureProvider,避免给每次启动都加上网络等待。
   try {
     final repo = container.read(repositoryProvider);
+    final cloudActive =
+        container.read(beecountCloudProviderInstance).valueOrNull != null;
     await CreditCardReminderService.restoreAllReminders(
       getCreditCardAccounts: () => repo.getCreditCardAccounts(),
+      skipIfCloudActive: cloudActive,
     );
   } catch (e) {
     // 静默失败，不影响启动
@@ -232,7 +238,8 @@ Future<void> _restoreUserReminder() async {
     if (isEnabled) {
       final hour = prefs.getInt('reminder_hour') ?? 21;
       final minute = prefs.getInt('reminder_minute') ?? 0;
-      print('✅ 发现用户已启用记账提醒: ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}');
+      print(
+          '✅ 发现用户已启用记账提醒: ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}');
       print('🔔 正在重新设置提醒任务...');
 
       try {
@@ -313,7 +320,6 @@ Future<void> _initializeAppMode(ProviderContainer container) async {
   }
 }
 
-
 /// 设置图片分享处理（Android专属）
 ///
 /// 初始化 ImageShareHandlerService 以接收从相册或其他应用分享的图片
@@ -354,7 +360,8 @@ void _setupUrlListener(ProviderContainer container) {
     appLinkService.onNavigate = (action, {params}) {
       logger.info('AppLink', '触发导航: $action');
       if (action == AppLinkAction.newTransaction && params != null) {
-        container.read(pendingNewTransactionTypeProvider.notifier).state = params.type;
+        container.read(pendingNewTransactionTypeProvider.notifier).state =
+            params.type;
         container.read(pendingNewTransactionCategoryIdProvider.notifier).state =
             params.categoryId;
       }
@@ -573,10 +580,12 @@ class MainApp extends ConsumerWidget {
         debugShowCheckedModeBanner: false,
         theme: theme,
         darkTheme: BeeTheme.darkTheme(platform: platform).copyWith(
-          colorScheme: BeeTheme.darkTheme(platform: platform).colorScheme.copyWith(primary: primary),
+          colorScheme: BeeTheme.darkTheme(platform: platform)
+              .colorScheme
+              .copyWith(primary: primary),
           primaryColor: primary,
-        ),                                                // ⭐ 暗黑主题（使用动态主题色）
-        themeMode: ref.watch(themeModeProvider),         // ⭐ 使用 provider 支持手动切换
+        ), // ⭐ 暗黑主题（使用动态主题色）
+        themeMode: ref.watch(themeModeProvider), // ⭐ 使用 provider 支持手动切换
         localizationsDelegates: const [
           AppLocalizations.delegate,
           GlobalMaterialLocalizations.delegate,

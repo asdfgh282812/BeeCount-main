@@ -48,6 +48,12 @@ class LocalAccountRepository implements AccountRepository {
   }
 
   @override
+  Future<Account?> getAccountBySyncId(String syncId) {
+    return (db.select(db.accounts)..where((a) => a.syncId.equals(syncId)))
+        .getSingleOrNull();
+  }
+
+  @override
   Future<List<Account>> getAvailableAccountsForLedger(int ledgerId) async {
     // 获取账本信息
     final ledger = await (db.select(db.ledgers)

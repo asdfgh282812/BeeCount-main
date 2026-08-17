@@ -14,6 +14,7 @@ import '../../styles/tokens.dart';
 import '../transaction/search_page.dart';
 import '../transaction/transaction_list_page.dart';
 import '../ai/ai_chat_page.dart';
+import '../../widgets/biz/notification_bell_button.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/format_utils.dart';
 import '../../utils/month_range.dart';
@@ -474,8 +475,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                            builder: (_) => const BudgetPage()),
+                        MaterialPageRoute(builder: (_) => const BudgetPage()),
                       );
                     },
                     child: Text(
@@ -601,10 +601,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                                             }
                                           },
                                           child: Container(
-                                            padding:
-                                                const EdgeInsets.symmetric(
-                                                    horizontal: 10,
-                                                    vertical: 6),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 10, vertical: 6),
                                             decoration: BoxDecoration(
                                               color: Theme.of(context)
                                                           .brightness ==
@@ -729,6 +727,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                               color: Theme.of(context).iconTheme.color,
                             ),
                           ),
+                        const NotificationBellButton(),
                         IconButton(
                           tooltip:
                               AppLocalizations.of(context).transactionListTitle,

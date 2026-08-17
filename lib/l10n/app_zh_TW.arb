@@ -3193,6 +3193,70 @@
   "recurringDeleteChoiceTitle": "這是一筆週期性交易",
   "recurringDeleteChoiceThisOnly": "刪除此記錄",
   "recurringDeleteChoiceThisAndFuture": "刪除連同未來週期",
+  "recurringRuleEditTitle": "編輯週期規則",
+  "recurringFieldType": "類型",
+  "recurringFieldAccount": "帳戶",
+  "recurringFieldMerchant": "商家",
+  "recurringFieldTags": "標籤",
+  "recurringFieldTagsEmpty": "尚未選擇標籤",
+  "recurringFieldFrequency": "頻率",
+  "recurringFieldInterval": "間隔",
+  "recurringFieldNextRunAt": "下次執行時間",
+  "recurringFieldEndAtOptional": "結束時間(可選)",
+  "cardRewardRuleSelectedCount": "已選 {count} 條",
+  "@cardRewardRuleSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recurringApplyFutureConfirmTitle": "套用到未來交易？",
+  "recurringApplyFutureConfirmMessage": "此變更會套用到規則本身,以及所有由此規則產生、尚未發生且未被單獨編輯過的未來交易。已發生的交易與被單獨編輯過的交易不受影響。",
+  "recurringRuleEnabledLabel": "進行中",
+  "recurringRuleDisabledLabel": "已結束",
+  "recurringRuleTerminateFutureLabel": "終止未來週期",
+  "recurringRuleTerminateFutureConfirmTitle": "終止未來週期",
+  "recurringRuleTerminateFutureConfirmMessage": "這會刪除此規則已生成、尚未發生的所有交易,並停止繼續產生新的期數。已發生的紀錄會保留。",
+  "recurringOccurrenceOverriddenLabel": "已單獨編輯",
+  "recurringOccurrenceUpdateFrom": "連同以後",
+  "recurringOccurrenceEdit": "編輯",
+  "recurringOccurrenceDelete": "刪除",
+  "recurringRuleExpand": "展開",
+  "recurringRuleCollapse": "收起",
+  "recurringRuleOccurrencesEmpty": "尚未生成任何交易",
   "automationRecurringTile": "週期記帳",
-  "automationRecurringTileSubtitle": "管理定期收支與轉帳規則"
+  "automationRecurringTileSubtitle": "管理定期收支與轉帳規則",
+  "notificationsTitle": "通知",
+  "notificationsEmpty": "目前沒有通知",
+  "notificationsMarkAllRead": "全部標為已讀",
+  "notificationsRetry": "重試",
+  "notificationsLoadError": "通知載入失敗",
+  "notificationLedgerNotSynced": "相關帳本尚未同步到這台裝置",
+  "notificationTargetNotFound": "在這台裝置上找不到相關項目",
+  "notificationTimeJustNow": "剛剛",
+  "notificationTimeMinutesAgo": "{n} 分鐘前",
+  "@notificationTimeMinutesAgo": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "notificationTimeHoursAgo": "{n} 小時前",
+  "@notificationTimeHoursAgo": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "notificationTimeDaysAgo": "{n} 天前",
+  "@notificationTimeDaysAgo": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  }
 }

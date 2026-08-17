@@ -6,7 +6,8 @@ import 'package:uuid/uuid.dart';
 import '../../db.dart';
 import '../../../cloud/sync/change_tracker.dart';
 import '../../../services/currency/rate_math.dart';
-import '../../../services/data/recurring_rule_schedule.dart' as recurring_schedule;
+import '../../../services/data/recurring_rule_schedule.dart'
+    as recurring_schedule;
 import '../../../utils/shared_ledger_picker_filter.dart';
 import '../../../services/system/logger_service.dart';
 import '../../../models/note_history.dart';
@@ -87,6 +88,10 @@ class LocalRepository extends BaseRepository {
 
   @override
   Future<Ledger?> getLedgerById(int id) => _ledgerRepo.getLedgerById(id);
+
+  @override
+  Future<Ledger?> getLedgerBySyncId(String syncId) =>
+      _ledgerRepo.getLedgerBySyncId(syncId);
 
   @override
   Future<int> getLedgerCount() => _ledgerRepo.getLedgerCount();
@@ -2179,6 +2184,10 @@ class LocalRepository extends BaseRepository {
   Future<SharedLedgerAccount?> getSharedAccountBySyncId(String syncId) =>
       _accountRepo.getSharedAccountBySyncId(syncId);
 
+  @override
+  Future<Account?> getAccountBySyncId(String syncId) =>
+      _accountRepo.getAccountBySyncId(syncId);
+
   // ============================================
   // StatisticsRepository 接口实现 - 委托给 LocalStatisticsRepository
   // ============================================
@@ -2360,7 +2369,8 @@ class LocalRepository extends BaseRepository {
     return txId;
   }
 
-  Future<void> _recordRuleChange(RecurringTransaction rule, String action) async {
+  Future<void> _recordRuleChange(
+      RecurringTransaction rule, String action) async {
     if (changeTracker == null || rule.syncId == null) return;
     await changeTracker!.recordLedgerChange(
       entityType: 'recurring_rule',
@@ -2495,13 +2505,15 @@ class LocalRepository extends BaseRepository {
       rewardRuleIds: rewardRuleSyncIds,
     );
     if (toAccountId != null) {
-      await updateTransactionFields(id: transactionId, toAccountId: toAccountId);
+      await updateTransactionFields(
+          id: transactionId, toAccountId: toAccountId);
     }
     if (tagSyncIds != null) {
       await _tagRepo.removeAllTagsFromTransaction(transactionId);
       final tagIds = await _tagIdsForSyncIds(tagSyncIds);
       if (tagIds.isNotEmpty) {
-        await addTagsToTransaction(transactionId: transactionId, tagIds: tagIds);
+        await addTagsToTransaction(
+            transactionId: transactionId, tagIds: tagIds);
       }
     }
   }
@@ -2513,7 +2525,8 @@ class LocalRepository extends BaseRepository {
   @override
   Future<void> updateRuleAndFuture({
     required int ruleId,
-    required int anchorTransactionId,
+    int? anchorTransactionId,
+    DateTime? anchorDate,
     String? type,
     double? amount,
     int? categoryId,
@@ -2527,13 +2540,28 @@ class LocalRepository extends BaseRepository {
     String? frequency,
     int? interval,
     Map<String, dynamic>? advancedRule,
+    DateTime? nextRunAt,
+    DateTime? endAt,
+    bool clearEndAt = false,
   }) async {
     final rule = await _recurringRuleRepo.getRuleById(ruleId);
     if (rule == null) return;
-    final anchor = await _transactionRepo.getTransactionById(anchorTransactionId);
-    if (anchor == null) return;
 
-    // 1. 更新規則本身,供以後新生成的期數延用新值。
+    // 起點:有 anchor 交易(「連同以後」入口)用它的 happenedAt;沒有(規則
+    // 列表頁直接「編輯」入口)用呼叫端傳入的 anchorDate,預設現在。
+    DateTime startAt;
+    if (anchorTransactionId != null) {
+      final anchor =
+          await _transactionRepo.getTransactionById(anchorTransactionId);
+      if (anchor == null) return;
+      startAt = anchor.happenedAt;
+    } else {
+      startAt = anchorDate ?? DateTime.now();
+    }
+
+    // 1. 更新規則本身,供以後新生成的期數延用新值。frequency/interval 變更
+    // 不回頭搬動已生成 occurrence 的 happenedAt——只影響規則本身 + 之後「還
+    // 沒長出來」的期數,跟 Web 現況一致。
     await _recurringRuleRepo.updateRuleFields(
       ruleId,
       type: type,
@@ -2550,19 +2578,40 @@ class LocalRepository extends BaseRepository {
       frequency: frequency,
       interval: interval,
       advancedRule: advancedRule,
+      nextRunAt: nextRunAt,
+      endAt: endAt,
+      clearEndAt: clearEndAt,
     );
     final updatedRule = await _recurringRuleRepo.getRuleById(ruleId);
     if (updatedRule != null) await _recordRuleChange(updatedRule, 'update');
 
-    // 2. 批次更新同規則、happenedAt >= anchor.happenedAt、未被單獨編輯過的既
-    // 有 occurrence(不動 happenedAt,只改內容)。
+    // 2. 結束時間收斂:新 endAt 若早於某些已生成、尚未發生、未被單獨編輯過
+    // 的 occurrence,直接刪除這些超出新結束時間的期數(不然「結束時間」欄
+    // 位改了卻沒有任何效果)。不影響已經發生過的、或使用者單獨編輯過的。
+    if (endAt != null && !clearEndAt) {
+      final now = DateTime.now();
+      final overshoot = await (db.select(db.transactions)
+            ..where((t) =>
+                t.recurringRuleId.equals(rule.syncId ?? '') &
+                t.recurringOccurrenceOverridden.equals(false) &
+                t.happenedAt.isBiggerThanValue(now) &
+                t.happenedAt.isBiggerThanValue(endAt)))
+          .get();
+      for (final t in overshoot) {
+        await deleteTransaction(t.id);
+      }
+    }
+
+    // 3. 批次更新同規則、happenedAt >= 起點、未被單獨編輯過的既有 occurrence
+    // (不動 happenedAt,只改內容)。
     final targets = await (db.select(db.transactions)
           ..where((t) =>
               t.recurringRuleId.equals(rule.syncId ?? '') &
               t.recurringOccurrenceOverridden.equals(false) &
-              t.happenedAt.isBiggerOrEqualValue(anchor.happenedAt)))
+              t.happenedAt.isBiggerOrEqualValue(startAt)))
         .get();
-    final tagIds = tagSyncIds != null ? await _tagIdsForSyncIds(tagSyncIds) : null;
+    final tagIds =
+        tagSyncIds != null ? await _tagIdsForSyncIds(tagSyncIds) : null;
     for (final t in targets) {
       await updateTransaction(
         id: t.id,
@@ -2587,6 +2636,21 @@ class LocalRepository extends BaseRepository {
   }
 
   @override
+  Future<List<Transaction>> getOccurrencesForRule(String ruleSyncId) {
+    return (db.select(db.transactions)
+          ..where((t) => t.recurringRuleId.equals(ruleSyncId))
+          ..orderBy([(t) => d.OrderingTerm.asc(t.happenedAt)]))
+        .get();
+  }
+
+  @override
+  Future<void> setRuleEnabled(int ruleId, bool enabled) async {
+    await _recurringRuleRepo.updateRuleFields(ruleId, enabled: enabled);
+    final updated = await _recurringRuleRepo.getRuleById(ruleId);
+    if (updated != null) await _recordRuleChange(updated, 'update');
+  }
+
+  @override
   Future<void> terminateFuture(int ruleId) async {
     final rule = await _recurringRuleRepo.getRuleById(ruleId);
     if (rule == null) return;
@@ -2605,7 +2669,8 @@ class LocalRepository extends BaseRepository {
   }
 
   @override
-  Future<void> deleteRule(int ruleId, {bool deleteFutureOccurrences = true}) async {
+  Future<void> deleteRule(int ruleId,
+      {bool deleteFutureOccurrences = true}) async {
     final rule = await _recurringRuleRepo.getRuleById(ruleId);
     if (rule == null) return;
     if (deleteFutureOccurrences) {
@@ -2667,8 +2732,8 @@ class LocalRepository extends BaseRepository {
         continue;
       }
 
-      var windowEnd =
-          recurring_schedule.addMonths(nextStart, recurring_schedule.kRefillWindowMonths);
+      var windowEnd = recurring_schedule.addMonths(
+          nextStart, recurring_schedule.kRefillWindowMonths);
       if (rule.endAt != null && windowEnd.isAfter(rule.endAt!)) {
         windowEnd = rule.endAt!;
       }
@@ -2704,8 +2769,12 @@ class LocalRepository extends BaseRepository {
   }
 
   @override
-  Future<({int materialized, List<RecurringRuleTransferSkip> skipped, Set<int> ledgerIds})>
-      materializeDueTransferRules() async {
+  Future<
+      ({
+        int materialized,
+        List<RecurringRuleTransferSkip> skipped,
+        Set<int> ledgerIds
+      })> materializeDueTransferRules() async {
     final now = DateTime.now();
     final rules = await (db.select(db.recurringTransactions)
           ..where((r) => r.enabled.equals(true) & r.type.equals('transfer')))
@@ -2741,7 +2810,8 @@ class LocalRepository extends BaseRepository {
         // 还没到期(或没有下一期),下次呼叫再看。
         if (nextOccurrence == null || nextOccurrence.isAfter(now)) break;
 
-        if (currentRule.endAt != null && nextOccurrence.isAfter(currentRule.endAt!)) {
+        if (currentRule.endAt != null &&
+            nextOccurrence.isAfter(currentRule.endAt!)) {
           await _recurringRuleRepo.updateRuleFields(currentRule.id,
               generatedUntilAt: currentRule.endAt, enabled: false);
           ruleChanged = true;
@@ -2777,7 +2847,8 @@ class LocalRepository extends BaseRepository {
         currentRule = refreshed;
         if (currentRule.endAt != null &&
             !currentRule.generatedUntilAt!.isBefore(currentRule.endAt!)) {
-          await _recurringRuleRepo.updateRuleFields(currentRule.id, enabled: false);
+          await _recurringRuleRepo.updateRuleFields(currentRule.id,
+              enabled: false);
           break;
         }
       }

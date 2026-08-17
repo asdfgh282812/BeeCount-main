@@ -29,6 +29,12 @@ class LocalLedgerRepository implements LedgerRepository {
   }
 
   @override
+  Future<Ledger?> getLedgerBySyncId(String syncId) {
+    return (db.select(db.ledgers)..where((l) => l.syncId.equals(syncId)))
+        .getSingleOrNull();
+  }
+
+  @override
   Future<int> getLedgerCount() async {
     final row = await db.customSelect('SELECT COUNT(*) AS c FROM ledgers',
         readsFrom: {db.ledgers}).getSingle();
@@ -105,9 +111,10 @@ class LocalLedgerRepository implements LedgerRepository {
     List<Transaction>? transactions,
   }) async {
     // 如果没有传入 transactions，则查询
-    final rows = transactions ?? await (db.select(db.transactions)
-          ..where((t) => t.ledgerId.equals(ledgerId)))
-        .get();
+    final rows = transactions ??
+        await (db.select(db.transactions)
+              ..where((t) => t.ledgerId.equals(ledgerId)))
+            .get();
 
     // 交易数
     final transactionCount = rows.length;

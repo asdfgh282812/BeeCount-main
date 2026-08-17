@@ -23,7 +23,8 @@ class CreditCardReminderService {
     // 如果 reminderDay <= 0，回到上月
     if (reminderDay <= 0) {
       final prevMonth = DateTime(now.year, now.month - 1, 1);
-      final daysInPrevMonth = DateTime(prevMonth.year, prevMonth.month + 1, 0).day;
+      final daysInPrevMonth =
+          DateTime(prevMonth.year, prevMonth.month + 1, 0).day;
       reminderDate = DateTime(
         prevMonth.year,
         prevMonth.month,
@@ -38,10 +39,12 @@ class CreditCardReminderService {
       final nextMonth = DateTime(now.year, now.month + 1, 1);
       final nextReminderDay = paymentDueDay - daysBefore;
       if (nextReminderDay > 0) {
-        reminderDate = DateTime(nextMonth.year, nextMonth.month, nextReminderDay, hour, minute);
+        reminderDate = DateTime(
+            nextMonth.year, nextMonth.month, nextReminderDay, hour, minute);
       } else {
         // 跨月情况
-        final daysInNextMonth = DateTime(nextMonth.year, nextMonth.month + 1, 0).day;
+        final daysInNextMonth =
+            DateTime(nextMonth.year, nextMonth.month + 1, 0).day;
         reminderDate = DateTime(
           nextMonth.year,
           nextMonth.month,
@@ -56,6 +59,13 @@ class CreditCardReminderService {
   }
 
   /// 调度还款提醒
+  ///
+  /// [skipIfCloudActive]：BeeCount Cloud 后端已激活时传 true —— Cloud 端
+  /// 每 15 分钟跑一次 `card_due` cron,会把同样的提醒写进通知中心
+  /// (见 `lib/pages/notifications/notification_center_page.dart`),本地
+  /// 再排一次 OS 通知会重复提醒用户,故直接取消本地排程,交给 Cloud。
+  /// 调用方(account_edit_page.dart / main.dart)负责算这个 bool,本类本身
+  /// 不依赖 Riverpod。
   static Future<void> scheduleReminder({
     required int accountId,
     required String accountName,
@@ -63,7 +73,12 @@ class CreditCardReminderService {
     required int daysBefore,
     int hour = 10,
     int minute = 0,
+    bool skipIfCloudActive = false,
   }) async {
+    if (skipIfCloudActive) {
+      await cancelReminder(accountId);
+      return;
+    }
     try {
       final notificationUtil = NotificationFactory.getInstance();
       final notificationId = 2000 + accountId;
@@ -81,7 +96,8 @@ class CreditCardReminderService {
         scheduledDate: scheduledDate,
       );
 
-      logger.info('CreditCardReminder', '已调度提醒: accountId=$accountId, 时间=$scheduledDate');
+      logger.info('CreditCardReminder',
+          '已调度提醒: accountId=$accountId, 时间=$scheduledDate');
     } catch (e, stack) {
       logger.error('CreditCardReminder', '调度提醒失败', e, stack);
     }
@@ -100,8 +116,13 @@ class CreditCardReminderService {
   }
 
   /// 恢复所有信用卡提醒（应用启动时调用）
+  ///
+  /// [skipIfCloudActive]：见 [scheduleReminder] 的说明。true 时不排程,并
+  /// 顺手取消每张卡可能残留的旧本地提醒(例如用户是切换到 BeeCount Cloud
+  /// 后端之后才重启 App)。
   static Future<void> restoreAllReminders({
     required Future<List<dynamic>> Function() getCreditCardAccounts,
+    bool skipIfCloudActive = false,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -109,7 +130,12 @@ class CreditCardReminderService {
 
       for (final account in accounts) {
         final accountId = account.id as int;
-        final enabled = prefs.getBool('cc_reminder_enabled_$accountId') ?? false;
+        if (skipIfCloudActive) {
+          await cancelReminder(accountId);
+          continue;
+        }
+        final enabled =
+            prefs.getBool('cc_reminder_enabled_$accountId') ?? false;
         if (!enabled) continue;
 
         final paymentDueDay = account.paymentDueDay as int?;
