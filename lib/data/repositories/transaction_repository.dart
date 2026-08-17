@@ -324,6 +324,26 @@ abstract class TransactionRepository {
     bool writeToAccountSyncIdOverride,
   });
 
+  /// 對帳模式(§2.10 MOZE_FEATURE_GAP_SD.md,對齊
+  /// doc.moze.app/reconciliation/statement-mode):設定/清除這筆交易的「已
+  /// 確認對帳」時間戳。[reconciled]=true 寫入目前時間(對應原文右滑「完成
+  /// 對帳確認」),false 清空(取消確認)。
+  Future<void> setTransactionReconciled({
+    required int id,
+    required bool reconciled,
+  });
+
+  /// 延後入帳(對帳模式的必要前置)。[deferredPostingAt]=null 代表取消延後,
+  /// 交易的入帳歸屬日恢復用 happenedAt。
+  Future<void> setTransactionDeferredPosting({
+    required int id,
+    DateTime? deferredPostingAt,
+  });
+
+  /// 對帳模式選單「取消全部選取」:批次把一組交易的 reconciledAt 清空
+  /// (呼叫方負責只傳目前週期內已確認的 id,確保只清除指定週期)。
+  Future<void> clearReconciliationBatch({required List<int> ids});
+
   /// 获取账本的首笔交易（按时间排序）
   Future<Transaction?> getFirstTransactionByLedger(int ledgerId);
 

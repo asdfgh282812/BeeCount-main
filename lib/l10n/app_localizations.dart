@@ -14550,6 +14550,108 @@ abstract class AppLocalizations {
   /// **'Reconciled'**
   String get billingSummaryReconciledCount;
 
+  /// No description provided for @reconciliationSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconciliation'**
+  String get reconciliationSectionTitle;
+
+  /// No description provided for @reconciliationStatCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Statement Count'**
+  String get reconciliationStatCount;
+
+  /// No description provided for @reconciliationStatNewSpend.
+  ///
+  /// In en, this message translates to:
+  /// **'New Spending'**
+  String get reconciliationStatNewSpend;
+
+  /// No description provided for @reconciliationStatConfirmedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmed Count'**
+  String get reconciliationStatConfirmedCount;
+
+  /// No description provided for @reconciliationStatConfirmedAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmed Amount'**
+  String get reconciliationStatConfirmedAmount;
+
+  /// No description provided for @reconciliationEmptyState.
+  ///
+  /// In en, this message translates to:
+  /// **'No transactions this period'**
+  String get reconciliationEmptyState;
+
+  /// No description provided for @reconciliationDeferButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Defer'**
+  String get reconciliationDeferButton;
+
+  /// No description provided for @reconciliationUndeferButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Undefer'**
+  String get reconciliationUndeferButton;
+
+  /// No description provided for @reconciliationMenuAddMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Missing Transaction'**
+  String get reconciliationMenuAddMissing;
+
+  /// No description provided for @reconciliationMenuSortNewest.
+  ///
+  /// In en, this message translates to:
+  /// **'Newest First'**
+  String get reconciliationMenuSortNewest;
+
+  /// No description provided for @reconciliationMenuSortOldest.
+  ///
+  /// In en, this message translates to:
+  /// **'Oldest First'**
+  String get reconciliationMenuSortOldest;
+
+  /// No description provided for @reconciliationMenuClearAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear All Confirmations'**
+  String get reconciliationMenuClearAll;
+
+  /// No description provided for @reconciliationClearAllConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all confirmations?'**
+  String get reconciliationClearAllConfirmTitle;
+
+  /// No description provided for @reconciliationClearAllConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'All confirmed transactions in this statement period will be reset to unconfirmed. Deferred postings are not affected.'**
+  String get reconciliationClearAllConfirmBody;
+
+  /// No description provided for @reconciliationTransferBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer'**
+  String get reconciliationTransferBadge;
+
+  /// No description provided for @reconciliationRewardBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Reward'**
+  String get reconciliationRewardBadge;
+
+  /// No description provided for @reconciliationDeferredBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Deferred'**
+  String get reconciliationDeferredBadge;
+
   /// No description provided for @billingSummaryRemaining.
   ///
   /// In en, this message translates to:

@@ -92,6 +92,13 @@ class EntitySerializer {
       // 恒發(同 excludeFromStats/excludeFromBudget)——這個 bool 會被
       // 「修改此記錄」單筆改成 true,必須每次都帶上讓對端能同步這個切換。
       'recurringOccurrenceOverridden': tx.recurringOccurrenceOverridden,
+      // v37 對帳模式/延後入帳:恒發(不是「有值才發」)——跟 refundOfId 不同,
+      // 這兩個欄位有明確的清空動作(取消確認/取消延後入帳),必須讓 null 能
+      // 傳達「清空」給 server,對齊 BeeCount Cloud sync_applier.py 的
+      // _isoformat_or_none merge spec。省略或只在非 null 時才發會讓「取消」
+      // 這個動作永遠同步不出去。
+      'reconciledAt': tx.reconciledAt?.toUtc().toIso8601String(),
+      'deferredPostingAt': tx.deferredPostingAt?.toUtc().toIso8601String(),
     };
   }
 

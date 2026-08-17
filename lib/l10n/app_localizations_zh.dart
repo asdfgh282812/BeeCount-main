@@ -7748,6 +7748,58 @@ class AppLocalizationsZh extends AppLocalizations {
   String get billingSummaryReconciledCount => '对账笔数';
 
   @override
+  String get reconciliationSectionTitle => 'Reconciliation';
+
+  @override
+  String get reconciliationStatCount => 'Statement Count';
+
+  @override
+  String get reconciliationStatNewSpend => 'New Spending';
+
+  @override
+  String get reconciliationStatConfirmedCount => 'Confirmed Count';
+
+  @override
+  String get reconciliationStatConfirmedAmount => 'Confirmed Amount';
+
+  @override
+  String get reconciliationEmptyState => 'No transactions this period';
+
+  @override
+  String get reconciliationDeferButton => 'Defer';
+
+  @override
+  String get reconciliationUndeferButton => 'Undefer';
+
+  @override
+  String get reconciliationMenuAddMissing => 'Add Missing Transaction';
+
+  @override
+  String get reconciliationMenuSortNewest => 'Newest First';
+
+  @override
+  String get reconciliationMenuSortOldest => 'Oldest First';
+
+  @override
+  String get reconciliationMenuClearAll => 'Clear All Confirmations';
+
+  @override
+  String get reconciliationClearAllConfirmTitle => 'Clear all confirmations?';
+
+  @override
+  String get reconciliationClearAllConfirmBody =>
+      'All confirmed transactions in this statement period will be reset to unconfirmed. Deferred postings are not affected.';
+
+  @override
+  String get reconciliationTransferBadge => 'Transfer';
+
+  @override
+  String get reconciliationRewardBadge => 'Reward';
+
+  @override
+  String get reconciliationDeferredBadge => 'Deferred';
+
+  @override
   String get billingSummaryRemaining => '剩余账款';
 
   @override
@@ -16044,6 +16096,58 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get billingSummaryReconciledCount => '對帳筆數';
+
+  @override
+  String get reconciliationSectionTitle => '對帳模式';
+
+  @override
+  String get reconciliationStatCount => '帳單筆數';
+
+  @override
+  String get reconciliationStatNewSpend => '新增消費';
+
+  @override
+  String get reconciliationStatConfirmedCount => '已確認筆數';
+
+  @override
+  String get reconciliationStatConfirmedAmount => '已確認金額';
+
+  @override
+  String get reconciliationEmptyState => '這期沒有交易';
+
+  @override
+  String get reconciliationDeferButton => '延後';
+
+  @override
+  String get reconciliationUndeferButton => '取消延後';
+
+  @override
+  String get reconciliationMenuAddMissing => '新增遺漏的交易';
+
+  @override
+  String get reconciliationMenuSortNewest => '最新在前';
+
+  @override
+  String get reconciliationMenuSortOldest => '最早在前';
+
+  @override
+  String get reconciliationMenuClearAll => '取消全部選取';
+
+  @override
+  String get reconciliationClearAllConfirmTitle => '確定要取消全部確認?';
+
+  @override
+  String get reconciliationClearAllConfirmBody =>
+      '這期已確認的交易會全部恢復成未確認狀態,延後入帳的標記不受影響。';
+
+  @override
+  String get reconciliationTransferBadge => '轉帳';
+
+  @override
+  String get reconciliationRewardBadge => '回饋';
+
+  @override
+  String get reconciliationDeferredBadge => '已延後';
 
   @override
   String get billingSummaryRemaining => '剩餘帳款';

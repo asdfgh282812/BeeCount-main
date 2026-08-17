@@ -994,6 +994,38 @@ class LocalTransactionRepository implements TransactionRepository {
   }
 
   @override
+  Future<void> setTransactionReconciled({
+    required int id,
+    required bool reconciled,
+  }) async {
+    await (db.update(db.transactions)..where((t) => t.id.equals(id))).write(
+      TransactionsCompanion(
+        reconciledAt: d.Value(reconciled ? DateTime.now() : null),
+      ),
+    );
+  }
+
+  @override
+  Future<void> setTransactionDeferredPosting({
+    required int id,
+    DateTime? deferredPostingAt,
+  }) async {
+    await (db.update(db.transactions)..where((t) => t.id.equals(id))).write(
+      TransactionsCompanion(
+        deferredPostingAt: d.Value(deferredPostingAt),
+      ),
+    );
+  }
+
+  @override
+  Future<void> clearReconciliationBatch({required List<int> ids}) async {
+    if (ids.isEmpty) return;
+    await (db.update(db.transactions)..where((t) => t.id.isIn(ids))).write(
+      const TransactionsCompanion(reconciledAt: d.Value(null)),
+    );
+  }
+
+  @override
   Future<Transaction?> getFirstTransactionByLedger(int ledgerId) async {
     return await (db.select(db.transactions)
           ..where((t) => t.ledgerId.equals(ledgerId))

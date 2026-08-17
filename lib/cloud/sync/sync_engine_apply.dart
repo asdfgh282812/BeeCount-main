@@ -252,6 +252,23 @@ extension SyncEngineApplyExt on SyncEngine {
         ? (payload['recurringOccurrenceOverridden'] as bool? ?? false)
         : null;
 
+    // v37 對帳模式/延後入帳:跟 excludeFromStats 同款「缺键不覆盖」——舊版
+    // App/其它尚未支持這兩個欄位的客戶端不帶這些 key 時,不要清空本地已有的
+    // 確認/延後標記。entity_serializer.dart 恒发这两个键(值可能是 null,
+    // 代表使用者主動取消確認/取消延後),所以命中 key 时要能把 d.Value 写成
+    // null(不是用 null 当"不更新"的兜底信号)。
+    final hasReconciledKey = payload.containsKey('reconciledAt');
+    final reconciledAtStr =
+        hasReconciledKey ? payload['reconciledAt'] as String? : null;
+    final reconciledAt =
+        reconciledAtStr != null ? DateTime.tryParse(reconciledAtStr)?.toLocal() : null;
+    final hasDeferredPostingKey = payload.containsKey('deferredPostingAt');
+    final deferredPostingAtStr =
+        hasDeferredPostingKey ? payload['deferredPostingAt'] as String? : null;
+    final deferredPostingAt = deferredPostingAtStr != null
+        ? DateTime.tryParse(deferredPostingAtStr)?.toLocal()
+        : null;
+
     if (existingId != null) {
       // 更新 — createdByUserId 走"本地为 null 就回填,否则保持"的策略。
       final shouldBackfillCreator =
@@ -309,6 +326,11 @@ extension SyncEngineApplyExt on SyncEngine {
         recurringOccurrenceOverridden: hasRecurringOverriddenKey
             ? d.Value(recurringOccurrenceOverridden!)
             : const d.Value.absent(),
+        reconciledAt:
+            hasReconciledKey ? d.Value(reconciledAt) : const d.Value.absent(),
+        deferredPostingAt: hasDeferredPostingKey
+            ? d.Value(deferredPostingAt)
+            : const d.Value.absent(),
       ));
       // 更新标签和附件(existing 路径)
       await _syncTransactionTags(existingId, syncId, payload);
@@ -345,6 +367,8 @@ extension SyncEngineApplyExt on SyncEngine {
               recurringRuleId: d.Value(recurringRuleId),
               recurringOccurrenceOverridden:
                   d.Value(recurringOccurrenceOverridden ?? false),
+              reconciledAt: d.Value(reconciledAt),
+              deferredPostingAt: d.Value(deferredPostingAt),
             ),
           );
       // 写回 cache,后续同 syncId 的 update change 能命中

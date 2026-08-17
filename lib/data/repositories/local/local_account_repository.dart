@@ -790,6 +790,52 @@ class LocalAccountRepository implements AccountRepository {
   }
 
   @override
+  Future<List<Transaction>> getAccountStatementTransactions({
+    required int accountId,
+    List<int>? extraAccountIds,
+    required DateTime cycleStart,
+    required DateTime cycleEnd,
+  }) async {
+    final ids = [accountId, ...?extraAccountIds];
+    final idPlaceholders =
+        List.generate(ids.length, (i) => '?${i + 1}').join(', ');
+    final idVariables = ids.map((id) => d.Variable.withInt(id)).toList();
+
+    // 對帳清單口徑:expense/income 只認 account_id,transfer 只認
+    // to_account_id(轉出視角不算消費),其它 type 不收——跟
+    // reconciliation_providers.dart 舊版 Dart 端 belongs 判斷語意一致。
+    final where =
+        "(type IN ('expense', 'income') AND account_id IN ($idPlaceholders)) "
+        "OR (type = 'transfer' AND to_account_id IN ($idPlaceholders))";
+
+    // 入帳歸屬日 = COALESCE(deferred_posting_at, happened_at),兩個時間戳
+    // 落库都是 epoch 秒。cycleEnd 視為「含整個自然日」,補到 23:59:59。
+    final endOfDay =
+        DateTime(cycleEnd.year, cycleEnd.month, cycleEnd.day, 23, 59, 59);
+    final startIndex = ids.length + 1;
+    final endIndex = startIndex + 1;
+
+    final results = await db.customSelect(
+      '''
+      SELECT * FROM transactions
+      WHERE ($where) AND $_kExcludeJoinedSharedLedgerSql
+        AND COALESCE(deferred_posting_at, happened_at) >= ?$startIndex
+        AND COALESCE(deferred_posting_at, happened_at) <= ?$endIndex
+      ORDER BY happened_at DESC
+      LIMIT 5000
+      ''',
+      variables: [
+        ...idVariables,
+        d.Variable.withInt(cycleStart.millisecondsSinceEpoch ~/ 1000),
+        d.Variable.withInt(endOfDay.millisecondsSinceEpoch ~/ 1000),
+      ],
+      readsFrom: {db.transactions},
+    ).get();
+
+    return results.map((row) => db.transactions.map(row.data)).toList();
+  }
+
+  @override
   Future<List<({DateTime date, double balance})>> getAccountDailyBalances(
       int accountId,
       {required DateTime startDate,

@@ -8056,6 +8056,58 @@ class AppLocalizationsEn extends AppLocalizations {
   String get billingSummaryReconciledCount => 'Reconciled';
 
   @override
+  String get reconciliationSectionTitle => 'Reconciliation';
+
+  @override
+  String get reconciliationStatCount => 'Statement Count';
+
+  @override
+  String get reconciliationStatNewSpend => 'New Spending';
+
+  @override
+  String get reconciliationStatConfirmedCount => 'Confirmed Count';
+
+  @override
+  String get reconciliationStatConfirmedAmount => 'Confirmed Amount';
+
+  @override
+  String get reconciliationEmptyState => 'No transactions this period';
+
+  @override
+  String get reconciliationDeferButton => 'Defer';
+
+  @override
+  String get reconciliationUndeferButton => 'Undefer';
+
+  @override
+  String get reconciliationMenuAddMissing => 'Add Missing Transaction';
+
+  @override
+  String get reconciliationMenuSortNewest => 'Newest First';
+
+  @override
+  String get reconciliationMenuSortOldest => 'Oldest First';
+
+  @override
+  String get reconciliationMenuClearAll => 'Clear All Confirmations';
+
+  @override
+  String get reconciliationClearAllConfirmTitle => 'Clear all confirmations?';
+
+  @override
+  String get reconciliationClearAllConfirmBody =>
+      'All confirmed transactions in this statement period will be reset to unconfirmed. Deferred postings are not affected.';
+
+  @override
+  String get reconciliationTransferBadge => 'Transfer';
+
+  @override
+  String get reconciliationRewardBadge => 'Reward';
+
+  @override
+  String get reconciliationDeferredBadge => 'Deferred';
+
+  @override
   String get billingSummaryRemaining => 'Remaining Balance';
 
   @override

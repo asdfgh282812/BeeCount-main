@@ -184,6 +184,24 @@ abstract class AccountRepository {
     DateTime? endDate,
   });
 
+  /// 對帳模式(§2.10 MOZE_FEATURE_GAP_SD.md)專用:依「入帳歸屬日」
+  /// (`COALESCE(deferred_posting_at, happened_at)`)過濾交易落在哪一期帳單,
+  /// 而不是像 [getAccountTransactions] 那樣按發生日 `happened_at` 過濾。
+  ///
+  /// 跟 [getAccountTransactions] 的差異不只是多一個 COALESCE:member 帳戶
+  /// 判斷收窄成對帳清單的口徑——expense/income 只認 `account_id`,transfer
+  /// 只認 `to_account_id`(轉出這張卡不算消費),其它 type(adjustment 等)
+  /// 不收,跟 `reconciliation.dart` 的 `effectiveDate` + 呼叫方 belongs 判斷
+  /// 語意一致(之前是 provider 端在 Dart 拿 ±1 期寬視窗再篩,延後入帳距離
+  /// 超過一期或呼叫方臨時選了很遠的日期時,原始 `happened_at` 落在視窗外會
+  /// 直接查不到那筆交易,SQL 層直接用 COALESCE 過濾才能不受延後距離限制)。
+  Future<List<Transaction>> getAccountStatementTransactions({
+    required int accountId,
+    List<int>? extraAccountIds,
+    required DateTime cycleStart,
+    required DateTime cycleEnd,
+  });
+
   /// 获取账户每日余额快照（用于余额趋势图）
   Future<List<({DateTime date, double balance})>> getAccountDailyBalances(
       int accountId,

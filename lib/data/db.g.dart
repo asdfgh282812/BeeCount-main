@@ -2140,6 +2140,18 @@ class $TransactionsTable extends Transactions
           defaultConstraints: GeneratedColumn.constraintIsAlways(
               'CHECK ("recurring_occurrence_overridden" IN (0, 1))'),
           defaultValue: const Constant(false));
+  static const VerificationMeta _reconciledAtMeta =
+      const VerificationMeta('reconciledAt');
+  @override
+  late final GeneratedColumn<DateTime> reconciledAt = GeneratedColumn<DateTime>(
+      'reconciled_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _deferredPostingAtMeta =
+      const VerificationMeta('deferredPostingAt');
+  @override
+  late final GeneratedColumn<DateTime> deferredPostingAt =
+      GeneratedColumn<DateTime>('deferred_posting_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -2166,7 +2178,9 @@ class $TransactionsTable extends Transactions
         refundOfSyncId,
         rewardRuleIdsJson,
         recurringRuleId,
-        recurringOccurrenceOverridden
+        recurringOccurrenceOverridden,
+        reconciledAt,
+        deferredPostingAt
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2319,6 +2333,18 @@ class $TransactionsTable extends Transactions
               data['recurring_occurrence_overridden']!,
               _recurringOccurrenceOverriddenMeta));
     }
+    if (data.containsKey('reconciled_at')) {
+      context.handle(
+          _reconciledAtMeta,
+          reconciledAt.isAcceptableOrUnknown(
+              data['reconciled_at']!, _reconciledAtMeta));
+    }
+    if (data.containsKey('deferred_posting_at')) {
+      context.handle(
+          _deferredPostingAtMeta,
+          deferredPostingAt.isAcceptableOrUnknown(
+              data['deferred_posting_at']!, _deferredPostingAtMeta));
+    }
     return context;
   }
 
@@ -2382,6 +2408,10 @@ class $TransactionsTable extends Transactions
       recurringOccurrenceOverridden: attachedDatabase.typeMapping.read(
           DriftSqlType.bool,
           data['${effectivePrefix}recurring_occurrence_overridden'])!,
+      reconciledAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}reconciled_at']),
+      deferredPostingAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}deferred_posting_at']),
     );
   }
 
@@ -2457,6 +2487,23 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   /// 端字段是 read_tx_projection.recurring_occurrence_overridden,wire 字段
   /// 名 recurringOccurrenceOverridden。
   final bool recurringOccurrenceOverridden;
+
+  /// v37 對帳模式(§2.10 MOZE_FEATURE_GAP_SD.md,對齊
+  /// doc.moze.app/reconciliation/statement-mode):使用者在對帳模式裡勾選
+  /// 確認過「這筆交易確實在這期信用卡帳單上」的時間戳。null = 尚未核對。
+  /// BeeCount Cloud 端字段是 read_tx_projection.reconciled_at,wire 字段名
+  /// reconciledAt(恆發,不是「有值才發」——因為有明確的清空/取消確認動作,
+  /// 見 entity_serializer.dart serializeTransaction 的註解)。
+  final DateTime? reconciledAt;
+
+  /// v37 延後入帳(對帳模式的必要前置,§2.10):有值 = 這筆交易處於「延後入帳」
+  /// 狀態,值是使用者填的實際入帳日;null = 正常,沿用 happenedAt。對帳/信用卡
+  /// 帳單彙總等需要「入帳歸屬日」的地方一律用
+  /// `lib/utils/reconciliation.dart` 的 `effectiveDate()`(等同 Cloud
+  /// `deferred_posting_at ?? happened_at` 的 COALESCE 語意),不要各自重寫。
+  /// BeeCount Cloud 端字段是 read_tx_projection.deferred_posting_at,wire
+  /// 字段名 deferredPostingAt(同樣恆發)。
+  final DateTime? deferredPostingAt;
   const Transaction(
       {required this.id,
       required this.ledgerId,
@@ -2482,7 +2529,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       this.refundOfSyncId,
       this.rewardRuleIdsJson,
       this.recurringRuleId,
-      required this.recurringOccurrenceOverridden});
+      required this.recurringOccurrenceOverridden,
+      this.reconciledAt,
+      this.deferredPostingAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2548,6 +2597,12 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     }
     map['recurring_occurrence_overridden'] =
         Variable<bool>(recurringOccurrenceOverridden);
+    if (!nullToAbsent || reconciledAt != null) {
+      map['reconciled_at'] = Variable<DateTime>(reconciledAt);
+    }
+    if (!nullToAbsent || deferredPostingAt != null) {
+      map['deferred_posting_at'] = Variable<DateTime>(deferredPostingAt);
+    }
     return map;
   }
 
@@ -2609,6 +2664,12 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ? const Value.absent()
           : Value(recurringRuleId),
       recurringOccurrenceOverridden: Value(recurringOccurrenceOverridden),
+      reconciledAt: reconciledAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reconciledAt),
+      deferredPostingAt: deferredPostingAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deferredPostingAt),
     );
   }
 
@@ -2648,6 +2709,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       recurringRuleId: serializer.fromJson<String?>(json['recurringRuleId']),
       recurringOccurrenceOverridden:
           serializer.fromJson<bool>(json['recurringOccurrenceOverridden']),
+      reconciledAt: serializer.fromJson<DateTime?>(json['reconciledAt']),
+      deferredPostingAt:
+          serializer.fromJson<DateTime?>(json['deferredPostingAt']),
     );
   }
   @override
@@ -2683,6 +2747,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'recurringRuleId': serializer.toJson<String?>(recurringRuleId),
       'recurringOccurrenceOverridden':
           serializer.toJson<bool>(recurringOccurrenceOverridden),
+      'reconciledAt': serializer.toJson<DateTime?>(reconciledAt),
+      'deferredPostingAt': serializer.toJson<DateTime?>(deferredPostingAt),
     };
   }
 
@@ -2711,7 +2777,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           Value<String?> refundOfSyncId = const Value.absent(),
           Value<String?> rewardRuleIdsJson = const Value.absent(),
           Value<String?> recurringRuleId = const Value.absent(),
-          bool? recurringOccurrenceOverridden}) =>
+          bool? recurringOccurrenceOverridden,
+          Value<DateTime?> reconciledAt = const Value.absent(),
+          Value<DateTime?> deferredPostingAt = const Value.absent()}) =>
       Transaction(
         id: id ?? this.id,
         ledgerId: ledgerId ?? this.ledgerId,
@@ -2758,6 +2826,11 @@ class Transaction extends DataClass implements Insertable<Transaction> {
             : this.recurringRuleId,
         recurringOccurrenceOverridden:
             recurringOccurrenceOverridden ?? this.recurringOccurrenceOverridden,
+        reconciledAt:
+            reconciledAt.present ? reconciledAt.value : this.reconciledAt,
+        deferredPostingAt: deferredPostingAt.present
+            ? deferredPostingAt.value
+            : this.deferredPostingAt,
       );
   Transaction copyWithCompanion(TransactionsCompanion data) {
     return Transaction(
@@ -2817,6 +2890,12 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       recurringOccurrenceOverridden: data.recurringOccurrenceOverridden.present
           ? data.recurringOccurrenceOverridden.value
           : this.recurringOccurrenceOverridden,
+      reconciledAt: data.reconciledAt.present
+          ? data.reconciledAt.value
+          : this.reconciledAt,
+      deferredPostingAt: data.deferredPostingAt.present
+          ? data.deferredPostingAt.value
+          : this.deferredPostingAt,
     );
   }
 
@@ -2848,7 +2927,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('rewardRuleIdsJson: $rewardRuleIdsJson, ')
           ..write('recurringRuleId: $recurringRuleId, ')
           ..write(
-              'recurringOccurrenceOverridden: $recurringOccurrenceOverridden')
+              'recurringOccurrenceOverridden: $recurringOccurrenceOverridden, ')
+          ..write('reconciledAt: $reconciledAt, ')
+          ..write('deferredPostingAt: $deferredPostingAt')
           ..write(')'))
         .toString();
   }
@@ -2879,7 +2960,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         refundOfSyncId,
         rewardRuleIdsJson,
         recurringRuleId,
-        recurringOccurrenceOverridden
+        recurringOccurrenceOverridden,
+        reconciledAt,
+        deferredPostingAt
       ]);
   @override
   bool operator ==(Object other) =>
@@ -2910,7 +2993,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.rewardRuleIdsJson == this.rewardRuleIdsJson &&
           other.recurringRuleId == this.recurringRuleId &&
           other.recurringOccurrenceOverridden ==
-              this.recurringOccurrenceOverridden);
+              this.recurringOccurrenceOverridden &&
+          other.reconciledAt == this.reconciledAt &&
+          other.deferredPostingAt == this.deferredPostingAt);
 }
 
 class TransactionsCompanion extends UpdateCompanion<Transaction> {
@@ -2939,6 +3024,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<String?> rewardRuleIdsJson;
   final Value<String?> recurringRuleId;
   final Value<bool> recurringOccurrenceOverridden;
+  final Value<DateTime?> reconciledAt;
+  final Value<DateTime?> deferredPostingAt;
   const TransactionsCompanion({
     this.id = const Value.absent(),
     this.ledgerId = const Value.absent(),
@@ -2965,6 +3052,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.rewardRuleIdsJson = const Value.absent(),
     this.recurringRuleId = const Value.absent(),
     this.recurringOccurrenceOverridden = const Value.absent(),
+    this.reconciledAt = const Value.absent(),
+    this.deferredPostingAt = const Value.absent(),
   });
   TransactionsCompanion.insert({
     this.id = const Value.absent(),
@@ -2992,6 +3081,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.rewardRuleIdsJson = const Value.absent(),
     this.recurringRuleId = const Value.absent(),
     this.recurringOccurrenceOverridden = const Value.absent(),
+    this.reconciledAt = const Value.absent(),
+    this.deferredPostingAt = const Value.absent(),
   })  : ledgerId = Value(ledgerId),
         type = Value(type),
         amount = Value(amount);
@@ -3021,6 +3112,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<String>? rewardRuleIdsJson,
     Expression<String>? recurringRuleId,
     Expression<bool>? recurringOccurrenceOverridden,
+    Expression<DateTime>? reconciledAt,
+    Expression<DateTime>? deferredPostingAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -3054,6 +3147,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (recurringRuleId != null) 'recurring_rule_id': recurringRuleId,
       if (recurringOccurrenceOverridden != null)
         'recurring_occurrence_overridden': recurringOccurrenceOverridden,
+      if (reconciledAt != null) 'reconciled_at': reconciledAt,
+      if (deferredPostingAt != null) 'deferred_posting_at': deferredPostingAt,
     });
   }
 
@@ -3082,7 +3177,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       Value<String?>? refundOfSyncId,
       Value<String?>? rewardRuleIdsJson,
       Value<String?>? recurringRuleId,
-      Value<bool>? recurringOccurrenceOverridden}) {
+      Value<bool>? recurringOccurrenceOverridden,
+      Value<DateTime?>? reconciledAt,
+      Value<DateTime?>? deferredPostingAt}) {
     return TransactionsCompanion(
       id: id ?? this.id,
       ledgerId: ledgerId ?? this.ledgerId,
@@ -3113,6 +3210,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       recurringRuleId: recurringRuleId ?? this.recurringRuleId,
       recurringOccurrenceOverridden:
           recurringOccurrenceOverridden ?? this.recurringOccurrenceOverridden,
+      reconciledAt: reconciledAt ?? this.reconciledAt,
+      deferredPostingAt: deferredPostingAt ?? this.deferredPostingAt,
     );
   }
 
@@ -3199,6 +3298,12 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       map['recurring_occurrence_overridden'] =
           Variable<bool>(recurringOccurrenceOverridden.value);
     }
+    if (reconciledAt.present) {
+      map['reconciled_at'] = Variable<DateTime>(reconciledAt.value);
+    }
+    if (deferredPostingAt.present) {
+      map['deferred_posting_at'] = Variable<DateTime>(deferredPostingAt.value);
+    }
     return map;
   }
 
@@ -3230,7 +3335,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('rewardRuleIdsJson: $rewardRuleIdsJson, ')
           ..write('recurringRuleId: $recurringRuleId, ')
           ..write(
-              'recurringOccurrenceOverridden: $recurringOccurrenceOverridden')
+              'recurringOccurrenceOverridden: $recurringOccurrenceOverridden, ')
+          ..write('reconciledAt: $reconciledAt, ')
+          ..write('deferredPostingAt: $deferredPostingAt')
           ..write(')'))
         .toString();
   }
@@ -13498,6 +13605,8 @@ typedef $$TransactionsTableCreateCompanionBuilder = TransactionsCompanion
   Value<String?> rewardRuleIdsJson,
   Value<String?> recurringRuleId,
   Value<bool> recurringOccurrenceOverridden,
+  Value<DateTime?> reconciledAt,
+  Value<DateTime?> deferredPostingAt,
 });
 typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
     Function({
@@ -13526,6 +13635,8 @@ typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
   Value<String?> rewardRuleIdsJson,
   Value<String?> recurringRuleId,
   Value<bool> recurringOccurrenceOverridden,
+  Value<DateTime?> reconciledAt,
+  Value<DateTime?> deferredPostingAt,
 });
 
 class $$TransactionsTableFilterComposer
@@ -13622,6 +13733,13 @@ class $$TransactionsTableFilterComposer
 
   ColumnFilters<bool> get recurringOccurrenceOverridden => $composableBuilder(
       column: $table.recurringOccurrenceOverridden,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get reconciledAt => $composableBuilder(
+      column: $table.reconciledAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get deferredPostingAt => $composableBuilder(
+      column: $table.deferredPostingAt,
       builder: (column) => ColumnFilters(column));
 }
 
@@ -13722,6 +13840,14 @@ class $$TransactionsTableOrderingComposer
   ColumnOrderings<bool> get recurringOccurrenceOverridden => $composableBuilder(
       column: $table.recurringOccurrenceOverridden,
       builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get reconciledAt => $composableBuilder(
+      column: $table.reconciledAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get deferredPostingAt => $composableBuilder(
+      column: $table.deferredPostingAt,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$TransactionsTableAnnotationComposer
@@ -13808,6 +13934,12 @@ class $$TransactionsTableAnnotationComposer
   GeneratedColumn<bool> get recurringOccurrenceOverridden => $composableBuilder(
       column: $table.recurringOccurrenceOverridden,
       builder: (column) => column);
+
+  GeneratedColumn<DateTime> get reconciledAt => $composableBuilder(
+      column: $table.reconciledAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deferredPostingAt => $composableBuilder(
+      column: $table.deferredPostingAt, builder: (column) => column);
 }
 
 class $$TransactionsTableTableManager extends RootTableManager<
@@ -13861,6 +13993,8 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<String?> rewardRuleIdsJson = const Value.absent(),
             Value<String?> recurringRuleId = const Value.absent(),
             Value<bool> recurringOccurrenceOverridden = const Value.absent(),
+            Value<DateTime?> reconciledAt = const Value.absent(),
+            Value<DateTime?> deferredPostingAt = const Value.absent(),
           }) =>
               TransactionsCompanion(
             id: id,
@@ -13888,6 +14022,8 @@ class $$TransactionsTableTableManager extends RootTableManager<
             rewardRuleIdsJson: rewardRuleIdsJson,
             recurringRuleId: recurringRuleId,
             recurringOccurrenceOverridden: recurringOccurrenceOverridden,
+            reconciledAt: reconciledAt,
+            deferredPostingAt: deferredPostingAt,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
@@ -13915,6 +14051,8 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<String?> rewardRuleIdsJson = const Value.absent(),
             Value<String?> recurringRuleId = const Value.absent(),
             Value<bool> recurringOccurrenceOverridden = const Value.absent(),
+            Value<DateTime?> reconciledAt = const Value.absent(),
+            Value<DateTime?> deferredPostingAt = const Value.absent(),
           }) =>
               TransactionsCompanion.insert(
             id: id,
@@ -13942,6 +14080,8 @@ class $$TransactionsTableTableManager extends RootTableManager<
             rewardRuleIdsJson: rewardRuleIdsJson,
             recurringRuleId: recurringRuleId,
             recurringOccurrenceOverridden: recurringOccurrenceOverridden,
+            reconciledAt: reconciledAt,
+            deferredPostingAt: deferredPostingAt,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

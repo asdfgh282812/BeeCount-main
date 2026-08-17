@@ -997,6 +997,73 @@ class LocalRepository extends BaseRepository {
   }
 
   @override
+  Future<void> setTransactionReconciled({
+    required int id,
+    required bool reconciled,
+  }) async {
+    final old = await _transactionRepo.getTransactionById(id);
+    await _transactionRepo.setTransactionReconciled(
+        id: id, reconciled: reconciled);
+    if (changeTracker != null && old?.syncId != null) {
+      await changeTracker!.recordLedgerChange(
+        entityType: 'transaction',
+        entityId: id,
+        entitySyncId: old!.syncId!,
+        ledgerId: old.ledgerId,
+        action: 'update',
+      );
+    }
+  }
+
+  @override
+  Future<void> setTransactionDeferredPosting({
+    required int id,
+    DateTime? deferredPostingAt,
+  }) async {
+    final old = await _transactionRepo.getTransactionById(id);
+    await _transactionRepo.setTransactionDeferredPosting(
+        id: id, deferredPostingAt: deferredPostingAt);
+    if (changeTracker != null && old?.syncId != null) {
+      await changeTracker!.recordLedgerChange(
+        entityType: 'transaction',
+        entityId: id,
+        entitySyncId: old!.syncId!,
+        ledgerId: old.ledgerId,
+        action: 'update',
+      );
+    }
+  }
+
+  @override
+  Future<void> clearReconciliationBatch({required List<int> ids}) async {
+    if (ids.isEmpty) return;
+    // 批次寫入但逐筆記變更(對齊 Cloud 端「批次更新多筆交易」時同步語意
+    // 仍是每筆各自一條 change 的做法)。先查 syncId/ledgerId 供事後記錄,
+    // 避免寫入後才反查(此時 reconciledAt 已被清空,不影響查 syncId)。
+    final changed = <({int id, String syncId, int ledgerId})>[];
+    if (changeTracker != null) {
+      for (final id in ids) {
+        final old = await _transactionRepo.getTransactionById(id);
+        if (old?.syncId != null) {
+          changed.add((id: id, syncId: old!.syncId!, ledgerId: old.ledgerId));
+        }
+      }
+    }
+    await _transactionRepo.clearReconciliationBatch(ids: ids);
+    if (changeTracker != null) {
+      for (final c in changed) {
+        await changeTracker!.recordLedgerChange(
+          entityType: 'transaction',
+          entityId: c.id,
+          entitySyncId: c.syncId,
+          ledgerId: c.ledgerId,
+          action: 'update',
+        );
+      }
+    }
+  }
+
+  @override
   Future<Transaction?> getFirstTransactionByLedger(int ledgerId) =>
       _transactionRepo.getFirstTransactionByLedger(ledgerId);
 
@@ -2123,6 +2190,20 @@ class LocalRepository extends BaseRepository {
         extraAccountIds: extraAccountIds,
         startDate: startDate,
         endDate: endDate,
+      );
+
+  @override
+  Future<List<Transaction>> getAccountStatementTransactions({
+    required int accountId,
+    List<int>? extraAccountIds,
+    required DateTime cycleStart,
+    required DateTime cycleEnd,
+  }) =>
+      _accountRepo.getAccountStatementTransactions(
+        accountId: accountId,
+        extraAccountIds: extraAccountIds,
+        cycleStart: cycleStart,
+        cycleEnd: cycleEnd,
       );
 
   @override

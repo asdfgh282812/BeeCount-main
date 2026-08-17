@@ -154,6 +154,10 @@ final accountBillingPeriodTransactionsProvider = FutureProvider.family
     .autoDispose<List<db.Transaction>,
         ({int accountId, String extraIdsKey, DateTime start, DateTime end})>(
   (ref, params) async {
+    // 同步代数 bump 后重算——否则 web/其它裝置的變更(含對帳確認/延後入帳)
+    // pull 下來寫進本地 Drift 後,這個 FutureProvider 不會自動重跑,帳單彙總
+    // 卡片跟對帳模式入口列會一直顯示 pull 之前的舊快取(2026-08-18 修正)。
+    ref.watch(syncGenerationProvider);
     final repo = ref.watch(repositoryProvider);
     final extraIds = params.extraIdsKey.isEmpty
         ? null
@@ -356,12 +360,27 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
       );
     }
 
-    if (account.type == 'credit_card') {
+    // account_group(信用卡合併帳單主帳戶)自己的詳情頁也要走這個分支才能
+    // 正確顯示帳單彙總/對帳模式(依卡分組小計):修正前這裡只認字面
+    // account.type=='credit_card',主帳戶本身的 type 是 'account_group',
+    // 導致點開主帳戶卡片(accounts_page.dart `_viewAccountDetail` 對
+    // account_group 行照樣導到這頁)會落到下面的一般帳戶分支,`children`
+    // (靠 `_children()` 用 parentAccountId 反查)永遠用不上。
+    if (account.type == 'credit_card' || account.type == 'account_group') {
       return ListView(
         padding: EdgeInsets.symmetric(vertical: 8.0.scaled(context, ref)),
         children: [
           _buildBillingSummaryCard(
               context, account, children, l10n, primaryColor, currencyCode),
+          SizedBox(height: 8.0.scaled(context, ref)),
+          AccountReconciliationSection(
+            account: account,
+            children: children,
+            currencyCode: currencyCode,
+            cycleOffset: _billingPeriodOffset,
+            onReturn: () =>
+                ref.invalidate(accountBillingPeriodTransactionsProvider),
+          ),
           SizedBox(height: 8.0.scaled(context, ref)),
           _buildRewardSummaryCard(
               context, account, children, l10n, primaryColor, currencyCode),
@@ -1281,7 +1300,8 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
         ),
         row(
           l10n.billingSummaryReconciledCount,
-          Text('${txs.length} / ${txs.length}',
+          Text(
+              '${txs.where((t) => t.reconciledAt != null).length} / ${txs.length}',
               style: TextStyle(
                   fontSize: 13, color: BeeTokens.textPrimary(context))),
         ),

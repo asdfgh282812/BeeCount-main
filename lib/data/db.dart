@@ -197,6 +197,23 @@ class Transactions extends Table {
   /// 名 recurringOccurrenceOverridden。
   BoolColumn get recurringOccurrenceOverridden =>
       boolean().withDefault(const Constant(false))();
+
+  /// v37 對帳模式(§2.10 MOZE_FEATURE_GAP_SD.md,對齊
+  /// doc.moze.app/reconciliation/statement-mode):使用者在對帳模式裡勾選
+  /// 確認過「這筆交易確實在這期信用卡帳單上」的時間戳。null = 尚未核對。
+  /// BeeCount Cloud 端字段是 read_tx_projection.reconciled_at,wire 字段名
+  /// reconciledAt(恆發,不是「有值才發」——因為有明確的清空/取消確認動作,
+  /// 見 entity_serializer.dart serializeTransaction 的註解)。
+  DateTimeColumn get reconciledAt => dateTime().nullable()();
+
+  /// v37 延後入帳(對帳模式的必要前置,§2.10):有值 = 這筆交易處於「延後入帳」
+  /// 狀態,值是使用者填的實際入帳日;null = 正常,沿用 happenedAt。對帳/信用卡
+  /// 帳單彙總等需要「入帳歸屬日」的地方一律用
+  /// `lib/utils/reconciliation.dart` 的 `effectiveDate()`(等同 Cloud
+  /// `deferred_posting_at ?? happened_at` 的 COALESCE 語意),不要各自重寫。
+  /// BeeCount Cloud 端字段是 read_tx_projection.deferred_posting_at,wire
+  /// 字段名 deferredPostingAt(同樣恆發)。
+  DateTimeColumn get deferredPostingAt => dateTime().nullable()();
 }
 
 /// v35:信用卡紅利回饋規則。user-global 实体(同 Accounts/Categories/Tags 那组
@@ -674,7 +691,7 @@ class BeeDatabase extends _$BeeDatabase {
 
   @override
   int get schemaVersion =>
-      36; // v36: 週期性收支對齐 BeeCount Cloud recurring_rule(見 §recurring_transactions redesign)
+      37; // v37: 對帳模式(reconciled_at) + 延後入帳(deferred_posting_at)
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1548,6 +1565,15 @@ class BeeDatabase extends _$BeeDatabase {
             ''');
 
             logger.info('DBMigration', 'v36 迁移完成');
+          }
+          if (from < 37) {
+            logger.info('DBMigration',
+                '开始迁移到 v37: 對帳模式(reconciled_at) + 延後入帳(deferred_posting_at)');
+            await _addColumnIfMissing('transactions', 'reconciled_at',
+                'ALTER TABLE transactions ADD COLUMN reconciled_at INTEGER;');
+            await _addColumnIfMissing('transactions', 'deferred_posting_at',
+                'ALTER TABLE transactions ADD COLUMN deferred_posting_at INTEGER;');
+            logger.info('DBMigration', 'v37 迁移完成');
           }
         },
         onCreate: (m) async {
