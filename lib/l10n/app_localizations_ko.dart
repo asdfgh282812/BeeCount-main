@@ -7833,7 +7833,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get billingSummaryInstallments => '할부';
 
   @override
-  String get billingSummaryReconciledCount => '대조 건수';
+  String get billingSummaryRewardDeduction => 'Reward Deduction';
 
   @override
   String get reconciliationSectionTitle => 'Reconciliation';
@@ -7892,6 +7892,63 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get billingSummaryPaidOff => '완납';
+
+  @override
+  String billingPaymentRecordsTitle(int count) {
+    return 'Payment Records ($count)';
+  }
+
+  @override
+  String billingGeneralRecordsTitle(int count) {
+    return 'General Records ($count)';
+  }
+
+  @override
+  String get billingUnreconciledPaymentWarningTitle =>
+      'Unreconciled transactions';
+
+  @override
+  String billingUnreconciledPaymentWarningMessage(int count) {
+    return 'This period still has $count unreconciled transaction(s). Continue with the payment anyway?';
+  }
+
+  @override
+  String get continuePayment => 'Continue Payment';
+
+  @override
+  String get creditCardGroupPaymentPageTitle => 'Group Payment';
+
+  @override
+  String get creditCardGroupPaymentSourceAccount => 'Source Account';
+
+  @override
+  String get creditCardGroupPaymentTotalAmount => 'Total Payment Amount';
+
+  @override
+  String get creditCardGroupPaymentAllocationPreview => 'Allocation Preview';
+
+  @override
+  String creditCardGroupPaymentOverflowTo(String name) {
+    return 'Overpayment credited to $name';
+  }
+
+  @override
+  String creditCardGroupPaymentTotalDueHint(String amount) {
+    return 'Total amount currently due: $amount';
+  }
+
+  @override
+  String get creditCardGroupPaymentSubmit => 'Confirm Payment';
+
+  @override
+  String creditCardGroupPaymentSuccess(int count) {
+    return '$count payment transaction(s) created';
+  }
+
+  @override
+  String creditCardBillingDueBadge(String date) {
+    return 'Payment due $date';
+  }
 
   @override
   String get cardRewardRuleEntryLabel => '카드 리워드';

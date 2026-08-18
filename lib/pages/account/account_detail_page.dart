@@ -13,10 +13,13 @@ import '../../widgets/category_icon.dart';
 import '../../utils/account_type_utils.dart';
 import '../../widgets/charts/account_category_pie_chart.dart';
 import '../../utils/card_reward_period.dart';
+import '../../utils/credit_card_payment.dart';
+import '../../utils/reconciliation.dart';
 import '../transaction/transaction_editor_page.dart';
 import 'account_edit_page.dart';
 import 'card_reward_detail_page.dart';
 import 'card_reward_rule_list_page.dart';
+import 'credit_card_group_payment_page.dart';
 
 // ============================================
 // Providers
@@ -147,36 +150,6 @@ final accountTransactionsPaginatedProvider = StateNotifierProvider.family
   },
 );
 
-/// 帳單週期交易(信用卡「交易明細」tab 的對帳彙總用):按選定週期一次拉全量
-/// (單一帳單週期筆數天然有限,不用分頁),供彙總卡片跟交易列表共用同一份
-/// 資料,兩處數字保證一致。
-final accountBillingPeriodTransactionsProvider = FutureProvider.family
-    .autoDispose<List<db.Transaction>,
-        ({int accountId, String extraIdsKey, DateTime start, DateTime end})>(
-  (ref, params) async {
-    // 同步代数 bump 后重算——否则 web/其它裝置的變更(含對帳確認/延後入帳)
-    // pull 下來寫進本地 Drift 後,這個 FutureProvider 不會自動重跑,帳單彙總
-    // 卡片跟對帳模式入口列會一直顯示 pull 之前的舊快取(2026-08-18 修正)。
-    ref.watch(syncGenerationProvider);
-    final repo = ref.watch(repositoryProvider);
-    final extraIds = params.extraIdsKey.isEmpty
-        ? null
-        : params.extraIdsKey.split(',').map(int.parse).toList();
-    return repo.getAccountTransactions(
-      params.accountId,
-      limit: 1000,
-      offset: 0,
-      extraAccountIds: extraIds,
-      startDate: params.start,
-      endDate: params.end,
-      // 延後入帳的交易依「入帳歸屬日」歸類到週期,不是原始消費日,才會正確
-      // 出現在延後目標那一期的交易列表裡(見 account_repository.dart::
-      // getAccountTransactions 的 byEffectiveDate 文件註解)。
-      byEffectiveDate: true,
-    );
-  },
-);
-
 /// 分类统计 Provider
 final accountCategoryStatsProvider = FutureProvider.family.autoDispose<
     List<({int? id, String name, String? icon, double total})>,
@@ -211,7 +184,11 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
   int _detailChartTab = 0;
 
   /// 帳單週期導航偏移(信用卡「交易明細」tab):0=本期,負數=更早的週期。
+  /// 初值 0 只是佔位——[_billingPeriodOffsetResolved] 為 false 時畫面顯示
+  /// loading skeleton,不會讓使用者看到「先跳最新一期、再跳到未繳清帳期」
+  /// 的閃爍(見 MOZE 對標規則一 `defaultBillingPeriodOffsetProvider`)。
   int _billingPeriodOffset = 0;
+  bool _billingPeriodOffsetResolved = false;
 
   @override
   void initState() {
@@ -371,19 +348,47 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     // account_group 行照樣導到這頁)會落到下面的一般帳戶分支,`children`
     // (靠 `_children()` 用 parentAccountId 反查)永遠用不上。
     if (account.type == 'credit_card' || account.type == 'account_group') {
+      if (!_billingPeriodOffsetResolved) {
+        final extraIdsKey = _extraIdsKey(children);
+        final defaultOffsetAsync =
+            ref.watch(defaultBillingPeriodOffsetProvider((
+          accountId: account.id,
+          extraIdsKey: extraIdsKey,
+          billingDay: account.billingDay,
+        )));
+        final resolvedOffset = defaultOffsetAsync.valueOrNull;
+        if (resolvedOffset == null) {
+          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+        }
+        // 拿到預設帳期後,下一影格才 setState——避免在 build 過程中直接呼叫
+        // setState;之後 [_billingPeriodOffsetResolved] 保持 true,使用者手動
+        // 翻頁不會再被這個 provider 覆蓋回去。
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || _billingPeriodOffsetResolved) return;
+          setState(() {
+            _billingPeriodOffset = resolvedOffset;
+            _billingPeriodOffsetResolved = true;
+          });
+        });
+        return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      }
       return ListView(
         padding: EdgeInsets.symmetric(vertical: 8.0.scaled(context, ref)),
         children: [
           _buildBillingSummaryCard(
-              context, account, children, l10n, primaryColor, currencyCode),
+              context,
+              account,
+              children,
+              categoriesAsync.asData?.value ?? [],
+              l10n,
+              primaryColor,
+              currencyCode),
           SizedBox(height: 8.0.scaled(context, ref)),
           AccountReconciliationSection(
             account: account,
             children: children,
             currencyCode: currencyCode,
             cycleOffset: _billingPeriodOffset,
-            onReturn: () =>
-                ref.invalidate(accountBillingPeriodTransactionsProvider),
           ),
           SizedBox(height: 8.0.scaled(context, ref)),
           _buildRewardSummaryCard(
@@ -1175,16 +1180,30 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     BuildContext context,
     db.Account account,
     List<db.Account> children,
+    List<db.Category> categories,
     AppLocalizations l10n,
     Color primaryColor,
     String currencyCode,
   ) {
     final period = _billingPeriod(account, _billingPeriodOffset);
-    final txAsync = ref.watch(accountBillingPeriodTransactionsProvider((
+    final extraIdsKey = _extraIdsKey(children);
+    final txAsync = ref.watch(accountStatementTransactionsProvider((
       accountId: account.id,
-      extraIdsKey: _extraIdsKey(children),
-      start: period.start,
-      end: period.end,
+      extraIdsKey: extraIdsKey,
+      billingDay: account.billingDay,
+      cycleOffset: _billingPeriodOffset,
+    )));
+    // 規則二(MOZE 對標):上期欠款/剩餘帳款改用終身跑動餘額在指定時間點的
+    // 快照,取代之前手動加減法(見 `_buildBillingSummaryRows` 文件註解)。
+    final priorBalanceAsync = ref.watch(accountBalanceAsOfProvider((
+      accountId: account.id,
+      extraIdsKey: extraIdsKey,
+      asOf: startOfDayExclusivePrior(period.start),
+    )));
+    final remainingAsync = ref.watch(accountBalanceAsOfProvider((
+      accountId: account.id,
+      extraIdsKey: extraIdsKey,
+      asOf: endOfDay(period.end),
     )));
 
     return Padding(
@@ -1230,7 +1249,16 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
                 color: BeeTokens.divider(context)),
             txAsync.when(
               data: (txs) => _buildBillingSummaryRows(
-                  context, txs, account, children, l10n, currencyCode),
+                context,
+                txs,
+                account,
+                children,
+                categories,
+                l10n,
+                currencyCode,
+                priorBalanceAsync.valueOrNull,
+                remainingAsync.valueOrNull,
+              ),
               loading: () => Padding(
                 padding:
                     EdgeInsets.symmetric(vertical: 24.0.scaled(context, ref)),
@@ -1245,32 +1273,60 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     );
   }
 
-  /// 彙總數字:新增花費/已繳金額是真實可算的(消費總額、轉入還款總額);
-  /// 上期欠款/帳單分期/對帳筆數目前没有历史快照/分期/对账数据模型,
-  /// 按「原本 app 不支援的功能先带 0/空值」处理。
+  /// 彙總數字:[txs] 來自 [accountStatementTransactionsProvider](鏡射 Cloud
+  /// `get_account_statement` 的篩選口徑:expense/income 限 account_id、
+  /// transfer 只認「轉入」的 to_account_id),窗口本身**不** clamp 到現在
+  /// (延後入帳/未來日期的交易一樣會出現在清單裡,供使用者先行確認)。新增
+  /// 花費比照 Cloud `compute_cycle_period_billing` 的 `new_spend`
+  /// (Σexpense − Σincome)口徑,但這個彙總數字**額外** clamp 到現在
+  /// (`effectiveDate(tx).isAfter(now)` 的交易不計入)——對齊 Cloud 的
+  /// `query_end_dt = min(cycle_end_dt, now)`:當期(尚未結束)帳期若已經預先
+  /// 記了未來日期的交易(例如下個月才扣款的訂閱),不該提前算進「新增花費」,
+  /// 否則顯示金額會比實際已發生的還高(2026-08-18 bugfix,對應 Cloud SD
+  /// 「使用者反饋 #1」)。已結束的歷史帳期裡所有交易的入帳歸屬日天然都
+  /// <= 現在,這個 clamp 是無操作。「回饋折抵」單獨列一行只是顯示用的透明度,
+  /// 用同一個 clamp,不重複扣款。上期欠款/剩餘帳款改用
+  /// `accountBalanceAsOfProvider` 算出的 watermark 快照([priorBalance]/
+  /// [remaining],`null` = 還在載入)。已繳金額**不是**「本期窗口內轉入金額
+  /// 的字面加總」——鏡射 Cloud 的 `paid_in_cycle = total_due - remaining_due`,
+  /// 是從 watermark 反推出來的:繳款可能發生在別期(FIFO 先套用在最早未清償
+  /// 的帳期),字面加總會跟 Server 對不上(2026-08-18 bugfix)。這裡不再重複
+  /// 顯示「對帳筆數」——`AccountReconciliationSection`(帳單彙總卡片下方的
+  /// 對帳入口列)已經用同一個 provider 顯示這個數字,重複顯示一份容易兩邊
+  /// 資料來源分岔(2026-08-18 bugfix:原本這裡用的是另一個較寬鬆的查詢,
+  /// 誤把轉出這張卡的交易也算進分母)。
   Widget _buildBillingSummaryRows(
     BuildContext context,
     List<db.Transaction> txs,
     db.Account account,
     List<db.Account> children,
+    List<db.Category> categories,
     AppLocalizations l10n,
     String currencyCode,
+    double? priorBalance,
+    double? remaining,
   ) {
-    final ids = {account.id, ...children.map((c) => c.id)};
+    final categoryNameById = {for (final c in categories) c.id: c.name};
+    final now = DateTime.now();
     double newSpending = 0;
-    double paidIn = 0;
+    double rewardThisPeriod = 0;
     for (final tx in txs) {
-      if (tx.type == 'expense' && ids.contains(tx.accountId)) {
-        newSpending += tx.amount;
-      } else if (tx.type == 'transfer' && ids.contains(tx.toAccountId)) {
-        paidIn += tx.amount;
+      if ((tx.type == 'expense' || tx.type == 'income') &&
+          !effectiveDate(tx).isAfter(now)) {
+        newSpending += tx.type == 'expense' ? tx.amount : -tx.amount;
+        if (tx.type == 'income' &&
+            isRewardCategoryName(categoryNameById[tx.categoryId])) {
+          rewardThisPeriod += tx.amount;
+        }
       }
     }
-    const priorBalance = 0.0;
-    final amountDue = -newSpending - priorBalance;
-    final amountPaid = paidIn;
-    final remaining = amountDue + amountPaid;
-    final isPaidOff = remaining >= -0.005;
+    final priorDue = priorBalance == null ? null : -priorBalance;
+    final remainingDue = remaining == null ? null : -remaining;
+    final amountDue = -newSpending + (priorBalance ?? 0);
+    final amountPaid = (priorDue != null && remainingDue != null)
+        ? (priorDue + newSpending - remainingDue)
+        : null;
+    final isPaidOff = remaining != null && remaining >= -0.005;
     final useCompact = ref.watch(compactAmountProvider);
 
     Widget amountValue(double v) => AmountText(
@@ -1283,6 +1339,15 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
             fontSize: 13,
             fontWeight: FontWeight.w600,
             color: BeeTokens.textPrimary(context),
+          ),
+        );
+
+    Widget loadingValue() => SizedBox(
+          width: 12,
+          height: 12,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: BeeTokens.textTertiary(context),
           ),
         );
 
@@ -1302,9 +1367,14 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     return Column(
       children: [
         row(l10n.billingSummaryNewSpending, amountValue(-newSpending)),
-        row(l10n.billingSummaryPriorBalance, amountValue(priorBalance)),
+        row(l10n.billingSummaryPriorBalance,
+            priorBalance == null ? loadingValue() : amountValue(priorBalance)),
         row(l10n.billingSummaryAmountDue, amountValue(amountDue)),
-        row(l10n.billingSummaryAmountPaid, amountValue(amountPaid)),
+        row(l10n.billingSummaryAmountPaid,
+            amountPaid == null ? loadingValue() : amountValue(amountPaid)),
+        if (rewardThisPeriod > 0)
+          row(l10n.billingSummaryRewardDeduction,
+              amountValue(rewardThisPeriod)),
         row(
           l10n.billingSummaryInstallments,
           Text('---',
@@ -1312,32 +1382,27 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
                   fontSize: 13, color: BeeTokens.textTertiary(context))),
         ),
         row(
-          l10n.billingSummaryReconciledCount,
-          Text(
-              '${txs.where((t) => t.reconciledAt != null).length} / ${txs.length}',
-              style: TextStyle(
-                  fontSize: 13, color: BeeTokens.textPrimary(context))),
-        ),
-        row(
           l10n.billingSummaryRemaining,
-          isPaidOff
-              ? Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      l10n.billingSummaryPaidOff,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: BeeTokens.success(context),
-                      ),
-                    ),
-                    SizedBox(width: 4.0.scaled(context, ref)),
-                    Icon(Icons.check_circle,
-                        size: 15, color: BeeTokens.success(context)),
-                  ],
-                )
-              : amountValue(remaining),
+          remaining == null
+              ? loadingValue()
+              : isPaidOff
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          l10n.billingSummaryPaidOff,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: BeeTokens.success(context),
+                          ),
+                        ),
+                        SizedBox(width: 4.0.scaled(context, ref)),
+                        Icon(Icons.check_circle,
+                            size: 15, color: BeeTokens.success(context)),
+                      ],
+                    )
+                  : amountValue(remaining),
         ),
       ],
     );
@@ -1347,9 +1412,9 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
   // 「交易明細」tab:紅利回饋分組卡片
   // ============================================
 
-  /// 啟用中的紅利回饋規則各自本期(依規則自己的 interval 算,非帳單彙總卡
-  /// 片的 _billingPeriodOffset 導覽)累積回饋金——沒有啟用任何規則時整塊不
-  /// 佔空間。點擊單條規則進 [CardRewardDetailPage] 看逐筆明細。
+  /// 啟用中的紅利回饋規則在目前選取帳期([_billingPeriodOffset],跟帳單彙總
+  /// 卡片的期數導覽同步)內累積回饋金——沒有啟用任何規則時整塊不佔空間。
+  /// 點擊單條規則進 [CardRewardDetailPage] 看逐筆明細。
   Widget _buildRewardSummaryCard(
     BuildContext context,
     db.Account account,
@@ -1362,6 +1427,7 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
       accountId: account.id,
       extraIdsKey: _extraIdsKey(children),
       billingDay: account.billingDay,
+      offset: _billingPeriodOffset,
     )));
     final summaries = summaryAsync.valueOrNull ?? const [];
     if (summaryAsync.isLoading && summaryAsync.valueOrNull == null) {
@@ -1517,7 +1583,7 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
         : s;
   }
 
-  /// 帳單週期交易列表(信用卡):跟彙總卡片同一份 [accountBillingPeriodTransactionsProvider]
+  /// 帳單週期交易列表(信用卡):跟彙總卡片同一份 [accountStatementTransactionsProvider]
   /// 資料,數字保證對得上;有子帳戶時每筆交易帶上所屬子帳戶名稱標籤。
   Widget _buildBillingTransactionList(
     BuildContext context,
@@ -1530,11 +1596,19 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     Color typeColor,
   ) {
     final period = _billingPeriod(account, _billingPeriodOffset);
-    final txAsync = ref.watch(accountBillingPeriodTransactionsProvider((
+    final extraIdsKey = _extraIdsKey(children);
+    final txAsync = ref.watch(accountStatementTransactionsProvider((
       accountId: account.id,
-      extraIdsKey: _extraIdsKey(children),
-      start: period.start,
-      end: period.end,
+      extraIdsKey: extraIdsKey,
+      billingDay: account.billingDay,
+      cycleOffset: _billingPeriodOffset,
+    )));
+    final paymentRecordsAsync =
+        ref.watch(creditCardPaymentPeriodRecordsProvider((
+      accountId: account.id,
+      extraIdsKey: extraIdsKey,
+      billingDay: account.billingDay,
+      targetOffset: _billingPeriodOffset,
     )));
     final accountNameById = <int, String>{
       if (children.isNotEmpty) account.id: account.name,
@@ -1544,7 +1618,11 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     return txAsync.when(
       data: (txs) => _buildBillingPeriodTransactionList(
         context,
+        account,
+        children,
+        period,
         txs,
+        paymentRecordsAsync,
         currencyCode,
         primaryColor,
         categories,
@@ -1712,29 +1790,270 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     );
   }
 
-  /// 帳單週期彙總視圖(信用卡「交易明細」tab)專用:資料來源是一次性拉全量的
-  /// [accountBillingPeriodTransactionsProvider],不是分頁 state,渲染邏輯跟
-  /// [_buildTransactionList] 共用同一個 body。
+  /// 帳單週期彙總視圖(信用卡「交易明細」tab)專用:「一般記錄」還是從
+  /// [transactions](鏡射 Cloud `get_account_statement` 篩選口徑的這個帳期
+  /// 窗口內交易,見 [accountStatementTransactionsProvider])用「轉入這張卡/
+  /// 群組視為還款」判斷式剔除掉繳款交易,純日期窗口切分。
+  ///
+  /// 「繳款記錄」改吃 [paymentRecordsAsync]
+  /// ([creditCardPaymentPeriodRecordsProvider])——依 FIFO 模擬「這筆繳款
+  /// 實際沖銷哪一期舊欠款」歸屬,不是按交易自己的日期落在哪個窗口
+  /// (2026-08-18:使用者明確要求「雖然是在 8/11–9/11 這期繳費,但我繳的是
+  /// 上一期的費用,所以繳款記錄應該放到 7/11–8/11」,推翻了同一天稍早
+  /// 「直接查證 Cloud 資料庫、改回純日期窗口」的結論——那個結論對「對帳模式」
+  /// (`accountStatementTransactionsProvider`)/帳單彙總卡片的「已繳金額」
+  /// 數字仍然成立,只有這裡的「繳款記錄」清單顯示改回 FIFO 歸屬,範圍刻意
+  /// 收窄。見 `docs/changes/2026-08-18-credit-card-payment-record-attribution-restore.md`)。
   Widget _buildBillingPeriodTransactionList(
     BuildContext context,
+    db.Account account,
+    List<db.Account> children,
+    ({DateTime start, DateTime end}) period,
     List<db.Transaction> transactions,
+    AsyncValue<List<db.Transaction>> paymentRecordsAsync,
     String currencyCode,
     Color primaryColor,
     List<db.Category> categories,
     AppLocalizations l10n,
     Map<int, String> accountNameById,
   ) {
-    return _buildTransactionListBody(
-      context,
-      transactions,
-      false,
-      false,
-      currencyCode,
-      primaryColor,
-      categories,
-      l10n,
-      accountNameById,
+    final ids = {account.id, ...children.map((c) => c.id)};
+    bool isPaymentRecord(db.Transaction t) =>
+        t.type == 'transfer' && ids.contains(t.toAccountId);
+    final generalRecords =
+        transactions.where((t) => !isPaymentRecord(t)).toList();
+    final paymentRecords = paymentRecordsAsync.valueOrNull ?? const [];
+    final paymentRecordsLoading =
+        paymentRecordsAsync.isLoading && !paymentRecordsAsync.hasValue;
+
+    return Column(
+      children: [
+        _buildBillingRecordsSection(
+          context,
+          l10n.billingPaymentRecordsTitle(paymentRecords.length),
+          paymentRecords,
+          currencyCode,
+          primaryColor,
+          categories,
+          l10n,
+          accountNameById,
+          () => _onAddPaymentRecord(
+              context, account, children, period, transactions, currencyCode),
+          isLoading: paymentRecordsLoading,
+        ),
+        SizedBox(height: 8.0.scaled(context, ref)),
+        _buildBillingRecordsSection(
+          context,
+          l10n.billingGeneralRecordsTitle(generalRecords.length),
+          generalRecords,
+          currencyCode,
+          primaryColor,
+          categories,
+          l10n,
+          accountNameById,
+          () => _onAddGeneralRecord(context, account, period),
+        ),
+      ],
     );
+  }
+
+  /// [_buildBillingPeriodTransactionList] 拆分出來的單一區塊(繳款記錄/一般
+  /// 記錄共用):標題 + 筆數徽章 + `+` 按鈕,列表渲染邏輯跟
+  /// [_buildTransactionListBody] 的 tile 那段一致,只是這裡不需要分頁/空狀態
+  /// 大圖示(單一帳期內某一區塊本來就常常是空的,不用佔滿版面)。
+  /// [isLoading]:「繳款記錄」用 [creditCardPaymentPeriodRecordsProvider]
+  /// (非同步),第一次載入時只在這個區塊內顯示 spinner,不擋住旁邊已經有
+  /// 資料的「一般記錄」區塊;「一般記錄」不傳這個參數(同步可得)。
+  Widget _buildBillingRecordsSection(
+    BuildContext context,
+    String title,
+    List<db.Transaction> transactions,
+    String currencyCode,
+    Color primaryColor,
+    List<db.Category> categories,
+    AppLocalizations l10n,
+    Map<int, String> accountNameById,
+    VoidCallback onAdd, {
+    bool isLoading = false,
+  }) {
+    return SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.all(12.0.scaled(context, ref)),
+            child: Row(
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: BeeTokens.textPrimary(context),
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: Icon(Icons.add_circle_outline,
+                      size: 20, color: primaryColor),
+                  onPressed: onAdd,
+                ),
+              ],
+            ),
+          ),
+          if (isLoading)
+            Padding(
+              padding: EdgeInsets.only(bottom: 16.0.scaled(context, ref)),
+              child: const Center(
+                  child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          else if (transactions.isEmpty)
+            Padding(
+              padding: EdgeInsets.only(bottom: 16.0.scaled(context, ref)),
+              child: Center(
+                child: Text(
+                  l10n.accountNoTransactions,
+                  style: TextStyle(
+                      fontSize: 13, color: BeeTokens.textSecondary(context)),
+                ),
+              ),
+            )
+          else
+            ...transactions.asMap().entries.map((entry) {
+              final index = entry.key;
+              final tx = entry.value;
+              return Column(
+                children: [
+                  if (index > 0) BeeTokens.cardDivider(context),
+                  _TransactionTile(
+                    transaction: tx,
+                    currencyCode: currencyCode,
+                    primaryColor: primaryColor,
+                    ledgers:
+                        ref.watch(ledgersStreamProvider).asData?.value ?? [],
+                    categories: categories,
+                    currentAccountId: widget.account.id,
+                    accountTagName: accountNameById[tx.accountId],
+                    onTap: (category) =>
+                        _openTransactionDetail(context, ref, tx, category),
+                  ),
+                ],
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
+  /// 一般記錄 `+`:比照 `account_reconciliation_page.dart` 選單「新增遺漏的
+  /// 交易」的既有模式,開一般支出表單並預帶這個帳期的起始日。
+  void _onAddGeneralRecord(
+    BuildContext context,
+    db.Account account,
+    ({DateTime start, DateTime end}) period,
+  ) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TransactionEditorPage(
+          initialKind: 'expense',
+          initialAccountId: account.id,
+          initialDate: period.start,
+        ),
+      ),
+    );
+  }
+
+  /// 繳款記錄 `+`:規則三(未對帳軟提醒,非阻擋)通過後,單卡直接開轉帳表單
+  /// 預帶金額/備註;合併帳單群組(有子卡)改開 [CreditCardGroupPaymentPage]
+  /// 讓使用者一次繳款、自動按比例分攤到各子卡。
+  Future<void> _onAddPaymentRecord(
+    BuildContext context,
+    db.Account account,
+    List<db.Account> children,
+    ({DateTime start, DateTime end}) period,
+    List<db.Transaction> periodTxs,
+    String currencyCode,
+  ) async {
+    final l10n = AppLocalizations.of(context);
+    final unreconciledCount =
+        periodTxs.where((t) => t.reconciledAt == null).length;
+    if (unreconciledCount > 0) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(l10n.billingUnreconciledPaymentWarningTitle),
+          content: Text(
+              l10n.billingUnreconciledPaymentWarningMessage(unreconciledCount)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text(l10n.commonCancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(l10n.continuePayment),
+            ),
+          ],
+        ),
+      );
+      if (proceed != true) return;
+    }
+    if (!context.mounted) return;
+
+    if (children.isEmpty) {
+      final remaining = await ref.read(accountBalanceAsOfProvider((
+        accountId: account.id,
+        extraIdsKey: '',
+        asOf: endOfDay(period.end),
+      )).future);
+      final suggestedAmount = remaining < 0 ? -remaining : null;
+      if (!context.mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => TransactionEditorPage(
+            initialKind: 'transfer',
+            initialToAccountId: account.id,
+            initialAmount: suggestedAmount,
+            initialNote: _formatCycleLabel(period),
+          ),
+        ),
+      );
+      if (!context.mounted) return;
+      _invalidateBillingProviders();
+      return;
+    }
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CreditCardGroupPaymentPage(
+          account: account,
+          children: children,
+          period: period,
+          currencyCode: currencyCode,
+        ),
+      ),
+    );
+    if (!context.mounted) return;
+    _invalidateBillingProviders();
+  }
+
+  /// 繳款後(不論單卡轉帳或合併帳單群組分攤)強制重算所有信用卡帳單相關
+  /// provider。這些都是 `FutureProvider.family`,不是 Drift stream——只依賴
+  /// `syncGenerationProvider`(雲端同步事件)或呼叫端手動 invalidate 才會
+  /// 重算,單純本機寫入不會自動觸發(2026-08-18 使用者實測反饋:合併帳單卡
+  /// 「繳款」後回到帳戶列表,「可繳款」徽章沒消失,因為
+  /// [creditCardBillingBadgeProvider] 沒被列進來——之前這裡只
+  /// invalidate 了 [accountStatementTransactionsProvider],沒動到其他三個)。
+  void _invalidateBillingProviders() {
+    ref.invalidate(accountStatementTransactionsProvider);
+    ref.invalidate(accountBalanceAsOfProvider);
+    ref.invalidate(creditCardBillingBadgeProvider);
+    ref.invalidate(defaultBillingPeriodOffsetProvider);
+    ref.invalidate(creditCardPaymentPeriodRecordsProvider);
   }
 
   Widget _buildTransactionListBody(
@@ -1889,7 +2208,7 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
         )).notifier)
         .refresh();
     // 帳單週期彙總視圖(信用卡):整個 family 一起失效,不用逐一算週期 key。
-    ref.invalidate(accountBillingPeriodTransactionsProvider);
+    ref.invalidate(accountStatementTransactionsProvider);
     ref.invalidate(accountCategoryStatsProvider(
         (accountId: widget.account.id, type: 'expense')));
     ref.invalidate(accountCategoryStatsProvider(

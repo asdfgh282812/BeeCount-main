@@ -7745,7 +7745,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get billingSummaryInstallments => '账单分期';
 
   @override
-  String get billingSummaryReconciledCount => '对账笔数';
+  String get billingSummaryRewardDeduction => 'Reward Deduction';
 
   @override
   String get reconciliationSectionTitle => 'Reconciliation';
@@ -7804,6 +7804,63 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get billingSummaryPaidOff => '已缴清';
+
+  @override
+  String billingPaymentRecordsTitle(int count) {
+    return 'Payment Records ($count)';
+  }
+
+  @override
+  String billingGeneralRecordsTitle(int count) {
+    return 'General Records ($count)';
+  }
+
+  @override
+  String get billingUnreconciledPaymentWarningTitle =>
+      'Unreconciled transactions';
+
+  @override
+  String billingUnreconciledPaymentWarningMessage(int count) {
+    return 'This period still has $count unreconciled transaction(s). Continue with the payment anyway?';
+  }
+
+  @override
+  String get continuePayment => 'Continue Payment';
+
+  @override
+  String get creditCardGroupPaymentPageTitle => 'Group Payment';
+
+  @override
+  String get creditCardGroupPaymentSourceAccount => 'Source Account';
+
+  @override
+  String get creditCardGroupPaymentTotalAmount => 'Total Payment Amount';
+
+  @override
+  String get creditCardGroupPaymentAllocationPreview => 'Allocation Preview';
+
+  @override
+  String creditCardGroupPaymentOverflowTo(String name) {
+    return 'Overpayment credited to $name';
+  }
+
+  @override
+  String creditCardGroupPaymentTotalDueHint(String amount) {
+    return 'Total amount currently due: $amount';
+  }
+
+  @override
+  String get creditCardGroupPaymentSubmit => 'Confirm Payment';
+
+  @override
+  String creditCardGroupPaymentSuccess(int count) {
+    return '$count payment transaction(s) created';
+  }
+
+  @override
+  String creditCardBillingDueBadge(String date) {
+    return 'Payment due $date';
+  }
 
   @override
   String get cardRewardRuleEntryLabel => '红利回馈';
@@ -16095,7 +16152,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get billingSummaryInstallments => '帳單分期';
 
   @override
-  String get billingSummaryReconciledCount => '對帳筆數';
+  String get billingSummaryRewardDeduction => '回饋折抵';
 
   @override
   String get reconciliationSectionTitle => '對帳模式';
@@ -16154,6 +16211,62 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get billingSummaryPaidOff => '已繳清';
+
+  @override
+  String billingPaymentRecordsTitle(int count) {
+    return '繳款記錄 ($count)';
+  }
+
+  @override
+  String billingGeneralRecordsTitle(int count) {
+    return '一般記錄 ($count)';
+  }
+
+  @override
+  String get billingUnreconciledPaymentWarningTitle => '尚有未對帳交易';
+
+  @override
+  String billingUnreconciledPaymentWarningMessage(int count) {
+    return '本期尚有 $count 筆交易未完成對帳,是否確認直接進行繳款?';
+  }
+
+  @override
+  String get continuePayment => '繼續繳款';
+
+  @override
+  String get creditCardGroupPaymentPageTitle => '群組繳款';
+
+  @override
+  String get creditCardGroupPaymentSourceAccount => '付款來源帳戶';
+
+  @override
+  String get creditCardGroupPaymentTotalAmount => '繳款總額';
+
+  @override
+  String get creditCardGroupPaymentAllocationPreview => '分攤預覽';
+
+  @override
+  String creditCardGroupPaymentOverflowTo(String name) {
+    return '溢繳歸入 $name';
+  }
+
+  @override
+  String creditCardGroupPaymentTotalDueHint(String amount) {
+    return '目前應繳總額:$amount';
+  }
+
+  @override
+  String get creditCardGroupPaymentSubmit => '確認繳款';
+
+  @override
+  String creditCardGroupPaymentSuccess(int count) {
+    return '已建立 $count 筆繳款交易';
+  }
+
+  @override
+  String creditCardBillingDueBadge(String date) {
+    return '可繳款 截止日 $date';
+  }
 
   @override
   String get cardRewardRuleEntryLabel => '紅利回饋';

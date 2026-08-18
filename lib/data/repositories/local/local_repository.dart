@@ -2019,8 +2019,24 @@ class LocalRepository extends BaseRepository {
       _accountRepo.getCreditCardAccounts();
 
   @override
-  Future<double> getCreditCardUsedAmount(int accountId) =>
-      _accountRepo.getCreditCardUsedAmount(accountId);
+  Future<double> getCreditCardUsedAmount(int accountId, {DateTime? asOf}) =>
+      _accountRepo.getCreditCardUsedAmount(accountId, asOf: asOf);
+
+  @override
+  Future<double> getCreditCardChargedAsOf(int accountId, {DateTime? asOf}) =>
+      _accountRepo.getCreditCardChargedAsOf(accountId, asOf: asOf);
+
+  @override
+  Future<double> getCreditCardPaidTotal(int accountId) =>
+      _accountRepo.getCreditCardPaidTotal(accountId);
+
+  @override
+  Future<List<Transaction>> getCreditCardPaymentTransactions(int accountId) =>
+      _accountRepo.getCreditCardPaymentTransactions(accountId);
+
+  @override
+  Future<DateTime?> getCreditCardFirstActivityAt(int accountId) =>
+      _accountRepo.getCreditCardFirstActivityAt(accountId);
 
   @override
   Future<void> deleteAccount(int id) async {
@@ -2039,8 +2055,8 @@ class LocalRepository extends BaseRepository {
   }
 
   @override
-  Future<double> getAccountBalance(int accountId) =>
-      _accountRepo.getAccountBalance(accountId);
+  Future<double> getAccountBalance(int accountId, {DateTime? asOf}) =>
+      _accountRepo.getAccountBalance(accountId, asOf: asOf);
 
   @override
   Future<double> getAccountGlobalBalance(int accountId) =>
@@ -2181,7 +2197,6 @@ class LocalRepository extends BaseRepository {
     List<int>? extraAccountIds,
     DateTime? startDate,
     DateTime? endDate,
-    bool byEffectiveDate = false,
   }) =>
       _accountRepo.getAccountTransactions(
         accountId,
@@ -2191,7 +2206,6 @@ class LocalRepository extends BaseRepository {
         extraAccountIds: extraAccountIds,
         startDate: startDate,
         endDate: endDate,
-        byEffectiveDate: byEffectiveDate,
       );
 
   @override

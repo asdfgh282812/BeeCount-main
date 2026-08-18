@@ -109,14 +109,16 @@ final cardRewardRuleByIdProvider =
   return repo.getCardRewardRuleById(id);
 });
 
-/// 某信用卡帳戶下所有「啟用中」規則,各自在帳戶本期帳單週期(offset 固定
-/// 0——帳戶頁彙總卡片跟明細頁的期別導覽各自獨立管理 offset)內套用的交易與
-/// 估算回饋彙總;interval == calendar_month 且本期帳單週期橫跨多個自然月時
+/// 某信用卡帳戶下所有「啟用中」規則,各自在 [offset] 帳單週期內套用的交易與
+/// 估算回饋彙總;interval == calendar_month 且該帳單週期橫跨多個自然月時
 /// 拆成 [CardRewardRuleSummary.monthlyBreakdown],見 [_summarizeRuleWindow]。
-/// 帳戶詳情頁「交易明細」tab 的紅利回饋分組卡片用這個。
+/// 帳戶詳情頁「交易明細」tab 的紅利回饋分組卡片用這個——[offset] 要傳呼叫端
+/// 目前選取的帳單週期導覽 offset(跟帳單彙總卡片的 `_billingPeriodOffset`
+/// 同一個值,不是固定 0),否則切換帳期看到的回饋金額會跟畫面上顯示的帳期
+/// 對不上(2026-08-18 bugfix)。
 final cardRewardAccountSummaryProvider = FutureProvider.family.autoDispose<
     List<CardRewardRuleSummary>,
-    ({int accountId, String extraIdsKey, int? billingDay})>(
+    ({int accountId, String extraIdsKey, int? billingDay, int offset})>(
   (ref, params) async {
     final repo = ref.watch(repositoryProvider);
     final rules = (await ref
@@ -134,7 +136,7 @@ final cardRewardAccountSummaryProvider = FutureProvider.family.autoDispose<
         params.accountId,
         extraIds,
         params.billingDay,
-        0,
+        params.offset,
       ));
     }
     return result;

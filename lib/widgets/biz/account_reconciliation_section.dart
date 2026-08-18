@@ -32,18 +32,12 @@ class AccountReconciliationSection extends ConsumerWidget {
   /// offset 語意——由呼叫端傳入,不在這裡另外維護。
   final int cycleOffset;
 
-  /// 從對帳頁返回後的回呼——呼叫端(`account_detail_page.dart`)藉此讓帳單
-  /// 彙總卡片的「對帳筆數」行失效,不用讓這個 widget 反過來 import 那個頁面
-  /// 的 provider(避免頁面↔widget 循環 import)。
-  final VoidCallback? onReturn;
-
   const AccountReconciliationSection({
     super.key,
     required this.account,
     required this.children,
     required this.currencyCode,
     required this.cycleOffset,
-    this.onReturn,
   });
 
   String get _extraIdsKey => children.map((c) => c.id).join(',');
@@ -86,11 +80,11 @@ class AccountReconciliationSection extends ConsumerWidget {
               ),
             );
             if (!context.mounted) return;
-            // 從對帳頁回來後,兩處都可能因為使用者的確認/延後操作而過時:
-            // 這裡的入口徽章,以及帳單彙總卡片的「對帳筆數」行(後者交給
-            // [onReturn] 回呼處理)。
+            // 從對帳頁回來後,使用者可能確認/延後入帳了幾筆交易——這裡的入口
+            // 徽章、`account_detail_page.dart` 的帳單彙總卡片跟交易列表都
+            // 讀同一個 family provider,傳裸 provider(不帶參數)給
+            // `invalidate` 會讓所有現存實例一起失效重算,不需要逐一通知。
             ref.invalidate(accountStatementTransactionsProvider);
-            onReturn?.call();
           },
           child: Padding(
             padding: EdgeInsets.symmetric(

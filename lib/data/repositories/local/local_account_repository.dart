@@ -256,10 +256,106 @@ class LocalAccountRepository implements AccountRepository {
   }
 
   @override
-  Future<double> getCreditCardUsedAmount(int accountId) async {
+  Future<double> getCreditCardUsedAmount(int accountId,
+      {DateTime? asOf}) async {
     // 已用额度 = -balance（余额为负表示欠款）
-    final balance = await getAccountBalance(accountId);
+    final balance = await getAccountBalance(accountId, asOf: asOf);
     return balance < 0 ? -balance : 0.0;
+  }
+
+  @override
+  Future<double> getCreditCardChargedAsOf(int accountId,
+      {DateTime? asOf}) async {
+    final now = DateTime.now();
+    // clamp 到「现在」——即使调用方显式传了未来时间点,也不该把还没发生的
+    // 周期性交易预先计入(对齐 Cloud `min(cycle_end_dt, now)`)。
+    final cutoff = (asOf == null || asOf.isAfter(now)) ? now : asOf;
+    // 入帳歸屬日 = COALESCE(deferred_posting_at, happened_at)——延後入帳的
+    // 交易要用延後後的日期做帳期截斷,對齊 Cloud `_ATTR_DATE`、以及 App 既有
+    // `getAccountStatementTransactions` 同一套口徑。原本這裡用 happened_at
+    // 直接截斷,會出現「一般明細已經把這筆排除到下一期,但這裡的 charged
+    // 仍把它算進這期」的不一致(2026-08-18 使用者實測回報:一筆 140 元已
+    // 標記延後入帳的交易,讓「已繳金額」倒推出 -140 的異常負數)。
+    final results = await db.customSelect(
+      '''
+      SELECT type, amount FROM transactions
+      WHERE account_id = ?1 AND type IN ('expense', 'income')
+        AND $_kExcludeJoinedSharedLedgerSql
+        AND COALESCE(deferred_posting_at, happened_at) <= ?2
+      ''',
+      variables: [
+        d.Variable.withInt(accountId),
+        d.Variable.withInt(cutoff.millisecondsSinceEpoch ~/ 1000),
+      ],
+      readsFrom: {db.transactions},
+    ).get();
+    var charged = 0.0;
+    for (final row in results) {
+      final type = row.data['type'] as String;
+      final amount = (row.data['amount'] as num).toDouble();
+      charged += type == 'expense' ? amount : -amount;
+    }
+    return charged;
+  }
+
+  @override
+  Future<double> getCreditCardPaidTotal(int accountId) async {
+    final sharedIds = await _sharedLedgerIds();
+    final txs = await (db.select(db.transactions)
+          ..where((t) =>
+              t.toAccountId.equals(accountId) &
+              t.type.equals('transfer') &
+              t.ledgerId.isNotIn(sharedIds)))
+        .get();
+    var paid = 0.0;
+    for (final t in txs) {
+      paid += t.amount;
+    }
+    return paid;
+  }
+
+  @override
+  Future<List<Transaction>> getCreditCardPaymentTransactions(
+      int accountId) async {
+    // 跟 [getCreditCardPaidTotal] 同一個查詢範圍(type='transfer'、
+    // toAccountId=accountId、排除共享帳本、真·終身不設 cutoff),只是回傳
+    // 明細列而非加總——「繳款記錄」清單依 [attributePaymentsToPeriods] 做
+    // FIFO 期別歸屬用,依入帳歸屬日由舊到新排序。
+    final sharedIds = await _sharedLedgerIds();
+    final txs = await (db.select(db.transactions)
+          ..where((t) =>
+              t.toAccountId.equals(accountId) &
+              t.type.equals('transfer') &
+              t.ledgerId.isNotIn(sharedIds)))
+        .get();
+    txs.sort((a, b) => (a.deferredPostingAt ?? a.happenedAt)
+        .compareTo(b.deferredPostingAt ?? b.happenedAt));
+    return txs;
+  }
+
+  @override
+  Future<DateTime?> getCreditCardFirstActivityAt(int accountId) async {
+    // 這張卡「有史以來」第一筆會影響帳單口徑的交易(expense/income/轉入的
+    // transfer)入帳歸屬日——用來當 [attributePaymentsToPeriods] 模擬展開的
+    // 起點,必須是跟「查詢哪個 targetOffset」「呼叫當下是哪一天」都無關的
+    // 穩定值,不能用聚合快照代替(2026-08-18 開發過程中踩過這個重複計算陷阱,
+    // 見 docs/changes/2026-08-18-credit-card-payment-period-attribution-fix.md)。
+    final results = await db.customSelect(
+      '''
+      SELECT MIN(COALESCE(deferred_posting_at, happened_at)) AS first_at
+      FROM transactions
+      WHERE $_kExcludeJoinedSharedLedgerSql
+        AND (
+          (type IN ('expense', 'income') AND account_id = ?1)
+          OR (type = 'transfer' AND to_account_id = ?1)
+        )
+      ''',
+      variables: [d.Variable.withInt(accountId)],
+      readsFrom: {db.transactions},
+    ).get();
+    final epochSeconds = results.first.data['first_at'] as int?;
+    if (epochSeconds == null) return null;
+    return DateTime.fromMillisecondsSinceEpoch(epochSeconds * 1000);
   }
 
   @override
@@ -287,7 +383,7 @@ class LocalAccountRepository implements AccountRepository {
       "ledger_id NOT IN (SELECT id FROM ledgers WHERE is_shared = 1 AND my_role != 'owner')";
 
   @override
-  Future<double> getAccountBalance(int accountId) async {
+  Future<double> getAccountBalance(int accountId, {DateTime? asOf}) async {
     // 获取账户初始资金
     final account = await (db.select(db.accounts)
           ..where((a) => a.id.equals(accountId)))
@@ -307,14 +403,16 @@ class LocalAccountRepository implements AccountRepository {
     // 信用卡欠款,否则资产页金额会比实际偏高。跟 server 端
     // routers/read/workspace.py 的 `happened_at <= now` 口径对齐(该处注释
     // 记录了同一个使用者反馈:信用卡显示的消费金额不该连未来的都算进去)。
-    final now = DateTime.now();
+    // [asOf] 传入时把这个截止时间从「现在」换成指定时间点——信用卡帳單彙總
+    // 卡片用它算「截至某个帳期结束日」的终身跑动余额快照。
+    final cutoff = asOf ?? DateTime.now();
 
     // 收入和支出(排除共享账本)
     final normalTxs = await (db.select(db.transactions)
           ..where((t) =>
               t.accountId.equals(accountId) &
               t.ledgerId.isNotIn(sharedIds) &
-              t.happenedAt.isSmallerOrEqualValue(now)))
+              t.happenedAt.isSmallerOrEqualValue(cutoff)))
         .get();
 
     for (final t in normalTxs) {
@@ -336,7 +434,7 @@ class LocalAccountRepository implements AccountRepository {
               t.toAccountId.equals(accountId) &
               t.type.equals('transfer') &
               t.ledgerId.isNotIn(sharedIds) &
-              t.happenedAt.isSmallerOrEqualValue(now)))
+              t.happenedAt.isSmallerOrEqualValue(cutoff)))
         .get();
 
     for (final t in transfersIn) {
@@ -725,7 +823,6 @@ class LocalAccountRepository implements AccountRepository {
     List<int>? extraAccountIds,
     DateTime? startDate,
     DateTime? endDate,
-    bool byEffectiveDate = false,
   }) async {
     // 主帳戶(合併帳單分組)聚合視圖:accountId + extraAccountIds 一起按
     // IN (...) 查,跟单账户走同一条 SQL,只是集合大小不同。
@@ -746,12 +843,7 @@ class LocalAccountRepository implements AccountRepository {
     final idVariables = ids.map((id) => d.Variable.withInt(id)).toList();
 
     // 帳單週期篩選(信用卡「交易明細」tab):happened_at 落库是 epoch 秒。
-    // byEffectiveDate 時改用 COALESCE(deferred_posting_at, happened_at)——
-    // 對齊 getAccountStatementTransactions 的入帳歸屬日口徑,延後入帳的交易
-    // 才會正確落在延後目標那一期,而不是卡在原始消費日所在的那一期。
-    final dateColumn = byEffectiveDate
-        ? 'COALESCE(deferred_posting_at, happened_at)'
-        : 'happened_at';
+    const dateColumn = 'happened_at';
     var nextIndex = ids.length + 1;
     final dateVariables = <d.Variable>[];
     var dateWhere = '';

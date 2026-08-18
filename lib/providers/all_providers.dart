@@ -44,5 +44,8 @@ export 'card_reward_rule_providers.dart';
 // 對帳模式相关
 export 'reconciliation_providers.dart';
 
+// 信用卡繳款(MOZE 對標)相关
+export 'credit_card_billing_providers.dart';
+
 // 智能记账相关
 export 'smart_billing_providers.dart';

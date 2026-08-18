@@ -14544,11 +14544,11 @@ abstract class AppLocalizations {
   /// **'Installments'**
   String get billingSummaryInstallments;
 
-  /// No description provided for @billingSummaryReconciledCount.
+  /// No description provided for @billingSummaryRewardDeduction.
   ///
   /// In en, this message translates to:
-  /// **'Reconciled'**
-  String get billingSummaryReconciledCount;
+  /// **'Reward Deduction'**
+  String get billingSummaryRewardDeduction;
 
   /// No description provided for @reconciliationSectionTitle.
   ///
@@ -14663,6 +14663,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Paid Off'**
   String get billingSummaryPaidOff;
+
+  /// No description provided for @billingPaymentRecordsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment Records ({count})'**
+  String billingPaymentRecordsTitle(int count);
+
+  /// No description provided for @billingGeneralRecordsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'General Records ({count})'**
+  String billingGeneralRecordsTitle(int count);
+
+  /// No description provided for @billingUnreconciledPaymentWarningTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unreconciled transactions'**
+  String get billingUnreconciledPaymentWarningTitle;
+
+  /// No description provided for @billingUnreconciledPaymentWarningMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This period still has {count} unreconciled transaction(s). Continue with the payment anyway?'**
+  String billingUnreconciledPaymentWarningMessage(int count);
+
+  /// No description provided for @continuePayment.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue Payment'**
+  String get continuePayment;
+
+  /// No description provided for @creditCardGroupPaymentPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Group Payment'**
+  String get creditCardGroupPaymentPageTitle;
+
+  /// No description provided for @creditCardGroupPaymentSourceAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Source Account'**
+  String get creditCardGroupPaymentSourceAccount;
+
+  /// No description provided for @creditCardGroupPaymentTotalAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Payment Amount'**
+  String get creditCardGroupPaymentTotalAmount;
+
+  /// No description provided for @creditCardGroupPaymentAllocationPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Allocation Preview'**
+  String get creditCardGroupPaymentAllocationPreview;
+
+  /// No description provided for @creditCardGroupPaymentOverflowTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Overpayment credited to {name}'**
+  String creditCardGroupPaymentOverflowTo(String name);
+
+  /// No description provided for @creditCardGroupPaymentTotalDueHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Total amount currently due: {amount}'**
+  String creditCardGroupPaymentTotalDueHint(String amount);
+
+  /// No description provided for @creditCardGroupPaymentSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Payment'**
+  String get creditCardGroupPaymentSubmit;
+
+  /// No description provided for @creditCardGroupPaymentSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} payment transaction(s) created'**
+  String creditCardGroupPaymentSuccess(int count);
+
+  /// No description provided for @creditCardBillingDueBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment due {date}'**
+  String creditCardBillingDueBadge(String date);
 
   /// No description provided for @cardRewardRuleEntryLabel.
   ///

@@ -3372,7 +3372,7 @@
   "billingSummaryAmountDue": "Amount Due",
   "billingSummaryAmountPaid": "Amount Paid",
   "billingSummaryInstallments": "Installments",
-  "billingSummaryReconciledCount": "Reconciled",
+  "billingSummaryRewardDeduction": "Reward Deduction",
   "reconciliationSectionTitle": "Reconciliation",
   "reconciliationStatCount": "Statement Count",
   "reconciliationStatNewSpend": "New Spending",
@@ -3392,6 +3392,69 @@
   "reconciliationDeferredBadge": "Deferred",
   "billingSummaryRemaining": "Remaining Balance",
   "billingSummaryPaidOff": "Paid Off",
+  "billingPaymentRecordsTitle": "Payment Records ({count})",
+  "@billingPaymentRecordsTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "billingGeneralRecordsTitle": "General Records ({count})",
+  "@billingGeneralRecordsTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "billingUnreconciledPaymentWarningTitle": "Unreconciled transactions",
+  "billingUnreconciledPaymentWarningMessage": "This period still has {count} unreconciled transaction(s). Continue with the payment anyway?",
+  "@billingUnreconciledPaymentWarningMessage": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "continuePayment": "Continue Payment",
+  "creditCardGroupPaymentPageTitle": "Group Payment",
+  "creditCardGroupPaymentSourceAccount": "Source Account",
+  "creditCardGroupPaymentTotalAmount": "Total Payment Amount",
+  "creditCardGroupPaymentAllocationPreview": "Allocation Preview",
+  "creditCardGroupPaymentOverflowTo": "Overpayment credited to {name}",
+  "@creditCardGroupPaymentOverflowTo": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "creditCardGroupPaymentTotalDueHint": "Total amount currently due: {amount}",
+  "@creditCardGroupPaymentTotalDueHint": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "creditCardGroupPaymentSubmit": "Confirm Payment",
+  "creditCardGroupPaymentSuccess": "{count} payment transaction(s) created",
+  "@creditCardGroupPaymentSuccess": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "creditCardBillingDueBadge": "Payment due {date}",
+  "@creditCardBillingDueBadge": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "cardRewardRuleEntryLabel": "Reward Rules",
   "cardRewardRuleCount": "{count} rule(s)",
   "@cardRewardRuleCount": {

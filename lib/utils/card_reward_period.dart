@@ -68,6 +68,38 @@ DateTime _clampDay(int year, int month, int day) {
   return (start: start, end: end);
 }
 
+/// 「最近一次已結帳」的帳期 offset:[billingCyclePeriod] 的 offset=0 定義是
+/// 「涵蓋今天、尚未結束」的本期,`end` 恆 >= 今天,只有今天剛好是結帳日當天
+/// 這一種情況 `end == 今天`(已結帳);其餘日子 offset=0 都還沒結帳,「最近
+/// 一次已結帳」要退回 offset=-1。對齊 Cloud
+/// `services/credit_card.py::most_recently_closed_cycle` 的語意——帳戶列表
+/// 「可繳款」徽章/繳費期限提醒都要用「已結帳」的那一期,不能用還在累積中的
+/// 當期(欠款金額還沒定案)。
+int mostRecentlyClosedBillingOffset(int? billingDay) {
+  final current = billingCyclePeriod(billingDay, 0);
+  final today = DateTime.now();
+  final todayDateOnly = DateTime(today.year, today.month, today.day);
+  return current.end.isAtSameMomentAs(todayDateOnly) ? 0 : -1;
+}
+
+/// 繳款期限:帳期結束(結帳日)後的第一個 [paymentDueDay]。跟
+/// `account_detail_page.dart` 「帳戶資訊」tab 原本的私有 `_dueDate` 是同一個
+/// 算法,抽成共用函式讓帳戶列表「可繳款」徽章也能用同一套。
+DateTime creditCardPaymentDueDate(DateTime periodEnd, int paymentDueDay) {
+  var year = periodEnd.year;
+  var month = periodEnd.month;
+  var candidate = DateTime(year, month, paymentDueDay);
+  if (!candidate.isAfter(periodEnd)) {
+    month += 1;
+    if (month > 12) {
+      month = 1;
+      year += 1;
+    }
+    candidate = DateTime(year, month, paymentDueDay);
+  }
+  return candidate;
+}
+
 /// 把 [start, end] 依自然月切段——用於「規則以自然月計算上限,但檢視視窗是
 /// 帳單週期(如 8/5~9/4,橫跨 8、9 兩個自然月)」的情境:上限跟著自然月重置,
 /// 不能把橫跨兩個自然月的帳單週期當一整段拿去跟單一自然月上限比較,見帳戶頁

@@ -2996,7 +2996,7 @@
   "billingSummaryAmountDue": "應繳金額",
   "billingSummaryAmountPaid": "已繳金額",
   "billingSummaryInstallments": "帳單分期",
-  "billingSummaryReconciledCount": "對帳筆數",
+  "billingSummaryRewardDeduction": "回饋折抵",
   "reconciliationSectionTitle": "對帳模式",
   "reconciliationStatCount": "帳單筆數",
   "reconciliationStatNewSpend": "新增消費",
@@ -3016,6 +3016,69 @@
   "reconciliationDeferredBadge": "已延後",
   "billingSummaryRemaining": "剩餘帳款",
   "billingSummaryPaidOff": "已繳清",
+  "billingPaymentRecordsTitle": "繳款記錄 ({count})",
+  "@billingPaymentRecordsTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "billingGeneralRecordsTitle": "一般記錄 ({count})",
+  "@billingGeneralRecordsTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "billingUnreconciledPaymentWarningTitle": "尚有未對帳交易",
+  "billingUnreconciledPaymentWarningMessage": "本期尚有 {count} 筆交易未完成對帳,是否確認直接進行繳款?",
+  "@billingUnreconciledPaymentWarningMessage": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "continuePayment": "繼續繳款",
+  "creditCardGroupPaymentPageTitle": "群組繳款",
+  "creditCardGroupPaymentSourceAccount": "付款來源帳戶",
+  "creditCardGroupPaymentTotalAmount": "繳款總額",
+  "creditCardGroupPaymentAllocationPreview": "分攤預覽",
+  "creditCardGroupPaymentOverflowTo": "溢繳歸入 {name}",
+  "@creditCardGroupPaymentOverflowTo": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "creditCardGroupPaymentTotalDueHint": "目前應繳總額:{amount}",
+  "@creditCardGroupPaymentTotalDueHint": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "creditCardGroupPaymentSubmit": "確認繳款",
+  "creditCardGroupPaymentSuccess": "已建立 {count} 筆繳款交易",
+  "@creditCardGroupPaymentSuccess": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "creditCardBillingDueBadge": "可繳款 截止日 {date}",
+  "@creditCardBillingDueBadge": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "cardRewardRuleEntryLabel": "紅利回饋",
   "cardRewardRuleCount": "{count}組回饋條件",
   "cardRewardRuleListTitle": "紅利回饋列表",

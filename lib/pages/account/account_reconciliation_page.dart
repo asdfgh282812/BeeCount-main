@@ -53,10 +53,10 @@ class _AccountReconciliationPageState
 
   String get _extraIdsKey => widget.children.map((c) => c.id).join(',');
 
-  // 帳戶詳情頁帳單彙總卡片的「對帳筆數」行讀的是另一個 provider
-  // (`accountBillingPeriodTransactionsProvider`,定義在 `account_detail_page.dart`)
-  // ——不在這裡直接 import 它(避免跟該頁形成循環 import),改由
-  // `AccountReconciliationSection` 在 `Navigator.push` 返回後一併失效。
+  // 帳戶詳情頁的帳單彙總卡片/交易列表現在也直接讀同一個
+  // `accountStatementTransactionsProvider`(2026-08-18 改版,不再自己維護一份
+  // 較寬鬆的查詢),失效這一個 provider 就會讓那幾處一起重算,不需要另外
+  // 通知。
   void _invalidate() {
     ref.invalidate(accountStatementTransactionsProvider);
   }

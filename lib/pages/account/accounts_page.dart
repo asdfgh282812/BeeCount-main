@@ -2476,6 +2476,7 @@ class _AccountCard extends ConsumerWidget {
                           ),
                         ),
                       ],
+                      _buildBillingDueBadge(context, ref, l10n),
                     ],
                   ),
                   SizedBox(height: 2.0.scaled(context, ref)),
@@ -2578,6 +2579,64 @@ class _AccountCard extends ConsumerWidget {
                 color: typeColor,
               ),
             ),
+    );
+  }
+
+  /// 「可繳款」徽章(MOZE 對標,2026-08-18):鏡射 Cloud
+  /// `routers/read/workspace.py::list_workspace_accounts` 的
+  /// `billing_due_date`/`billing_remaining_due`——只在 billing-root(獨立信用
+  /// 卡,或合併帳單主帳戶 account_group)且「最近一次已結帳週期」仍有應繳
+  /// 金額時才顯示,沒有額外的「N 天內」時間窗口限制。掛靠某個主帳戶的子卡
+  /// (`parentAccountId != null`)不重複顯示——避免主帳戶跟子卡各自顯示一次
+  /// 造成混淆,對齊 Cloud 只在 root 帳戶上附加這兩個欄位的做法。
+  Widget _buildBillingDueBadge(
+      BuildContext context, WidgetRef ref, AppLocalizations l10n) {
+    if (account.parentAccountId != null) return const SizedBox.shrink();
+    if (account.type != 'credit_card' && account.type != 'account_group') {
+      return const SizedBox.shrink();
+    }
+    if (account.billingDay == null || account.paymentDueDay == null) {
+      return const SizedBox.shrink();
+    }
+    final allAccounts = ref.watch(allAccountsStreamProvider).valueOrNull ?? const [];
+    final syncId = account.syncId;
+    final childIds = (syncId == null || syncId.isEmpty)
+        ? <int>[]
+        : allAccounts
+            .where((a) => a.parentAccountId == syncId)
+            .map((a) => a.id)
+            .toList();
+    childIds.sort();
+    final badgeAsync = ref.watch(creditCardBillingBadgeProvider((
+      accountId: account.id,
+      extraIdsKey: childIds.join(','),
+      billingDay: account.billingDay,
+      paymentDueDay: account.paymentDueDay,
+    )));
+    final badge = badgeAsync.valueOrNull;
+    if (badge == null) return const SizedBox.shrink();
+    final dateLabel =
+        '${badge.dueDate.month.toString().padLeft(2, '0')}/${badge.dueDate.day.toString().padLeft(2, '0')}';
+    return Padding(
+      padding: EdgeInsets.only(left: 6.0.scaled(context, ref)),
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: 5.0.scaled(context, ref),
+          vertical: 1.0.scaled(context, ref),
+        ),
+        decoration: BoxDecoration(
+          color: BeeTokens.error(context).withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(4.0.scaled(context, ref)),
+        ),
+        child: Text(
+          l10n.creditCardBillingDueBadge(dateLabel),
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: BeeTokens.error(context),
+          ),
+        ),
+      ),
     );
   }
 
