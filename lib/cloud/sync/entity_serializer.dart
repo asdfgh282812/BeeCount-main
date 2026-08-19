@@ -23,6 +23,7 @@ class EntitySerializer {
     List<String>? tagNames,
     List<String>? tagSyncIds,
     List<Map<String, dynamic>>? attachments,
+    List<Map<String, dynamic>>? splits,
   }) {
     // 同时带 *Name 和 *Id（syncId）到服务端。服务端的 read 会优先按 id 反查
     // snapshot 里当前 entity 的名字，名字字段只作为历史/兼容兜底。这样任何
@@ -81,6 +82,12 @@ class EntitySerializer {
       // A 端删光所有附件时 payload 里完全没有 attachments 字段 → B 端没法
       // 区分"没发送附件信息"和"全删光了"，B 就永远同步不到删除。
       if (attachments != null) 'attachments': attachments,
+      // v38 拆帳:同 attachments——恒发(即使 `[]`),否则 A 端把拆帳还原成
+      // 单一分类后 B 端没法区分"没发送拆帳信息"和"拆帳被清空了"。
+      // BeeCount Cloud 端对应 WriteTransactionCreateRequest.splits /
+      // WriteTransactionUpdateRequest.splits(§2.4),wire 字段名 splits,
+      // 明細内 categoryId 是分類的 syncId(同上面顶层 categoryId 语义)。
+      if (splits != null) 'splits': splits,
       // v35:信用卡紅利回饋——使用者手動勾選的規則 syncId 列表。恒發(即使
       // `[]`)——本地已经用 syncId 存,不用像 tagIds 那样做本地 id→syncId
       // 转换。空 list 代表"这笔交易没有勾选任何回饋规则"(包含用户清空的场景)。

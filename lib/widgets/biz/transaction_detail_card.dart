@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/db.dart';
+import '../../data/repositories/base_repository.dart';
 import '../../data/repositories/local/local_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers.dart';
@@ -15,6 +16,7 @@ import '../../utils/account_type_utils.dart';
 import '../../utils/card_reward_calc.dart';
 import '../../utils/category_utils.dart';
 import '../../utils/transaction_edit_utils.dart';
+import '../../utils/shared_ledger_picker_filter.dart';
 import '../../pages/attachment/attachment_preview_page.dart';
 import '../category_icon.dart';
 import '../ui/ui.dart';
@@ -52,12 +54,18 @@ class _AccountDisplay {
   const _AccountDisplay(this.name, this.type);
 }
 
+/// v38 拆帳:一筆拆分明細 + 反查到的分類物件(用來畫圖示/名稱;§7 共享
+/// 帳本的 synthetic 分類也已經反查好,category==null 代表分類已被刪除
+/// 等異常情況)。
+typedef _ResolvedSplit = ({TransactionSplit row, Category? category});
+
 class _DetailBundle {
   final _AccountDisplay? account;
   final List<Tag> tags;
   final List<TransactionAttachment> attachments;
   final List<Transaction> refunds;
   final List<CardRewardRule> rewardRules;
+  final List<_ResolvedSplit> splits;
 
   const _DetailBundle({
     required this.account,
@@ -65,6 +73,7 @@ class _DetailBundle {
     required this.attachments,
     required this.refunds,
     required this.rewardRules,
+    required this.splits,
   });
 }
 
@@ -145,13 +154,37 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
     final attachments = await attachmentsFuture;
     final refunds = await refundsFuture;
     final rewardRules = await rewardRulesFuture;
+    final splits = await _loadSplits(repo, tx);
     return _DetailBundle(
       account: account,
       tags: tags,
       attachments: attachments,
       refunds: refunds,
       rewardRules: rewardRules,
+      splits: splits,
     );
+  }
+
+  /// v38 拆帳:反查每筆明細的分類物件,跟 `transaction_entry_form.dart`
+  /// 的 `_resolveInitialSplits` 同一套邏輯(本地 categoryId 優先,查無再看
+  /// categorySyncIdOverride 共享帳本兜底)。
+  Future<List<_ResolvedSplit>> _loadSplits(
+      BaseRepository repo, Transaction tx) async {
+    if (!tx.hasSplits) return const [];
+    final rows = await repo.getTransactionSplits(tx.id);
+    final result = <_ResolvedSplit>[];
+    for (final s in rows) {
+      Category? cat;
+      final override = s.categorySyncIdOverride;
+      if (override != null && override.isNotEmpty && repo is LocalRepository) {
+        cat = await repo.db
+            .findCategoryBySyntheticId(syntheticIdForSyncId(override));
+      } else if (s.categoryId != null) {
+        cat = await repo.getCategoryById(s.categoryId!);
+      }
+      result.add((row: s, category: cat));
+    }
+    return result;
   }
 
   Future<void> _jumpToTransactionBySyncId(String syncId) async {
@@ -283,6 +316,7 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
                       isAdjustment, isRefundTx),
                   const SizedBox(height: 8),
                   _buildDetailRows(context, l10n, bundle),
+                  _buildSplitSection(context, l10n, bundle),
                   _buildRewardSection(context, l10n, bundle),
                   if (alreadyRefunded)
                     _buildRefundedList(context, l10n, refunds),
@@ -347,9 +381,11 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
     if (attachments.isEmpty) {
       final categoryKind = widget.category?.kind ??
           (widget.transaction.type == 'income' ? 'income' : 'expense');
-      final displayName = CategoryUtils.getDisplayName(
-          widget.category?.name, context,
-          kind: categoryKind);
+      // v38 拆帳:没有单一分类可显示,固定用「多類別」聚合图示+标签。
+      final displayName = widget.transaction.hasSplits
+          ? AppLocalizations.of(context).txSplitAggregateLabel
+          : CategoryUtils.getDisplayName(widget.category?.name, context,
+              kind: categoryKind);
       return Container(
         width: double.infinity,
         height: 220,
@@ -358,11 +394,14 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CategoryIconWidget(
-              category: widget.category,
-              categoryName: displayName,
-              size: 88,
-            ),
+            widget.transaction.hasSplits
+                ? Icon(Icons.apps,
+                    size: 88, color: BeeTokens.iconSecondary(context))
+                : CategoryIconWidget(
+                    category: widget.category,
+                    categoryName: displayName,
+                    size: 88,
+                  ),
             const SizedBox(height: 12),
             Text(
               displayName,
@@ -417,22 +456,45 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
     final tx = widget.transaction;
     final categoryKind =
         widget.category?.kind ?? (tx.type == 'income' ? 'income' : 'expense');
-    final categoryDisplayName = CategoryUtils.getDisplayName(
-        widget.category?.name, context,
-        kind: categoryKind);
+    // v38 拆帳:没有单一分类可显示,固定用「多類別」聚合标签。
+    final categoryDisplayName = tx.hasSplits
+        ? l10n.txSplitAggregateLabel
+        : CategoryUtils.getDisplayName(widget.category?.name, context,
+            kind: categoryKind);
     final noteText = (tx.note != null && tx.note!.isNotEmpty)
         ? tx.note!
         : categoryDisplayName;
+
+    Widget badge(String label, {VoidCallback? onTap}) {
+      final content = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: BeeTokens.iconSecondary(context).withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: BeeTokens.textSecondary(context),
+          ),
+        ),
+      );
+      return onTap == null ? content : GestureDetector(onTap: onTap, child: content);
+    }
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: Row(
         children: [
-          CategoryIconWidget(
-            category: widget.category,
-            categoryName: categoryDisplayName,
-            size: 22,
-          ),
+          tx.hasSplits
+              ? Icon(Icons.apps,
+                  size: 22, color: BeeTokens.iconSecondary(context))
+              : CategoryIconWidget(
+                  category: widget.category,
+                  categoryName: categoryDisplayName,
+                  size: 22,
+                ),
           const SizedBox(width: 10),
           Expanded(
             child: Row(
@@ -445,31 +507,16 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                if (tx.hasSplits) ...[
+                  const SizedBox(width: 6),
+                  badge(l10n.txSplitBadge),
+                ],
                 if (isRefundTx) ...[
                   const SizedBox(width: 6),
-                  GestureDetector(
-                    onTap: () {
-                      final original = tx.refundOfSyncId;
-                      if (original != null)
-                        _jumpToTransactionBySyncId(original);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: BeeTokens.iconSecondary(context)
-                            .withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        l10n.txDetailRefundBadge,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: BeeTokens.textSecondary(context),
-                        ),
-                      ),
-                    ),
-                  ),
+                  badge(l10n.txDetailRefundBadge, onTap: () {
+                    final original = tx.refundOfSyncId;
+                    if (original != null) _jumpToTransactionBySyncId(original);
+                  }),
                 ],
               ],
             ),
@@ -647,6 +694,92 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: BeeTokens.incomeColor(context, ref),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  /// v38 拆帳:堆疊列出每筆拆分明細(圖示+分類名+備註+金額),排在附件/
+  /// 分類主圖示區之後、其餘欄位卡片之前——比照截圖裡「主卡片 + 下方明細
+  /// 列表」的排版。
+  Widget _buildSplitSection(
+      BuildContext context, AppLocalizations l10n, _DetailBundle? bundle) {
+    final splits = bundle?.splits ?? const <_ResolvedSplit>[];
+    if (splits.isEmpty) return const SizedBox.shrink();
+    final tx = widget.transaction;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.txSplitDetailTitle,
+            style: TextStyle(
+              fontSize: 13,
+              color: BeeTokens.textSecondary(context),
+            ),
+          ),
+          const SizedBox(height: 4),
+          ...splits.map((s) {
+            final name = s.category != null
+                ? CategoryUtils.getDisplayName(s.category!.name, context,
+                    kind: s.category!.kind)
+                : l10n.commonUncategorized;
+            return Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 4),
+              child: Row(
+                children: [
+                  CategoryIconWidget(
+                    category: s.category,
+                    categoryName: name,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: BeeTokens.textPrimary(context),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (s.row.note != null && s.row.note!.isNotEmpty)
+                          Text(
+                            s.row.note!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: BeeTokens.textTertiary(context),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
+                  ),
+                  AmountText(
+                    value: tx.type == 'income' ? s.row.amount : -s.row.amount,
+                    signed: true,
+                    currencyCode: tx.currencyCode,
+                    showCurrency: tx.currencyCode != null,
+                    decimals: 2,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: tx.type == 'income'
+                          ? BeeTokens.incomeColor(context, ref)
+                          : BeeTokens.expenseColor(context, ref),
                     ),
                   ),
                 ],

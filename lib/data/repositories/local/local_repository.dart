@@ -15,7 +15,10 @@ import '../base_repository.dart';
 import '../budget_repository.dart';
 import '../recurring_rule_repository.dart';
 import '../transaction_repository.dart'
-    show BatchAttachmentData, TransactionUpdateBySyncIdData;
+    show
+        BatchAttachmentData,
+        TransactionUpdateBySyncIdData,
+        TransactionSplitInput;
 import 'local_ledger_repository.dart';
 import 'local_transaction_repository.dart';
 import 'local_category_repository.dart';
@@ -373,6 +376,7 @@ class LocalRepository extends BaseRepository {
     String? refundOfSyncId,
     List<String>? rewardRuleIds,
     String? recurringRuleId,
+    List<TransactionSplitInput>? splits,
   }) async {
     // v30 带折算兜底(02 §六):任何调用方(单币种记账/AI/周期模板)未传两字段
     // 时在此补齐 —— 外币先查有效汇率,取不到才 =amount(命中 L11 检测可捞回)。
@@ -404,6 +408,7 @@ class LocalRepository extends BaseRepository {
       refundOfSyncId: refundOfSyncId,
       rewardRuleIds: rewardRuleIds,
       recurringRuleId: recurringRuleId,
+      splits: splits,
     );
     if (changeTracker != null) {
       final tx = await _transactionRepo.getTransactionById(id);
@@ -480,6 +485,7 @@ class LocalRepository extends BaseRepository {
     String? currencyCode,
     double? nativeAmount,
     List<String>? rewardRuleIds,
+    List<TransactionSplitInput>? splits,
   }) async {
     final old = await _transactionRepo.getTransactionById(id);
     // v30 联动兜底(与 Cloud merge/mutator 的 L14 同规则):调用方不传两字段时——
@@ -531,6 +537,7 @@ class LocalRepository extends BaseRepository {
           currencyCode: effCurrency,
           nativeAmount: effNative,
           rewardRuleIds: rewardRuleIds,
+          splits: splits,
         );
         await changeTracker!.recordLedgerChange(
           entityType: 'transaction',
@@ -559,6 +566,7 @@ class LocalRepository extends BaseRepository {
       currencyCode: effCurrency,
       nativeAmount: effNative,
       rewardRuleIds: rewardRuleIds,
+      splits: splits,
     );
   }
 
@@ -582,6 +590,10 @@ class LocalRepository extends BaseRepository {
   @override
   Future<Transaction?> getTransactionById(int id) =>
       _transactionRepo.getTransactionById(id);
+
+  @override
+  Future<List<TransactionSplit>> getTransactionSplits(int transactionId) =>
+      _transactionRepo.getTransactionSplits(transactionId);
 
   // ---------------------------------------------------------------------
   // v30 交易级多币种:折算兜底 + 重算/检测(.docs/multi-currency-ledger)

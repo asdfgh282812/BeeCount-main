@@ -7347,6 +7347,35 @@ class AppLocalizationsZh extends AppLocalizations {
   String get txCrossCurrencyTransferBlocked => '暂不支持跨币种转账,请分别记两笔或使用同币种账户';
 
   @override
+  String get txSplitToggle => 'Split into categories';
+
+  @override
+  String get txSplitAggregateLabel => 'Multi-category';
+
+  @override
+  String get txSplitRevertAction => 'Revert to a single category';
+
+  @override
+  String get txSplitChangeCategoryAction => 'Change category';
+
+  @override
+  String get txSplitRemoveLineAction => 'Remove this line';
+
+  @override
+  String get txSplitRevertPickCategoryTitle =>
+      'Choose a category for the merged entry';
+
+  @override
+  String get txSplitRecurringConflict =>
+      'Splitting and recurring can\'t be combined. Turn off recurring first.';
+
+  @override
+  String get txSplitBadge => 'Split';
+
+  @override
+  String get txSplitDetailTitle => 'Category breakdown';
+
+  @override
   String get ledgerBaseCurrencyLabel => '主币种';
 
   @override
@@ -15752,6 +15781,33 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get txCrossCurrencyTransferBlocked => '暫不支援跨幣種轉帳,請分別記兩筆或使用同幣種帳戶';
+
+  @override
+  String get txSplitToggle => '拆分到多個分類';
+
+  @override
+  String get txSplitAggregateLabel => '多類別';
+
+  @override
+  String get txSplitRevertAction => '還原成單一分類';
+
+  @override
+  String get txSplitChangeCategoryAction => '更換分類';
+
+  @override
+  String get txSplitRemoveLineAction => '移除這筆';
+
+  @override
+  String get txSplitRevertPickCategoryTitle => '選擇還原後的分類';
+
+  @override
+  String get txSplitRecurringConflict => '拆帳不能跟週期性收支同時使用,請先關閉週期性收支';
+
+  @override
+  String get txSplitBadge => '拆帳';
+
+  @override
+  String get txSplitDetailTitle => '分類明細';
 
   @override
   String get ledgerBaseCurrencyLabel => '主幣種';

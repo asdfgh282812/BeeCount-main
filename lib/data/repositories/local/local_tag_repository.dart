@@ -686,6 +686,7 @@ class LocalTagRepository implements TagRepository {
               row.read<bool>('recurring_occurrence_overridden'),
           excludeFromStats: row.read<bool>('exclude_from_stats'),
           excludeFromBudget: row.read<bool>('exclude_from_budget'),
+          hasSplits: row.read<bool>('has_splits'),
         );
       }).toList();
     });

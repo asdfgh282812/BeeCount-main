@@ -13764,6 +13764,60 @@ abstract class AppLocalizations {
   /// **'Cross-currency transfers are not supported yet. Record two entries or use same-currency accounts.'**
   String get txCrossCurrencyTransferBlocked;
 
+  /// No description provided for @txSplitToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Split into categories'**
+  String get txSplitToggle;
+
+  /// No description provided for @txSplitAggregateLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Multi-category'**
+  String get txSplitAggregateLabel;
+
+  /// No description provided for @txSplitRevertAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Revert to a single category'**
+  String get txSplitRevertAction;
+
+  /// No description provided for @txSplitChangeCategoryAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Change category'**
+  String get txSplitChangeCategoryAction;
+
+  /// No description provided for @txSplitRemoveLineAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this line'**
+  String get txSplitRemoveLineAction;
+
+  /// No description provided for @txSplitRevertPickCategoryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a category for the merged entry'**
+  String get txSplitRevertPickCategoryTitle;
+
+  /// No description provided for @txSplitRecurringConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Splitting and recurring can\'t be combined. Turn off recurring first.'**
+  String get txSplitRecurringConflict;
+
+  /// No description provided for @txSplitBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Split'**
+  String get txSplitBadge;
+
+  /// No description provided for @txSplitDetailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Category breakdown'**
+  String get txSplitDetailTitle;
+
   /// No description provided for @ledgerBaseCurrencyLabel.
   ///
   /// In en, this message translates to:

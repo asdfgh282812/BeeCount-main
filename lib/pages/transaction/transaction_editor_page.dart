@@ -8,6 +8,8 @@ import '../../providers.dart';
 import '../../providers/budget_providers.dart';
 import '../../data/db.dart';
 import '../../data/repositories/local/local_repository.dart';
+import '../../data/repositories/transaction_repository.dart'
+    show TransactionSplitInput;
 import '../../utils/shared_ledger_picker_filter.dart';
 import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/transaction_entry_form.dart'
@@ -286,6 +288,8 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
                   initialCurrencyCode: widget.initialCurrencyCode,
                   initialNativeAmount: widget.initialNativeAmount,
                   initialRewardRuleIds: widget.initialRewardRuleIds,
+                  // v38:退款新增入口不能同時是拆帳交易(對齊 web 端的互斥規則)。
+                  allowSplit: widget.initialRefundOfSyncId == null,
                   onSubmit: (c, r) => _handleSubmit(c, 'expense', r),
                 ),
                 TransactionEntryForm(
@@ -305,6 +309,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
                   initialCurrencyCode: widget.initialCurrencyCode,
                   initialNativeAmount: widget.initialNativeAmount,
                   initialRewardRuleIds: widget.initialRewardRuleIds,
+                  allowSplit: widget.initialRefundOfSyncId == null,
                   onSubmit: (c, r) => _handleSubmit(c, 'income', r),
                 ),
                 TransferForm(
@@ -358,6 +363,18 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
     final accountOverride = isSyntheticAccount
         ? await _resolveSyncIdByAccountId(res.accountId!, ledgerId)
         : null;
+    // v38 拆帳:三態語義直接透傳(null=不動;[]=顯式清空;非空=整組覆蓋),
+    // 見 AmountEditorResult.splits / TransactionRepository.updateTransaction
+    // 的註解。categoryId/categorySyncIdOverride 在 splits 非空時會被 repo
+    // 內部強制清空,這裡不用重複處理。
+    final splitsForWrite = res.splits
+        ?.map((s) => TransactionSplitInput(
+              categoryId: s.categoryId,
+              categorySyncIdOverride: s.categorySyncId,
+              amount: s.amount,
+              note: s.note,
+            ))
+        .toList();
     if (widget.editingTransactionId != null) {
       // v36 修正:「修改此記錄」vs「修改連同未來週期」的選擇彈窗理想上已經在
       // 進入這個編輯頁「之前」由呼叫端(`TransactionEditUtils.editTransaction`)
@@ -399,6 +416,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
         currencyCode: res.currencyCode,
         nativeAmount: res.nativeAmount,
         rewardRuleIds: res.rewardRuleIds,
+        splits: splitsForWrite,
       );
       transactionId = widget.editingTransactionId!;
       // 共享账本:本地 lastEditedByUserId 立即回填,UI 头像组直接展示
@@ -485,6 +503,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
         nativeAmount: res.nativeAmount,
         refundOfSyncId: widget.initialRefundOfSyncId,
         rewardRuleIds: res.rewardRuleIds,
+        splits: splitsForWrite,
       );
       // 共享账本:新建本地 tx 也回填创建人 + 编辑人(同一个 user)
       await TxAuthorService.markCreated(ref, transactionId);

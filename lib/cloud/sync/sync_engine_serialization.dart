@@ -157,6 +157,13 @@ extension SyncEngineSerializationExt on SyncEngine {
           finalToAccountSyncId = toAcc?.syncId;
         }
 
+        // v38 拆帳明細
+        final txSplits = await (db.select(db.transactionSplits)
+              ..where((s) => s.transactionId.equals(tx.id))
+              ..orderBy([(s) => d.OrderingTerm(expression: s.sortOrder)]))
+            .get();
+        final splitMaps = await _serializeSplits(txSplits);
+
         return EntitySerializer.serializeTransaction(
           tx,
           categoryName: finalCategoryName,
@@ -172,6 +179,7 @@ extension SyncEngineSerializationExt on SyncEngine {
           tagNames: tagNames.isNotEmpty ? tagNames : null,
           tagSyncIds: tagSyncIds.isNotEmpty ? tagSyncIds : null,
           attachments: attMaps,
+          splits: splitMaps,
         );
 
       case 'account':
@@ -385,6 +393,38 @@ extension SyncEngineSerializationExt on SyncEngine {
       default:
         return <String, dynamic>{};
     }
+  }
+
+  /// v38 拆帳:把一笔交易的 [TransactionSplit] 明細序列化成 push payload
+  /// 的 `splits` 数组项(每项 categoryId 是分類的 syncId,同顶层 tx 的
+  /// categoryId 语义)。调用方(_serializeEntityForPush)已按 sortOrder 排序。
+  Future<List<Map<String, dynamic>>> _serializeSplits(
+      List<TransactionSplit> txSplits) async {
+    final result = <Map<String, dynamic>>[];
+    for (final s in txSplits) {
+      String? splitCategorySyncId = s.categorySyncIdOverride;
+      String? splitCategoryName;
+      if (splitCategorySyncId != null && splitCategorySyncId.isNotEmpty) {
+        final shared = await (db.select(db.sharedLedgerCategories)
+              ..where((t) => t.syncId.equals(splitCategorySyncId!)))
+            .getSingleOrNull();
+        splitCategoryName = shared?.name;
+      } else if (s.categoryId != null) {
+        final sc = await (db.select(db.categories)
+              ..where((c) => c.id.equals(s.categoryId!)))
+            .getSingleOrNull();
+        splitCategorySyncId = sc?.syncId;
+        splitCategoryName = sc?.name;
+      }
+      result.add({
+        if (splitCategorySyncId != null && splitCategorySyncId.isNotEmpty)
+          'categoryId': splitCategorySyncId,
+        'categoryName': splitCategoryName,
+        'amount': s.amount,
+        'note': s.note,
+      });
+    }
+    return result;
   }
 
   // 跨设备 ID 解析方法搬到 sync_engine_resolvers.dart 这个 part 文件:
@@ -645,6 +685,17 @@ extension SyncEngineSerializationExt on SyncEngine {
       attachmentsByTx.putIfAbsent(a.transactionId, () => []).add(a);
     }
 
+    // v38:预加载所有拆帳明細，按 transactionId 分组
+    final allSplits = await (db.select(db.transactionSplits)
+          ..where((s) =>
+              s.transactionId.isIn(transactions.map((t) => t.id).toList()))
+          ..orderBy([(s) => d.OrderingTerm(expression: s.sortOrder)]))
+        .get();
+    final splitsByTx = <int, List<TransactionSplit>>{};
+    for (final s in allSplits) {
+      splitsByTx.putIfAbsent(s.transactionId, () => []).add(s);
+    }
+
     for (final tx in transactions) {
       final syncId = tx.syncId ?? _uuid.v4();
       if (tx.syncId == null) {
@@ -700,6 +751,8 @@ extension SyncEngineSerializationExt on SyncEngine {
               })
           .toList();
 
+      final splitMaps = await _serializeSplits(splitsByTx[tx.id] ?? []);
+
       syncChanges.add({
         'ledger_id': ledgerId,
         'entity_type': 'transaction',
@@ -720,6 +773,7 @@ extension SyncEngineSerializationExt on SyncEngine {
           tagNames: tagNames.isNotEmpty ? tagNames : null,
           tagSyncIds: tagSyncIds.isNotEmpty ? tagSyncIds : null,
           attachments: attMaps,
+          splits: splitMaps,
         ),
         'updated_at': now,
       });
@@ -806,6 +860,12 @@ extension SyncEngineSerializationExt on SyncEngine {
         }
       }
 
+      final txSplits = await (db.select(db.transactionSplits)
+            ..where((s) => s.transactionId.equals(tx.id))
+            ..orderBy([(s) => d.OrderingTerm(expression: s.sortOrder)]))
+          .get();
+      final splitMaps = await _serializeSplits(txSplits);
+
       items.add(EntitySerializer.serializeTransaction(
         tx,
         categoryName: cat?.name,
@@ -820,6 +880,7 @@ extension SyncEngineSerializationExt on SyncEngine {
         ledgerSyncId: ledger.syncId,
         tagNames: tagNames.isNotEmpty ? tagNames : null,
         tagSyncIds: tagSyncIds.isNotEmpty ? tagSyncIds : null,
+        splits: splitMaps,
       ));
     }
 

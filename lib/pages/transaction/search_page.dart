@@ -1178,6 +1178,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                                 isExpense: isExpense,
                                 hide: hide,
                                 happenedAt: item.t.happenedAt,
+                                hasSplits: item.t.hasSplits,
                                 showFullDate: true,
                                 isSelectionMode: _isBatchMode,
                                 isSelected: isSelected,

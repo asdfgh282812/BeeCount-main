@@ -24,6 +24,25 @@ class TransactionUpdateBySyncIdData {
   });
 }
 
+/// 一笔拆帳明細的輸入(新增/更新交易時傳入)。對齊 BeeCount Cloud
+/// `WriteTxSplitItem`:分類 + 金額 + 備註,不含帳戶(拆帳只拆分類,見
+/// db.dart TransactionSplits 的註解)。
+class TransactionSplitInput {
+  final int? categoryId;
+  // 共享账本 §7 场景:分类是 Owner 的虚拟分类时用这个,同
+  // Transactions.categorySyncIdOverride。
+  final String? categorySyncIdOverride;
+  final double amount;
+  final String? note;
+
+  const TransactionSplitInput({
+    this.categoryId,
+    this.categorySyncIdOverride,
+    required this.amount,
+    this.note,
+  });
+}
+
 /// 批量插入交易时附带的附件元数据。交易行还没插入,txId 未知,
 /// repo 内部按 batch 内 index 找到刚插入的 txId 再组装 AttachmentsCompanion。
 class BatchAttachmentData {
@@ -210,6 +229,11 @@ abstract class TransactionRepository {
     // v36:週期性收支——這筆交易是哪條規則生成的 occurrence,存規則的
     // syncId。只在生成當下寫入,後續編輯不改(overridden 標記走專用方法)。
     String? recurringRuleId,
+    // v38 拆帳:非空時這筆交易記為 hasSplits=true,categoryId/
+    // categorySyncIdOverride 強制為 null,改插入這些明細到
+    // TransactionSplits。null/空列表 = 普通單分類交易。呼叫方(表單)負責先
+    // 驗證 ≥2 筆、金額和等於 amount、type 為 expense/income。
+    List<TransactionSplitInput>? splits,
   });
 
   /// 批量新增交易，单事务内插入，返回插入条数。
@@ -272,7 +296,13 @@ abstract class TransactionRepository {
     // v35:语义同 merchant——null 会显式清空既有勾选(调用方需自行传当前值
     // 以保留)。
     List<String>? rewardRuleIds,
+    // v38 拆帳:null = 不動既有拆帳明細;空列表 = 明確清空(還原成單一分類,
+    // 這時 categoryId 參數才會生效寫回主表);非空列表 = 整組刪除重建。
+    List<TransactionSplitInput>? splits,
   });
+
+  /// 获取一笔交易的拆帳明細(依 sortOrder),非拆帳交易返回空列表。
+  Future<List<TransactionSplit>> getTransactionSplits(int transactionId);
 
   /// 删除交易
   Future<void> deleteTransaction(int id);

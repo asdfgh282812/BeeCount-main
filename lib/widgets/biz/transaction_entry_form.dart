@@ -22,6 +22,7 @@ import '../../utils/shared_ledger_picker_filter.dart';
 import '../../pages/tag/widgets/tag_selector.dart';
 import 'card_reward_rule_selector.dart';
 import '../category/category_selector.dart';
+import 'category_selector_dialog.dart';
 import '../category_icon.dart';
 import 'account_card_picker.dart';
 import 'amount_calculator_keypad.dart';
@@ -38,6 +39,24 @@ import 'shared_entry_fields.dart';
 /// `AmountEditorSheet` modal 的唯一呼叫方 `transfer_form.dart` 已改成單頁式
 /// 自行提交,不再需要那個 widget;這個型別仍是 `TransactionEntryForm` 跟上層
 /// `transaction_editor_page.dart` 之間唯一還在用的共用形狀,搬來這裡)。
+/// v38 拆帳:表單提交時單筆拆分明細的結果,交給上層(transaction_editor_page.dart)
+/// 轉成 `TransactionSplitInput` 寫入 repo。`categoryId`/`categorySyncId` 跟
+/// `_handleSubmit` 對單一分類欄位的 synthetic(id<0)處理同一套規則——
+/// synthetic 分類只帶 syncId,categoryId 留 null。
+class SplitLineResult {
+  final int? categoryId;
+  final String? categorySyncId;
+  final double amount;
+  final String? note;
+
+  const SplitLineResult({
+    this.categoryId,
+    this.categorySyncId,
+    required this.amount,
+    this.note,
+  });
+}
+
 typedef AmountEditorResult = ({
   double amount,
   String? note,
@@ -58,6 +77,11 @@ typedef AmountEditorResult = ({
   // 只在新增模式(editingTransactionId == null)才可能非 null,見表單內
   // `_buildRecurringRow` 只在新增模式渲染的註解。
   RecurringRuleDraft? recurringDraft,
+  // v38 拆帳:三態語義比照 TransactionRepository.updateTransaction 的
+  // splits 參數——null=沒碰過拆帳(維持原本單分類流程,上層走
+  // categoryId/categorySyncIdOverride);[]=編輯時使用者把原本的拆帳交易
+  // 「還原」成單一分類(上層需顯式清空);非空=目前是拆帳交易,整組覆蓋。
+  List<SplitLineResult>? splits,
 });
 
 /// v36:`onSubmit` 回傳 `Future<void>`(原本是 `void`)——編輯「週期規則
@@ -95,6 +119,10 @@ class TransactionEntryForm extends ConsumerStatefulWidget {
   final double? initialNativeAmount;
   // v35:編輯模式回填已勾選的信用卡紅利回饋規則(syncId 列表)。
   final List<String>? initialRewardRuleIds;
+  // v38 拆帳:false 時完全不提供拆帳入口(目前只有「從退款入口新增」這個
+  // 場景會傳 false——退款單不能同時是拆帳交易,見
+  // transaction_editor_page.dart 的 initialRefundOfSyncId)。
+  final bool allowSplit;
   final TransactionSubmitCallback onSubmit;
 
   const TransactionEntryForm({
@@ -114,12 +142,24 @@ class TransactionEntryForm extends ConsumerStatefulWidget {
     this.initialCurrencyCode,
     this.initialNativeAmount,
     this.initialRewardRuleIds,
+    this.allowSplit = true,
     required this.onSubmit,
   });
 
   @override
   ConsumerState<TransactionEntryForm> createState() =>
       TransactionEntryFormState();
+}
+
+/// v38 拆帳:表單內部編輯中的一筆拆分明細(可變,金鑰盤直接改 amount)。
+/// 跟 [SplitLineResult] 的差異——這個是編輯態(持有完整 [Category] 物件供
+/// UI 畫圖示/名稱),送出時才轉成 [SplitLineResult] 那個純資料形狀。
+class _SplitLine {
+  Category category;
+  double amount;
+  String? note;
+
+  _SplitLine({required this.category, required this.amount, this.note});
 }
 
 /// 公開(非底線開頭)是刻意的——`transaction_editor_page.dart` 需要透過
@@ -139,6 +179,18 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   // ===== 類別選擇 =====
   Category? _selectedCategory;
   bool _categoryGridExpanded = true; // 未選類別時預設展開
+
+  // ===== v38 拆帳(split into multiple categories) =====
+  // 不變式:_splits.isNotEmpty(拆帳模式中)時,_activeSplitIndex 恆為
+  // _splits 的合法索引——每個結構性操作(新增/移除/切換/初始回填)都會
+  // 一併設好它,讓底部金鑰盤/上方金額顯示永遠對應到「目前正在編輯哪一筆」,
+  // 不會出現「拆帳中但沒有任何一筆在編輯」的曖昧態。
+  final List<_SplitLine> _splits = [];
+  int? _activeSplitIndex;
+  // 編輯模式下,原本這筆交易「一開始」是否為拆帳交易——用來在使用者於編輯
+  // 中把拆帳「還原」成單一分類時,區分「[]=顯式清空」跟「null=從未碰過
+  // 拆帳」這兩種對 repo 語義不同的情況(見 AmountEditorResult.splits 註解)。
+  bool _wasInitiallySplit = false;
 
   // ===== 金額表達式 =====
   late String _amountStr;
@@ -210,6 +262,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     _merchantCtrl.text = widget.initialMerchant ?? '';
 
     _resolveInitialCategory();
+    _resolveInitialSplits();
     if (widget.editingTransactionId == null &&
         widget.initialAccountId == null) {
       _loadDefaultAccount();
@@ -294,6 +347,45 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
       });
       _onCategoryChanged();
     }
+  }
+
+  /// v38 拆帳:編輯模式回顯已存在的拆分明細。跟 [_resolveInitialCategory]
+  /// 對稱,只在 editingTransactionId 非 null 時跑;§7 共享帳本 synthetic
+  /// 分類走 findCategoryBySyntheticId(同 [_resolveInitialCategory] 的做法,
+  /// 只是反過來先用 [syntheticIdForSyncId] 從 syncId 算出 synthetic id)。
+  Future<void> _resolveInitialSplits() async {
+    final id = widget.editingTransactionId;
+    if (id == null) return;
+    final repo = ref.read(repositoryProvider);
+    final rows = await repo.getTransactionSplits(id);
+    if (rows.isEmpty) return;
+    final lines = <_SplitLine>[];
+    for (final row in rows) {
+      Category? cat;
+      final override = row.categorySyncIdOverride;
+      if (override != null && override.isNotEmpty && repo is LocalRepository) {
+        cat = await repo.db
+            .findCategoryBySyntheticId(syntheticIdForSyncId(override));
+      } else if (row.categoryId != null) {
+        cat = await repo.getCategoryById(row.categoryId!);
+      }
+      if (cat != null) {
+        lines.add(_SplitLine(category: cat, amount: row.amount, note: row.note));
+      }
+    }
+    // 少於 2 筆代表分類都查無資料(異常態),退化成不显示拆帳,避免呈現
+    // 一筆看起来像單一分類、又不能存檔(canSubmit 要求 >=2)的卡死狀態。
+    if (lines.length < 2 || !mounted) return;
+    setState(() {
+      _splits
+        ..clear()
+        ..addAll(lines);
+      _wasInitiallySplit = true;
+      _selectedCategory = null;
+      _categoryGridExpanded = false;
+      _activeSplitIndex = 0;
+      _loadAmountIntoKeypad(lines[0].amount);
+    });
   }
 
   /// 获取默认账户ID（验证币种匹配）——从旧 `TransactionEditorPage` 搬来,
@@ -630,6 +722,208 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     });
   }
 
+  // ===== v38 拆帳(split into multiple categories) =====
+
+  /// 目前小算盤(_amountStr/_acc/_op)代表的金額——跟 [_submit] 算 total
+  /// 用的算式完全一致,拆帳/非拆帳共用同一套算盤狀態機。
+  double get _keypadTotal =>
+      _op == null ? _parsedAmount() : computeAmountOp(_acc, _op!, _parsedAmount());
+
+  /// 把小算盤目前的金額寫回「正在編輯」的那一筆拆分明細。結構性操作(切換
+  /// 焦點/新增/移除/還原)前都要先呼叫這個,否則使用者剛打的數字會在切換
+  /// 時憑空消失。非拆帳模式或沒有焦點時是 no-op。
+  void _commitActiveSplitAmount() {
+    final i = _activeSplitIndex;
+    if (i == null || i >= _splits.length) return;
+    _splits[i].amount = _keypadTotal.abs();
+  }
+
+  /// 把小算盤重置成顯示 [amount](供切換到另一筆明細/新增明細時,讓金鑰盤
+  /// 從那一筆既有金額或 0 開始,而不是延續前一筆殘留的運算式)。
+  void _loadAmountIntoKeypad(double amount) {
+    _amountStr = _fmtAbs(amount);
+    _acc = 0;
+    _op = null;
+  }
+
+  /// 第 [index] 筆明細目前應顯示的金額——若正是焦點所在,用小算盤的即時值
+  /// (讓上方彙總圖示的總額能隨打字即時跳動);否則用已提交的值。
+  double _liveAmountFor(int index) =>
+      _activeSplitIndex == index ? _keypadTotal.abs() : _splits[index].amount;
+
+  double get _splitsLiveTotal {
+    var sum = 0.0;
+    for (var i = 0; i < _splits.length; i++) {
+      sum += _liveAmountFor(i);
+    }
+    return sum;
+  }
+
+  /// 拆帳入口:把目前已選的單一分類轉成第一筆明細,再讓使用者挑第二筆的
+  /// 分類。跟週期性收支互斥(同一時間只能選一種),已經開了「週期」的話直接
+  /// 提示、不進入拆帳模式。
+  Future<void> _startSplitMode() async {
+    final first = _selectedCategory;
+    if (first == null) return;
+    if (_recurringDraft != null) {
+      showToast(context, AppLocalizations.of(context).txSplitRecurringConflict);
+      return;
+    }
+    final picked = await showCategorySelector(
+      context,
+      type: widget.kind,
+      excludeIds: [first.id],
+    );
+    if (picked == null || !mounted) return;
+    final firstAmount = _keypadTotal.abs();
+    setState(() {
+      _splits
+        ..clear()
+        ..add(_SplitLine(category: first, amount: firstAmount))
+        ..add(_SplitLine(category: picked, amount: 0));
+      _activeSplitIndex = 1;
+      _selectedCategory = null;
+      _loadAmountIntoKeypad(0);
+    });
+  }
+
+  /// 「+」新增一筆明細:先選分類,選完把小算盤焦點切過去讓使用者輸入金額。
+  Future<void> _addSplitLine() async {
+    _commitActiveSplitAmount();
+    final excludeIds = _splits.map((s) => s.category.id).toList();
+    final picked = await showCategorySelector(
+      context,
+      type: widget.kind,
+      excludeIds: excludeIds,
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _splits.add(_SplitLine(category: picked, amount: 0));
+      _activeSplitIndex = _splits.length - 1;
+      _loadAmountIntoKeypad(0);
+    });
+  }
+
+  /// 點某一筆明細的圖示:非目前焦點時先把焦點切過去(金鑰盤跟著換);已經是
+  /// 焦點的那一筆再點一次,代表使用者想換分類,直接開換分類選單——不然「已
+  /// 經選好的分類」在點下去沒反應的情況下會被誤以為無法重選(長按雖然也能
+  /// 換分類,但發現率低,見 docs/changes)。
+  void _selectSplitLine(int index) {
+    if (_activeSplitIndex == index) {
+      _changeSplitLineCategory(index);
+      return;
+    }
+    _commitActiveSplitAmount();
+    setState(() {
+      _activeSplitIndex = index;
+      _loadAmountIntoKeypad(_splits[index].amount);
+    });
+  }
+
+  /// 移除一筆明細——保底 2 筆(降到 1 筆語意上等於「沒有拆帳」,應該走
+  /// [_revertSplitToSingleCategory],不是留一筆掛著)。
+  void _removeSplitLine(int index) {
+    if (_splits.length <= 2) return;
+    _commitActiveSplitAmount();
+    setState(() {
+      _splits.removeAt(index);
+      if (_activeSplitIndex == index) {
+        _activeSplitIndex = 0;
+        _loadAmountIntoKeypad(_splits[0].amount);
+      } else if (_activeSplitIndex != null && _activeSplitIndex! > index) {
+        _activeSplitIndex = _activeSplitIndex! - 1;
+      }
+    });
+  }
+
+  /// 更換某一筆明細的分類(不影響金額/備註)。
+  Future<void> _changeSplitLineCategory(int index) async {
+    final excludeIds = [
+      for (var i = 0; i < _splits.length; i++)
+        if (i != index) _splits[i].category.id,
+    ];
+    final picked = await showCategorySelector(
+      context,
+      type: widget.kind,
+      currentCategoryId: _splits[index].category.id,
+      excludeIds: excludeIds,
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _splits[index].category = picked);
+  }
+
+  /// 長按某一筆明細圖示:換分類 / 移除(< 3 筆時不給移除選項)這兩個動作。
+  Future<void> _showSplitLineActions(int index) async {
+    final l10n = AppLocalizations.of(context);
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.swap_horiz),
+              title: Text(l10n.txSplitChangeCategoryAction),
+              onTap: () => Navigator.pop(ctx, 'change'),
+            ),
+            if (_splits.length > 2)
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title: Text(l10n.txSplitRemoveLineAction),
+                onTap: () => Navigator.pop(ctx, 'remove'),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (action == 'change') {
+      await _changeSplitLineCategory(index);
+    } else if (action == 'remove') {
+      _removeSplitLine(index);
+    }
+  }
+
+  /// 長按/點「多類別」彙總圖示:目前唯一動作是整組還原成單一分類。
+  Future<void> _showSplitAggregateActions() async {
+    final l10n = AppLocalizations.of(context);
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: ListTile(
+          leading: const Icon(Icons.undo),
+          title: Text(l10n.txSplitRevertAction),
+          onTap: () => Navigator.pop(ctx, 'revert'),
+        ),
+      ),
+    );
+    if (action == 'revert') {
+      await _revertSplitToSingleCategory();
+    }
+  }
+
+  /// 把目前所有拆分明細的金額加總,選一個分類,還原成普通單分類交易。
+  Future<void> _revertSplitToSingleCategory() async {
+    _commitActiveSplitAmount();
+    if (!mounted || _splits.isEmpty) return;
+    final total = _splits.fold<double>(0, (sum, s) => sum + s.amount);
+    final picked = await showCategorySelector(
+      context,
+      type: widget.kind,
+      currentCategoryId: _splits.first.category.id,
+      title: AppLocalizations.of(context).txSplitRevertPickCategoryTitle,
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _selectedCategory = picked;
+      _categoryGridExpanded = false;
+      _splits.clear();
+      _activeSplitIndex = null;
+      _loadAmountIntoKeypad(total);
+    });
+    _onCategoryChanged();
+  }
+
   void _pickDate() async {
     FocusManager.instance.primaryFocus?.unfocus();
     await Future.delayed(const Duration(milliseconds: 100));
@@ -687,12 +981,20 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   }
 
   Future<void> _submit() async {
-    final category = _selectedCategory;
-    if (category == null || _isSubmitting) return;
-    final total = _op == null
-        ? _parsedAmount()
-        : computeAmountOp(_acc, _op!, _parsedAmount());
-    if (total.abs() <= 0) return;
+    if (_isSubmitting) return;
+    double total;
+    if (_splits.isNotEmpty) {
+      _commitActiveSplitAmount();
+      if (_splits.length < 2 || _splits.any((s) => s.amount <= 0)) return;
+      total = _splits.fold<double>(0, (sum, s) => sum + s.amount);
+    } else {
+      if (_selectedCategory == null) return;
+      total = _op == null
+          ? _parsedAmount()
+          : computeAmountOp(_acc, _op!, _parsedAmount());
+      if (total.abs() <= 0) return;
+    }
+    final category = _selectedCategory ?? _splits.first.category;
 
     setState(() => _isSubmitting = true);
 
@@ -730,6 +1032,19 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
         rewardRuleIds: _selectedRewardRuleIds,
         recurringDraft:
             widget.editingTransactionId == null ? _recurringDraft : null,
+        // 三態:目前拆帳中 → 整組明細;從未碰過拆帳 → null(維持原路徑);
+        // 曾經是拆帳、這次還原了 → [](顯式清空,見 _wasInitiallySplit 註解)。
+        splits: _splits.isNotEmpty
+            ? _splits
+                .map((s) => SplitLineResult(
+                      categoryId: s.category.id < 0 ? null : s.category.id,
+                      categorySyncId:
+                          s.category.id < 0 ? s.category.syncId : null,
+                      amount: s.amount,
+                      note: s.note,
+                    ))
+                .toList()
+            : (_wasInitiallySplit ? const <SplitLineResult>[] : null),
       ),
     ).whenComplete(() {
       // 正常存檔成功:上層已經 pop 頁面,這裡 mounted 已是 false,no-op。
@@ -748,8 +1063,12 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     final cur = _parsedAmount();
     final total = _op == null ? cur : computeAmountOp(_acc, _op!, cur);
     final isInCalcMode = _op != null;
-    final canSubmit =
-        _selectedCategory != null && (isInCalcMode ? true : total.abs() > 0);
+    final canSubmit = _splits.isNotEmpty
+        ? (_splits.length >= 2 &&
+            List.generate(_splits.length, _liveAmountFor)
+                .every((a) => a > 0))
+        : (_selectedCategory != null &&
+            (isInCalcMode ? true : total.abs() > 0));
 
     return Column(
       children: [
@@ -918,7 +1237,10 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
                 _buildEstimatedRewardRow(),
                 const SizedBox(height: 8),
                 _buildDateRow(context),
-                if (widget.editingTransactionId == null) ...[
+                // v38:拆帳交易不提供「週期」入口(兩者互斥,見
+                // _startSplitMode 對稱的檢查)。
+                if (widget.editingTransactionId == null &&
+                    _splits.isEmpty) ...[
                   const SizedBox(height: 8),
                   _buildRecurringRow(context),
                 ],
@@ -959,6 +1281,9 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   }
 
   Widget _buildCategorySection(BuildContext context) {
+    if (_splits.isNotEmpty) {
+      return _buildSplitChipStrip(context);
+    }
     final c = _selectedCategory;
     if (c == null || _categoryGridExpanded) {
       // compactGrid:主类别网格固定 2 行(超出内部滚动),点有子类别的项目
@@ -977,28 +1302,148 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
         },
       );
     }
-    return GestureDetector(
-      onTap: () => setState(() => _categoryGridExpanded = true),
-      child: Row(
-        children: [
-          CategoryIconWidget(
-            category: c,
-            size: 24,
-            showBackground: true,
-            circular: true,
-          ),
-          const SizedBox(width: 10),
-          Text(
-            c.name,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: BeeTokens.textPrimary(context),
+    return Row(
+      children: [
+        Expanded(
+          child: GestureDetector(
+            onTap: () => setState(() => _categoryGridExpanded = true),
+            child: Row(
+              children: [
+                CategoryIconWidget(
+                  category: c,
+                  size: 24,
+                  showBackground: true,
+                  circular: true,
+                ),
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Text(
+                    c.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: BeeTokens.textPrimary(context),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Icon(Icons.unfold_more,
+                    size: 16, color: BeeTokens.iconSecondary(context)),
+              ],
             ),
           ),
-          const SizedBox(width: 6),
-          Icon(Icons.unfold_more,
-              size: 16, color: BeeTokens.iconSecondary(context)),
+        ),
+        // v38 拆帳入口:只在已選好第一個分類、允許拆帳(非退款新增)時顯示。
+        if (widget.allowSplit)
+          IconButton(
+            onPressed: _startSplitMode,
+            tooltip: AppLocalizations.of(context).txSplitToggle,
+            icon: Icon(Icons.call_split,
+                size: 20, color: BeeTokens.iconSecondary(context)),
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          ),
+      ],
+    );
+  }
+
+  /// v38 拆帳模式的橫向圖示條:最前面是「多類別」聚合圖示(徽章=筆數、
+  /// 顯示即時總額),依序是每筆明細的分類圖示+金額,最後是「+」新增。
+  /// 比照使用者提供的 Moze 截圖排版。
+  Widget _buildSplitChipStrip(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return SizedBox(
+      height: 86,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          _SplitChip(
+            onTap: _showSplitAggregateActions,
+            onLongPress: _showSplitAggregateActions,
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: BeeTokens.surfaceInput(context),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.apps,
+                      color: BeeTokens.iconSecondary(context)),
+                ),
+                Positioned(
+                  right: -2,
+                  top: -2,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${_splits.length}',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            label: l10n.txSplitAggregateLabel,
+            amountText: _fmtAbs(_splitsLiveTotal),
+            highlighted: false,
+          ),
+          for (var i = 0; i < _splits.length; i++) ...[
+            const SizedBox(width: 10),
+            _SplitChip(
+              onTap: () => _selectSplitLine(i),
+              onLongPress: () => _showSplitLineActions(i),
+              icon: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: _activeSplitIndex == i
+                      ? Border.all(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 2)
+                      : null,
+                ),
+                padding: const EdgeInsets.all(2),
+                child: CategoryIconWidget(
+                  category: _splits[i].category,
+                  size: 26,
+                  showBackground: true,
+                  circular: true,
+                ),
+              ),
+              label: _splits[i].category.name,
+              amountText: _fmtAbs(_liveAmountFor(i)),
+              highlighted: _activeSplitIndex == i,
+            ),
+          ],
+          const SizedBox(width: 10),
+          _SplitChip(
+            onTap: _addSplitLine,
+            icon: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: BeeTokens.surfaceInput(context),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.add, color: BeeTokens.iconSecondary(context)),
+            ),
+            label: '',
+            amountText: '',
+            highlighted: false,
+          ),
         ],
       ),
     );
@@ -1635,6 +2080,64 @@ final _txAuthorInfoProvider =
     members: members,
   );
 });
+
+/// v38 拆帳:橫向圖示條裡的單一圖示(彙總「多類別」/單筆明細/「+」共用同一
+/// 個排版:圖示 + 一行文字標籤 + 一行金額)。
+class _SplitChip extends StatelessWidget {
+  const _SplitChip({
+    required this.onTap,
+    this.onLongPress,
+    required this.icon,
+    required this.label,
+    required this.amountText,
+    required this.highlighted,
+  });
+
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+  final Widget icon;
+  final String label;
+  final String amountText;
+  final bool highlighted;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = highlighted
+        ? Theme.of(context).colorScheme.primary
+        : BeeTokens.textPrimary(context);
+    return GestureDetector(
+      onTap: onTap,
+      onLongPress: onLongPress,
+      child: SizedBox(
+        width: 60,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            icon,
+            const SizedBox(height: 4),
+            if (label.isNotEmpty)
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 11, color: BeeTokens.textSecondary(context)),
+              ),
+            if (amountText.isNotEmpty)
+              Text(
+                amountText,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w600, color: color),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _TxAuthorAvatars extends ConsumerWidget {
   const _TxAuthorAvatars({required this.editingTransactionId});

@@ -2516,6 +2516,13 @@ class _TransactionTile extends ConsumerWidget {
           displaySubtitle = '${l10n.transferFromPrefix} $fromAccountName';
         }
       }
+    } else if (transaction.hasSplits) {
+      // v38 拆帳:没有单一分类可显示,固定用「多類別」聚合标签(对齐
+      // TransactionListItem 的处理)。
+      displayTitle = l10n.txSplitAggregateLabel;
+      if (transaction.note?.isNotEmpty == true) {
+        noteSuffix = transaction.note;
+      }
     } else {
       // 分类名常驻，备注接在分类名后面（对齐首页 / TransactionListItem）
       displayTitle = category != null
@@ -2552,10 +2559,13 @@ class _TransactionTile extends ConsumerWidget {
                 color: primaryColor.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
-              child: CategoryIconWidget(
-                category: category,
-                size: 18,
-              ),
+              child: transaction.hasSplits
+                  ? Icon(Icons.apps,
+                      size: 18, color: BeeTokens.iconSecondary(context))
+                  : CategoryIconWidget(
+                      category: category,
+                      size: 18,
+                    ),
             ),
             SizedBox(width: 12.0.scaled(context, ref)),
             Expanded(

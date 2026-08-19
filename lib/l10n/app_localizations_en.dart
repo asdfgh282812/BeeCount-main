@@ -7653,6 +7653,35 @@ class AppLocalizationsEn extends AppLocalizations {
       'Cross-currency transfers are not supported yet. Record two entries or use same-currency accounts.';
 
   @override
+  String get txSplitToggle => 'Split into categories';
+
+  @override
+  String get txSplitAggregateLabel => 'Multi-category';
+
+  @override
+  String get txSplitRevertAction => 'Revert to a single category';
+
+  @override
+  String get txSplitChangeCategoryAction => 'Change category';
+
+  @override
+  String get txSplitRemoveLineAction => 'Remove this line';
+
+  @override
+  String get txSplitRevertPickCategoryTitle =>
+      'Choose a category for the merged entry';
+
+  @override
+  String get txSplitRecurringConflict =>
+      'Splitting and recurring can\'t be combined. Turn off recurring first.';
+
+  @override
+  String get txSplitBadge => 'Split';
+
+  @override
+  String get txSplitDetailTitle => 'Category breakdown';
+
+  @override
   String get ledgerBaseCurrencyLabel => 'Primary currency';
 
   @override

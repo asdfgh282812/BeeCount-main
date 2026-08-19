@@ -342,6 +342,7 @@ class _TagDetailPageState extends ConsumerState<TagDetailPage> {
                 nativeAmount: transaction.nativeAmount,
                 isExpense: transaction.type == 'expense',
                 happenedAt: transaction.happenedAt,
+                hasSplits: transaction.hasSplits,
                 onTap: () async {
                   await showTransactionDetailCard(
                     context,

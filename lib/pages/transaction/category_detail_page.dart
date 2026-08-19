@@ -444,6 +444,7 @@ class _CategoryDetailPageState extends ConsumerState<CategoryDetailPage> {
               nativeAmount: transaction.nativeAmount,
               isExpense: transaction.type == 'expense',
               happenedAt: transaction.happenedAt,
+              hasSplits: transaction.hasSplits,
               onTap: () async {
                 final categoryData =
                     ref.read(_categoryStreamProvider(widget.categoryId));
@@ -531,6 +532,7 @@ class _CategoryDetailPageState extends ConsumerState<CategoryDetailPage> {
                 nativeAmount: transaction.nativeAmount,
                 isExpense: transaction.type == 'expense',
                 happenedAt: transaction.happenedAt,
+                hasSplits: transaction.hasSplits,
                 onTap: () async {
                   final categoryData =
                       ref.read(_categoryStreamProvider(widget.categoryId));

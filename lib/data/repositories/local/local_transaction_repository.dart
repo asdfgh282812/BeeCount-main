@@ -435,31 +435,79 @@ class LocalTransactionRepository implements TransactionRepository {
     String? refundOfSyncId,
     List<String>? rewardRuleIds,
     String? recurringRuleId,
+    List<TransactionSplitInput>? splits,
   }) async {
     // v30:子仓收「已定值」直写;带折算的兜底(查账户/汇率)在聚合
     // LocalRepository 包装层(子仓拿不到汇率)。
-    return db.into(db.transactions).insert(TransactionsCompanion.insert(
-          ledgerId: ledgerId,
-          type: type,
-          amount: amount,
-          categoryId: d.Value(categoryId),
-          accountId: d.Value(accountId),
-          toAccountId: d.Value(toAccountId),
-          happenedAt: d.Value(happenedAt),
-          note: d.Value(note),
-          merchant: d.Value(merchant),
-          syncId: d.Value(syncId ?? _uuid.v4()),
-          categorySyncIdOverride: d.Value(categorySyncIdOverride),
-          accountSyncIdOverride: d.Value(accountSyncIdOverride),
-          toAccountSyncIdOverride: d.Value(toAccountSyncIdOverride),
-          excludeFromStats: d.Value(excludeFromStats),
-          excludeFromBudget: d.Value(excludeFromBudget),
-          currencyCode: d.Value(currencyCode),
-          nativeAmount: d.Value(nativeAmount),
-          refundOfSyncId: d.Value(refundOfSyncId),
-          rewardRuleIdsJson: d.Value(_encodeRewardRuleIds(rewardRuleIds)),
-          recurringRuleId: d.Value(recurringRuleId),
-        ));
+    final hasSplits = splits != null && splits.isNotEmpty;
+    return db.transaction(() async {
+      final id = await db.into(db.transactions).insert(TransactionsCompanion.insert(
+            ledgerId: ledgerId,
+            type: type,
+            amount: amount,
+            categoryId: d.Value(hasSplits ? null : categoryId),
+            accountId: d.Value(accountId),
+            toAccountId: d.Value(toAccountId),
+            happenedAt: d.Value(happenedAt),
+            note: d.Value(note),
+            merchant: d.Value(merchant),
+            syncId: d.Value(syncId ?? _uuid.v4()),
+            categorySyncIdOverride:
+                d.Value(hasSplits ? null : categorySyncIdOverride),
+            accountSyncIdOverride: d.Value(accountSyncIdOverride),
+            toAccountSyncIdOverride: d.Value(toAccountSyncIdOverride),
+            excludeFromStats: d.Value(excludeFromStats),
+            excludeFromBudget: d.Value(excludeFromBudget),
+            currencyCode: d.Value(currencyCode),
+            nativeAmount: d.Value(nativeAmount),
+            refundOfSyncId: d.Value(refundOfSyncId),
+            rewardRuleIdsJson: d.Value(_encodeRewardRuleIds(rewardRuleIds)),
+            recurringRuleId: d.Value(recurringRuleId),
+            hasSplits: d.Value(hasSplits),
+          ));
+      if (hasSplits) {
+        await _insertSplits(id, splits);
+      }
+      return id;
+    });
+  }
+
+  /// 拆帳明細整組寫入(呼叫方保證 [transactionId] 目前沒有殘留舊明細——
+  /// 新增交易時天然成立;更新交易時由呼叫方先 [_deleteSplits])。
+  Future<void> _insertSplits(
+      int transactionId, List<TransactionSplitInput> splits) async {
+    await db.batch((b) {
+      for (var i = 0; i < splits.length; i++) {
+        final s = splits[i];
+        b.insert(
+          db.transactionSplits,
+          TransactionSplitsCompanion.insert(
+            transactionId: transactionId,
+            categoryId: d.Value(s.categoryId),
+            categorySyncIdOverride: d.Value(s.categorySyncIdOverride),
+            amount: s.amount,
+            note: d.Value(s.note),
+            sortOrder: d.Value(i),
+          ),
+        );
+      }
+    });
+  }
+
+  Future<void> _deleteSplits(int transactionId) async {
+    await (db.delete(db.transactionSplits)
+          ..where((s) => s.transactionId.equals(transactionId)))
+        .go();
+  }
+
+  @override
+  Future<List<TransactionSplit>> getTransactionSplits(
+      int transactionId) async {
+    return (db.select(db.transactionSplits)
+          ..where((s) => s.transactionId.equals(transactionId))
+          ..orderBy(
+              [(s) => d.OrderingTerm(expression: s.sortOrder)]))
+        .get();
   }
 
   /// 「修改此記錄」標記:這筆 occurrence 交易被單獨編輯過,之後規則的「修改
@@ -595,6 +643,7 @@ class LocalTransactionRepository implements TransactionRepository {
     String? currencyCode,
     double? nativeAmount,
     List<String>? rewardRuleIds,
+    List<TransactionSplitInput>? splits,
   }) async {
     // 处理 accountId 参数
     final d.Value<int?> accountIdValue;
@@ -606,36 +655,53 @@ class LocalTransactionRepository implements TransactionRepository {
       accountIdValue = d.Value(accountId as int?);
     }
 
-    await (db.update(db.transactions)..where((t) => t.id.equals(id))).write(
-      TransactionsCompanion(
-        type: d.Value(type),
-        amount: d.Value(amount),
-        categoryId: d.Value(categoryId),
-        note: d.Value(note),
-        merchant: d.Value(merchant),
-        happenedAt:
-            happenedAt != null ? d.Value(happenedAt) : const d.Value.absent(),
-        accountId: accountIdValue,
-        categorySyncIdOverride: d.Value(categorySyncIdOverride),
-        accountSyncIdOverride: d.Value(accountSyncIdOverride),
-        toAccountSyncIdOverride: d.Value(toAccountSyncIdOverride),
-        // null = 不更新(保持原值);非 null = 显式写入
-        excludeFromStats: excludeFromStats == null
-            ? const d.Value.absent()
-            : d.Value(excludeFromStats),
-        excludeFromBudget: excludeFromBudget == null
-            ? const d.Value.absent()
-            : d.Value(excludeFromBudget),
-        // v30:null = 不更新(保持原快照);非 null = 显式写入
-        currencyCode: currencyCode == null
-            ? const d.Value.absent()
-            : d.Value(currencyCode),
-        nativeAmount: nativeAmount == null
-            ? const d.Value.absent()
-            : d.Value(nativeAmount),
-        rewardRuleIdsJson: d.Value(_encodeRewardRuleIds(rewardRuleIds)),
-      ),
-    );
+    // v38 拆帳:splits 非空时強制清空 categoryId/override(明細才有分類);
+    // splits==[] 视为「还原成单一分类」,才让呼叫方传入的 categoryId 生效。
+    final forceNoCategory = splits != null && splits.isNotEmpty;
+
+    await db.transaction(() async {
+      await (db.update(db.transactions)..where((t) => t.id.equals(id))).write(
+        TransactionsCompanion(
+          type: d.Value(type),
+          amount: d.Value(amount),
+          categoryId: d.Value(forceNoCategory ? null : categoryId),
+          note: d.Value(note),
+          merchant: d.Value(merchant),
+          happenedAt: happenedAt != null
+              ? d.Value(happenedAt)
+              : const d.Value.absent(),
+          accountId: accountIdValue,
+          categorySyncIdOverride:
+              d.Value(forceNoCategory ? null : categorySyncIdOverride),
+          accountSyncIdOverride: d.Value(accountSyncIdOverride),
+          toAccountSyncIdOverride: d.Value(toAccountSyncIdOverride),
+          // null = 不更新(保持原值);非 null = 显式写入
+          excludeFromStats: excludeFromStats == null
+              ? const d.Value.absent()
+              : d.Value(excludeFromStats),
+          excludeFromBudget: excludeFromBudget == null
+              ? const d.Value.absent()
+              : d.Value(excludeFromBudget),
+          // v30:null = 不更新(保持原快照);非 null = 显式写入
+          currencyCode: currencyCode == null
+              ? const d.Value.absent()
+              : d.Value(currencyCode),
+          nativeAmount: nativeAmount == null
+              ? const d.Value.absent()
+              : d.Value(nativeAmount),
+          rewardRuleIdsJson: d.Value(_encodeRewardRuleIds(rewardRuleIds)),
+          // null = 不动既有拆帳状态;非 null = 按 splits 是否为空显式写入
+          hasSplits:
+              splits == null ? const d.Value.absent() : d.Value(splits.isNotEmpty),
+        ),
+      );
+      if (splits != null) {
+        await _deleteSplits(id);
+        if (splits.isNotEmpty) {
+          await _insertSplits(id, splits);
+        }
+      }
+    });
   }
 
   /// 共享账本:在本地标记 tx 的创建人 / 编辑人,让 UI 能立即展示头像。
@@ -664,6 +730,9 @@ class LocalTransactionRepository implements TransactionRepository {
     await (db.delete(db.transactionTags)
           ..where((tt) => tt.transactionId.equals(id)))
         .go();
+
+    // 删除拆帳明細
+    await _deleteSplits(id);
 
     // 再删除关联的附件
     await _deleteAttachmentsForTransaction(id);

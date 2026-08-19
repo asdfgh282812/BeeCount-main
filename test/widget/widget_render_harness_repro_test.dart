@@ -234,6 +234,7 @@ void main() {
           excludeFromStats: false,
           excludeFromBudget: false,
           recurringOccurrenceOverridden: false,
+          hasSplits: false,
         );
     const cat = Category(
         id: 1, name: '餐饮', kind: 'expense', icon: 'restaurant',

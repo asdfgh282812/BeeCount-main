@@ -31,11 +31,30 @@ class LocalStatisticsRepository implements StatisticsRepository {
     ]);
     final rows = await q.get();
     final shared = await _loadSharedCategoriesForLedger(ledgerId);
+    // v38 拆帳:批量预抓这批交易里 hasSplits=true 的明細,避免逐笔 await。
+    final splitsByTx = await _loadSplitsForTransactions(
+        rows.map((r) => r.readTable(db.transactions)).where((t) => t.hasSplits).map((t) => t.id).toList());
     final map = <int?, double>{};
     final names = <int?, String>{};
     final icons = <int?, String?>{};
     for (final r in rows) {
       final t = r.readTable(db.transactions);
+      if (t.hasSplits) {
+        // 拆帳交易:主表没有 categoryId,改用每笔明細各自的分类累加,金额
+        // 按这笔交易的折算比例(nativeAmount/amount)缩放,跟未拆帳分支同一套
+        // 「用 nativeAmount 做本位币统计」的口径一致。
+        final ratio = t.amount == 0 ? 1.0 : (t.nativeAmount ?? t.amount) / t.amount;
+        for (final s in splitsByTx[t.id] ?? const <TransactionSplit>[]) {
+          final resolved =
+              await _resolveSplitCategory(s, shared);
+          names[resolved.id] = resolved.name;
+          icons[resolved.id] = resolved.icon;
+          final contribution = s.amount * ratio;
+          map.update(resolved.id, (v) => v + contribution,
+              ifAbsent: () => contribution);
+        }
+        continue;
+      }
       final c = r.readTableOrNull(db.categories);
       int? id = c?.id;
       String name = c?.name ?? '未分类';
@@ -60,6 +79,62 @@ class LocalStatisticsRepository implements StatisticsRepository {
         .toList()
       ..sort((a, b) => b.total.compareTo(a.total));
     return list;
+  }
+
+  /// v38 拆帳:批量抓一批交易 id 的拆帳明細(只需传 hasSplits=true 的 id),
+  /// 減少逐筆 await 造成的 N+1。
+  Future<Map<int, List<TransactionSplit>>> _loadSplitsForTransactions(
+      List<int> hasSplitsIds) async {
+    if (hasSplitsIds.isEmpty) return const {};
+    final rows = await (db.select(db.transactionSplits)
+          ..where((s) => s.transactionId.isIn(hasSplitsIds)))
+        .get();
+    final map = <int, List<TransactionSplit>>{};
+    for (final s in rows) {
+      map.putIfAbsent(s.transactionId, () => []).add(s);
+    }
+    return map;
+  }
+
+  /// v38 拆帳:反查一筆拆帳明細的分类 id/name/icon/parentId/level,跟主表
+  /// 未拆帳分支同一套「本地 categoryId 优先,查无再看
+  /// categorySyncIdOverride(共享账本 Owner 分类)兜底,再查无就算未分类」
+  /// 逻辑,只是来源换成 [TransactionSplit] 而不是 [Transaction]。
+  Future<({int? id, String name, String? icon, int? parentId, int level})>
+      _resolveSplitCategory(
+    TransactionSplit s,
+    Map<String, SharedLedgerCategory> shared,
+  ) async {
+    if (s.categoryId != null) {
+      final c = await (db.select(db.categories)
+            ..where((c) => c.id.equals(s.categoryId!)))
+          .getSingleOrNull();
+      if (c != null) {
+        return (
+          id: c.id,
+          name: c.name,
+          icon: c.icon,
+          parentId: c.parentId,
+          level: c.level,
+        );
+      }
+    }
+    if (s.categorySyncIdOverride != null) {
+      final sh = shared[s.categorySyncIdOverride!];
+      if (sh != null) {
+        final pSyncId = sh.parentSyncId;
+        return (
+          id: syntheticIdForSyncId(sh.syncId),
+          name: sh.name,
+          icon: sh.icon,
+          parentId: (pSyncId != null && pSyncId.isNotEmpty)
+              ? syntheticIdForSyncId(pSyncId)
+              : null,
+          level: sh.level,
+        );
+      }
+    }
+    return (id: null, name: '未分类', icon: null, parentId: null, level: 1);
   }
 
   /// 加载当前账本的 SharedLedger 分类索引(by syncId)。单人账本返回空 map,
@@ -127,11 +202,31 @@ class LocalStatisticsRepository implements StatisticsRepository {
 
     final rows = await q.get();
     final shared = await _loadSharedCategoriesForLedger(ledgerId);
+    // v38 拆帳:批量预抓这批交易里 hasSplits=true 的明細,避免逐笔 await。
+    final splitsByTx = await _loadSplitsForTransactions(
+        rows.map((r) => r.readTable(db.transactions)).where((t) => t.hasSplits).map((t) => t.id).toList());
     final map = <int?, double>{};
     final categoryInfo = <int?, ({String name, String? icon, int? parentId, int level})>{};
 
     for (final r in rows) {
       final t = r.readTable(db.transactions);
+      if (t.hasSplits) {
+        // 拆帳交易:比照 totalsByCategory 展开明細,金額按折算比例縮放。
+        final ratio = t.amount == 0 ? 1.0 : (t.nativeAmount ?? t.amount) / t.amount;
+        for (final s in splitsByTx[t.id] ?? const <TransactionSplit>[]) {
+          final resolved = await _resolveSplitCategory(s, shared);
+          categoryInfo[resolved.id] = (
+            name: resolved.name,
+            icon: resolved.icon,
+            parentId: resolved.parentId,
+            level: resolved.level,
+          );
+          final contribution = s.amount * ratio;
+          map.update(resolved.id, (v) => v + contribution,
+              ifAbsent: () => contribution);
+        }
+        continue;
+      }
       final c = r.readTableOrNull(db.categories);
       int? id = c?.id;
 

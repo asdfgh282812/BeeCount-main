@@ -190,7 +190,8 @@ class LocalBudgetRepository implements BudgetRepository {
       ).getSingle();
       used = _parseDouble(result.data['total']);
     } else {
-      // 分类预算：统计该分类支出（包含子分类）
+      // 分类预算：统计该分类支出（包含子分类）。不含拆帳交易——那些的
+      // category_id 恆為 null,查不到,靠下面第二條查詢單獨補。
       final result = await db.customSelect(
         '''
         SELECT COALESCE(SUM(COALESCE(t.native_amount, t.amount)), 0) as total
@@ -213,6 +214,36 @@ class LocalBudgetRepository implements BudgetRepository {
         readsFrom: {db.transactions, db.categories},
       ).getSingle();
       used = _parseDouble(result.data['total']);
+
+      // v38 拆帳:拆帳交易的金額改記在 TransactionSplits,依各自
+      // categoryId(比對本分類或其子分類)算入預算用量;金額按父交易的折算
+      // 比例(nativeAmount/amount)縮放,對齊未拆帳分支「用 nativeAmount 統計」
+      // 的口徑。NULLIF 防父交易 amount=0 時除以零。
+      final splitResult = await db.customSelect(
+        '''
+        SELECT COALESCE(SUM(
+          ts.amount * COALESCE(t.native_amount, t.amount) / NULLIF(t.amount, 0)
+        ), 0) as total
+        FROM transaction_splits ts
+        JOIN transactions t ON ts.transaction_id = t.id
+        LEFT JOIN categories c ON ts.category_id = c.id
+        WHERE t.ledger_id = ?
+          AND t.type = 'expense'
+          AND t.exclude_from_budget = 0
+          AND t.happened_at >= ?
+          AND t.happened_at < ?
+          AND (ts.category_id = ? OR c.parent_id = ?)
+        ''',
+        variables: [
+          d.Variable.withInt(budget.ledgerId),
+          d.Variable.withDateTime(startDate),
+          d.Variable.withDateTime(endDate),
+          d.Variable.withInt(budget.categoryId!),
+          d.Variable.withInt(budget.categoryId!),
+        ],
+        readsFrom: {db.transactionSplits, db.transactions, db.categories},
+      ).getSingle();
+      used += _parseDouble(splitResult.data['total']);
     }
 
     return BudgetUsage(used: used, budget: budget.amount);

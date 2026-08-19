@@ -82,6 +82,9 @@ extension SyncEngineApplyExt on SyncEngine {
         await (db.delete(db.transactionAttachments)
               ..where((ta) => ta.transactionId.equals(existingId!)))
             .go();
+        await (db.delete(db.transactionSplits)
+              ..where((s) => s.transactionId.equals(existingId!)))
+            .go();
         await (db.delete(db.transactions)
               ..where((t) => t.id.equals(existingId!)))
             .go();
@@ -151,6 +154,20 @@ extension SyncEngineApplyExt on SyncEngine {
             ..where((t) => t.syncId.equals(rawCategoryId)))
           .getSingleOrNull();
       if (shared != null) categorySyncIdOverride = shared.syncId;
+    }
+
+    // v38 拆帳:entity_serializer.dart 恒发 splits 键(同 attachments),
+    // 缺键 = 旧版 App/没拆帳信息 → 不动本地 hasSplits/明細;命中键时权威 ——
+    // 非空则强制 tx 主表分类为 null(明細才有分類,对齐 has_splits=true 时
+    // server 端 category_sync_id 也会被清空的行为)。
+    final hasSplitsKey = payload.containsKey('splits');
+    final splitsPayload = hasSplitsKey
+        ? ((payload['splits'] as List<dynamic>?) ?? const <dynamic>[])
+        : const <dynamic>[];
+    final txHasSplits = hasSplitsKey && splitsPayload.isNotEmpty;
+    if (txHasSplits) {
+      categoryId = null;
+      categorySyncIdOverride = null;
     }
 
     final rawAccountId = (payload['accountId'] as String?) ??
@@ -338,10 +355,13 @@ extension SyncEngineApplyExt on SyncEngine {
         deferredPostingAt: hasDeferredPostingKey
             ? d.Value(deferredPostingAt)
             : const d.Value.absent(),
+        hasSplits:
+            hasSplitsKey ? d.Value(txHasSplits) : const d.Value.absent(),
       ));
-      // 更新标签和附件(existing 路径)
+      // 更新标签、附件、拆帳明細(existing 路径)
       await _syncTransactionTags(existingId, syncId, payload);
       await _syncTransactionAttachments(existingId, payload);
+      await _syncTransactionSplits(existingId, payload);
       logger.debug('SyncEngine', 'pull: 更新交易 $syncId');
     } else {
       // 插入
@@ -376,13 +396,15 @@ extension SyncEngineApplyExt on SyncEngine {
                   d.Value(recurringOccurrenceOverridden ?? false),
               reconciledAt: d.Value(reconciledAt),
               deferredPostingAt: d.Value(deferredPostingAt),
+              hasSplits: d.Value(txHasSplits),
             ),
           );
       // 写回 cache,后续同 syncId 的 update change 能命中
       activePullCache?.putTransaction(syncId, id, createdByUserId);
-      // 同步标签和附件(新插入路径 — existing 必空,跳过相关 SELECT/DELETE)
+      // 同步标签、附件、拆帳明細(新插入路径 — existing 必空,跳过相关 SELECT/DELETE)
       await _syncTransactionTags(id, syncId, payload, isNewlyInserted: true);
       await _syncTransactionAttachments(id, payload, isNewlyInserted: true);
+      await _syncTransactionSplits(id, payload);
       logger.debug('SyncEngine', 'pull: 新增交易 $syncId');
     }
   }
@@ -1515,6 +1537,55 @@ extension SyncEngineApplyExt on SyncEngine {
         logger.warning('SyncEngine', '删除本地孤立附件文件失败: $fn', st);
       }
     }
+  }
+
+  /// 同步交易拆帳明細(v38,pull 时从 payload 整組替換本地明細)。
+  ///
+  /// 跟 attachments 的按 fileName diff 不同 —— 拆帳明細没有跨设备稳定的
+  /// 自身标识(server 端 read_tx_split_projection 也是 (ledgerId, txSyncId,
+  /// sortOrder) 复合键,每次 upsert_tx 整组刪除重建),这里直接照抄同一种
+  /// "不做增量 diff"策略:
+  ///   - payload 缺 splits 键:旧版 App / 没拆帳信息 → 不动本地
+  ///   - `[]` 或 `[...]`:权威列表,先整组刪除,再按権威列表重建。
+  Future<void> _syncTransactionSplits(
+    int transactionId,
+    Map<String, dynamic> payload,
+  ) async {
+    if (!payload.containsKey('splits')) return;
+    final splitsList =
+        (payload['splits'] as List<dynamic>?) ?? const <dynamic>[];
+
+    await (db.delete(db.transactionSplits)
+          ..where((s) => s.transactionId.equals(transactionId)))
+        .go();
+    if (splitsList.isEmpty) return;
+
+    final inserts = <TransactionSplitsCompanion>[];
+    for (var i = 0; i < splitsList.length; i++) {
+      final map = (splitsList[i] as Map).cast<String, dynamic>();
+      final rawCategoryId = map['categoryId'] as String?;
+      final categoryName = map['categoryName'] as String?;
+      int? categoryId = await _resolveCategoryIdBySyncId(rawCategoryId) ??
+          await _resolveCategoryId(categoryName: categoryName);
+      String? categorySyncIdOverride;
+      if (categoryId == null &&
+          rawCategoryId != null &&
+          rawCategoryId.isNotEmpty) {
+        final shared = await (db.select(db.sharedLedgerCategories)
+              ..where((t) => t.syncId.equals(rawCategoryId)))
+            .getSingleOrNull();
+        if (shared != null) categorySyncIdOverride = shared.syncId;
+      }
+      inserts.add(TransactionSplitsCompanion.insert(
+        transactionId: transactionId,
+        categoryId: d.Value(categoryId),
+        categorySyncIdOverride: d.Value(categorySyncIdOverride),
+        amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
+        note: d.Value(map['note'] as String?),
+        sortOrder: d.Value(i),
+      ));
+    }
+    await db.batch((b) => b.insertAll(db.transactionSplits, inserts));
   }
 }
 

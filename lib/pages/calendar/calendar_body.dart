@@ -583,6 +583,7 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
                 isExpense: isExpense,
                 isTransfer: isTransfer,
                 happenedAt: item.t.happenedAt,
+                hasSplits: item.t.hasSplits,
                 accountName: item.account?.name,
                 tags: tagsList.isNotEmpty ? tagsList : null,
                 attachmentCount: item.attachments.length,

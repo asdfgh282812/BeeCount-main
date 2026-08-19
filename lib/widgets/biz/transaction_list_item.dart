@@ -50,6 +50,11 @@ class TransactionListItem extends ConsumerWidget {
   final bool excludeFromStats; // 不计入收支:第二行显示「不计收支」标签
   final bool excludeFromBudget; // 不计入预算:第二行显示「不计预算」标签
 
+  /// v38 拆帳:true 時忽略傳入的 [category]/[categoryName],改顯示固定的
+  /// 「多類別」聚合圖示+標籤(拆帳交易的 categoryId 恆為 null,没有單一
+  /// 分類可顯示)。
+  final bool hasSplits;
+
   const TransactionListItem({
       super.key,
       required this.icon,
@@ -79,6 +84,7 @@ class TransactionListItem extends ConsumerWidget {
       this.onAttachmentTap,
       this.excludeFromStats = false,
       this.excludeFromBudget = false,
+      this.hasSplits = false,
   });
 
 
@@ -261,10 +267,13 @@ class TransactionListItem extends ConsumerWidget {
                         .withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
-                  child: CategoryIconWidget(
-                    category: category,
-                    size: 18,
-                  ),
+                  child: hasSplits
+                      ? Icon(Icons.apps,
+                          size: 18, color: BeeTokens.iconSecondary(context))
+                      : CategoryIconWidget(
+                          category: category,
+                          size: 18,
+                        ),
                 ),
               ),
             const SizedBox(width: 12),
@@ -284,7 +293,10 @@ class TransactionListItem extends ConsumerWidget {
                           child: Consumer(builder: (context, ref, _) {
                             final composed = composeTransactionRowTitle(
                               mode: ref.watch(noteDisplayModeProvider),
-                              categoryName: categoryName,
+                              categoryName: hasSplits
+                                  ? AppLocalizations.of(context)
+                                      .txSplitAggregateLabel
+                                  : categoryName,
                               title: title,
                             );
                             return Text.rich(

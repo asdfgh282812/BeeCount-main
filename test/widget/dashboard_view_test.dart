@@ -43,6 +43,7 @@ void main() {
       excludeFromStats: false,
       excludeFromBudget: false,
       recurringOccurrenceOverridden: false,
+      hasSplits: false,
     );
   }
 

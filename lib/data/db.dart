@@ -214,6 +214,31 @@ class Transactions extends Table {
   /// BeeCount Cloud 端字段是 read_tx_projection.deferred_posting_at,wire
   /// 字段名 deferredPostingAt(同樣恆發)。
   DateTimeColumn get deferredPostingAt => dateTime().nullable()();
+
+  /// v38 拆帳(對齊 doc.moze.app/record/split-categories 與 BeeCount Cloud
+  /// §2.4 拆分類別):true 時這筆交易的金額拆成多筆分類明細記在
+  /// [TransactionSplits],此欄位的 categoryId/categorySyncIdOverride 強制為
+  /// null(明細本身才有分類)。BeeCount Cloud 端字段是
+  /// read_tx_projection.has_splits,wire 字段名 hasSplits。
+  BoolColumn get hasSplits => boolean().withDefault(const Constant(false))();
+}
+
+/// v38 拆帳明細:一筆 [Transactions] 拆成多筆分類分攤,每次存檔整組刪除重建
+/// (同 [TransactionTags]/[TransactionAttachments] 的做法),不是獨立的 sync
+/// entity——明細隨父交易的 `splits` payload 陣列一起推/拉(見
+/// entity_serializer.dart serializeTransaction、sync_engine_apply.dart
+/// _applyTransactionChange)。BeeCount Cloud 端對應
+/// read_tx_split_projection,wire 字段名 categoryId/categoryName/amount/note。
+class TransactionSplits extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get transactionId => integer()(); // 关联的交易ID
+  IntColumn get categoryId => integer().nullable()();
+  // 共享账本 §7 场景:分类是 Owner 的虚拟分类,本地无 int id 时存 syncId,
+  // 同 Transactions.categorySyncIdOverride 的做法。
+  TextColumn get categorySyncIdOverride => text().nullable()();
+  RealColumn get amount => real()();
+  TextColumn get note => text().nullable()();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
 }
 
 /// v35:信用卡紅利回饋規則。user-global 实体(同 Accounts/Categories/Tags 那组
@@ -680,6 +705,7 @@ class SharedLedgerTags extends Table {
   ExchangeRates,
   ExchangeRateOverrides,
   CardRewardRules,
+  TransactionSplits,
 ])
 class BeeDatabase extends _$BeeDatabase {
   BeeDatabase() : super(_openConnection());
@@ -690,8 +716,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion =>
-      37; // v37: 對帳模式(reconciled_at) + 延後入帳(deferred_posting_at)
+  int get schemaVersion => 38; // v38: 拆帳(has_splits + transaction_splits)
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1574,6 +1599,14 @@ class BeeDatabase extends _$BeeDatabase {
             await _addColumnIfMissing('transactions', 'deferred_posting_at',
                 'ALTER TABLE transactions ADD COLUMN deferred_posting_at INTEGER;');
             logger.info('DBMigration', 'v37 迁移完成');
+          }
+          if (from < 38) {
+            logger.info('DBMigration', '开始迁移到 v38: 拆帳(transaction_splits)');
+            await _addColumnIfMissing('transactions', 'has_splits',
+                'ALTER TABLE transactions ADD COLUMN has_splits BOOLEAN NOT NULL DEFAULT 0;');
+            await _createTableIfMissing(
+                migrator, 'transaction_splits', transactionSplits);
+            logger.info('DBMigration', 'v38 迁移完成');
           }
         },
         onCreate: (m) async {

@@ -674,6 +674,7 @@ Transaction _sampleTransaction({
     excludeFromStats: false,
     excludeFromBudget: false,
     recurringOccurrenceOverridden: false,
+    hasSplits: false,
   );
 }
 
