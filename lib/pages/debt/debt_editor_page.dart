@@ -12,6 +12,7 @@ import '../../services/billing/post_processor.dart';
 import '../../styles/tokens.dart';
 import '../../utils/currencies.dart';
 import '../../utils/ui_scale_extensions.dart';
+import '../../widgets/biz/account_selector.dart';
 import '../../widgets/biz/section_card.dart';
 import '../../widgets/ui/ui.dart';
 
@@ -34,6 +35,7 @@ class _DebtEditorPageState extends ConsumerState<DebtEditorPage> {
   late String _direction;
   DateTime? _dueAt;
   bool _isLoading = false;
+  int? _accountId;
 
   bool get _isEditing => widget.debt != null;
 
@@ -212,6 +214,31 @@ class _DebtEditorPageState extends ConsumerState<DebtEditorPage> {
                   ),
                 ),
                 SizedBox(height: 12.0.scaled(context, ref)),
+                if (!_isEditing) ...[
+                  SectionCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.debtRepaymentAccountLabel,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: BeeTokens.textSecondary(context),
+                          ),
+                        ),
+                        SizedBox(height: 12.0.scaled(context, ref)),
+                        AccountSelector(
+                          ledgerId: ref.watch(currentLedgerIdProvider),
+                          selectedAccountId: _accountId,
+                          onAccountSelected: (id) =>
+                              setState(() => _accountId = id),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 12.0.scaled(context, ref)),
+                ],
                 SectionCard(
                   child: InkWell(
                     onTap: _pickDueDate,
@@ -371,6 +398,11 @@ class _DebtEditorPageState extends ConsumerState<DebtEditorPage> {
       return;
     }
 
+    if (!_isEditing && _accountId == null) {
+      showToast(context, l10n.debtRepaymentAccountRequired);
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
       final repo = ref.read(repositoryProvider);
@@ -387,11 +419,12 @@ class _DebtEditorPageState extends ConsumerState<DebtEditorPage> {
           clearNote: note.isEmpty,
         );
       } else {
-        await repo.createDebt(
+        await repo.createDebtWithOriginTransaction(
           ledgerId: ledgerId,
           direction: _direction,
           counterpartyName: counterpartyName,
           principalAmount: principalAmount!,
+          accountId: _accountId!,
           dueAt: _dueAt,
           note: note.isEmpty ? null : note,
         );
