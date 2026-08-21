@@ -46,6 +46,7 @@ class AiBookkeeper {
     required List<String> billingTypes,
     String billGuard = '',
     AppLocalizations? l10n,
+    ResolveMissingAccount? resolveMissingAccount,
   }) async {
     final context = await AiExtractionContext.forLedger(
       repository: _repo,
@@ -57,6 +58,7 @@ class AiBookkeeper {
       ledgerId: ledgerId,
       billingTypes: billingTypes,
       l10n: l10n,
+      resolveMissingAccount: resolveMissingAccount,
     );
   }
 
@@ -74,6 +76,7 @@ class AiBookkeeper {
     String billGuard = '',
     AppLocalizations? l10n,
     Future<void> Function(int txId, int index)? onSaved,
+    ResolveMissingAccount? resolveMissingAccount,
   }) async {
     final context = await AiExtractionContext.forLedger(
       repository: _repo,
@@ -86,6 +89,7 @@ class AiBookkeeper {
       billingTypes: billingTypes,
       l10n: l10n,
       onSaved: onSaved,
+      resolveMissingAccount: resolveMissingAccount,
     );
   }
 
@@ -96,6 +100,7 @@ class AiBookkeeper {
     required int ledgerId,
     required List<String> billingTypes,
     AppLocalizations? l10n,
+    ResolveMissingAccount? resolveMissingAccount,
   }) async {
     final context = await AiExtractionContext.forLedger(
       repository: _repo,
@@ -107,6 +112,7 @@ class AiBookkeeper {
       ledgerId: ledgerId,
       billingTypes: billingTypes,
       l10n: l10n,
+      resolveMissingAccount: resolveMissingAccount,
     );
     return (result: result, recognizedText: audioResult.recognizedText);
   }
@@ -124,6 +130,7 @@ class AiBookkeeper {
     required List<String> billingTypes,
     AppLocalizations? l10n,
     Future<void> Function(int txId, int index)? onSaved,
+    ResolveMissingAccount? resolveMissingAccount,
   }) async {
     if (bills.isEmpty) {
       return BookkeepingResult.empty;
@@ -132,6 +139,7 @@ class AiBookkeeper {
     final saved = <BillInfo>[];
     final txIds = <int>[];
     var failed = 0;
+    var skipped = 0;
 
     for (var i = 0; i < bills.length; i++) {
       final bill = bills[i].copyWith(ledgerId: ledgerId);
@@ -141,6 +149,7 @@ class AiBookkeeper {
           ledgerId: ledgerId,
           billingTypes: billingTypes,
           l10n: l10n,
+          resolveMissingAccount: resolveMissingAccount,
         );
         if (txId == null) {
           failed++;
@@ -175,6 +184,11 @@ class AiBookkeeper {
         saved.add(enriched);
         txIds.add(txId);
       } catch (e, st) {
+        if (e is MissingAccountSkipped) {
+          skipped++;
+          logger.info(_tag, '第 ${i + 1} 笔已略過(使用者取消選帳戶)');
+          continue;
+        }
         failed++;
         logger.error(_tag, '第 ${i + 1} 笔创建异常', e, st);
       }
@@ -188,6 +202,7 @@ class AiBookkeeper {
       savedBills: List.unmodifiable(saved),
       transactionIds: List.unmodifiable(txIds),
       failedCount: failed,
+      skippedForMissingAccountCount: skipped,
       unconvertedCurrencies:
           List.unmodifiable(await _collectUnconverted(txIds, ledgerId)),
     );

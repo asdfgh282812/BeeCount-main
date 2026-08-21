@@ -182,6 +182,71 @@ void main() {
     });
   });
 
+  group('AiBookkeeper.fromText resolveMissingAccount', () {
+    test('回傳 null → 該筆略過,skippedForMissingAccountCount=1,不建立交易',
+        () async {
+      final engine = _FakeEngine(bills: [
+        BillInfo(
+          amount: -30,
+          time: DateTime(2026, 5, 26, 12, 0),
+          category: '餐饮',
+          type: BillType.expense,
+          // 沒有 account 欄位 → BillCreationService 找不到帳戶
+        ),
+      ]);
+      final bookkeeper = AiBookkeeper(
+        repository: repo,
+        engine: engine,
+        persister: persister,
+      );
+
+      final result = await bookkeeper.fromText(
+        text: '午餐30',
+        ledgerId: ledgerId,
+        billingTypes: const ['ai_chat'],
+        resolveMissingAccount: (bill) async => null,
+      );
+
+      expect(result.transactionIds, isEmpty);
+      expect(result.skippedForMissingAccountCount, 1);
+      expect(result.failedCount, 0);
+    });
+
+    test('回傳有效帳戶 id → 該筆正常建立並掛上該帳戶', () async {
+      final accountId = await repo.createAccount(
+        ledgerId: 0,
+        name: 'Cash',
+        type: 'cash',
+        currency: 'CNY',
+        initialBalance: 0,
+      );
+      final engine = _FakeEngine(bills: [
+        BillInfo(
+          amount: -30,
+          time: DateTime(2026, 5, 26, 12, 0),
+          category: '餐饮',
+          type: BillType.expense,
+        ),
+      ]);
+      final bookkeeper = AiBookkeeper(
+        repository: repo,
+        engine: engine,
+        persister: persister,
+      );
+
+      final result = await bookkeeper.fromText(
+        text: '午餐30',
+        ledgerId: ledgerId,
+        billingTypes: const ['ai_chat'],
+        resolveMissingAccount: (bill) async => accountId,
+      );
+
+      expect(result.transactionIds, hasLength(1));
+      final tx = await repo.getTransactionById(result.transactionIds.first);
+      expect(tx!.accountId, accountId);
+    });
+  });
+
   group('AiBookkeeper.fromAudio', () {
     test('返回 recognizedText 给 UI 展示', () async {
       final engine = _FakeEngine(
