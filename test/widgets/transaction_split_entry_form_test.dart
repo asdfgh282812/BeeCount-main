@@ -89,6 +89,20 @@ void main() {
     Category? submittedCategory;
     AmountEditorResult? submittedResult;
 
+    // 記帳表單現在必填帳戶(見 2026-08-22 交易必須選擇帳戶功能),setUp()
+    // 沒建帳戶會讓 _selectedAccountId 一直是 null、送出被擋下。這裡建一個
+    // 帳戶並設成預設支出帳戶,讓 _loadDefaultAccount() 能自動選上,不影響
+    // 這個測試本來要驗證的拆帳邏輯。
+    final accountId = await repo.createAccount(
+      ledgerId: 0,
+      name: 'Cash',
+      type: 'cash',
+      currency: 'CNY',
+      initialBalance: 0,
+    );
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('default_expense_account_id', accountId);
+
     await tester.pumpWidget(host(onSubmit: (c, r) async {
       submittedCategory = c;
       submittedResult = r;
