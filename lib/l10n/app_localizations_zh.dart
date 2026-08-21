@@ -7344,6 +7344,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get txRateMissingHint => '请手动填写本笔汇率后保存';
 
   @override
+  String get txAccountRequiredHint => 'Please select an account';
+
+  @override
   String get txCrossCurrencyTransferBlocked => '暂不支持跨币种转账,请分别记两笔或使用同币种账户';
 
   @override
@@ -15922,6 +15925,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get txRateMissingHint => '請手動填寫本筆匯率後儲存';
+
+  @override
+  String get txAccountRequiredHint => '請選擇帳戶';
 
   @override
   String get txCrossCurrencyTransferBlocked => '暫不支援跨幣種轉帳,請分別記兩筆或使用同幣種帳戶';

@@ -996,6 +996,11 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     }
     final category = _selectedCategory ?? _splits.first.category;
 
+    if (_selectedAccountId == null) {
+      showToast(context, AppLocalizations.of(context).txAccountRequiredHint);
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
     final txCurrency = _txCurrency();

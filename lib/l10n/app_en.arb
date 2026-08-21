@@ -3231,6 +3231,7 @@
   "txConvertedPreview": "≈ {amount} {currency}",
   "@txConvertedPreview": { "placeholders": { "amount": {}, "currency": {} } },
   "txRateMissingHint": "Please enter the rate for this entry before saving",
+  "txAccountRequiredHint": "Please select an account",
   "txCrossCurrencyTransferBlocked": "Cross-currency transfers are not supported yet. Record two entries or use same-currency accounts.",
   "txSplitToggle": "Split into categories",
   "txSplitAggregateLabel": "Multi-category",

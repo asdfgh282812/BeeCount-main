@@ -2855,6 +2855,7 @@
   "txConvertedPreview": "≈ {amount} {currency}",
   "@txConvertedPreview": { "placeholders": { "amount": {}, "currency": {} } },
   "txRateMissingHint": "請手動填寫本筆匯率後儲存",
+  "txAccountRequiredHint": "請選擇帳戶",
   "txCrossCurrencyTransferBlocked": "暫不支援跨幣種轉帳,請分別記兩筆或使用同幣種帳戶",
   "txSplitToggle": "拆分到多個分類",
   "txSplitAggregateLabel": "多類別",

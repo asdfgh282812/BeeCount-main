@@ -7649,6 +7649,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Please enter the rate for this entry before saving';
 
   @override
+  String get txAccountRequiredHint => 'Please select an account';
+
+  @override
   String get txCrossCurrencyTransferBlocked =>
       'Cross-currency transfers are not supported yet. Record two entries or use same-currency accounts.';
 

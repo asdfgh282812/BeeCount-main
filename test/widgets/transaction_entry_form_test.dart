@@ -79,6 +79,16 @@ void main() {
     Category? submittedCategory;
     AmountEditorResult? submittedResult;
 
+    final accountId = await repo.createAccount(
+      ledgerId: 0,
+      name: 'Cash',
+      type: 'cash',
+      currency: 'CNY',
+      initialBalance: 0,
+    );
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('default_expense_account_id', accountId);
+
     await tester.pumpWidget(host(onSubmit: (c, r) async {
       submittedCategory = c;
       submittedResult = r;
@@ -114,6 +124,11 @@ void main() {
     // 上层导航所以它会一直转),indeterminate 动画永远不「settle」,pump 一帧
     // 就足够让本次 tap 的同步回调(onSubmit)跑完。
     await tester.pump();
+    // repo.createAccount 内部 logger.debug 起了一个 2s 节流保存计时器(见
+    // LoggerService._saveLogs),不是 frame-scheduled,pumpAndSettle 逮不到——
+    // 手动推进时钟让它触发+清理,避免 "Timer still pending" 断言炸测试
+    // (同样的模式见 test/widgets/card_reward_rule_actions_test.dart)。
+    await tester.pump(const Duration(seconds: 3));
 
     expect(submittedCategory?.id, categoryId);
     expect(submittedResult?.amount, 123);
@@ -131,5 +146,33 @@ void main() {
     // 金额键盘已经可见)。
     expect(find.text('餐饮'), findsOneWidget);
     expect(find.byIcon(Icons.check), findsOneWidget); // 键盘的 ✓ 键已渲染
+  });
+
+  testWidgets('沒有帳戶時送出被擋下,onSubmit 不會被呼叫', (tester) async {
+    var submitCalled = false;
+    await tester.pumpWidget(host(onSubmit: (_, __) async {
+      submitCalled = true;
+    }));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('餐饮'));
+    await tester.tap(find.text('餐饮'));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('1'));
+    await tester.tap(find.text('1'));
+    await tester.tap(find.text('2'));
+    await tester.tap(find.text('3'));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.byIcon(Icons.check));
+    await tester.tap(find.byIcon(Icons.check));
+    await tester.pump();
+    // _submit() 被挡下时会走 showToast,起一个 2s Future.delayed 自动消失的
+    // 计时器,不是 frame-scheduled,pumpAndSettle 逮不到——手动推进时钟让它
+    // 触发+清理,避免 "Timer still pending" 断言炸测试。
+    await tester.pump(const Duration(seconds: 3));
+
+    expect(submitCalled, false);
   });
 }

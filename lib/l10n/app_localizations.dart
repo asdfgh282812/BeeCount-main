@@ -13758,6 +13758,12 @@ abstract class AppLocalizations {
   /// **'Please enter the rate for this entry before saving'**
   String get txRateMissingHint;
 
+  /// No description provided for @txAccountRequiredHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select an account'**
+  String get txAccountRequiredHint;
+
   /// No description provided for @txCrossCurrencyTransferBlocked.
   ///
   /// In en, this message translates to:
