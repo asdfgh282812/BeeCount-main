@@ -22,6 +22,19 @@ import 'category_matcher.dart';
 /// 依赖 Riverpod,后台自动记账也能复用同一条汇率预拉路径(A6)。
 typedef EnsureRate = Future<bool> Function(String currencyCode);
 
+/// AI 記帳找不到帳戶時的攔截回調(對話/照片/語音三個有 UI 的渠道實作它,
+/// 跳出帳戶選擇 sheet)。回傳 null = 使用者取消,這筆帳單視為主動放棄建立
+/// (拋 [MissingAccountSkipped],不是「建立失敗」)。背景渠道不提供這個
+/// callback,走 [needsAccountAssignment] 旗標,見 createFromBill 內的分支。
+typedef ResolveMissingAccount = Future<int?> Function(BillInfo bill);
+
+/// [BillCreationService.createFromBill] 在有 [ResolveMissingAccount] 回調、
+/// 但使用者取消(回傳 null)時拋出——跟資料庫寫入失敗區分開,讓
+/// `AiBookkeeper._persistAll` 能分別計數「已略過」vs.「失敗」。
+class MissingAccountSkipped implements Exception {
+  const MissingAccountSkipped();
+}
+
 class BillCreationService {
   static const _tag = 'BillCreation';
 
@@ -43,6 +56,7 @@ class BillCreationService {
     List<String>? customTagNames,
     AppLocalizations? l10n,
     bool autoAddTags = true,
+    ResolveMissingAccount? resolveMissingAccount,
   }) async {
     final amount = bill.amount;
     if (amount == null || amount.abs() <= 0) {
@@ -110,6 +124,21 @@ class BillCreationService {
       );
     }
 
+    // 3.7 找不到帳戶時的攔截:有回調(對話/照片/語音,有 UI)就跳出選擇,
+    // 使用者取消 → 這筆視為主動略過(不是失敗);沒有回調(背景截圖/通知
+    // 監聽)→ 落到 4. needsAccountAssignment 旗標,交易照常建立。
+    var needsAccountAssignment = false;
+    if (transactionType != 'transfer' && accountId == null) {
+      if (resolveMissingAccount != null) {
+        accountId = await resolveMissingAccount(bill);
+        if (accountId == null) {
+          throw const MissingAccountSkipped();
+        }
+      } else {
+        needsAccountAssignment = true;
+      }
+    }
+
     // 4.5 定交易币种:命中账户 → 随账户(账户内不混币,L7/L12 的不变量);
     //     否则用 AI 给的;都没有 → 账本本位币。
     final matchedAccount = accountId == null ? null : await repo.getAccount(accountId);
@@ -145,6 +174,7 @@ class BillCreationService {
       happenedAt: happenedAt,
       note: bill.note,
       currencyCode: txCurrency,
+      needsAccountAssignment: needsAccountAssignment,
     );
 
     // 6. 自动标签:受「智能记账自动关联标签」开关控制(默认开启,关闭后不挂任何标签)。

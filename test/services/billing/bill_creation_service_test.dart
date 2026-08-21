@@ -1013,4 +1013,66 @@ void main() {
       expect(tx?.currencyCode, 'JPY');
     });
   });
+
+  group('resolveMissingAccount', () {
+    setUp(() async {
+      await repo.createCategory(name: '餐饮', kind: 'expense');
+    });
+
+    test('沒有回調時,找不到帳戶會標記 needsAccountAssignment 並照常建立', () async {
+      final txId = await service.createFromBill(
+        bill: BillInfo(
+          amount: 30,
+          time: DateTime(2026, 5, 26),
+          category: '餐饮',
+          type: BillType.expense,
+        ),
+        ledgerId: ledgerId,
+      );
+      expect(txId, isNotNull);
+      final tx = await repo.getTransactionById(txId!);
+      expect(tx?.accountId, isNull);
+      expect(tx?.needsAccountAssignment, true);
+    });
+
+    test('有回調且回傳帳戶 id 時,交易掛上該帳戶,不標記旗標', () async {
+      final accountId = await repo.createAccount(
+        ledgerId: 0,
+        name: 'Cash',
+        type: 'cash',
+        currency: 'CNY',
+        initialBalance: 0,
+      );
+      final txId = await service.createFromBill(
+        bill: BillInfo(
+          amount: 30,
+          time: DateTime(2026, 5, 26),
+          category: '餐饮',
+          type: BillType.expense,
+        ),
+        ledgerId: ledgerId,
+        resolveMissingAccount: (bill) async => accountId,
+      );
+      expect(txId, isNotNull);
+      final tx = await repo.getTransactionById(txId!);
+      expect(tx?.accountId, accountId);
+      expect(tx?.needsAccountAssignment, false);
+    });
+
+    test('有回調但使用者取消(回傳 null)時,拋出 MissingAccountSkipped,不建立交易', () async {
+      expect(
+        () => service.createFromBill(
+          bill: BillInfo(
+            amount: 30,
+            time: DateTime(2026, 5, 26),
+            category: '餐饮',
+            type: BillType.expense,
+          ),
+          ledgerId: ledgerId,
+          resolveMissingAccount: (bill) async => null,
+        ),
+        throwsA(isA<MissingAccountSkipped>()),
+      );
+    });
+  });
 }
