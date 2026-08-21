@@ -548,6 +548,9 @@ class DataImportService {
         }
       }
 
+      final needsAccountAssignment =
+          tx.type != 'transfer' && tx.accountName != null && accountId == null;
+
       // 解析标签ID — toSet().toList() 去重,因为底层 batch insert 不查重
       final tagIds = <int>[];
       if (tx.tagNames != null) {
@@ -600,6 +603,7 @@ class DataImportService {
         syncId: d.Value(tx.syncId),
         currencyCode: d.Value(txCurrency),
         nativeAmount: d.Value(txNative),
+        needsAccountAssignment: d.Value(needsAccountAssignment),
       );
 
       final indexInBatch = batchTx.length;
