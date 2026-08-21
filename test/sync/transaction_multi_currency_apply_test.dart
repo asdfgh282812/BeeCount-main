@@ -67,6 +67,7 @@ void main() {
       excludeFromBudget: false,
       recurringOccurrenceOverridden: false,
       hasSplits: false,
+      needsAccountAssignment: false,
       currencyCode: 'USD',
       nativeAmount: 86.4,
     );
@@ -84,6 +85,7 @@ void main() {
       excludeFromBudget: false,
       recurringOccurrenceOverridden: false,
       hasSplits: false,
+      needsAccountAssignment: false,
     );
     final legacyPayload = EntitySerializer.serializeTransaction(legacy);
     expect(legacyPayload.containsKey('currencyCode'), isFalse);

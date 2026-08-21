@@ -349,6 +349,7 @@ List<RecentTransactionItem> _recentItems(_Pack p) {
         excludeFromBudget: false,
         recurringOccurrenceOverridden: false,
         hasSplits: false,
+        needsAccountAssignment: false,
       );
   return [
     RecentTransactionItem(

@@ -44,6 +44,7 @@ void main() {
       excludeFromBudget: false,
       recurringOccurrenceOverridden: false,
       hasSplits: false,
+      needsAccountAssignment: false,
     );
   }
 
