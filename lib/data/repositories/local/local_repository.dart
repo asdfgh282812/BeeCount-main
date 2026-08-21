@@ -3777,6 +3777,40 @@ class LocalRepository extends BaseRepository {
   // ============================================
 
   @override
+  Future<int> createDebtWithOriginTransaction({
+    required int ledgerId,
+    required String direction,
+    required String counterpartyName,
+    required double principalAmount,
+    required int accountId,
+    DateTime? dueAt,
+    String? note,
+  }) async {
+    assert(
+      direction == kDebtDirectionPayable ||
+          direction == kDebtDirectionReceivable,
+      'direction 必须是 payable 或 receivable,实际传入 "$direction"',
+    );
+    return db.transaction(() async {
+      await addTransaction(
+        ledgerId: ledgerId,
+        type: direction == kDebtDirectionPayable ? 'income' : 'expense',
+        amount: principalAmount,
+        happenedAt: DateTime.now(),
+        accountId: accountId,
+      );
+      return createDebt(
+        ledgerId: ledgerId,
+        direction: direction,
+        counterpartyName: counterpartyName,
+        principalAmount: principalAmount,
+        dueAt: dueAt,
+        note: note,
+      );
+    });
+  }
+
+  @override
   Future<int> createDebt({
     required int ledgerId,
     required String direction,

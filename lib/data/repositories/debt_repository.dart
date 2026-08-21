@@ -53,6 +53,26 @@ abstract class DebtRepository {
     String? note,
   });
 
+  /// 從欠款分頁/欠款編輯頁「新增」時建立:同時建一筆一般交易(帳戶餘額
+  /// 立即變動)+ 一筆 Debt 記錄,兩者之間**沒有任何 ID 關聯**(比照 BeeCount
+  /// Cloud `debt_id === '__new__'` 的既有設計——起點交易不是還款,不能打
+  /// debtSyncId,否則這筆欠款的 remainingAmount 會被自己的起點交易立刻沖抵
+  /// 掉,見 `list_debts` 的 repaid 累加邏輯)。兩筆寫入包在同一個 db
+  /// transaction 裡,避免交易建了但欠款沒建成的半殘狀態。
+  ///
+  /// [direction] 決定起點交易的 type:payable(我欠款,借到錢)→ income
+  /// (帳戶餘額 +本金);receivable(款項應收,借出錢)→ expense(帳戶餘額
+  /// -本金)。回傳新建 Debt 的本地 id。
+  Future<int> createDebtWithOriginTransaction({
+    required int ledgerId,
+    required String direction,
+    required String counterpartyName,
+    required double principalAmount,
+    required int accountId,
+    DateTime? dueAt,
+    String? note,
+  });
+
   /// 更新可變欄位(counterpartyName / dueAt / note)。principalAmount /
   /// direction 不在這裡 —— 對齐 Cloud `WriteDebtUpdateRequest` 刻意不帶這兩個
   /// 欄位。[clearDueAt] / [clearNote] 顯式清空對應欄位(區分「沒傳」跟

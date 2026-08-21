@@ -6,16 +6,23 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:drift/native.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:beecount/data/db.dart';
 import 'package:beecount/data/repositories/debt_repository.dart';
 import 'package:beecount/data/repositories/local/local_repository.dart';
 
 void main() {
+  // repo.createAccount 内部会 logger.debug(...),logger 单例首次使用时会
+  // 建原生桥接 MethodChannel + 读 SharedPreferences,需要 binding 先初始化
+  // 且 mock 好 SharedPreferences(同 account_hidden_test.dart 等既有测试)。
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late BeeDatabase db;
   late LocalRepository repo;
 
   setUp(() {
+    SharedPreferences.setMockInitialValues({});
     db = BeeDatabase.forTesting(NativeDatabase.memory());
     repo = LocalRepository(db);
   });
@@ -241,5 +248,62 @@ void main() {
     expect(byLedger[lid1]!.payableRemaining, 0);
     expect(byLedger[lid2]!.receivableRemaining, 0);
     expect(byLedger[lid2]!.payableRemaining, 50);
+  });
+
+  test('createDebtWithOriginTransaction creates both rows atomically and does not link them', () async {
+    final ledgerId = await repo.createLedger(name: 'L', currency: 'CNY');
+    final accountId = await repo.createAccount(
+      ledgerId: 0,
+      name: 'Cash',
+      type: 'cash',
+      currency: 'CNY',
+      initialBalance: 0,
+    );
+
+    final debtId = await repo.createDebtWithOriginTransaction(
+      ledgerId: ledgerId,
+      direction: kDebtDirectionPayable,
+      counterpartyName: 'Alice',
+      principalAmount: 500,
+      accountId: accountId,
+    );
+
+    final debt = await repo.getDebt(debtId);
+    expect(debt, isNotNull);
+    expect(debt!.principalAmount, 500);
+
+    final txs = await repo.getTransactionsByLedger(ledgerId);
+    expect(txs, hasLength(1));
+    expect(txs.first.type, 'income'); // payable = 我欠款 = 帳戶餘額 +本金
+    expect(txs.first.amount, 500);
+    expect(txs.first.accountId, accountId);
+    expect(txs.first.debtSyncId, isNull); // 起點交易不與欠款連結,見 A.2
+
+    final balance = await repo.getAccountBalance(accountId);
+    expect(balance, 500);
+  });
+
+  test('createDebtWithOriginTransaction: receivable direction creates an expense', () async {
+    final ledgerId = await repo.createLedger(name: 'L2', currency: 'CNY');
+    final accountId = await repo.createAccount(
+      ledgerId: 0,
+      name: 'Cash2',
+      type: 'cash',
+      currency: 'CNY',
+      initialBalance: 0,
+    );
+
+    await repo.createDebtWithOriginTransaction(
+      ledgerId: ledgerId,
+      direction: kDebtDirectionReceivable,
+      counterpartyName: 'Bob',
+      principalAmount: 300,
+      accountId: accountId,
+    );
+
+    final txs = await repo.getTransactionsByLedger(ledgerId);
+    expect(txs.first.type, 'expense'); // receivable = 款項應收 = 帳戶餘額 -本金
+    final balance = await repo.getAccountBalance(accountId);
+    expect(balance, -300);
   });
 }

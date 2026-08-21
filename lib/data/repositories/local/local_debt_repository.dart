@@ -44,6 +44,28 @@ class LocalDebtRepository implements DebtRepository {
   }
 
   @override
+  Future<int> createDebtWithOriginTransaction({
+    required int ledgerId,
+    required String direction,
+    required String counterpartyName,
+    required double principalAmount,
+    required int accountId,
+    DateTime? dueAt,
+    String? note,
+  }) {
+    // 這個方法需要同時寫入一筆交易(TransactionRepository 的職責)+一筆欠款,
+    // 但本類只持有 db,沒有 TransactionRepository 引用可組出 addTransaction
+    // 的完整邏輯(幣別折算/rewardRule/change tracking 等)。真正的實作在
+    // LocalRepository.createDebtWithOriginTransaction,那裡能同時呼叫
+    // 同一個 LocalRepository 上的 addTransaction 與 createDebt 覆寫方法,
+    // 並包在同一個 db.transaction() 裡。這裡只是滿足接口,不應被直接呼叫。
+    throw UnsupportedError(
+      'createDebtWithOriginTransaction 只能透過 LocalRepository 呼叫,'
+      'LocalDebtRepository 本身沒有 TransactionRepository 依賴',
+    );
+  }
+
+  @override
   Future<void> updateDebt(
     int id, {
     String? counterpartyName,
