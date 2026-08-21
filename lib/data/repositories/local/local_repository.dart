@@ -2575,6 +2575,7 @@ class LocalRepository extends BaseRepository {
       merchant: rule.merchant,
       rewardRuleIds: rewardIds.isEmpty ? null : rewardIds,
       recurringRuleId: rule.syncId,
+      needsAccountAssignment: rule.type != 'transfer' && accountId == null,
     );
     if (tagIds.isNotEmpty) {
       await addTagsToTransaction(transactionId: txId, tagIds: tagIds);
