@@ -49,3 +49,6 @@ export 'credit_card_billing_providers.dart';
 
 // 智能记账相关
 export 'smart_billing_providers.dart';
+
+// 借還款相关
+export 'debt_providers.dart';

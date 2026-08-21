@@ -8757,4 +8757,145 @@ class AppLocalizationsEn extends AppLocalizations {
   String notificationTimeDaysAgo(int n) {
     return '${n}d ago';
   }
+
+  @override
+  String get debtsPageTitle => 'Debts';
+
+  @override
+  String get debtsEmptyMessage => 'No debts recorded yet';
+
+  @override
+  String get debtAddButton => 'Add Debt';
+
+  @override
+  String get debtEditTitle => 'Edit Debt';
+
+  @override
+  String get debtAddTitle => 'Add Debt';
+
+  @override
+  String get debtDirectionLabel => 'Direction';
+
+  @override
+  String get debtDirectionPayableLabel => 'I owe';
+
+  @override
+  String get debtDirectionReceivableLabel => 'Owed to me';
+
+  @override
+  String get debtCounterpartyLabel => 'Counterparty';
+
+  @override
+  String get debtCounterpartyHint => 'Who is this with?';
+
+  @override
+  String get debtPrincipalAmountLabel => 'Principal';
+
+  @override
+  String get debtPrincipalAmountHint => 'Enter amount';
+
+  @override
+  String get debtDueDateLabel => 'Due Date';
+
+  @override
+  String get debtDueDateNone => 'No due date';
+
+  @override
+  String get debtDueDateClear => 'Clear due date';
+
+  @override
+  String get debtNoteLabel => 'Note';
+
+  @override
+  String get debtStatusOpen => 'Open';
+
+  @override
+  String get debtStatusPartial => 'Partial';
+
+  @override
+  String get debtStatusSettled => 'Settled';
+
+  @override
+  String get debtStatusClosed => 'Closed';
+
+  @override
+  String get debtRemainingLabel => 'Remaining';
+
+  @override
+  String get debtRepaidLabel => 'Repaid';
+
+  @override
+  String get debtRepayButtonPayable => 'Pay';
+
+  @override
+  String get debtRepayButtonReceivable => 'Collect';
+
+  @override
+  String get debtCloseButton => 'Close';
+
+  @override
+  String get debtReopenButton => 'Reopen';
+
+  @override
+  String get debtCloseConfirmTitle => 'Close this debt?';
+
+  @override
+  String get debtCloseConfirmMessage =>
+      'The remaining balance will no longer be tracked. You can reopen it later.';
+
+  @override
+  String get debtDeleteConfirmMessage =>
+      'Delete this debt? This can\'t be undone.';
+
+  @override
+  String get debtDeleteBlockedMessage =>
+      'This debt has repayment records and can\'t be deleted';
+
+  @override
+  String get debtSaveSuccess => 'Saved';
+
+  @override
+  String get debtDeleteSuccess => 'Deleted';
+
+  @override
+  String get debtRepaymentPageTitlePayable => 'Record Payment';
+
+  @override
+  String get debtRepaymentPageTitleReceivable => 'Record Collection';
+
+  @override
+  String get debtRepaymentAccountLabel => 'Account';
+
+  @override
+  String get debtRepaymentDateLabel => 'Date';
+
+  @override
+  String get debtRepaymentNoteLabel => 'Note';
+
+  @override
+  String get debtRepaymentSuccess => 'Recorded';
+
+  @override
+  String get debtRepaymentRecordsLabel => 'Repayment Records';
+
+  @override
+  String get debtRepaymentRecordsEmpty => 'No repayments yet';
+
+  @override
+  String get debtRepaymentAccountRequired => 'Please select an account';
+
+  @override
+  String get debtRepaymentAmountInvalid => 'Please enter a valid amount';
+
+  @override
+  String get accountsDebtEntryTitle => 'Debts';
+
+  @override
+  String get accountsDebtEntryNetReceivable => 'Net receivable';
+
+  @override
+  String get accountsDebtEntryNetPayable => 'Net payable';
+
+  @override
+  String get accountsDebtEntryBalanced => 'Settled';
 }

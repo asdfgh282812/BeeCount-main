@@ -1,0 +1,110 @@
+import '../db.dart';
+
+/// 借還款方向：payable=我欠款,receivable=別人欠我(款項應收)。
+/// 字面量對齐 BeeCount Cloud `schemas.py::DebtDirection`,改動需同步核對
+/// server 端 `_LEDGER_MERGE_SPECS["debt"]`。
+const String kDebtDirectionPayable = 'payable';
+const String kDebtDirectionReceivable = 'receivable';
+
+/// 借還款狀態,對齐 BeeCount Cloud `schemas.py::DebtStatus`。狀態不落地存,
+/// 由 [DebtRepository] 在讀取時即時算(本金 - 已還款 vs closedAt),見
+/// `list_debts` 的 derive 邏輯:
+/// - closedAt 非 null → closed(優先於金額判斷,手動結案可以在未還清時發生)
+/// - remaining <= 0.01 → settled
+/// - repaid > 0 → partial
+/// - 否則 → open
+const String kDebtStatusOpen = 'open';
+const String kDebtStatusPartial = 'partial';
+const String kDebtStatusSettled = 'settled';
+const String kDebtStatusClosed = 'closed';
+
+/// 一筆欠款 + 即時算出的還款進度。[remainingAmount]/[status] 不對應 DB 欄位,
+/// 每次查詢時用 principalAmount 減去 Transactions.debtSyncId 命中的還款交易
+/// 加總得出 —— 跟 Cloud 的 read 路徑同一套語意,避免多寫入路徑各自維護衍生欄位。
+class DebtWithStatus {
+  final Debt debt;
+  final double repaidAmount;
+  final double remainingAmount;
+  final String status;
+
+  const DebtWithStatus({
+    required this.debt,
+    required this.repaidAmount,
+    required this.remainingAmount,
+    required this.status,
+  });
+}
+
+/// 借還款仓库接口。ledger-scoped 实体(同 budget/ledger),对齐 BeeCount Cloud
+/// 的 `debt` sync entity —— 完全比照其資料模型:
+/// - principalAmount / direction 建立後不可修改(語意上等同刪除重建)
+/// - 沒有獨立的「還款」實體,還款就是一筆帶 debtSyncId 的普通交易
+/// - 有還款記錄的欠款不能刪除([deleteDebt] 應在呼叫端先檢查
+///   [hasRepayments],repository 內部也會再擋一次)
+abstract class DebtRepository {
+  /// 建立欠款。[direction] 必須是 [kDebtDirectionPayable] 或
+  /// [kDebtDirectionReceivable]。
+  Future<int> createDebt({
+    required int ledgerId,
+    required String direction,
+    required String counterpartyName,
+    required double principalAmount,
+    DateTime? dueAt,
+    String? note,
+  });
+
+  /// 更新可變欄位(counterpartyName / dueAt / note)。principalAmount /
+  /// direction 不在這裡 —— 對齐 Cloud `WriteDebtUpdateRequest` 刻意不帶這兩個
+  /// 欄位。[clearDueAt] / [clearNote] 顯式清空對應欄位(區分「沒傳」跟
+  /// 「傳 null 清空」)。
+  Future<void> updateDebt(
+    int id, {
+    String? counterpartyName,
+    DateTime? dueAt,
+    bool clearDueAt = false,
+    String? note,
+    bool clearNote = false,
+  });
+
+  /// 手動結案(closedAt = now)。結案不代表已還清,只是不再追蹤。
+  Future<void> closeDebt(int id);
+
+  /// 重新開啟(closedAt = null)。
+  Future<void> reopenDebt(int id);
+
+  /// 刪除欠款。若已有還款記錄(見 [hasRepayments])會拋出
+  /// [StateError] —— 對齐 Cloud 的 `DEBT_HAS_REPAYMENTS` 守衛。
+  Future<void> deleteDebt(int id);
+
+  Future<Debt?> getDebt(int id);
+
+  Future<Debt?> getDebtBySyncId(String syncId);
+
+  /// 該欠款是否已有至少一筆還款交易掛著(debtId:delete 前置檢查)。
+  Future<bool> hasRepayments(int debtId);
+
+  /// 帳本下所有欠款(不含衍生狀態),依 dueAt 升冪排序(null 排最後)。
+  Future<List<Debt>> getAllDebts(int ledgerId);
+
+  /// 帳本下所有欠款 + 即時算出的還款進度/狀態。
+  Future<List<DebtWithStatus>> getDebtsWithStatus(int ledgerId);
+
+  Future<DebtWithStatus?> getDebtWithStatus(int id);
+
+  /// 該欠款關聯的還款交易(依 happenedAt 由新到舊)。
+  Future<List<Transaction>> getDebtRepaymentTransactions(int debtId);
+
+  /// 帳本淨欠款餘額(Σreceivable 未結餘額 − Σpayable 未結餘額),供淨資產
+  /// 統計使用。closed 但未還清的欠款不計入(已手動結案,視同不再追蹤)。
+  Future<double> getNetDebtBalance(int ledgerId);
+
+  /// 跨所有帳本的欠款,依帳本分組即時算出 receivable/payable 未結餘額。
+  /// 供 [getNetWorthBreakdown]/[getNetWorthBreakdownByCurrency] 用——net worth
+  /// 跨帳本聚合(accounts 是 user-global,不分帳本),欠款雖是 ledger-scoped
+  /// 但同樣要納入全域淨資產,所以需要不按單一 ledgerId 過濾的版本。
+  Future<List<({int ledgerId, double receivableRemaining, double payableRemaining})>>
+      getDebtBalancesByLedgerForAllLedgers();
+
+  /// 監聽帳本欠款列表變化。
+  Stream<List<Debt>> watchDebts(int ledgerId);
+}

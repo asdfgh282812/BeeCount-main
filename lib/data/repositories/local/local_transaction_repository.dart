@@ -436,6 +436,7 @@ class LocalTransactionRepository implements TransactionRepository {
     List<String>? rewardRuleIds,
     String? recurringRuleId,
     List<TransactionSplitInput>? splits,
+    String? debtSyncId,
   }) async {
     // v30:子仓收「已定值」直写;带折算的兜底(查账户/汇率)在聚合
     // LocalRepository 包装层(子仓拿不到汇率)。
@@ -464,6 +465,7 @@ class LocalTransactionRepository implements TransactionRepository {
             rewardRuleIdsJson: d.Value(_encodeRewardRuleIds(rewardRuleIds)),
             recurringRuleId: d.Value(recurringRuleId),
             hasSplits: d.Value(hasSplits),
+            debtSyncId: d.Value(debtSyncId),
           ));
       if (hasSplits) {
         await _insertSplits(id, splits);
@@ -1082,6 +1084,18 @@ class LocalTransactionRepository implements TransactionRepository {
     await (db.update(db.transactions)..where((t) => t.id.equals(id))).write(
       TransactionsCompanion(
         deferredPostingAt: d.Value(deferredPostingAt),
+      ),
+    );
+  }
+
+  @override
+  Future<void> setTransactionDebtLink({
+    required int id,
+    String? debtSyncId,
+  }) async {
+    await (db.update(db.transactions)..where((t) => t.id.equals(id))).write(
+      TransactionsCompanion(
+        debtSyncId: d.Value(debtSyncId),
       ),
     );
   }

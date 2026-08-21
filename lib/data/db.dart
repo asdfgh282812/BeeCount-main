@@ -221,6 +221,66 @@ class Transactions extends Table {
   /// null(明細本身才有分類)。BeeCount Cloud 端字段是
   /// read_tx_projection.has_splits,wire 字段名 hasSplits。
   BoolColumn get hasSplits => boolean().withDefault(const Constant(false))();
+
+  /// v39 借還款(對齐 doc.moze.app/record/payables-receivables 與 BeeCount
+  /// Cloud debt entity):這筆交易是某個 [Debts] 的一筆還款/收款時,存該欠款
+  /// 的 syncId。刻意跟 recurringRuleId 同款存 syncId 字串(不是本地 int
+  /// FK)——欠款是 ledger-scoped 實體,本地 int id 跨裝置不保證一致,存
+  /// syncId 才能在 pull 尚未把對端新建的欠款同步下來時仍正確引用(對比
+  /// categoryId/accountId 那組 user-global 實體需要額外的
+  /// *SyncIdOverride 欄位處理共享帳本場景,這裡不需要)。BeeCount Cloud 端
+  /// 字段是 read_tx_projection.debt_sync_id,wire 字段名 debtId。恆發
+  /// (同 reconciledAt)——清空欠款關聯是明確動作,null 必須能傳達給 server。
+  TextColumn get debtSyncId => text().nullable()();
+}
+
+/// v39 借還款(§2.5 MOZE_FEATURE_GAP_SD.md,對齊 BeeCount Cloud `debt`
+/// sync entity):ledger-scoped 實體,同 [Budgets]/[Ledgers] 那組模式。
+///
+/// **狀態不落地存**:remainingAmount/status 一律在讀取時即時算(掃
+/// [Transactions.debtSyncId] 命中的還款交易加總),對齐 Cloud
+/// `read_debt_projection` 的設計——理由同 installment_plan.paid_periods,
+/// 避免多寫入路徑(mobile push / 之後可能的 web 直連)各自維護衍生欄位。
+///
+/// **principalAmount / direction 建立後不可修改**——語意上等同刪除重建,
+/// 對齐 Cloud `WriteDebtUpdateRequest` 刻意不帶這兩個欄位。
+///
+/// 沒有幣別欄位:跟 Cloud 一致,欠款本金一律以帳本記帳幣別計,不支援欠款
+/// 本身跨幣別(還款交易仍可用既有的 currencyCode/nativeAmount 多幣別機制)。
+///
+/// 字段/wire key 對照 BeeCount Cloud `sync_applier.py::_LEDGER_MERGE_SPECS
+/// ["debt"]`——改字段前先去那邊核對,一字之差會讓整個字段靜默同步失敗。
+class Debts extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// 跨设备同步 syncId(UUID)。新建必须填(同 budget 的约定)。
+  TextColumn get syncId => text().nullable()();
+
+  /// 关联账本ID
+  IntColumn get ledgerId => integer()();
+
+  /// 'payable'(我欠款) / 'receivable'(別人欠我)。見
+  /// [kDebtDirectionPayable]/[kDebtDirectionReceivable]。
+  TextColumn get direction => text()();
+
+  /// 對象名稱(人名/機構名),對齐 Cloud counterpartyName。
+  TextColumn get counterpartyName => text()();
+
+  /// 本金,建立後不可改。
+  RealColumn get principalAmount => real()();
+
+  /// 到期日,只取日期語意(同 deferredPostingAt 的處理慣例:一律用 UTC
+  /// 年月日當日期的權威表示,不做時區位移)。null = 沒有到期日。
+  DateTimeColumn get dueAt => dateTime().nullable()();
+
+  TextColumn get note => text().nullable()();
+
+  /// 非 null = 手動結案(見 [kDebtStatusClosed])。優先於金額判斷的狀態——
+  /// 手動結案可以在未還清時發生(呆帳/不再追蹤)。
+  DateTimeColumn get closedAt => dateTime().nullable()();
+
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 }
 
 /// v38 拆帳明細:一筆 [Transactions] 拆成多筆分類分攤,每次存檔整組刪除重建
@@ -706,6 +766,7 @@ class SharedLedgerTags extends Table {
   ExchangeRateOverrides,
   CardRewardRules,
   TransactionSplits,
+  Debts,
 ])
 class BeeDatabase extends _$BeeDatabase {
   BeeDatabase() : super(_openConnection());
@@ -716,7 +777,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 38; // v38: 拆帳(has_splits + transaction_splits)
+  int get schemaVersion => 39; // v39: 借還款(debts + transactions.debt_sync_id)
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1607,6 +1668,13 @@ class BeeDatabase extends _$BeeDatabase {
             await _createTableIfMissing(
                 migrator, 'transaction_splits', transactionSplits);
             logger.info('DBMigration', 'v38 迁移完成');
+          }
+          if (from < 39) {
+            logger.info('DBMigration', '开始迁移到 v39: 借還款(debts)');
+            await _addColumnIfMissing('transactions', 'debt_sync_id',
+                'ALTER TABLE transactions ADD COLUMN debt_sync_id TEXT;');
+            await _createTableIfMissing(migrator, 'debts', debts);
+            logger.info('DBMigration', 'v39 迁移完成');
           }
         },
         onCreate: (m) async {

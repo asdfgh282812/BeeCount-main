@@ -8438,6 +8438,147 @@ class AppLocalizationsZh extends AppLocalizations {
   String notificationTimeDaysAgo(int n) {
     return '${n}d ago';
   }
+
+  @override
+  String get debtsPageTitle => 'Debts';
+
+  @override
+  String get debtsEmptyMessage => 'No debts recorded yet';
+
+  @override
+  String get debtAddButton => 'Add Debt';
+
+  @override
+  String get debtEditTitle => 'Edit Debt';
+
+  @override
+  String get debtAddTitle => 'Add Debt';
+
+  @override
+  String get debtDirectionLabel => 'Direction';
+
+  @override
+  String get debtDirectionPayableLabel => 'I owe';
+
+  @override
+  String get debtDirectionReceivableLabel => 'Owed to me';
+
+  @override
+  String get debtCounterpartyLabel => 'Counterparty';
+
+  @override
+  String get debtCounterpartyHint => 'Who is this with?';
+
+  @override
+  String get debtPrincipalAmountLabel => 'Principal';
+
+  @override
+  String get debtPrincipalAmountHint => 'Enter amount';
+
+  @override
+  String get debtDueDateLabel => 'Due Date';
+
+  @override
+  String get debtDueDateNone => 'No due date';
+
+  @override
+  String get debtDueDateClear => 'Clear due date';
+
+  @override
+  String get debtNoteLabel => 'Note';
+
+  @override
+  String get debtStatusOpen => 'Open';
+
+  @override
+  String get debtStatusPartial => 'Partial';
+
+  @override
+  String get debtStatusSettled => 'Settled';
+
+  @override
+  String get debtStatusClosed => 'Closed';
+
+  @override
+  String get debtRemainingLabel => 'Remaining';
+
+  @override
+  String get debtRepaidLabel => 'Repaid';
+
+  @override
+  String get debtRepayButtonPayable => 'Pay';
+
+  @override
+  String get debtRepayButtonReceivable => 'Collect';
+
+  @override
+  String get debtCloseButton => 'Close';
+
+  @override
+  String get debtReopenButton => 'Reopen';
+
+  @override
+  String get debtCloseConfirmTitle => 'Close this debt?';
+
+  @override
+  String get debtCloseConfirmMessage =>
+      'The remaining balance will no longer be tracked. You can reopen it later.';
+
+  @override
+  String get debtDeleteConfirmMessage =>
+      'Delete this debt? This can\'t be undone.';
+
+  @override
+  String get debtDeleteBlockedMessage =>
+      'This debt has repayment records and can\'t be deleted';
+
+  @override
+  String get debtSaveSuccess => 'Saved';
+
+  @override
+  String get debtDeleteSuccess => 'Deleted';
+
+  @override
+  String get debtRepaymentPageTitlePayable => 'Record Payment';
+
+  @override
+  String get debtRepaymentPageTitleReceivable => 'Record Collection';
+
+  @override
+  String get debtRepaymentAccountLabel => 'Account';
+
+  @override
+  String get debtRepaymentDateLabel => 'Date';
+
+  @override
+  String get debtRepaymentNoteLabel => 'Note';
+
+  @override
+  String get debtRepaymentSuccess => 'Recorded';
+
+  @override
+  String get debtRepaymentRecordsLabel => 'Repayment Records';
+
+  @override
+  String get debtRepaymentRecordsEmpty => 'No repayments yet';
+
+  @override
+  String get debtRepaymentAccountRequired => 'Please select an account';
+
+  @override
+  String get debtRepaymentAmountInvalid => 'Please enter a valid amount';
+
+  @override
+  String get accountsDebtEntryTitle => 'Debts';
+
+  @override
+  String get accountsDebtEntryNetReceivable => 'Net receivable';
+
+  @override
+  String get accountsDebtEntryNetPayable => 'Net payable';
+
+  @override
+  String get accountsDebtEntryBalanced => 'Settled';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -16862,4 +17003,142 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String notificationTimeDaysAgo(int n) {
     return '$n 天前';
   }
+
+  @override
+  String get debtsPageTitle => '借還款';
+
+  @override
+  String get debtsEmptyMessage => '還沒有借還款記錄';
+
+  @override
+  String get debtAddButton => '新增欠款';
+
+  @override
+  String get debtEditTitle => '編輯欠款';
+
+  @override
+  String get debtAddTitle => '新增欠款';
+
+  @override
+  String get debtDirectionLabel => '方向';
+
+  @override
+  String get debtDirectionPayableLabel => '我欠款';
+
+  @override
+  String get debtDirectionReceivableLabel => '款項應收';
+
+  @override
+  String get debtCounterpartyLabel => '對象';
+
+  @override
+  String get debtCounterpartyHint => '對方是誰';
+
+  @override
+  String get debtPrincipalAmountLabel => '本金';
+
+  @override
+  String get debtPrincipalAmountHint => '輸入金額';
+
+  @override
+  String get debtDueDateLabel => '到期日';
+
+  @override
+  String get debtDueDateNone => '沒有到期日';
+
+  @override
+  String get debtDueDateClear => '清除到期日';
+
+  @override
+  String get debtNoteLabel => '備註';
+
+  @override
+  String get debtStatusOpen => '進行中';
+
+  @override
+  String get debtStatusPartial => '部分還款';
+
+  @override
+  String get debtStatusSettled => '已結清';
+
+  @override
+  String get debtStatusClosed => '已結案';
+
+  @override
+  String get debtRemainingLabel => '剩餘';
+
+  @override
+  String get debtRepaidLabel => '已還';
+
+  @override
+  String get debtRepayButtonPayable => '還款';
+
+  @override
+  String get debtRepayButtonReceivable => '收款';
+
+  @override
+  String get debtCloseButton => '結案';
+
+  @override
+  String get debtReopenButton => '重新開啟';
+
+  @override
+  String get debtCloseConfirmTitle => '結案這筆欠款？';
+
+  @override
+  String get debtCloseConfirmMessage => '結案後將不再追蹤剩餘金額,之後仍可重新開啟。';
+
+  @override
+  String get debtDeleteConfirmMessage => '刪除這筆欠款？此動作無法復原。';
+
+  @override
+  String get debtDeleteBlockedMessage => '這筆欠款已有還款記錄,無法刪除';
+
+  @override
+  String get debtSaveSuccess => '已儲存';
+
+  @override
+  String get debtDeleteSuccess => '已刪除';
+
+  @override
+  String get debtRepaymentPageTitlePayable => '記錄還款';
+
+  @override
+  String get debtRepaymentPageTitleReceivable => '記錄收款';
+
+  @override
+  String get debtRepaymentAccountLabel => '帳戶';
+
+  @override
+  String get debtRepaymentDateLabel => '日期';
+
+  @override
+  String get debtRepaymentNoteLabel => '備註';
+
+  @override
+  String get debtRepaymentSuccess => '已記錄';
+
+  @override
+  String get debtRepaymentRecordsLabel => '還款記錄';
+
+  @override
+  String get debtRepaymentRecordsEmpty => '還沒有還款記錄';
+
+  @override
+  String get debtRepaymentAccountRequired => '請選擇帳戶';
+
+  @override
+  String get debtRepaymentAmountInvalid => '請輸入有效金額';
+
+  @override
+  String get accountsDebtEntryTitle => '借還款';
+
+  @override
+  String get accountsDebtEntryNetReceivable => '淨應收';
+
+  @override
+  String get accountsDebtEntryNetPayable => '淨應付';
+
+  @override
+  String get accountsDebtEntryBalanced => '已結清';
 }

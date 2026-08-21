@@ -2162,6 +2162,12 @@ class $TransactionsTable extends Transactions
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("has_splits" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _debtSyncIdMeta =
+      const VerificationMeta('debtSyncId');
+  @override
+  late final GeneratedColumn<String> debtSyncId = GeneratedColumn<String>(
+      'debt_sync_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -2191,7 +2197,8 @@ class $TransactionsTable extends Transactions
         recurringOccurrenceOverridden,
         reconciledAt,
         deferredPostingAt,
-        hasSplits
+        hasSplits,
+        debtSyncId
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2360,6 +2367,12 @@ class $TransactionsTable extends Transactions
       context.handle(_hasSplitsMeta,
           hasSplits.isAcceptableOrUnknown(data['has_splits']!, _hasSplitsMeta));
     }
+    if (data.containsKey('debt_sync_id')) {
+      context.handle(
+          _debtSyncIdMeta,
+          debtSyncId.isAcceptableOrUnknown(
+              data['debt_sync_id']!, _debtSyncIdMeta));
+    }
     return context;
   }
 
@@ -2429,6 +2442,8 @@ class $TransactionsTable extends Transactions
           DriftSqlType.dateTime, data['${effectivePrefix}deferred_posting_at']),
       hasSplits: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}has_splits'])!,
+      debtSyncId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}debt_sync_id']),
     );
   }
 
@@ -2528,6 +2543,17 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   /// null(明細本身才有分類)。BeeCount Cloud 端字段是
   /// read_tx_projection.has_splits,wire 字段名 hasSplits。
   final bool hasSplits;
+
+  /// v39 借還款(對齐 doc.moze.app/record/payables-receivables 與 BeeCount
+  /// Cloud debt entity):這筆交易是某個 [Debts] 的一筆還款/收款時,存該欠款
+  /// 的 syncId。刻意跟 recurringRuleId 同款存 syncId 字串(不是本地 int
+  /// FK)——欠款是 ledger-scoped 實體,本地 int id 跨裝置不保證一致,存
+  /// syncId 才能在 pull 尚未把對端新建的欠款同步下來時仍正確引用(對比
+  /// categoryId/accountId 那組 user-global 實體需要額外的
+  /// *SyncIdOverride 欄位處理共享帳本場景,這裡不需要)。BeeCount Cloud 端
+  /// 字段是 read_tx_projection.debt_sync_id,wire 字段名 debtId。恆發
+  /// (同 reconciledAt)——清空欠款關聯是明確動作,null 必須能傳達給 server。
+  final String? debtSyncId;
   const Transaction(
       {required this.id,
       required this.ledgerId,
@@ -2556,7 +2582,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       required this.recurringOccurrenceOverridden,
       this.reconciledAt,
       this.deferredPostingAt,
-      required this.hasSplits});
+      required this.hasSplits,
+      this.debtSyncId});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2629,6 +2656,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       map['deferred_posting_at'] = Variable<DateTime>(deferredPostingAt);
     }
     map['has_splits'] = Variable<bool>(hasSplits);
+    if (!nullToAbsent || debtSyncId != null) {
+      map['debt_sync_id'] = Variable<String>(debtSyncId);
+    }
     return map;
   }
 
@@ -2697,6 +2727,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ? const Value.absent()
           : Value(deferredPostingAt),
       hasSplits: Value(hasSplits),
+      debtSyncId: debtSyncId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(debtSyncId),
     );
   }
 
@@ -2740,6 +2773,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       deferredPostingAt:
           serializer.fromJson<DateTime?>(json['deferredPostingAt']),
       hasSplits: serializer.fromJson<bool>(json['hasSplits']),
+      debtSyncId: serializer.fromJson<String?>(json['debtSyncId']),
     );
   }
   @override
@@ -2778,6 +2812,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'reconciledAt': serializer.toJson<DateTime?>(reconciledAt),
       'deferredPostingAt': serializer.toJson<DateTime?>(deferredPostingAt),
       'hasSplits': serializer.toJson<bool>(hasSplits),
+      'debtSyncId': serializer.toJson<String?>(debtSyncId),
     };
   }
 
@@ -2809,7 +2844,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           bool? recurringOccurrenceOverridden,
           Value<DateTime?> reconciledAt = const Value.absent(),
           Value<DateTime?> deferredPostingAt = const Value.absent(),
-          bool? hasSplits}) =>
+          bool? hasSplits,
+          Value<String?> debtSyncId = const Value.absent()}) =>
       Transaction(
         id: id ?? this.id,
         ledgerId: ledgerId ?? this.ledgerId,
@@ -2862,6 +2898,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
             ? deferredPostingAt.value
             : this.deferredPostingAt,
         hasSplits: hasSplits ?? this.hasSplits,
+        debtSyncId: debtSyncId.present ? debtSyncId.value : this.debtSyncId,
       );
   Transaction copyWithCompanion(TransactionsCompanion data) {
     return Transaction(
@@ -2928,6 +2965,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ? data.deferredPostingAt.value
           : this.deferredPostingAt,
       hasSplits: data.hasSplits.present ? data.hasSplits.value : this.hasSplits,
+      debtSyncId:
+          data.debtSyncId.present ? data.debtSyncId.value : this.debtSyncId,
     );
   }
 
@@ -2962,7 +3001,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
               'recurringOccurrenceOverridden: $recurringOccurrenceOverridden, ')
           ..write('reconciledAt: $reconciledAt, ')
           ..write('deferredPostingAt: $deferredPostingAt, ')
-          ..write('hasSplits: $hasSplits')
+          ..write('hasSplits: $hasSplits, ')
+          ..write('debtSyncId: $debtSyncId')
           ..write(')'))
         .toString();
   }
@@ -2996,7 +3036,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         recurringOccurrenceOverridden,
         reconciledAt,
         deferredPostingAt,
-        hasSplits
+        hasSplits,
+        debtSyncId
       ]);
   @override
   bool operator ==(Object other) =>
@@ -3030,7 +3071,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
               this.recurringOccurrenceOverridden &&
           other.reconciledAt == this.reconciledAt &&
           other.deferredPostingAt == this.deferredPostingAt &&
-          other.hasSplits == this.hasSplits);
+          other.hasSplits == this.hasSplits &&
+          other.debtSyncId == this.debtSyncId);
 }
 
 class TransactionsCompanion extends UpdateCompanion<Transaction> {
@@ -3062,6 +3104,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<DateTime?> reconciledAt;
   final Value<DateTime?> deferredPostingAt;
   final Value<bool> hasSplits;
+  final Value<String?> debtSyncId;
   const TransactionsCompanion({
     this.id = const Value.absent(),
     this.ledgerId = const Value.absent(),
@@ -3091,6 +3134,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.reconciledAt = const Value.absent(),
     this.deferredPostingAt = const Value.absent(),
     this.hasSplits = const Value.absent(),
+    this.debtSyncId = const Value.absent(),
   });
   TransactionsCompanion.insert({
     this.id = const Value.absent(),
@@ -3121,6 +3165,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.reconciledAt = const Value.absent(),
     this.deferredPostingAt = const Value.absent(),
     this.hasSplits = const Value.absent(),
+    this.debtSyncId = const Value.absent(),
   })  : ledgerId = Value(ledgerId),
         type = Value(type),
         amount = Value(amount);
@@ -3153,6 +3198,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<DateTime>? reconciledAt,
     Expression<DateTime>? deferredPostingAt,
     Expression<bool>? hasSplits,
+    Expression<String>? debtSyncId,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -3189,6 +3235,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (reconciledAt != null) 'reconciled_at': reconciledAt,
       if (deferredPostingAt != null) 'deferred_posting_at': deferredPostingAt,
       if (hasSplits != null) 'has_splits': hasSplits,
+      if (debtSyncId != null) 'debt_sync_id': debtSyncId,
     });
   }
 
@@ -3220,7 +3267,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       Value<bool>? recurringOccurrenceOverridden,
       Value<DateTime?>? reconciledAt,
       Value<DateTime?>? deferredPostingAt,
-      Value<bool>? hasSplits}) {
+      Value<bool>? hasSplits,
+      Value<String?>? debtSyncId}) {
     return TransactionsCompanion(
       id: id ?? this.id,
       ledgerId: ledgerId ?? this.ledgerId,
@@ -3254,6 +3302,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       reconciledAt: reconciledAt ?? this.reconciledAt,
       deferredPostingAt: deferredPostingAt ?? this.deferredPostingAt,
       hasSplits: hasSplits ?? this.hasSplits,
+      debtSyncId: debtSyncId ?? this.debtSyncId,
     );
   }
 
@@ -3349,6 +3398,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     if (hasSplits.present) {
       map['has_splits'] = Variable<bool>(hasSplits.value);
     }
+    if (debtSyncId.present) {
+      map['debt_sync_id'] = Variable<String>(debtSyncId.value);
+    }
     return map;
   }
 
@@ -3383,7 +3435,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
               'recurringOccurrenceOverridden: $recurringOccurrenceOverridden, ')
           ..write('reconciledAt: $reconciledAt, ')
           ..write('deferredPostingAt: $deferredPostingAt, ')
-          ..write('hasSplits: $hasSplits')
+          ..write('hasSplits: $hasSplits, ')
+          ..write('debtSyncId: $debtSyncId')
           ..write(')'))
         .toString();
   }
@@ -13082,6 +13135,568 @@ class TransactionSplitsCompanion extends UpdateCompanion<TransactionSplit> {
   }
 }
 
+class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DebtsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _syncIdMeta = const VerificationMeta('syncId');
+  @override
+  late final GeneratedColumn<String> syncId = GeneratedColumn<String>(
+      'sync_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _ledgerIdMeta =
+      const VerificationMeta('ledgerId');
+  @override
+  late final GeneratedColumn<int> ledgerId = GeneratedColumn<int>(
+      'ledger_id', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _directionMeta =
+      const VerificationMeta('direction');
+  @override
+  late final GeneratedColumn<String> direction = GeneratedColumn<String>(
+      'direction', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _counterpartyNameMeta =
+      const VerificationMeta('counterpartyName');
+  @override
+  late final GeneratedColumn<String> counterpartyName = GeneratedColumn<String>(
+      'counterparty_name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _principalAmountMeta =
+      const VerificationMeta('principalAmount');
+  @override
+  late final GeneratedColumn<double> principalAmount = GeneratedColumn<double>(
+      'principal_amount', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _dueAtMeta = const VerificationMeta('dueAt');
+  @override
+  late final GeneratedColumn<DateTime> dueAt = GeneratedColumn<DateTime>(
+      'due_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+      'note', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _closedAtMeta =
+      const VerificationMeta('closedAt');
+  @override
+  late final GeneratedColumn<DateTime> closedAt = GeneratedColumn<DateTime>(
+      'closed_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        syncId,
+        ledgerId,
+        direction,
+        counterpartyName,
+        principalAmount,
+        dueAt,
+        note,
+        closedAt,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'debts';
+  @override
+  VerificationContext validateIntegrity(Insertable<Debt> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('sync_id')) {
+      context.handle(_syncIdMeta,
+          syncId.isAcceptableOrUnknown(data['sync_id']!, _syncIdMeta));
+    }
+    if (data.containsKey('ledger_id')) {
+      context.handle(_ledgerIdMeta,
+          ledgerId.isAcceptableOrUnknown(data['ledger_id']!, _ledgerIdMeta));
+    } else if (isInserting) {
+      context.missing(_ledgerIdMeta);
+    }
+    if (data.containsKey('direction')) {
+      context.handle(_directionMeta,
+          direction.isAcceptableOrUnknown(data['direction']!, _directionMeta));
+    } else if (isInserting) {
+      context.missing(_directionMeta);
+    }
+    if (data.containsKey('counterparty_name')) {
+      context.handle(
+          _counterpartyNameMeta,
+          counterpartyName.isAcceptableOrUnknown(
+              data['counterparty_name']!, _counterpartyNameMeta));
+    } else if (isInserting) {
+      context.missing(_counterpartyNameMeta);
+    }
+    if (data.containsKey('principal_amount')) {
+      context.handle(
+          _principalAmountMeta,
+          principalAmount.isAcceptableOrUnknown(
+              data['principal_amount']!, _principalAmountMeta));
+    } else if (isInserting) {
+      context.missing(_principalAmountMeta);
+    }
+    if (data.containsKey('due_at')) {
+      context.handle(
+          _dueAtMeta, dueAt.isAcceptableOrUnknown(data['due_at']!, _dueAtMeta));
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+          _noteMeta, note.isAcceptableOrUnknown(data['note']!, _noteMeta));
+    }
+    if (data.containsKey('closed_at')) {
+      context.handle(_closedAtMeta,
+          closedAt.isAcceptableOrUnknown(data['closed_at']!, _closedAtMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Debt map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Debt(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      syncId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sync_id']),
+      ledgerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}ledger_id'])!,
+      direction: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}direction'])!,
+      counterpartyName: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}counterparty_name'])!,
+      principalAmount: attachedDatabase.typeMapping.read(
+          DriftSqlType.double, data['${effectivePrefix}principal_amount'])!,
+      dueAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}due_at']),
+      note: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}note']),
+      closedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}closed_at']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $DebtsTable createAlias(String alias) {
+    return $DebtsTable(attachedDatabase, alias);
+  }
+}
+
+class Debt extends DataClass implements Insertable<Debt> {
+  final int id;
+
+  /// 跨设备同步 syncId(UUID)。新建必须填(同 budget 的约定)。
+  final String? syncId;
+
+  /// 关联账本ID
+  final int ledgerId;
+
+  /// 'payable'(我欠款) / 'receivable'(別人欠我)。見
+  /// [kDebtDirectionPayable]/[kDebtDirectionReceivable]。
+  final String direction;
+
+  /// 對象名稱(人名/機構名),對齐 Cloud counterpartyName。
+  final String counterpartyName;
+
+  /// 本金,建立後不可改。
+  final double principalAmount;
+
+  /// 到期日,只取日期語意(同 deferredPostingAt 的處理慣例:一律用 UTC
+  /// 年月日當日期的權威表示,不做時區位移)。null = 沒有到期日。
+  final DateTime? dueAt;
+  final String? note;
+
+  /// 非 null = 手動結案(見 [kDebtStatusClosed])。優先於金額判斷的狀態——
+  /// 手動結案可以在未還清時發生(呆帳/不再追蹤)。
+  final DateTime? closedAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const Debt(
+      {required this.id,
+      this.syncId,
+      required this.ledgerId,
+      required this.direction,
+      required this.counterpartyName,
+      required this.principalAmount,
+      this.dueAt,
+      this.note,
+      this.closedAt,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    if (!nullToAbsent || syncId != null) {
+      map['sync_id'] = Variable<String>(syncId);
+    }
+    map['ledger_id'] = Variable<int>(ledgerId);
+    map['direction'] = Variable<String>(direction);
+    map['counterparty_name'] = Variable<String>(counterpartyName);
+    map['principal_amount'] = Variable<double>(principalAmount);
+    if (!nullToAbsent || dueAt != null) {
+      map['due_at'] = Variable<DateTime>(dueAt);
+    }
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    if (!nullToAbsent || closedAt != null) {
+      map['closed_at'] = Variable<DateTime>(closedAt);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  DebtsCompanion toCompanion(bool nullToAbsent) {
+    return DebtsCompanion(
+      id: Value(id),
+      syncId:
+          syncId == null && nullToAbsent ? const Value.absent() : Value(syncId),
+      ledgerId: Value(ledgerId),
+      direction: Value(direction),
+      counterpartyName: Value(counterpartyName),
+      principalAmount: Value(principalAmount),
+      dueAt:
+          dueAt == null && nullToAbsent ? const Value.absent() : Value(dueAt),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      closedAt: closedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(closedAt),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory Debt.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Debt(
+      id: serializer.fromJson<int>(json['id']),
+      syncId: serializer.fromJson<String?>(json['syncId']),
+      ledgerId: serializer.fromJson<int>(json['ledgerId']),
+      direction: serializer.fromJson<String>(json['direction']),
+      counterpartyName: serializer.fromJson<String>(json['counterpartyName']),
+      principalAmount: serializer.fromJson<double>(json['principalAmount']),
+      dueAt: serializer.fromJson<DateTime?>(json['dueAt']),
+      note: serializer.fromJson<String?>(json['note']),
+      closedAt: serializer.fromJson<DateTime?>(json['closedAt']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'syncId': serializer.toJson<String?>(syncId),
+      'ledgerId': serializer.toJson<int>(ledgerId),
+      'direction': serializer.toJson<String>(direction),
+      'counterpartyName': serializer.toJson<String>(counterpartyName),
+      'principalAmount': serializer.toJson<double>(principalAmount),
+      'dueAt': serializer.toJson<DateTime?>(dueAt),
+      'note': serializer.toJson<String?>(note),
+      'closedAt': serializer.toJson<DateTime?>(closedAt),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  Debt copyWith(
+          {int? id,
+          Value<String?> syncId = const Value.absent(),
+          int? ledgerId,
+          String? direction,
+          String? counterpartyName,
+          double? principalAmount,
+          Value<DateTime?> dueAt = const Value.absent(),
+          Value<String?> note = const Value.absent(),
+          Value<DateTime?> closedAt = const Value.absent(),
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      Debt(
+        id: id ?? this.id,
+        syncId: syncId.present ? syncId.value : this.syncId,
+        ledgerId: ledgerId ?? this.ledgerId,
+        direction: direction ?? this.direction,
+        counterpartyName: counterpartyName ?? this.counterpartyName,
+        principalAmount: principalAmount ?? this.principalAmount,
+        dueAt: dueAt.present ? dueAt.value : this.dueAt,
+        note: note.present ? note.value : this.note,
+        closedAt: closedAt.present ? closedAt.value : this.closedAt,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  Debt copyWithCompanion(DebtsCompanion data) {
+    return Debt(
+      id: data.id.present ? data.id.value : this.id,
+      syncId: data.syncId.present ? data.syncId.value : this.syncId,
+      ledgerId: data.ledgerId.present ? data.ledgerId.value : this.ledgerId,
+      direction: data.direction.present ? data.direction.value : this.direction,
+      counterpartyName: data.counterpartyName.present
+          ? data.counterpartyName.value
+          : this.counterpartyName,
+      principalAmount: data.principalAmount.present
+          ? data.principalAmount.value
+          : this.principalAmount,
+      dueAt: data.dueAt.present ? data.dueAt.value : this.dueAt,
+      note: data.note.present ? data.note.value : this.note,
+      closedAt: data.closedAt.present ? data.closedAt.value : this.closedAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Debt(')
+          ..write('id: $id, ')
+          ..write('syncId: $syncId, ')
+          ..write('ledgerId: $ledgerId, ')
+          ..write('direction: $direction, ')
+          ..write('counterpartyName: $counterpartyName, ')
+          ..write('principalAmount: $principalAmount, ')
+          ..write('dueAt: $dueAt, ')
+          ..write('note: $note, ')
+          ..write('closedAt: $closedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      syncId,
+      ledgerId,
+      direction,
+      counterpartyName,
+      principalAmount,
+      dueAt,
+      note,
+      closedAt,
+      createdAt,
+      updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Debt &&
+          other.id == this.id &&
+          other.syncId == this.syncId &&
+          other.ledgerId == this.ledgerId &&
+          other.direction == this.direction &&
+          other.counterpartyName == this.counterpartyName &&
+          other.principalAmount == this.principalAmount &&
+          other.dueAt == this.dueAt &&
+          other.note == this.note &&
+          other.closedAt == this.closedAt &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class DebtsCompanion extends UpdateCompanion<Debt> {
+  final Value<int> id;
+  final Value<String?> syncId;
+  final Value<int> ledgerId;
+  final Value<String> direction;
+  final Value<String> counterpartyName;
+  final Value<double> principalAmount;
+  final Value<DateTime?> dueAt;
+  final Value<String?> note;
+  final Value<DateTime?> closedAt;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const DebtsCompanion({
+    this.id = const Value.absent(),
+    this.syncId = const Value.absent(),
+    this.ledgerId = const Value.absent(),
+    this.direction = const Value.absent(),
+    this.counterpartyName = const Value.absent(),
+    this.principalAmount = const Value.absent(),
+    this.dueAt = const Value.absent(),
+    this.note = const Value.absent(),
+    this.closedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  DebtsCompanion.insert({
+    this.id = const Value.absent(),
+    this.syncId = const Value.absent(),
+    required int ledgerId,
+    required String direction,
+    required String counterpartyName,
+    required double principalAmount,
+    this.dueAt = const Value.absent(),
+    this.note = const Value.absent(),
+    this.closedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  })  : ledgerId = Value(ledgerId),
+        direction = Value(direction),
+        counterpartyName = Value(counterpartyName),
+        principalAmount = Value(principalAmount);
+  static Insertable<Debt> custom({
+    Expression<int>? id,
+    Expression<String>? syncId,
+    Expression<int>? ledgerId,
+    Expression<String>? direction,
+    Expression<String>? counterpartyName,
+    Expression<double>? principalAmount,
+    Expression<DateTime>? dueAt,
+    Expression<String>? note,
+    Expression<DateTime>? closedAt,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (syncId != null) 'sync_id': syncId,
+      if (ledgerId != null) 'ledger_id': ledgerId,
+      if (direction != null) 'direction': direction,
+      if (counterpartyName != null) 'counterparty_name': counterpartyName,
+      if (principalAmount != null) 'principal_amount': principalAmount,
+      if (dueAt != null) 'due_at': dueAt,
+      if (note != null) 'note': note,
+      if (closedAt != null) 'closed_at': closedAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  DebtsCompanion copyWith(
+      {Value<int>? id,
+      Value<String?>? syncId,
+      Value<int>? ledgerId,
+      Value<String>? direction,
+      Value<String>? counterpartyName,
+      Value<double>? principalAmount,
+      Value<DateTime?>? dueAt,
+      Value<String?>? note,
+      Value<DateTime?>? closedAt,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt}) {
+    return DebtsCompanion(
+      id: id ?? this.id,
+      syncId: syncId ?? this.syncId,
+      ledgerId: ledgerId ?? this.ledgerId,
+      direction: direction ?? this.direction,
+      counterpartyName: counterpartyName ?? this.counterpartyName,
+      principalAmount: principalAmount ?? this.principalAmount,
+      dueAt: dueAt ?? this.dueAt,
+      note: note ?? this.note,
+      closedAt: closedAt ?? this.closedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (syncId.present) {
+      map['sync_id'] = Variable<String>(syncId.value);
+    }
+    if (ledgerId.present) {
+      map['ledger_id'] = Variable<int>(ledgerId.value);
+    }
+    if (direction.present) {
+      map['direction'] = Variable<String>(direction.value);
+    }
+    if (counterpartyName.present) {
+      map['counterparty_name'] = Variable<String>(counterpartyName.value);
+    }
+    if (principalAmount.present) {
+      map['principal_amount'] = Variable<double>(principalAmount.value);
+    }
+    if (dueAt.present) {
+      map['due_at'] = Variable<DateTime>(dueAt.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (closedAt.present) {
+      map['closed_at'] = Variable<DateTime>(closedAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DebtsCompanion(')
+          ..write('id: $id, ')
+          ..write('syncId: $syncId, ')
+          ..write('ledgerId: $ledgerId, ')
+          ..write('direction: $direction, ')
+          ..write('counterpartyName: $counterpartyName, ')
+          ..write('principalAmount: $principalAmount, ')
+          ..write('dueAt: $dueAt, ')
+          ..write('note: $note, ')
+          ..write('closedAt: $closedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$BeeDatabase extends GeneratedDatabase {
   _$BeeDatabase(QueryExecutor e) : super(e);
   $BeeDatabaseManager get managers => $BeeDatabaseManager(this);
@@ -13118,6 +13733,7 @@ abstract class _$BeeDatabase extends GeneratedDatabase {
       $CardRewardRulesTable(this);
   late final $TransactionSplitsTable transactionSplits =
       $TransactionSplitsTable(this);
+  late final $DebtsTable debts = $DebtsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -13145,7 +13761,8 @@ abstract class _$BeeDatabase extends GeneratedDatabase {
         exchangeRates,
         exchangeRateOverrides,
         cardRewardRules,
-        transactionSplits
+        transactionSplits,
+        debts
       ];
 }
 
@@ -14057,6 +14674,7 @@ typedef $$TransactionsTableCreateCompanionBuilder = TransactionsCompanion
   Value<DateTime?> reconciledAt,
   Value<DateTime?> deferredPostingAt,
   Value<bool> hasSplits,
+  Value<String?> debtSyncId,
 });
 typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
     Function({
@@ -14088,6 +14706,7 @@ typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
   Value<DateTime?> reconciledAt,
   Value<DateTime?> deferredPostingAt,
   Value<bool> hasSplits,
+  Value<String?> debtSyncId,
 });
 
 class $$TransactionsTableFilterComposer
@@ -14195,6 +14814,9 @@ class $$TransactionsTableFilterComposer
 
   ColumnFilters<bool> get hasSplits => $composableBuilder(
       column: $table.hasSplits, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get debtSyncId => $composableBuilder(
+      column: $table.debtSyncId, builder: (column) => ColumnFilters(column));
 }
 
 class $$TransactionsTableOrderingComposer
@@ -14305,6 +14927,9 @@ class $$TransactionsTableOrderingComposer
 
   ColumnOrderings<bool> get hasSplits => $composableBuilder(
       column: $table.hasSplits, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get debtSyncId => $composableBuilder(
+      column: $table.debtSyncId, builder: (column) => ColumnOrderings(column));
 }
 
 class $$TransactionsTableAnnotationComposer
@@ -14400,6 +15025,9 @@ class $$TransactionsTableAnnotationComposer
 
   GeneratedColumn<bool> get hasSplits =>
       $composableBuilder(column: $table.hasSplits, builder: (column) => column);
+
+  GeneratedColumn<String> get debtSyncId => $composableBuilder(
+      column: $table.debtSyncId, builder: (column) => column);
 }
 
 class $$TransactionsTableTableManager extends RootTableManager<
@@ -14456,6 +15084,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<DateTime?> reconciledAt = const Value.absent(),
             Value<DateTime?> deferredPostingAt = const Value.absent(),
             Value<bool> hasSplits = const Value.absent(),
+            Value<String?> debtSyncId = const Value.absent(),
           }) =>
               TransactionsCompanion(
             id: id,
@@ -14486,6 +15115,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             reconciledAt: reconciledAt,
             deferredPostingAt: deferredPostingAt,
             hasSplits: hasSplits,
+            debtSyncId: debtSyncId,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
@@ -14516,6 +15146,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<DateTime?> reconciledAt = const Value.absent(),
             Value<DateTime?> deferredPostingAt = const Value.absent(),
             Value<bool> hasSplits = const Value.absent(),
+            Value<String?> debtSyncId = const Value.absent(),
           }) =>
               TransactionsCompanion.insert(
             id: id,
@@ -14546,6 +15177,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             reconciledAt: reconciledAt,
             deferredPostingAt: deferredPostingAt,
             hasSplits: hasSplits,
+            debtSyncId: debtSyncId,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -19210,6 +19842,258 @@ typedef $$TransactionSplitsTableProcessedTableManager = ProcessedTableManager<
     ),
     TransactionSplit,
     PrefetchHooks Function()>;
+typedef $$DebtsTableCreateCompanionBuilder = DebtsCompanion Function({
+  Value<int> id,
+  Value<String?> syncId,
+  required int ledgerId,
+  required String direction,
+  required String counterpartyName,
+  required double principalAmount,
+  Value<DateTime?> dueAt,
+  Value<String?> note,
+  Value<DateTime?> closedAt,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+});
+typedef $$DebtsTableUpdateCompanionBuilder = DebtsCompanion Function({
+  Value<int> id,
+  Value<String?> syncId,
+  Value<int> ledgerId,
+  Value<String> direction,
+  Value<String> counterpartyName,
+  Value<double> principalAmount,
+  Value<DateTime?> dueAt,
+  Value<String?> note,
+  Value<DateTime?> closedAt,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+});
+
+class $$DebtsTableFilterComposer extends Composer<_$BeeDatabase, $DebtsTable> {
+  $$DebtsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get syncId => $composableBuilder(
+      column: $table.syncId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get ledgerId => $composableBuilder(
+      column: $table.ledgerId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get direction => $composableBuilder(
+      column: $table.direction, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get counterpartyName => $composableBuilder(
+      column: $table.counterpartyName,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get principalAmount => $composableBuilder(
+      column: $table.principalAmount,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get dueAt => $composableBuilder(
+      column: $table.dueAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get closedAt => $composableBuilder(
+      column: $table.closedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$DebtsTableOrderingComposer
+    extends Composer<_$BeeDatabase, $DebtsTable> {
+  $$DebtsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get syncId => $composableBuilder(
+      column: $table.syncId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get ledgerId => $composableBuilder(
+      column: $table.ledgerId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get direction => $composableBuilder(
+      column: $table.direction, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get counterpartyName => $composableBuilder(
+      column: $table.counterpartyName,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get principalAmount => $composableBuilder(
+      column: $table.principalAmount,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get dueAt => $composableBuilder(
+      column: $table.dueAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get closedAt => $composableBuilder(
+      column: $table.closedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$DebtsTableAnnotationComposer
+    extends Composer<_$BeeDatabase, $DebtsTable> {
+  $$DebtsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get syncId =>
+      $composableBuilder(column: $table.syncId, builder: (column) => column);
+
+  GeneratedColumn<int> get ledgerId =>
+      $composableBuilder(column: $table.ledgerId, builder: (column) => column);
+
+  GeneratedColumn<String> get direction =>
+      $composableBuilder(column: $table.direction, builder: (column) => column);
+
+  GeneratedColumn<String> get counterpartyName => $composableBuilder(
+      column: $table.counterpartyName, builder: (column) => column);
+
+  GeneratedColumn<double> get principalAmount => $composableBuilder(
+      column: $table.principalAmount, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get dueAt =>
+      $composableBuilder(column: $table.dueAt, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get closedAt =>
+      $composableBuilder(column: $table.closedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$DebtsTableTableManager extends RootTableManager<
+    _$BeeDatabase,
+    $DebtsTable,
+    Debt,
+    $$DebtsTableFilterComposer,
+    $$DebtsTableOrderingComposer,
+    $$DebtsTableAnnotationComposer,
+    $$DebtsTableCreateCompanionBuilder,
+    $$DebtsTableUpdateCompanionBuilder,
+    (Debt, BaseReferences<_$BeeDatabase, $DebtsTable, Debt>),
+    Debt,
+    PrefetchHooks Function()> {
+  $$DebtsTableTableManager(_$BeeDatabase db, $DebtsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DebtsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DebtsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DebtsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String?> syncId = const Value.absent(),
+            Value<int> ledgerId = const Value.absent(),
+            Value<String> direction = const Value.absent(),
+            Value<String> counterpartyName = const Value.absent(),
+            Value<double> principalAmount = const Value.absent(),
+            Value<DateTime?> dueAt = const Value.absent(),
+            Value<String?> note = const Value.absent(),
+            Value<DateTime?> closedAt = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+          }) =>
+              DebtsCompanion(
+            id: id,
+            syncId: syncId,
+            ledgerId: ledgerId,
+            direction: direction,
+            counterpartyName: counterpartyName,
+            principalAmount: principalAmount,
+            dueAt: dueAt,
+            note: note,
+            closedAt: closedAt,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String?> syncId = const Value.absent(),
+            required int ledgerId,
+            required String direction,
+            required String counterpartyName,
+            required double principalAmount,
+            Value<DateTime?> dueAt = const Value.absent(),
+            Value<String?> note = const Value.absent(),
+            Value<DateTime?> closedAt = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+          }) =>
+              DebtsCompanion.insert(
+            id: id,
+            syncId: syncId,
+            ledgerId: ledgerId,
+            direction: direction,
+            counterpartyName: counterpartyName,
+            principalAmount: principalAmount,
+            dueAt: dueAt,
+            note: note,
+            closedAt: closedAt,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$DebtsTableProcessedTableManager = ProcessedTableManager<
+    _$BeeDatabase,
+    $DebtsTable,
+    Debt,
+    $$DebtsTableFilterComposer,
+    $$DebtsTableOrderingComposer,
+    $$DebtsTableAnnotationComposer,
+    $$DebtsTableCreateCompanionBuilder,
+    $$DebtsTableUpdateCompanionBuilder,
+    (Debt, BaseReferences<_$BeeDatabase, $DebtsTable, Debt>),
+    Debt,
+    PrefetchHooks Function()>;
 
 class $BeeDatabaseManager {
   final _$BeeDatabase _db;
@@ -19262,4 +20146,6 @@ class $BeeDatabaseManager {
       $$CardRewardRulesTableTableManager(_db, _db.cardRewardRules);
   $$TransactionSplitsTableTableManager get transactionSplits =>
       $$TransactionSplitsTableTableManager(_db, _db.transactionSplits);
+  $$DebtsTableTableManager get debts =>
+      $$DebtsTableTableManager(_db, _db.debts);
 }

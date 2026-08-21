@@ -390,6 +390,16 @@ extension SyncEngineSerializationExt on SyncEngine {
         }
         return EntitySerializer.serializeLedger(ledger);
 
+      case 'debt':
+        final debt = await (db.select(db.debts)
+              ..where((t) => t.id.equals(entityId)))
+            .getSingleOrNull();
+        if (debt == null) return <String, dynamic>{};
+        return EntitySerializer.serializeDebt(
+          debt,
+          ledgerSyncId: parentLedgerSyncId,
+        );
+
       default:
         return <String, dynamic>{};
     }
@@ -665,6 +675,29 @@ extension SyncEngineSerializationExt on SyncEngine {
           accountSyncId: ruleAccountSyncId,
           fromAccountSyncId: ruleFromAccountSyncId,
           toAccountSyncId: ruleToAccountSyncId,
+        ),
+        'updated_at': now,
+      });
+    }
+
+    // 借還款(v39):按账本过滤推,不跨账本,同 budget/recurring_rule 同一套模式。
+    final debts = await (db.select(db.debts)
+          ..where((t) => t.ledgerId.equals(ledger.id)))
+        .get();
+    for (final debt in debts) {
+      final syncId = debt.syncId ?? _uuid.v4();
+      if (debt.syncId == null) {
+        await (db.update(db.debts)..where((t) => t.id.equals(debt.id)))
+            .write(DebtsCompanion(syncId: d.Value(syncId)));
+      }
+      syncChanges.add({
+        'ledger_id': ledgerId,
+        'entity_type': 'debt',
+        'entity_sync_id': syncId,
+        'action': 'upsert',
+        'payload': EntitySerializer.serializeDebt(
+          debt,
+          ledgerSyncId: ledger.syncId,
         ),
         'updated_at': now,
       });

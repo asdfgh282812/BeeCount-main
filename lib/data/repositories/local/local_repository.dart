@@ -31,6 +31,8 @@ import 'local_budget_repository.dart';
 import 'local_attachment_repository.dart';
 import 'local_exchange_rate_repository.dart';
 import 'local_card_reward_rule_repository.dart';
+import '../debt_repository.dart';
+import 'local_debt_repository.dart';
 
 /// LocalRepository 本地数据库实现
 /// 基于 Drift 本地数据库实现所有 Repository 接口
@@ -59,6 +61,7 @@ class LocalRepository extends BaseRepository {
   late final LocalAttachmentRepository _attachmentRepo;
   late final LocalExchangeRateRepository _exchangeRateRepo;
   late final LocalCardRewardRuleRepository _cardRewardRuleRepo;
+  late final LocalDebtRepository _debtRepo;
 
   LocalRepository(this.db, {this.changeTracker}) {
     _ledgerRepo = LocalLedgerRepository(db);
@@ -74,6 +77,7 @@ class LocalRepository extends BaseRepository {
     _exchangeRateRepo =
         LocalExchangeRateRepository(db, trackerGetter: () => changeTracker);
     _cardRewardRuleRepo = LocalCardRewardRuleRepository(db);
+    _debtRepo = LocalDebtRepository(db);
   }
 
   // ============================================
@@ -186,11 +190,18 @@ class LocalRepository extends BaseRepository {
       final budgets = await (db.select(db.budgets)
             ..where((b) => b.ledgerId.equals(id)))
           .get();
+      // 借還款(v39)同 budgets 一样是 ledger-scoped 孤儿风险,一并清掉 + 登记。
+      final debtsInLedger = await (db.select(db.debts)
+            ..where((t) => t.ledgerId.equals(id)))
+          .get();
 
       await _ledgerRepo.deleteLedger(id);
       // 顺便把残留的 budgets 一起清,见上面注释。
       if (budgets.isNotEmpty) {
         await (db.delete(db.budgets)..where((b) => b.ledgerId.equals(id))).go();
+      }
+      if (debtsInLedger.isNotEmpty) {
+        await (db.delete(db.debts)..where((t) => t.ledgerId.equals(id))).go();
       }
 
       for (final tx in txs) {
@@ -213,6 +224,16 @@ class LocalRepository extends BaseRepository {
           action: 'delete',
         );
       }
+      for (final debt in debtsInLedger) {
+        if (debt.syncId == null) continue;
+        await changeTracker!.recordLedgerChange(
+          entityType: 'debt',
+          entityId: debt.id,
+          entitySyncId: debt.syncId!,
+          ledgerId: id,
+          action: 'delete',
+        );
+      }
       // ledger_snapshot:delete 用 ledger.syncId 作为 entity_sync_id,server
       // 才能按 external_id 找到对应的 ledger 删掉(server 用 syncId/UUID 做
       // external_id,不是本地 int id)。这点跟 sync_engine._pushAllEntities
@@ -228,7 +249,8 @@ class LocalRepository extends BaseRepository {
       logger.info(
           'LocalRepository',
           'deleteLedger($id) 已登记 ${txs.length} 条 transaction:delete + '
-              '${budgets.length} 条 budget:delete + 1 条 ledger_snapshot:delete '
+              '${budgets.length} 条 budget:delete + ${debtsInLedger.length} 条 '
+              'debt:delete + 1 条 ledger_snapshot:delete '
               '(ledgerSyncId=$ledgerSyncId)');
     });
   }
@@ -377,6 +399,7 @@ class LocalRepository extends BaseRepository {
     List<String>? rewardRuleIds,
     String? recurringRuleId,
     List<TransactionSplitInput>? splits,
+    String? debtSyncId,
   }) async {
     // v30 带折算兜底(02 §六):任何调用方(单币种记账/AI/周期模板)未传两字段
     // 时在此补齐 —— 外币先查有效汇率,取不到才 =amount(命中 L11 检测可捞回)。
@@ -409,6 +432,7 @@ class LocalRepository extends BaseRepository {
       rewardRuleIds: rewardRuleIds,
       recurringRuleId: recurringRuleId,
       splits: splits,
+      debtSyncId: debtSyncId,
     );
     if (changeTracker != null) {
       final tx = await _transactionRepo.getTransactionById(id);
@@ -1035,6 +1059,25 @@ class LocalRepository extends BaseRepository {
     final old = await _transactionRepo.getTransactionById(id);
     await _transactionRepo.setTransactionDeferredPosting(
         id: id, deferredPostingAt: deferredPostingAt);
+    if (changeTracker != null && old?.syncId != null) {
+      await changeTracker!.recordLedgerChange(
+        entityType: 'transaction',
+        entityId: id,
+        entitySyncId: old!.syncId!,
+        ledgerId: old.ledgerId,
+        action: 'update',
+      );
+    }
+  }
+
+  @override
+  Future<void> setTransactionDebtLink({
+    required int id,
+    String? debtSyncId,
+  }) async {
+    final old = await _transactionRepo.getTransactionById(id);
+    await _transactionRepo.setTransactionDebtLink(
+        id: id, debtSyncId: debtSyncId);
     if (changeTracker != null && old?.syncId != null) {
       await changeTracker!.recordLedgerChange(
         entityType: 'transaction',
@@ -2249,14 +2292,49 @@ class LocalRepository extends BaseRepository {
 
   @override
   Future<({double totalAssets, double totalLiabilities, double netWorth})>
-      getNetWorthBreakdown() => _accountRepo.getNetWorthBreakdown();
+      getNetWorthBreakdown() async {
+    final base = await _accountRepo.getNetWorthBreakdown();
+    // 借還款(v39)計入淨資產(對齐 Moze「應收應付款項」彙總帳戶的做法):
+    // receivable 未結餘額算資產,payable 未結餘額算負債。跨所有帳本加總——
+    // accounts 是 user-global 不分帳本,欠款雖是 ledger-scoped 但一樣要納入
+    // 全域淨資產。
+    final debtBalances = await _debtRepo.getDebtBalancesByLedgerForAllLedgers();
+    double receivable = 0, payable = 0;
+    for (final b in debtBalances) {
+      receivable += b.receivableRemaining;
+      payable += b.payableRemaining;
+    }
+    return (
+      totalAssets: base.totalAssets + receivable,
+      totalLiabilities: base.totalLiabilities - payable,
+      netWorth: base.netWorth + receivable - payable,
+    );
+  }
 
   @override
   Future<
           Map<String,
               ({double totalAssets, double totalLiabilities, double netWorth})>>
-      getNetWorthBreakdownByCurrency() =>
-          _accountRepo.getNetWorthBreakdownByCurrency();
+      getNetWorthBreakdownByCurrency() async {
+    final base = await _accountRepo.getNetWorthBreakdownByCurrency();
+    final result = {...base};
+    final debtBalances = await _debtRepo.getDebtBalancesByLedgerForAllLedgers();
+    for (final b in debtBalances) {
+      if (b.receivableRemaining == 0 && b.payableRemaining == 0) continue;
+      final ledger = await (db.select(db.ledgers)
+            ..where((l) => l.id.equals(b.ledgerId)))
+          .getSingleOrNull();
+      final currency = (ledger?.currency ?? 'CNY').toUpperCase();
+      final prev =
+          result[currency] ?? (totalAssets: 0.0, totalLiabilities: 0.0, netWorth: 0.0);
+      result[currency] = (
+        totalAssets: prev.totalAssets + b.receivableRemaining,
+        totalLiabilities: prev.totalLiabilities - b.payableRemaining,
+        netWorth: prev.netWorth + b.receivableRemaining - b.payableRemaining,
+      );
+    }
+    return result;
+  }
 
   @override
   Future<List<({DateTime date, double balance})>> getNetWorthDailyBalances({
@@ -3693,4 +3771,146 @@ class LocalRepository extends BaseRepository {
   Future<void> updateCardRewardRuleSortOrders(
           List<({int id, int sortOrder})> updates) =>
       _cardRewardRuleRepo.updateCardRewardRuleSortOrders(updates);
+
+  // ============================================
+  // DebtRepository 接口实现 - 委托给 LocalDebtRepository
+  // ============================================
+
+  @override
+  Future<int> createDebt({
+    required int ledgerId,
+    required String direction,
+    required String counterpartyName,
+    required double principalAmount,
+    DateTime? dueAt,
+    String? note,
+  }) async {
+    final id = await _debtRepo.createDebt(
+      ledgerId: ledgerId,
+      direction: direction,
+      counterpartyName: counterpartyName,
+      principalAmount: principalAmount,
+      dueAt: dueAt,
+      note: note,
+    );
+    if (changeTracker != null) {
+      final row =
+          await (db.select(db.debts)..where((t) => t.id.equals(id)))
+              .getSingleOrNull();
+      if (row?.syncId != null) {
+        await changeTracker!.recordLedgerChange(
+          entityType: 'debt',
+          entityId: id,
+          entitySyncId: row!.syncId!,
+          ledgerId: ledgerId,
+          action: 'create',
+        );
+      }
+    }
+    return id;
+  }
+
+  @override
+  Future<void> updateDebt(
+    int id, {
+    String? counterpartyName,
+    DateTime? dueAt,
+    bool clearDueAt = false,
+    String? note,
+    bool clearNote = false,
+  }) async {
+    await _debtRepo.updateDebt(
+      id,
+      counterpartyName: counterpartyName,
+      dueAt: dueAt,
+      clearDueAt: clearDueAt,
+      note: note,
+      clearNote: clearNote,
+    );
+    await _recordDebtChange(id, 'update');
+  }
+
+  @override
+  Future<void> closeDebt(int id) async {
+    await _debtRepo.closeDebt(id);
+    await _recordDebtChange(id, 'update');
+  }
+
+  @override
+  Future<void> reopenDebt(int id) async {
+    await _debtRepo.reopenDebt(id);
+    await _recordDebtChange(id, 'update');
+  }
+
+  Future<void> _recordDebtChange(int id, String action) async {
+    if (changeTracker == null) return;
+    final row = await (db.select(db.debts)..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
+    if (row == null || row.syncId == null) return;
+    await changeTracker!.recordLedgerChange(
+      entityType: 'debt',
+      entityId: id,
+      entitySyncId: row.syncId!,
+      ledgerId: row.ledgerId,
+      action: action,
+    );
+  }
+
+  @override
+  Future<void> deleteDebt(int id) async {
+    final target =
+        await (db.select(db.debts)..where((t) => t.id.equals(id)))
+            .getSingleOrNull();
+    if (target == null) return;
+
+    await _debtRepo.deleteDebt(id);
+
+    if (changeTracker != null && target.syncId != null) {
+      await changeTracker!.recordLedgerChange(
+        entityType: 'debt',
+        entityId: target.id,
+        entitySyncId: target.syncId!,
+        ledgerId: target.ledgerId,
+        action: 'delete',
+      );
+    }
+  }
+
+  @override
+  Future<Debt?> getDebt(int id) => _debtRepo.getDebt(id);
+
+  @override
+  Future<Debt?> getDebtBySyncId(String syncId) =>
+      _debtRepo.getDebtBySyncId(syncId);
+
+  @override
+  Future<bool> hasRepayments(int debtId) => _debtRepo.hasRepayments(debtId);
+
+  @override
+  Future<List<Debt>> getAllDebts(int ledgerId) =>
+      _debtRepo.getAllDebts(ledgerId);
+
+  @override
+  Future<List<DebtWithStatus>> getDebtsWithStatus(int ledgerId) =>
+      _debtRepo.getDebtsWithStatus(ledgerId);
+
+  @override
+  Future<DebtWithStatus?> getDebtWithStatus(int id) =>
+      _debtRepo.getDebtWithStatus(id);
+
+  @override
+  Future<List<Transaction>> getDebtRepaymentTransactions(int debtId) =>
+      _debtRepo.getDebtRepaymentTransactions(debtId);
+
+  @override
+  Future<double> getNetDebtBalance(int ledgerId) =>
+      _debtRepo.getNetDebtBalance(ledgerId);
+
+  @override
+  Future<List<({int ledgerId, double receivableRemaining, double payableRemaining})>>
+      getDebtBalancesByLedgerForAllLedgers() =>
+          _debtRepo.getDebtBalancesByLedgerForAllLedgers();
+
+  @override
+  Stream<List<Debt>> watchDebts(int ledgerId) => _debtRepo.watchDebts(ledgerId);
 }

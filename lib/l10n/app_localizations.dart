@@ -15791,6 +15791,282 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{n}d ago'**
   String notificationTimeDaysAgo(int n);
+
+  /// No description provided for @debtsPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Debts'**
+  String get debtsPageTitle;
+
+  /// No description provided for @debtsEmptyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'No debts recorded yet'**
+  String get debtsEmptyMessage;
+
+  /// No description provided for @debtAddButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Debt'**
+  String get debtAddButton;
+
+  /// No description provided for @debtEditTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Debt'**
+  String get debtEditTitle;
+
+  /// No description provided for @debtAddTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Debt'**
+  String get debtAddTitle;
+
+  /// No description provided for @debtDirectionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Direction'**
+  String get debtDirectionLabel;
+
+  /// No description provided for @debtDirectionPayableLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'I owe'**
+  String get debtDirectionPayableLabel;
+
+  /// No description provided for @debtDirectionReceivableLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Owed to me'**
+  String get debtDirectionReceivableLabel;
+
+  /// No description provided for @debtCounterpartyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Counterparty'**
+  String get debtCounterpartyLabel;
+
+  /// No description provided for @debtCounterpartyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Who is this with?'**
+  String get debtCounterpartyHint;
+
+  /// No description provided for @debtPrincipalAmountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Principal'**
+  String get debtPrincipalAmountLabel;
+
+  /// No description provided for @debtPrincipalAmountHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter amount'**
+  String get debtPrincipalAmountHint;
+
+  /// No description provided for @debtDueDateLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Due Date'**
+  String get debtDueDateLabel;
+
+  /// No description provided for @debtDueDateNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No due date'**
+  String get debtDueDateNone;
+
+  /// No description provided for @debtDueDateClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear due date'**
+  String get debtDueDateClear;
+
+  /// No description provided for @debtNoteLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Note'**
+  String get debtNoteLabel;
+
+  /// No description provided for @debtStatusOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get debtStatusOpen;
+
+  /// No description provided for @debtStatusPartial.
+  ///
+  /// In en, this message translates to:
+  /// **'Partial'**
+  String get debtStatusPartial;
+
+  /// No description provided for @debtStatusSettled.
+  ///
+  /// In en, this message translates to:
+  /// **'Settled'**
+  String get debtStatusSettled;
+
+  /// No description provided for @debtStatusClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'Closed'**
+  String get debtStatusClosed;
+
+  /// No description provided for @debtRemainingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Remaining'**
+  String get debtRemainingLabel;
+
+  /// No description provided for @debtRepaidLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Repaid'**
+  String get debtRepaidLabel;
+
+  /// No description provided for @debtRepayButtonPayable.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay'**
+  String get debtRepayButtonPayable;
+
+  /// No description provided for @debtRepayButtonReceivable.
+  ///
+  /// In en, this message translates to:
+  /// **'Collect'**
+  String get debtRepayButtonReceivable;
+
+  /// No description provided for @debtCloseButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get debtCloseButton;
+
+  /// No description provided for @debtReopenButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Reopen'**
+  String get debtReopenButton;
+
+  /// No description provided for @debtCloseConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Close this debt?'**
+  String get debtCloseConfirmTitle;
+
+  /// No description provided for @debtCloseConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The remaining balance will no longer be tracked. You can reopen it later.'**
+  String get debtCloseConfirmMessage;
+
+  /// No description provided for @debtDeleteConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this debt? This can\'t be undone.'**
+  String get debtDeleteConfirmMessage;
+
+  /// No description provided for @debtDeleteBlockedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This debt has repayment records and can\'t be deleted'**
+  String get debtDeleteBlockedMessage;
+
+  /// No description provided for @debtSaveSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get debtSaveSuccess;
+
+  /// No description provided for @debtDeleteSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted'**
+  String get debtDeleteSuccess;
+
+  /// No description provided for @debtRepaymentPageTitlePayable.
+  ///
+  /// In en, this message translates to:
+  /// **'Record Payment'**
+  String get debtRepaymentPageTitlePayable;
+
+  /// No description provided for @debtRepaymentPageTitleReceivable.
+  ///
+  /// In en, this message translates to:
+  /// **'Record Collection'**
+  String get debtRepaymentPageTitleReceivable;
+
+  /// No description provided for @debtRepaymentAccountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get debtRepaymentAccountLabel;
+
+  /// No description provided for @debtRepaymentDateLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Date'**
+  String get debtRepaymentDateLabel;
+
+  /// No description provided for @debtRepaymentNoteLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Note'**
+  String get debtRepaymentNoteLabel;
+
+  /// No description provided for @debtRepaymentSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Recorded'**
+  String get debtRepaymentSuccess;
+
+  /// No description provided for @debtRepaymentRecordsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Repayment Records'**
+  String get debtRepaymentRecordsLabel;
+
+  /// No description provided for @debtRepaymentRecordsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No repayments yet'**
+  String get debtRepaymentRecordsEmpty;
+
+  /// No description provided for @debtRepaymentAccountRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select an account'**
+  String get debtRepaymentAccountRequired;
+
+  /// No description provided for @debtRepaymentAmountInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a valid amount'**
+  String get debtRepaymentAmountInvalid;
+
+  /// No description provided for @accountsDebtEntryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Debts'**
+  String get accountsDebtEntryTitle;
+
+  /// No description provided for @accountsDebtEntryNetReceivable.
+  ///
+  /// In en, this message translates to:
+  /// **'Net receivable'**
+  String get accountsDebtEntryNetReceivable;
+
+  /// No description provided for @accountsDebtEntryNetPayable.
+  ///
+  /// In en, this message translates to:
+  /// **'Net payable'**
+  String get accountsDebtEntryNetPayable;
+
+  /// No description provided for @accountsDebtEntryBalanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Settled'**
+  String get accountsDebtEntryBalanced;
 }
 
 class _AppLocalizationsDelegate

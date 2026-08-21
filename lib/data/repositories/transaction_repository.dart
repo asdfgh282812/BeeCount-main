@@ -234,6 +234,10 @@ abstract class TransactionRepository {
     // TransactionSplits。null/空列表 = 普通單分類交易。呼叫方(表單)負責先
     // 驗證 ≥2 筆、金額和等於 amount、type 為 expense/income。
     List<TransactionSplitInput>? splits,
+    // v39 借還款:這筆交易是某個 Debt 的還款/收款時,存該欠款的 syncId。
+    // 只在新建時填(還款對話框/交易表單「關聯欠款」建立新交易時);既有交易
+    // 改連結走 [setTransactionDebtLink]。
+    String? debtSyncId,
   });
 
   /// 批量新增交易，单事务内插入，返回插入条数。
@@ -368,6 +372,13 @@ abstract class TransactionRepository {
   Future<void> setTransactionDeferredPosting({
     required int id,
     DateTime? deferredPostingAt,
+  });
+
+  /// 設定/清除這筆交易的欠款關聯(v39 借還款,交易表單「關聯欠款」下拉用)。
+  /// [debtSyncId]=null 代表取消關聯。
+  Future<void> setTransactionDebtLink({
+    required int id,
+    String? debtSyncId,
   });
 
   /// 對帳模式選單「取消全部選取」:批次把一組交易的 reconciledAt 清空

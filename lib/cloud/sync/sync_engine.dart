@@ -12,6 +12,8 @@ import 'package:uuid/uuid.dart';
 
 import '../../data/db.dart';
 import '../../data/repositories/base_repository.dart';
+import '../../data/repositories/debt_repository.dart'
+    show kDebtDirectionPayable;
 import '../../services/custom_icon_service.dart';
 import '../../services/system/logger_service.dart';
 import '../../services/ui/avatar_service.dart';

@@ -25,6 +25,7 @@ import '../../widgets/charts/asset_composition_chart.dart';
 import '../../widgets/charts/line_chart.dart';
 import '../../utils/net_worth_trend_utils.dart';
 import '../currency/exchange_rate_page.dart';
+import '../debt/debt_list_page.dart';
 import 'account_edit_page.dart';
 import 'account_detail_page.dart';
 import 'net_worth_trend_page.dart';
@@ -224,6 +225,11 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                       _buildNetWorthAndCompositionCard(
                         context, ref, netWorthByCurrencyAsync, compositionAsync, primaryColor,
                       ),
+
+                      // 1. 借還款虛擬入口(v39,純 UI——不是真帳戶,不走 Accounts
+                      // 表的同步流程,對齐 doc.moze.app/record/payables-receivables
+                      // 「應收應付款項」彙總帳戶的呈現方式)。
+                      const _DebtEntryCard(),
 
                       // 2. 资产账户分组
                       ..._buildClassificationSection(
@@ -2893,6 +2899,103 @@ class _BeeAssetsHeaderEntry extends StatelessWidget {
       onPressed: () => ProductPromoLauncher.open(context, info, texts),
       tooltip: info.title,
       icon: const Icon(Icons.auto_awesome_outlined),
+    );
+  }
+}
+
+/// 借還款虛擬入口卡片(v39)。純 UI——不是真的 [db.Account] row,不會出現在
+/// Accounts 表、不走帳戶同步流程。餘額用 [netDebtBalanceAllLedgersProvider]
+/// 即時算(跨所有帳本,對齐上面淨資產卡的聚合範圍),點擊導到 [DebtListPage]
+/// (該頁本身是 ledger-scoped,只顯示當前帳本的欠款——虛擬入口卡片本身是
+/// 全域彙總,兩者範圍不同是刻意的,同 Moze「應收應付款項」彙總帳戶只是個
+/// 導覽入口的角色一致)。
+class _DebtEntryCard extends ConsumerWidget {
+  const _DebtEntryCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final netAsync = ref.watch(netDebtBalanceAllLedgersProvider);
+    final currencyCode =
+        ref.watch(currentLedgerProvider).asData?.value?.currency ?? 'CNY';
+    final currencySymbol = getCurrencySymbol(currencyCode);
+
+    return Padding(
+      padding: EdgeInsets.only(top: 8.0.scaled(context, ref)),
+      child: SectionCard(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(BeeDimens.radius12),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const DebtListPage()),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.handshake_outlined,
+                    size: 20, color: Theme.of(context).colorScheme.primary),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  l10n.accountsDebtEntryTitle,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: BeeTokens.textPrimary(context),
+                  ),
+                ),
+              ),
+              netAsync.when(
+                data: (net) {
+                  if (net.abs() < 0.01) {
+                    return Text(
+                      l10n.accountsDebtEntryBalanced,
+                      style: TextStyle(
+                          fontSize: 13, color: BeeTokens.textTertiary(context)),
+                    );
+                  }
+                  final isReceivable = net > 0;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '$currencySymbol${net.abs().toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: isReceivable
+                              ? BeeTokens.incomeColor(context, ref)
+                              : BeeTokens.expenseColor(context, ref),
+                        ),
+                      ),
+                      Text(
+                        isReceivable
+                            ? l10n.accountsDebtEntryNetReceivable
+                            : l10n.accountsDebtEntryNetPayable,
+                        style: TextStyle(
+                            fontSize: 11, color: BeeTokens.textTertiary(context)),
+                      ),
+                    ],
+                  );
+                },
+                loading: () => const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2)),
+                error: (_, __) => const SizedBox.shrink(),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.chevron_right, color: BeeTokens.iconTertiary(context)),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

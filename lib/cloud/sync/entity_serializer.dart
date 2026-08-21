@@ -106,6 +106,11 @@ class EntitySerializer {
       // 這個動作永遠同步不出去。
       'reconciledAt': tx.reconciledAt?.toUtc().toIso8601String(),
       'deferredPostingAt': tx.deferredPostingAt?.toUtc().toIso8601String(),
+      // v39 借還款:這筆交易關聯的 Debt syncId。恒發(同 reconciledAt)——
+      // 交易表單「關聯欠款」下拉的取消連結是明確動作([setTransactionDebtLink]
+      // 傳 null),必須讓 null 能傳達給 server。BeeCount Cloud 端字段是
+      // read_tx_projection.debt_sync_id,wire 字段名 debtId。
+      'debtId': tx.debtSyncId,
     };
   }
 
@@ -331,6 +336,35 @@ class EntitySerializer {
       if (rule.advancedRuleJson != null && rule.advancedRuleJson!.isNotEmpty)
         'advancedRuleJson': jsonDecode(rule.advancedRuleJson!),
       'rewardRuleIds': rule.rewardRuleIds,
+    };
+  }
+
+  // ==================== Debt ====================
+
+  /// 借還款(v39,對齐 BeeCount Cloud `debt` sync entity)。ledger-scope,
+  /// 跟 [serializeBudget] 同款「全量帶上當下值」語意。
+  ///
+  /// **dueAt / note / closedAt 恒發**(同 reconciledAt/deferredPostingAt 那組
+  /// 慣例)——這三個欄位都有明確的清空動作([DebtRepository.updateDebt] 的
+  /// clearDueAt/clearNote、[DebtRepository.reopenDebt]),省略或只在非 null
+  /// 時才發會讓「清空/重開」這個動作永遠同步不出去。direction /
+  /// counterpartyName / principalAmount 建立後不可改,恒為當下值,不需要
+  /// null 判斷。對齐 BeeCount Cloud `sync_applier.py::_LEDGER_MERGE_SPECS
+  /// ["debt"]`——改欄位前先去那邊核對,一字之差會讓整個欄位靜默同步失敗。
+  static Map<String, dynamic> serializeDebt(
+    Debt debt, {
+    String? ledgerSyncId,
+  }) {
+    return {
+      'syncId': debt.syncId,
+      if (ledgerSyncId != null && ledgerSyncId.isNotEmpty)
+        'ledgerSyncId': ledgerSyncId,
+      'direction': debt.direction,
+      'counterpartyName': debt.counterpartyName,
+      'principalAmount': debt.principalAmount,
+      'dueAt': debt.dueAt?.toUtc().toIso8601String(),
+      'note': debt.note,
+      'closedAt': debt.closedAt?.toUtc().toIso8601String(),
     };
   }
 

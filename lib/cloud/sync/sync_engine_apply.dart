@@ -48,6 +48,9 @@ extension SyncEngineApplyExt on SyncEngine {
       case 'ledger':
         await _applyLedgerChange(change);
         return true;
+      case 'debt':
+        await _applyDebtChange(change);
+        return true;
       case 'ledger_snapshot':
         // 全量快照在 fullPull 中处理，这里跳过
         return false;
@@ -293,6 +296,12 @@ extension SyncEngineApplyExt on SyncEngine {
         ? DateTime.tryParse(deferredPostingAtStr)
         : null;
 
+    // v39 借還款:debtId(存 Debt 的 syncId)。跟 reconciledAt 同款「恒发/缺键
+    // 不覆盖」——交易表單「關聯欠款」下拉的取消連結會顯式傳 null,必須能把
+    // 本地已有的關聯清空,不能被舊客戶端缺這個鍵的 payload 誤觸發清空。
+    final hasDebtIdKey = payload.containsKey('debtId');
+    final debtSyncId = hasDebtIdKey ? payload['debtId'] as String? : null;
+
     if (existingId != null) {
       // 更新 — createdByUserId 走"本地为 null 就回填,否则保持"的策略。
       final shouldBackfillCreator =
@@ -357,6 +366,8 @@ extension SyncEngineApplyExt on SyncEngine {
             : const d.Value.absent(),
         hasSplits:
             hasSplitsKey ? d.Value(txHasSplits) : const d.Value.absent(),
+        debtSyncId:
+            hasDebtIdKey ? d.Value(debtSyncId) : const d.Value.absent(),
       ));
       // 更新标签、附件、拆帳明細(existing 路径)
       await _syncTransactionTags(existingId, syncId, payload);
@@ -397,6 +408,7 @@ extension SyncEngineApplyExt on SyncEngine {
               reconciledAt: d.Value(reconciledAt),
               deferredPostingAt: d.Value(deferredPostingAt),
               hasSplits: d.Value(txHasSplits),
+              debtSyncId: d.Value(debtSyncId),
             ),
           );
       // 写回 cache,后续同 syncId 的 update change 能命中
@@ -903,6 +915,79 @@ extension SyncEngineApplyExt on SyncEngine {
             syncId: d.Value(syncId),
           ));
       logger.debug('SyncEngine', 'pull: 新增预算 $syncId');
+    }
+  }
+
+  /// 應用借還款(v39,對齐 BeeCount Cloud debt entity)变更。对齐
+  /// [_applyBudgetChange]:按 syncId upsert,delete 走同样的路径。ledger 的
+  /// 外键在 payload 里以 syncId 形式带来,用 _resolveLedgerIdBySyncId 换成
+  /// 本地 int id。dueAt/note/closedAt 恒發(见 entity_serializer.dart
+  /// serializeDebt 的注释),这里无条件覆盖,不做 containsKey 保護。
+  Future<void> _applyDebtChange(BeeCountCloudSyncChange change) async {
+    final syncId = change.entitySyncId;
+
+    if (change.action == 'delete') {
+      final existing = await (db.select(db.debts)
+            ..where((t) => t.syncId.equals(syncId)))
+          .getSingleOrNull();
+      if (existing != null) {
+        await (db.delete(db.debts)..where((t) => t.id.equals(existing.id)))
+            .go();
+        logger.debug('SyncEngine', 'pull: 删除欠款 $syncId');
+      }
+      return;
+    }
+
+    // upsert
+    final payload = change.payload!;
+    final ledgerSyncId = payload['ledgerSyncId'] as String?;
+    final direction =
+        payload['direction'] as String? ?? kDebtDirectionPayable;
+    final counterpartyName = payload['counterpartyName'] as String? ?? '';
+    final principalAmount =
+        (payload['principalAmount'] as num?)?.toDouble() ?? 0.0;
+    final dueAtStr = payload['dueAt'] as String?;
+    final dueAt = dueAtStr != null ? DateTime.tryParse(dueAtStr) : null;
+    final note = payload['note'] as String?;
+    final closedAtStr = payload['closedAt'] as String?;
+    final closedAt = closedAtStr != null ? DateTime.tryParse(closedAtStr) : null;
+
+    final localLedgerId = await _resolveLedgerIdBySyncId(ledgerSyncId);
+    if (localLedgerId == null) {
+      logger.info('SyncEngine',
+          'pull: 欠款 $syncId 的 ledgerSyncId=$ledgerSyncId 本地未就绪,跳过');
+      return;
+    }
+
+    final existing = await (db.select(db.debts)
+          ..where((t) => t.syncId.equals(syncId)))
+        .getSingleOrNull();
+
+    if (existing != null) {
+      await (db.update(db.debts)..where((t) => t.id.equals(existing.id)))
+          .write(DebtsCompanion(
+        ledgerId: d.Value(localLedgerId),
+        direction: d.Value(direction),
+        counterpartyName: d.Value(counterpartyName),
+        principalAmount: d.Value(principalAmount),
+        dueAt: d.Value(dueAt),
+        note: d.Value(note),
+        closedAt: d.Value(closedAt),
+        updatedAt: d.Value(DateTime.now()),
+      ));
+      logger.debug('SyncEngine', 'pull: 更新欠款 $syncId');
+    } else {
+      await db.into(db.debts).insert(DebtsCompanion.insert(
+            ledgerId: localLedgerId,
+            direction: direction,
+            counterpartyName: counterpartyName,
+            principalAmount: principalAmount,
+            dueAt: d.Value(dueAt),
+            note: d.Value(note),
+            closedAt: d.Value(closedAt),
+            syncId: d.Value(syncId),
+          ));
+      logger.debug('SyncEngine', 'pull: 新增欠款 $syncId');
     }
   }
 
