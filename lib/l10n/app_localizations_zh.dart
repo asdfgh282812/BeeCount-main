@@ -8580,6 +8580,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get debtRepaymentAmountInvalid => 'Please enter a valid amount';
 
   @override
+  String get pendingAccountPageTitle => 'Accounts to Confirm';
+
+  @override
+  String get pendingAccountEmptyMessage => 'Nothing to confirm';
+
+  @override
+  String get pendingAccountEntryCardTitle => 'Accounts to Confirm';
+
+  @override
+  String get pendingAccountAssignSuccess => 'Account set';
+
+  @override
   String get accountsDebtEntryTitle => 'Debts';
 
   @override
@@ -17151,6 +17163,18 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get debtRepaymentAmountInvalid => '請輸入有效金額';
+
+  @override
+  String get pendingAccountPageTitle => '待確認帳戶';
+
+  @override
+  String get pendingAccountEmptyMessage => '沒有待確認的交易';
+
+  @override
+  String get pendingAccountEntryCardTitle => '待確認帳戶';
+
+  @override
+  String get pendingAccountAssignSuccess => '已設定帳戶';
 
   @override
   String get accountsDebtEntryTitle => '借還款';

@@ -26,9 +26,11 @@ import '../../widgets/charts/line_chart.dart';
 import '../../utils/net_worth_trend_utils.dart';
 import '../currency/exchange_rate_page.dart';
 import '../debt/debt_list_page.dart';
+import '../../providers/pending_account_providers.dart';
 import 'account_edit_page.dart';
 import 'account_detail_page.dart';
 import 'net_worth_trend_page.dart';
+import 'pending_account_transactions_page.dart';
 
 class AccountsPage extends ConsumerStatefulWidget {
   final bool asTab;
@@ -230,6 +232,34 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                       // 表的同步流程,對齐 doc.moze.app/record/payables-receivables
                       // 「應收應付款項」彙總帳戶的呈現方式)。
                       const _DebtEntryCard(),
+
+                      // 1.5 待確認帳戶入口(v40)——只有帳本裡存在
+                      // needsAccountAssignment 的交易時才顯示,點擊進
+                      // PendingAccountTransactionsPage 逐筆補選帳戶。
+                      Consumer(
+                        builder: (context, ref, _) {
+                          final pendingLedgerId =
+                              ref.watch(currentLedgerIdProvider);
+                          final pending = ref.watch(
+                              pendingAccountTransactionsProvider(
+                                  pendingLedgerId));
+                          final count = pending.asData?.value.length ?? 0;
+                          if (count == 0) return const SizedBox.shrink();
+                          return Card(
+                            child: ListTile(
+                              leading: const Icon(
+                                  Icons.account_balance_wallet_outlined),
+                              title: Text(l10n.pendingAccountEntryCardTitle),
+                              trailing: Text('$count'),
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                    builder: (_) =>
+                                        const PendingAccountTransactionsPage()),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
 
                       // 2. 资产账户分组
                       ..._buildClassificationSection(

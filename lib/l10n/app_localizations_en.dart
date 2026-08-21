@@ -8899,6 +8899,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get debtRepaymentAmountInvalid => 'Please enter a valid amount';
 
   @override
+  String get pendingAccountPageTitle => 'Accounts to Confirm';
+
+  @override
+  String get pendingAccountEmptyMessage => 'Nothing to confirm';
+
+  @override
+  String get pendingAccountEntryCardTitle => 'Accounts to Confirm';
+
+  @override
+  String get pendingAccountAssignSuccess => 'Account set';
+
+  @override
   String get accountsDebtEntryTitle => 'Debts';
 
   @override

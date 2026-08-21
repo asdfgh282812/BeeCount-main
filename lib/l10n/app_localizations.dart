@@ -16062,6 +16062,30 @@ abstract class AppLocalizations {
   /// **'Please enter a valid amount'**
   String get debtRepaymentAmountInvalid;
 
+  /// No description provided for @pendingAccountPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Accounts to Confirm'**
+  String get pendingAccountPageTitle;
+
+  /// No description provided for @pendingAccountEmptyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to confirm'**
+  String get pendingAccountEmptyMessage;
+
+  /// No description provided for @pendingAccountEntryCardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Accounts to Confirm'**
+  String get pendingAccountEntryCardTitle;
+
+  /// No description provided for @pendingAccountAssignSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Account set'**
+  String get pendingAccountAssignSuccess;
+
   /// No description provided for @accountsDebtEntryTitle.
   ///
   /// In en, this message translates to:
