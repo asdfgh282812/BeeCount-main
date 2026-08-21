@@ -555,7 +555,6 @@ class _RecurringRuleEditorPageState
       selectedAccountId: _isTransfer
           ? (isFrom ? _fromAccountId : _toAccountId)
           : _accountId,
-      allowNull: false,
       excludeAccountId: _isTransfer
           ? (isFrom ? _toAccountId : _fromAccountId)
           : null,

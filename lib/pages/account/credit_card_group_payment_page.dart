@@ -104,7 +104,6 @@ class _CreditCardGroupPaymentPageState
       selectedAccountId: _fromAccountId,
       filterCurrency: widget.currencyCode,
       excludeAccountId: widget.account.id,
-      allowNull: false,
     );
     final accountId = result?.accountId;
     if (accountId == null) return;

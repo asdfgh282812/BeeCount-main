@@ -19,12 +19,9 @@ import 'amount_text.dart';
 ///
 /// 點一行直接選定並關閉(bottom sheet 慣用互動),不需要額外確認鍵。
 ///
-/// [show] 回傳 `AccountPickResult?`——包一層是為了讓「取消/滑動關閉」跟
-/// 「明確選了『不選擇帳戶』」可以區分:前者回傳 `null`(呼叫端維持原本
-/// 選擇不變),後者回傳 `AccountPickResult(null)`(呼叫端明確清空帳戶)。
-/// 如果直接用裸的 `int?` 當回傳型別,這兩種情況會被 `showModalBottomSheet`
-/// 的預設「關閉且未 pop 值 → 回傳 null」行為混為一談,滑動關閉會被誤判成
-/// 使用者主動清空帳戶。
+/// [show] 回傳 `AccountPickResult?`——`null` 代表使用者取消/滑動關閉(呼叫端
+/// 維持原本選擇不變),`AccountPickResult(<id>)` 代表選了一個真實帳戶。這個
+/// picker 不再提供「不選擇帳戶」選項(交易必須有帳戶)。
 class AccountPickResult {
   final int? accountId;
   const AccountPickResult(this.accountId);
@@ -37,7 +34,6 @@ class AccountCardPicker {
     int? selectedAccountId,
     String? filterCurrency,
     int? pinnedAccountId,
-    bool allowNull = true,
     // 转账页排除对侧已选的账户(不能转出/转入同一个账户)。
     int? excludeAccountId,
   }) {
@@ -53,7 +49,6 @@ class AccountCardPicker {
         selectedAccountId: selectedAccountId,
         filterCurrency: filterCurrency,
         pinnedAccountId: pinnedAccountId,
-        allowNull: allowNull,
         excludeAccountId: excludeAccountId,
       ),
     );
@@ -65,7 +60,6 @@ class _AccountCardPickerSheet extends ConsumerStatefulWidget {
   final int? selectedAccountId;
   final String? filterCurrency;
   final int? pinnedAccountId;
-  final bool allowNull;
   final int? excludeAccountId;
 
   const _AccountCardPickerSheet({
@@ -73,7 +67,6 @@ class _AccountCardPickerSheet extends ConsumerStatefulWidget {
     this.selectedAccountId,
     this.filterCurrency,
     this.pinnedAccountId,
-    this.allowNull = true,
     this.excludeAccountId,
   });
 
@@ -191,8 +184,6 @@ class _AccountCardPickerSheetState
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (widget.allowNull)
-                            _buildNoneRow(context, primaryColor),
                           for (final entry in _groupByType(_accounts).entries)
                             _AccountTypeSection(
                               type: entry.key,
@@ -209,36 +200,6 @@ class _AccountCardPickerSheetState
                     ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNoneRow(BuildContext context, Color primaryColor) {
-    final l10n = AppLocalizations.of(context);
-    final isSelected = widget.selectedAccountId == null;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Container(
-        decoration: BoxDecoration(
-          color: BeeTokens.surfaceElevated(context),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: BeeTokens.cardOuterBorderColor(context)),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Material(
-          color: Colors.transparent,
-          child: ListTile(
-            leading: Icon(Icons.remove_circle_outline,
-                color: BeeTokens.iconSecondary(context)),
-            title: Text(
-              l10n.accountNone,
-              style: TextStyle(color: BeeTokens.textPrimary(context)),
-            ),
-            trailing:
-                isSelected ? Icon(Icons.check, color: primaryColor) : null,
-            onTap: () => Navigator.pop(context, const AccountPickResult(null)),
-          ),
         ),
       ),
     );

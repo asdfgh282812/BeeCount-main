@@ -4,7 +4,6 @@
 /// 覆蓋:
 /// - 依帳本幣種 + 可交易類型過濾,分組顯示。
 /// - 點一行直接回傳該帳戶 id 並關閉。
-/// - allowNull=true 時「不選擇帳戶」回傳 `AccountPickResult(null)`。
 /// - 取消(不透過任何選項關閉)回傳 `null`,不等於「明確選了不選擇帳戶」
 ///   ——呼叫端要能區分「使用者放棄操作」跟「使用者主動清空帳戶」。
 import 'package:drift/native.dart';
@@ -92,6 +91,7 @@ void main() {
     expect(find.text('现金'), findsNWidgets(3));
     expect(find.text('招行卡'), findsOneWidget);
     expect(find.text('美元户'), findsNothing); // 币种不符,过滤掉
+    expect(find.text('不选择账户'), findsNothing);
 
     await tester.tap(find.text('招行卡'));
     await tester.pumpAndSettle();
@@ -106,24 +106,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('信用卡分组'), findsNothing);
-  });
-
-  testWidgets('點「不選擇帳戶」明確回傳 AccountPickResult(null)', (tester) async {
-    AccountPickResult? picked;
-    var called = false;
-    await tester.pumpWidget(host((r) {
-      picked = r;
-      called = true;
-    }));
-    await tester.tap(find.text('open'));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('不选择账户'));
-    await tester.pumpAndSettle();
-
-    expect(called, true);
-    expect(picked, isNotNull);
-    expect(picked!.accountId, null);
   });
 
   testWidgets('點「取消」回傳 null(而不是 AccountPickResult(null))', (tester) async {

@@ -766,7 +766,6 @@ class _CardRewardRuleEditorPageState
       context,
       ledgerId: ledgerId,
       selectedAccountId: _rewardAccountId,
-      allowNull: false,
     );
     if (result == null || result.accountId == null) return;
     setState(() {

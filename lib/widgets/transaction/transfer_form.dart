@@ -228,7 +228,6 @@ class TransferFormState extends ConsumerState<TransferForm>
       filterCurrency: currency,
       pinnedAccountId:
           isFrom ? widget.initialFromAccountId : widget.initialToAccountId,
-      allowNull: false,
       excludeAccountId: isFrom ? _toAccountId : _fromAccountId,
     );
     if (result == null || !mounted) return;
