@@ -15,6 +15,7 @@ import '../ai/providers/ai_provider_manager.dart';
 import '../ai/providers/ai_provider_config.dart';
 import '../services/billing/post_processor.dart';
 import '../services/data/tag_seed_service.dart';
+import '../widgets/biz/account_card_picker.dart';
 import '../widgets/ui/ui.dart';
 import '../styles/tokens.dart';
 
@@ -454,6 +455,12 @@ class _VoiceRecordingDialogState extends ConsumerState<_VoiceRecordingDialog> {
           TagSeedService.billingTypeAi,
         ],
         l10n: l10n,
+        resolveMissingAccount: (bill) async {
+          if (!mounted) return null;
+          final picked = await AccountCardPicker.show(context,
+              ledgerId: currentLedger.id);
+          return picked?.accountId;
+        },
       );
 
       if (!mounted) return;
@@ -486,11 +493,21 @@ class _VoiceRecordingDialogState extends ConsumerState<_VoiceRecordingDialog> {
           : l10n.voiceRecordingSuccess;
       // 多币种降级提示(A5):缺汇率已按 1:1 暂记,指路统计页补折算
       final unconverted = response.result.unconvertedCurrencies;
+      final rateMissingHint = unconverted.isEmpty
+          ? null
+          : l10n.aiBillingRateMissingHint(unconverted.join('、'));
+      // 缺帳戶且使用者取消選擇時被主動略過的筆數
+      final accountSkippedHint =
+          response.result.skippedForMissingAccountCount <= 0
+              ? null
+              : l10n.aiBillingAccountSkippedHint(
+                  response.result.skippedForMissingAccountCount);
+      final note = [rateMissingHint, accountSkippedHint]
+          .whereType<String>()
+          .join('\n');
       showToast(
         context,
-        unconverted.isEmpty
-            ? toast
-            : '$toast\n${l10n.aiBillingRateMissingHint(unconverted.join('、'))}',
+        note.isEmpty ? toast : '$toast\n$note',
       );
     } catch (e) {
       if (!mounted) return;
