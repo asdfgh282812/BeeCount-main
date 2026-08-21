@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,8 +9,10 @@ import '../../ai/core/prompt_builder.dart';
 import '../../ai/providers/ai_provider_config.dart';
 import '../../ai/providers/ai_provider_manager.dart';
 import '../../l10n/app_localizations.dart';
+import '../../pages/account/pending_account_transactions_page.dart';
 import '../../providers.dart';
 import '../../providers/ai_chat_providers.dart';
+import '../../utils/global_navigator_key.dart';
 import '../ai/bookkeeping_result.dart';
 import '../attachment_service.dart';
 import '../billing/post_processor.dart';
@@ -67,10 +70,25 @@ class AutoBillingService {
 
     // 同 _showNotification:通知子系统任何异常都不允许影响记账主流程
     try {
-      await _notificationsPlugin.initialize(initSettings);
+      await _notificationsPlugin.initialize(
+        initSettings,
+        onDidReceiveNotificationResponse: _onNotificationTapped,
+      );
     } catch (e) {
       logger.warning('AutoBilling', '通知初始化失败(仅影响进度通知,不影响记账): $e');
     }
+  }
+
+  /// 通知點擊:目前只有「待確認帳戶」通知會帶 payload('pending_account'),
+  /// 點了就導去待確認帳戶列表頁;其他通知沒有 payload,點擊不做任何事
+  /// (維持原有行為——之前完全沒有 tap 處理)。
+  void _onNotificationTapped(NotificationResponse response) {
+    if (response.payload != 'pending_account') return;
+    globalNavigatorKey.currentState?.push(
+      MaterialPageRoute(
+        builder: (_) => const PendingAccountTransactionsPage(),
+      ),
+    );
   }
 
   /// 加载已处理的截图列表
@@ -320,11 +338,17 @@ class AutoBillingService {
       if (showNotification) {
         final l10n =
             lookupAppLocalizations(PlatformDispatcher.instance.locale);
+        final pending = await _container
+            .read(repositoryProvider)
+            .getTransactionsNeedingAccountAssignment(ledgerId);
         await _showFinalNotification(
           progressId: notificationId,
           finalId: resultNotificationId,
           title: _successTitle(result, l10n),
-          body: _successBody(result, l10n),
+          body: pending.isEmpty
+              ? _successBody(result, l10n)
+              : l10n.autoBillingNotifyPendingAccountBody,
+          payload: pending.isEmpty ? null : 'pending_account',
         );
       }
       logger.info('AutoBilling', '自动记账成功',
@@ -436,11 +460,17 @@ class AutoBillingService {
       await PostProcessor.runC(_container, ledgerId: ledgerId, tags: true);
 
       if (showNotification) {
+        final pending = await _container
+            .read(repositoryProvider)
+            .getTransactionsNeedingAccountAssignment(ledgerId);
         await _showFinalNotification(
           progressId: notificationId,
           finalId: resultNotificationId,
           title: _successTitle(result, l10n),
-          body: _successBody(result, l10n),
+          body: pending.isEmpty
+              ? _successBody(result, l10n)
+              : l10n.autoBillingNotifyPendingAccountBody,
+          payload: pending.isEmpty ? null : 'pending_account',
         );
       }
       return result.firstTransactionId;
@@ -494,6 +524,7 @@ class AutoBillingService {
     required int id,
     required String title,
     required String body,
+    String? payload,
   }) async {
     const androidDetails = AndroidNotificationDetails(
       'screenshot_ocr',
@@ -511,7 +542,8 @@ class AutoBillingService {
     );
 
     try {
-      await _notificationsPlugin.show(id, title, body, details);
+      await _notificationsPlugin.show(id, title, body, details,
+          payload: payload);
     } catch (e) {
       logger.warning('AutoBilling',
           '通知发送失败(未授权通知时属预期,不中断记账流程): $e');
@@ -534,8 +566,10 @@ class AutoBillingService {
     required int finalId,
     required String title,
     required String body,
+    String? payload,
   }) async {
-    await _showNotification(id: finalId, title: title, body: body);
+    await _showNotification(
+        id: finalId, title: title, body: body, payload: payload);
   }
 
   /// 释放资源(AI 服务无 native handle,不需要 dispose,保留方法以备后续添加)

@@ -15,6 +15,7 @@ import 'providers/font_scale_provider.dart';
 import 'providers/cloud_mode_providers.dart';
 import 'providers/ui_state_providers.dart';
 import 'utils/notification_factory.dart';
+import 'utils/global_navigator_key.dart';
 import 'pages/auth/splash_page.dart';
 import 'pages/auth/welcome_page.dart';
 import 'pages/auth/app_lock_screen.dart';
@@ -34,11 +35,6 @@ import 'dart:ui';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-
-/// 全局 navigator key — 给 service 层(没有 BuildContext)push 路由使用。
-/// 当前用途:BeeCount Cloud 登录拿到 requires_2fa 时弹出 [Login2FAChallengeView]。
-final GlobalKey<NavigatorState> globalNavigatorKey =
-    GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

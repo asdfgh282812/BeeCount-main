@@ -201,6 +201,7 @@
     "placeholders": { "note": { "type": "String" } }
   },
   "autoBillingNotifySuccessSingleBodyDefault": "已自動建立記錄",
+  "autoBillingNotifyPendingAccountBody": "點擊選擇這筆交易的帳戶",
   "aiOcrNoLedger": "未找到帳本",
   "aiOcrRecognizing": "正在識別帳單...",
   "aiOcrSuccess": "✅ {type}帳單建立成功 ¥{amount}",

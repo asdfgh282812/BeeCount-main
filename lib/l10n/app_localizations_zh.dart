@@ -4471,6 +4471,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get autoBillingNotifySuccessSingleBodyDefault => '已自动创建记录';
 
   @override
+  String get autoBillingNotifyPendingAccountBody =>
+      'Tap to choose an account for this transaction';
+
+  @override
   String get aiOcrNoLedger => '未找到账本';
 
   @override
@@ -13069,6 +13073,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get autoBillingNotifySuccessSingleBodyDefault => '已自動建立記錄';
+
+  @override
+  String get autoBillingNotifyPendingAccountBody => '點擊選擇這筆交易的帳戶';
 
   @override
   String get aiOcrNoLedger => '未找到帳本';

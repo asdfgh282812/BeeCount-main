@@ -4667,6 +4667,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Record created automatically';
 
   @override
+  String get autoBillingNotifyPendingAccountBody =>
+      'Tap to choose an account for this transaction';
+
+  @override
   String get aiOcrNoLedger => 'Ledger not found';
 
   @override

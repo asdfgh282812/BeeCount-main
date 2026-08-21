@@ -1877,6 +1877,7 @@
     "placeholders": { "note": { "type": "String" } }
   },
   "autoBillingNotifySuccessSingleBodyDefault": "Record created automatically",
+  "autoBillingNotifyPendingAccountBody": "Tap to choose an account for this transaction",
   "aiOcrNoLedger": "Ledger not found",
   "aiBillingRateMissingHint": "⚠️ No {currency} rate available — recorded 1:1 for now; use “Reconvert” on the stats page to fix.",
   "@aiBillingRateMissingHint": {

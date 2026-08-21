@@ -8482,6 +8482,12 @@ abstract class AppLocalizations {
   /// **'Record created automatically'**
   String get autoBillingNotifySuccessSingleBodyDefault;
 
+  /// No description provided for @autoBillingNotifyPendingAccountBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to choose an account for this transaction'**
+  String get autoBillingNotifyPendingAccountBody;
+
   /// No description provided for @aiOcrNoLedger.
   ///
   /// In en, this message translates to:

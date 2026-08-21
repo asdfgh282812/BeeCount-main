@@ -4520,6 +4520,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get autoBillingNotifySuccessSingleBodyDefault => '자동으로 기록이 생성되었습니다';
 
   @override
+  String get autoBillingNotifyPendingAccountBody =>
+      'Tap to choose an account for this transaction';
+
+  @override
   String get aiOcrNoLedger => '가계부를 찾을 수 없습니다';
 
   @override
