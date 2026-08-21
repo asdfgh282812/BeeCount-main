@@ -238,6 +238,7 @@ abstract class TransactionRepository {
     // 只在新建時填(還款對話框/交易表單「關聯欠款」建立新交易時);既有交易
     // 改連結走 [setTransactionDebtLink]。
     String? debtSyncId,
+    bool needsAccountAssignment = false,
   });
 
   /// 批量新增交易，单事务内插入，返回插入条数。
@@ -322,6 +323,11 @@ abstract class TransactionRepository {
   /// 获取账本的所有交易记录
   Future<List<Transaction>> getTransactionsByLedger(int ledgerId);
 
+  /// 「待確認帳戶」列表用:回傳這個帳本裡 [needsAccountAssignment] 為 true
+  /// 的交易(背景自動記帳/週期性交易/CSV 匯入找不到帳戶時建立的)。
+  Future<List<Transaction>> getTransactionsNeedingAccountAssignment(
+      int ledgerId);
+
   /// 获取账本在指定时间范围内的交易记录
   Future<List<Transaction>> getTransactionsByLedgerInRange({
     required int ledgerId,
@@ -379,6 +385,13 @@ abstract class TransactionRepository {
   Future<void> setTransactionDebtLink({
     required int id,
     String? debtSyncId,
+  });
+
+  /// 「待確認帳戶」列表裡使用者補選帳戶:寫入 [accountId] 並清除
+  /// [needsAccountAssignment] 旗標。
+  Future<void> setTransactionAccountAssignment({
+    required int id,
+    required int accountId,
   });
 
   /// 對帳模式選單「取消全部選取」:批次把一組交易的 reconciledAt 清空

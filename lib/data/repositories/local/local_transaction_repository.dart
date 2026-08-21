@@ -437,6 +437,7 @@ class LocalTransactionRepository implements TransactionRepository {
     String? recurringRuleId,
     List<TransactionSplitInput>? splits,
     String? debtSyncId,
+    bool needsAccountAssignment = false,
   }) async {
     // v30:子仓收「已定值」直写;带折算的兜底(查账户/汇率)在聚合
     // LocalRepository 包装层(子仓拿不到汇率)。
@@ -466,6 +467,7 @@ class LocalTransactionRepository implements TransactionRepository {
             recurringRuleId: d.Value(recurringRuleId),
             hasSplits: d.Value(hasSplits),
             debtSyncId: d.Value(debtSyncId),
+            needsAccountAssignment: d.Value(needsAccountAssignment),
           ));
       if (hasSplits) {
         await _insertSplits(id, splits);
@@ -987,6 +989,20 @@ class LocalTransactionRepository implements TransactionRepository {
   }
 
   @override
+  Future<List<Transaction>> getTransactionsNeedingAccountAssignment(
+      int ledgerId) async {
+    return await (db.select(db.transactions)
+          ..where((t) =>
+              t.ledgerId.equals(ledgerId) &
+              t.needsAccountAssignment.equals(true))
+          ..orderBy([
+            (t) => d.OrderingTerm(
+                expression: t.happenedAt, mode: d.OrderingMode.desc)
+          ]))
+        .get();
+  }
+
+  @override
   Future<List<Transaction>> getTransactionsByLedgerInRange({
     required int ledgerId,
     required DateTime start,
@@ -1096,6 +1112,19 @@ class LocalTransactionRepository implements TransactionRepository {
     await (db.update(db.transactions)..where((t) => t.id.equals(id))).write(
       TransactionsCompanion(
         debtSyncId: d.Value(debtSyncId),
+      ),
+    );
+  }
+
+  @override
+  Future<void> setTransactionAccountAssignment({
+    required int id,
+    required int accountId,
+  }) async {
+    await (db.update(db.transactions)..where((t) => t.id.equals(id))).write(
+      TransactionsCompanion(
+        accountId: d.Value(accountId),
+        needsAccountAssignment: const d.Value(false),
       ),
     );
   }
