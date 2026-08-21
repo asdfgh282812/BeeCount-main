@@ -17,6 +17,7 @@ import '../../widgets/biz/transaction_entry_form.dart'
 import '../../widgets/biz/recurring_occurrence_dialogs.dart';
 import '../../widgets/biz/shared_entry_fields.dart';
 import '../../widgets/transaction/transfer_form.dart';
+import '../../widgets/transaction/debt_entry_form.dart';
 import '../../styles/tokens.dart';
 import '../../services/billing/post_processor.dart';
 import '../../services/attachment_service.dart';
@@ -97,7 +98,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 3, vsync: this);
+    _tab = TabController(length: 4, vsync: this);
     // 设置初始tab: 0=支出, 1=收入, 2=转账
     if (widget.initialKind == 'income') {
       _tab.index = 1;
@@ -251,6 +252,9 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
                               Tab(
                                   text: AppLocalizations.of(context)!
                                       .transferTitle),
+                              Tab(
+                                  text: AppLocalizations.of(context)!
+                                      .debtTabLabel),
                             ],
                           ),
                         ),
@@ -327,6 +331,13 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
                   initialDate: widget.initialDate,
                   initialTagIds: widget.initialTagIds,
                   recurringEditScope: widget.initialRecurringEditScope,
+                ),
+                DebtEntryForm(
+                  onDebtCreated: () {
+                    if (Navigator.of(context).canPop()) {
+                      Navigator.of(context).pop();
+                    }
+                  },
                 ),
               ],
             ),
