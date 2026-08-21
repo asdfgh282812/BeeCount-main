@@ -15,6 +15,10 @@ class BookkeepingResult {
   /// 因创建失败被跳过的笔数(amount 已校验,失败原因通常是 DB 异常)
   final int failedCount;
 
+  /// 因使用者在帳戶選擇對話框取消而被主動略過的筆數(不是資料庫寫入失敗)。
+  /// 對話/照片/語音三個渠道用它在結果摘要裡標記「已略過(缺帳戶)」。
+  final int skippedForMissingAccountCount;
+
   /// 本次入库里「拿不到汇率、按 1:1 暂记」的外币币种(去重、已排序)。
   ///
   /// 多币种降级路径(.docs/multi-currency-ai A5):自动通道无人值守,缺汇率
@@ -27,6 +31,7 @@ class BookkeepingResult {
     this.savedBills = const [],
     this.transactionIds = const [],
     this.failedCount = 0,
+    this.skippedForMissingAccountCount = 0,
     this.unconvertedCurrencies = const [],
   });
 
