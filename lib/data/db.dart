@@ -232,6 +232,15 @@ class Transactions extends Table {
   /// 字段是 read_tx_projection.debt_sync_id,wire 字段名 debtId。恆發
   /// (同 reconciledAt)——清空欠款關聯是明確動作,null 必須能傳達給 server。
   TextColumn get debtSyncId => text().nullable()();
+
+  /// v40:這筆交易找不到帳戶、且當下沒有 UI 可以攔截使用者選(背景截圖/
+  /// 通知監聽、週期性交易產生、CSV 匯入)時,交易仍照常建立(accountId 保持
+  /// null,帳戶餘額計算完全不受影響),但打這個旗標讓使用者能在「待確認
+  /// 帳戶」列表裡事後補選。有 UI 可攔截的路徑(記帳表單/AI 對話/照片/語音)
+  /// 不會用到這個旗標——那些路徑要求使用者當場選,選不了就直接不建立這筆
+  /// 交易。
+  BoolColumn get needsAccountAssignment =>
+      boolean().withDefault(const Constant(false))();
 }
 
 /// v39 借還款(§2.5 MOZE_FEATURE_GAP_SD.md,對齊 BeeCount Cloud `debt`
@@ -777,7 +786,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 39; // v39: 借還款(debts + transactions.debt_sync_id)
+  int get schemaVersion => 40; // v40: 待確認帳戶(transactions.needs_account_assignment)
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1675,6 +1684,16 @@ class BeeDatabase extends _$BeeDatabase {
                 'ALTER TABLE transactions ADD COLUMN debt_sync_id TEXT;');
             await _createTableIfMissing(migrator, 'debts', debts);
             logger.info('DBMigration', 'v39 迁移完成');
+          }
+          if (from < 40) {
+            logger.info(
+                'DBMigration', '开始迁移到 v40: 待確認帳戶(needs_account_assignment)');
+            await _addColumnIfMissing(
+                'transactions',
+                'needs_account_assignment',
+                'ALTER TABLE transactions ADD COLUMN needs_account_assignment '
+                    'BOOLEAN NOT NULL DEFAULT 0;');
+            logger.info('DBMigration', 'v40 迁移完成');
           }
         },
         onCreate: (m) async {
