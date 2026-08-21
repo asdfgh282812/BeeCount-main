@@ -3778,6 +3778,7 @@
   "debtAddButton": "Add Debt",
   "debtEditTitle": "Edit Debt",
   "debtAddTitle": "Add Debt",
+  "debtTabLabel": "Debt",
   "debtDirectionLabel": "Direction",
   "debtDirectionPayableLabel": "I owe",
   "debtDirectionReceivableLabel": "Owed to me",

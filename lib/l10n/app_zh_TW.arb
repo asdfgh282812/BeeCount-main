@@ -3353,6 +3353,7 @@
   "debtAddButton": "新增欠款",
   "debtEditTitle": "編輯欠款",
   "debtAddTitle": "新增欠款",
+  "debtTabLabel": "欠款",
   "debtDirectionLabel": "方向",
   "debtDirectionPayableLabel": "我欠款",
   "debtDirectionReceivableLabel": "款項應收",

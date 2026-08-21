@@ -15822,6 +15822,12 @@ abstract class AppLocalizations {
   /// **'Add Debt'**
   String get debtAddTitle;
 
+  /// No description provided for @debtTabLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Debt'**
+  String get debtTabLabel;
+
   /// No description provided for @debtDirectionLabel.
   ///
   /// In en, this message translates to:

@@ -8455,6 +8455,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get debtAddTitle => 'Add Debt';
 
   @override
+  String get debtTabLabel => 'Debt';
+
+  @override
   String get debtDirectionLabel => 'Direction';
 
   @override
@@ -17018,6 +17021,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get debtAddTitle => '新增欠款';
+
+  @override
+  String get debtTabLabel => '欠款';
 
   @override
   String get debtDirectionLabel => '方向';

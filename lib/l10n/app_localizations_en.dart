@@ -8774,6 +8774,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get debtAddTitle => 'Add Debt';
 
   @override
+  String get debtTabLabel => 'Debt';
+
+  @override
   String get debtDirectionLabel => 'Direction';
 
   @override
