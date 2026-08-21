@@ -12,6 +12,7 @@ import '../providers/ai_chat_providers.dart';
 import '../services/attachment_service.dart';
 import '../services/billing/post_processor.dart';
 import '../services/data/tag_seed_service.dart';
+import '../widgets/biz/account_card_picker.dart';
 import '../widgets/ui/ui.dart';
 
 /// 图片记账入口(相册/相机)。瘦身后:UI 流程 + 兜底,业务调 [AiBookkeeper]。
@@ -106,6 +107,12 @@ class ImageBillingHelper {
         billGuard: PromptBuilder.billGuardForImage,
         billingTypes: billingTypes,
         l10n: l10n,
+        resolveMissingAccount: (bill) async {
+          if (!context.mounted) return null;
+          final picked = await AccountCardPicker.show(context,
+              ledgerId: currentLedger.id);
+          return picked?.accountId;
+        },
         // 多笔时每笔都挂同一张原图,方便后续从任意一笔溯源
         onSaved: autoAddAttachment
             ? (txId, _) => attachmentService.saveAttachment(
@@ -144,11 +151,21 @@ class ImageBillingHelper {
           ? '${l10n.aiOcrSuccess(typeText, amountStr)} × ${result.savedCount}'
           : l10n.aiOcrSuccess(typeText, amountStr);
       // 多币种降级提示(A5):缺汇率已按 1:1 暂记,指路统计页补折算
+      final rateMissingHint = result.unconvertedCurrencies.isEmpty
+          ? null
+          : l10n.aiBillingRateMissingHint(
+              result.unconvertedCurrencies.join('、'));
+      // 缺帳戶且使用者取消選擇時被主動略過的筆數
+      final accountSkippedHint = result.skippedForMissingAccountCount <= 0
+          ? null
+          : l10n.aiBillingAccountSkippedHint(
+              result.skippedForMissingAccountCount);
+      final note = [rateMissingHint, accountSkippedHint]
+          .whereType<String>()
+          .join('\n');
       showToast(
         context,
-        result.unconvertedCurrencies.isEmpty
-            ? toastText
-            : '$toastText\n${l10n.aiBillingRateMissingHint(result.unconvertedCurrencies.join('、'))}',
+        note.isEmpty ? toastText : '$toastText\n$note',
       );
     } catch (e) {
       if (!context.mounted) return;
