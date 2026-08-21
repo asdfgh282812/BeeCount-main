@@ -1882,6 +1882,10 @@
   "@aiBillingRateMissingHint": {
     "placeholders": { "currency": { "type": "String" } }
   },
+  "aiBillingAccountSkippedHint": "{count} skipped (no account chosen)",
+  "@aiBillingAccountSkippedHint": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "aiPromptVarCurrencies": "Ledger base currency + foreign-currency accounts in use",
   "aiPromptVarBillGuard": "Non-bill filter (injected for screenshot / auto bookkeeping only)",
   "aiPromptMissingVarsHint": "Your custom template is missing these variables, so the matching features stop working: {vars}",

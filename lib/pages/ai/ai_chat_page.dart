@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' hide Column;
 
 import '../../widgets/ui/ui.dart';
+import '../../widgets/biz/account_card_picker.dart';
 import '../../widgets/biz/bee_icon.dart';
 import '../../widgets/ai/typewriter_text.dart';
 import '../../widgets/ai/bill_card_widget.dart';
@@ -660,6 +661,12 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
         languageCode: currentLocale.languageCode,
         forceChat: forceChat, // 快捷指令强制为自由对话
         l10n: l10n,
+        resolveMissingAccount: (bill) async {
+          if (!mounted) return null;
+          final result =
+              await AccountCardPicker.show(context, ledgerId: ledgerId);
+          return result?.accountId;
+        },
       );
 
       // 保存 AI 回复。多笔 metadata 用新格式 {bills, txIds, undoneIds};

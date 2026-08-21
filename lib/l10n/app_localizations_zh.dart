@@ -4479,6 +4479,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String aiBillingAccountSkippedHint(int count) {
+    return '$count skipped (no account chosen)';
+  }
+
+  @override
   String get aiPromptVarCurrencies => '账本主币种 + 已在用的外币账户';
 
   @override
@@ -13059,6 +13064,11 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   @override
   String aiBillingRateMissingHint(String currency) {
     return '⚠️ 未取得 $currency 匯率，已按 1:1 暫記，可在統計頁「補折算」修正';
+  }
+
+  @override
+  String aiBillingAccountSkippedHint(int count) {
+    return '已略過 $count 筆(未選帳戶)';
   }
 
   @override

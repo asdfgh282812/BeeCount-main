@@ -6,6 +6,7 @@ import '../../data/repositories/base_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../data/tag_seed_service.dart';
 import '../system/logger_service.dart';
+import '../billing/bill_creation_service.dart';
 import 'ai_bookkeeper.dart';
 
 /// AI 对话服务
@@ -50,6 +51,7 @@ class AIChatService {
     String? languageCode,
     bool forceChat = false,
     AppLocalizations? l10n,
+    ResolveMissingAccount? resolveMissingAccount,
   }) async {
     logger.info('AIChat', '收到消息: $userInput (forceChat: $forceChat)');
     try {
@@ -58,6 +60,7 @@ class AIChatService {
           userInput,
           ledgerId: ledgerId,
           l10n: l10n,
+          resolveMissingAccount: resolveMissingAccount,
         );
       }
       return await _handleFreeChat(userInput, languageCode: languageCode);
@@ -94,6 +97,7 @@ class AIChatService {
     String input, {
     required int ledgerId,
     AppLocalizations? l10n,
+    ResolveMissingAccount? resolveMissingAccount,
   }) async {
     logger.debug('AIChat', '识别为记账意图');
     final result = await _bookkeeper.fromText(
@@ -101,6 +105,7 @@ class AIChatService {
       ledgerId: ledgerId,
       billingTypes: [TagSeedService.billingTypeAi],
       l10n: l10n,
+      resolveMissingAccount: resolveMissingAccount,
     );
 
     if (!result.success) {
@@ -115,14 +120,25 @@ class AIChatService {
     }
 
     logger.info('AIChat', '账单提取成功: ${result.savedCount} 笔');
+    // 多币种降级提示(A5):缺汇率时已按 1:1 暂记,告诉用户去统计页补折算
+    final rateMissingHint =
+        (result.unconvertedCurrencies.isEmpty || l10n == null)
+            ? null
+            : l10n.aiBillingRateMissingHint(
+                result.unconvertedCurrencies.join('、'));
+    // 缺帳戶且使用者取消選擇時被主動略過的筆數
+    final accountSkippedHint =
+        (result.skippedForMissingAccountCount <= 0 || l10n == null)
+            ? null
+            : l10n.aiBillingAccountSkippedHint(
+                result.skippedForMissingAccountCount);
+    final note = [rateMissingHint, accountSkippedHint]
+        .whereType<String>()
+        .join('\n');
     return AIResponse.billCards(
       result.savedBills,
       result.transactionIds,
-      // 多币种降级提示(A5):缺汇率时已按 1:1 暂记,告诉用户去统计页补折算
-      note: (result.unconvertedCurrencies.isEmpty || l10n == null)
-          ? null
-          : l10n.aiBillingRateMissingHint(
-              result.unconvertedCurrencies.join('、')),
+      note: note.isEmpty ? null : note,
     );
   }
 

@@ -4528,6 +4528,11 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
+  String aiBillingAccountSkippedHint(int count) {
+    return '$count skipped (no account chosen)';
+  }
+
+  @override
   String get aiPromptVarCurrencies =>
       'Ledger base currency + foreign-currency accounts in use';
 

@@ -8494,6 +8494,12 @@ abstract class AppLocalizations {
   /// **'⚠️ No {currency} rate available — recorded 1:1 for now; use “Reconvert” on the stats page to fix.'**
   String aiBillingRateMissingHint(String currency);
 
+  /// No description provided for @aiBillingAccountSkippedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} skipped (no account chosen)'**
+  String aiBillingAccountSkippedHint(int count);
+
   /// No description provided for @aiPromptVarCurrencies.
   ///
   /// In en, this message translates to:
