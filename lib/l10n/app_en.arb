@@ -3795,6 +3795,8 @@
   "debtDueDateLabel": "Due Date",
   "debtDueDateNone": "No due date",
   "debtDueDateClear": "Clear due date",
+  "debtCategoryLabel": "Category",
+  "debtCategoryNone": "None",
   "debtNoteLabel": "Note",
   "debtStatusOpen": "Open",
   "debtStatusPartial": "Partial",

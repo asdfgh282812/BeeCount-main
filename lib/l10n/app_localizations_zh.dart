@@ -8500,6 +8500,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get debtDueDateClear => 'Clear due date';
 
   @override
+  String get debtCategoryLabel => 'Category';
+
+  @override
+  String get debtCategoryNone => 'None';
+
+  @override
   String get debtNoteLabel => 'Note';
 
   @override
@@ -17089,6 +17095,12 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get debtDueDateClear => '清除到期日';
+
+  @override
+  String get debtCategoryLabel => '分類';
+
+  @override
+  String get debtCategoryNone => '未選擇';
 
   @override
   String get debtNoteLabel => '備註';

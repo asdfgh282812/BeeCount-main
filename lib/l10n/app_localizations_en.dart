@@ -8819,6 +8819,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get debtDueDateClear => 'Clear due date';
 
   @override
+  String get debtCategoryLabel => 'Category';
+
+  @override
+  String get debtCategoryNone => 'None';
+
+  @override
   String get debtNoteLabel => 'Note';
 
   @override

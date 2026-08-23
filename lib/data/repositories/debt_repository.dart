@@ -43,7 +43,9 @@ class DebtWithStatus {
 ///   [hasRepayments],repository 內部也會再擋一次)
 abstract class DebtRepository {
   /// 建立欠款。[direction] 必須是 [kDebtDirectionPayable] 或
-  /// [kDebtDirectionReceivable]。
+  /// [kDebtDirectionReceivable]。[originTransactionSyncId] 只給
+  /// [createDebtWithOriginTransaction] 內部使用,直接呼叫這個方法的一般情境
+  /// 不應該傳。
   Future<int> createDebt({
     required int ledgerId,
     required String direction,
@@ -51,6 +53,8 @@ abstract class DebtRepository {
     required double principalAmount,
     DateTime? dueAt,
     String? note,
+    int? categoryId,
+    String? originTransactionSyncId,
   });
 
   /// 從欠款分頁/欠款編輯頁「新增」時建立:同時建一筆一般交易(帳戶餘額
@@ -71,6 +75,7 @@ abstract class DebtRepository {
     required int accountId,
     DateTime? dueAt,
     String? note,
+    int? categoryId,
   });
 
   /// 更新可變欄位(counterpartyName / dueAt / note)。principalAmount /
@@ -84,6 +89,8 @@ abstract class DebtRepository {
     bool clearDueAt = false,
     String? note,
     bool clearNote = false,
+    int? categoryId,
+    bool clearCategoryId = false,
   });
 
   /// 手動結案(closedAt = now)。結案不代表已還清,只是不再追蹤。
@@ -99,6 +106,11 @@ abstract class DebtRepository {
   Future<Debt?> getDebt(int id);
 
   Future<Debt?> getDebtBySyncId(String syncId);
+
+  /// 反查「這筆交易是不是某筆欠款的起點交易」——起點交易本身不帶
+  /// [Transactions.debtSyncId](見 [createDebtWithOriginTransaction]),要透過
+  /// 欠款側的 [Debts.originTransactionSyncId] 反查回來。
+  Future<Debt?> getDebtByOriginTransactionSyncId(String syncId);
 
   /// 該欠款是否已有至少一筆還款交易掛著(debtId:delete 前置檢查)。
   Future<bool> hasRepayments(int debtId);

@@ -24,6 +24,8 @@ class LocalDebtRepository implements DebtRepository {
     required double principalAmount,
     DateTime? dueAt,
     String? note,
+    int? categoryId,
+    String? originTransactionSyncId,
   }) async {
     assert(
       direction == kDebtDirectionPayable ||
@@ -38,6 +40,8 @@ class LocalDebtRepository implements DebtRepository {
             principalAmount: principalAmount,
             dueAt: d.Value(dueAt),
             note: d.Value(note),
+            categoryId: d.Value(categoryId),
+            originTransactionSyncId: d.Value(originTransactionSyncId),
             syncId: d.Value(_uuid.v4()),
           ),
         );
@@ -52,6 +56,7 @@ class LocalDebtRepository implements DebtRepository {
     required int accountId,
     DateTime? dueAt,
     String? note,
+    int? categoryId,
   }) {
     // 這個方法需要同時寫入一筆交易(TransactionRepository 的職責)+一筆欠款,
     // 但本類只持有 db,沒有 TransactionRepository 引用可組出 addTransaction
@@ -73,6 +78,8 @@ class LocalDebtRepository implements DebtRepository {
     bool clearDueAt = false,
     String? note,
     bool clearNote = false,
+    int? categoryId,
+    bool clearCategoryId = false,
   }) async {
     await (db.update(db.debts)..where((t) => t.id.equals(id))).write(
       DebtsCompanion(
@@ -85,6 +92,11 @@ class LocalDebtRepository implements DebtRepository {
         note: clearNote
             ? const d.Value(null)
             : (note != null ? d.Value(note) : const d.Value.absent()),
+        categoryId: clearCategoryId
+            ? const d.Value(null)
+            : (categoryId != null
+                ? d.Value(categoryId)
+                : const d.Value.absent()),
         updatedAt: d.Value(DateTime.now()),
       ),
     );
@@ -125,6 +137,12 @@ class LocalDebtRepository implements DebtRepository {
   @override
   Future<Debt?> getDebtBySyncId(String syncId) =>
       (db.select(db.debts)..where((t) => t.syncId.equals(syncId)))
+          .getSingleOrNull();
+
+  @override
+  Future<Debt?> getDebtByOriginTransactionSyncId(String syncId) =>
+      (db.select(db.debts)
+            ..where((t) => t.originTransactionSyncId.equals(syncId)))
           .getSingleOrNull();
 
   @override

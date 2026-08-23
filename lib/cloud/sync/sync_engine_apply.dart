@@ -921,8 +921,11 @@ extension SyncEngineApplyExt on SyncEngine {
   /// 應用借還款(v39,對齐 BeeCount Cloud debt entity)变更。对齐
   /// [_applyBudgetChange]:按 syncId upsert,delete 走同样的路径。ledger 的
   /// 外键在 payload 里以 syncId 形式带来,用 _resolveLedgerIdBySyncId 换成
-  /// 本地 int id。dueAt/note/closedAt 恒發(见 entity_serializer.dart
+  /// 本地 int id。dueAt/note/closedAt/categoryId 恒發(见 entity_serializer.dart
   /// serializeDebt 的注释),这里无条件覆盖,不做 containsKey 保護。
+  /// originTxId(v41)是 syncId 對 syncId 的純文字連結,不解析成本地 id——
+  /// 那筆交易未必已經同步下來,直接存字串,查詢時按 syncId 反查
+  /// (見 [DebtRepository.getDebtByOriginTransactionSyncId])。
   Future<void> _applyDebtChange(BeeCountCloudSyncChange change) async {
     final syncId = change.entitySyncId;
 
@@ -951,6 +954,8 @@ extension SyncEngineApplyExt on SyncEngine {
     final note = payload['note'] as String?;
     final closedAtStr = payload['closedAt'] as String?;
     final closedAt = closedAtStr != null ? DateTime.tryParse(closedAtStr) : null;
+    final categorySyncId = payload['categoryId'] as String?;
+    final originTxId = payload['originTxId'] as String?;
 
     final localLedgerId = await _resolveLedgerIdBySyncId(ledgerSyncId);
     if (localLedgerId == null) {
@@ -958,6 +963,7 @@ extension SyncEngineApplyExt on SyncEngine {
           'pull: 欠款 $syncId 的 ledgerSyncId=$ledgerSyncId 本地未就绪,跳过');
       return;
     }
+    final localCategoryId = await _resolveCategoryIdBySyncId(categorySyncId);
 
     final existing = await (db.select(db.debts)
           ..where((t) => t.syncId.equals(syncId)))
@@ -973,6 +979,8 @@ extension SyncEngineApplyExt on SyncEngine {
         dueAt: d.Value(dueAt),
         note: d.Value(note),
         closedAt: d.Value(closedAt),
+        categoryId: d.Value(localCategoryId),
+        originTransactionSyncId: d.Value(originTxId),
         updatedAt: d.Value(DateTime.now()),
       ));
       logger.debug('SyncEngine', 'pull: 更新欠款 $syncId');
@@ -985,6 +993,8 @@ extension SyncEngineApplyExt on SyncEngine {
             dueAt: d.Value(dueAt),
             note: d.Value(note),
             closedAt: d.Value(closedAt),
+            categoryId: d.Value(localCategoryId),
+            originTransactionSyncId: d.Value(originTxId),
             syncId: d.Value(syncId),
           ));
       logger.debug('SyncEngine', 'pull: 新增欠款 $syncId');

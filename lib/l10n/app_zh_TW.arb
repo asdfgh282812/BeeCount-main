@@ -3367,6 +3367,8 @@
   "debtDueDateLabel": "到期日",
   "debtDueDateNone": "沒有到期日",
   "debtDueDateClear": "清除到期日",
+  "debtCategoryLabel": "分類",
+  "debtCategoryNone": "未選擇",
   "debtNoteLabel": "備註",
   "debtStatusOpen": "進行中",
   "debtStatusPartial": "部分還款",

@@ -12,7 +12,8 @@ import '../../services/billing/post_processor.dart';
 import '../../styles/tokens.dart';
 import '../../utils/currencies.dart';
 import '../../utils/ui_scale_extensions.dart';
-import '../../widgets/biz/account_selector.dart';
+import '../../widgets/biz/account_card_picker.dart';
+import '../../widgets/biz/category_selector_dialog.dart';
 import '../../widgets/biz/section_card.dart';
 import '../../widgets/ui/ui.dart';
 
@@ -36,6 +37,9 @@ class _DebtEditorPageState extends ConsumerState<DebtEditorPage> {
   DateTime? _dueAt;
   bool _isLoading = false;
   int? _accountId;
+  Account? _account;
+  int? _categoryId;
+  Category? _category;
 
   bool get _isEditing => widget.debt != null;
 
@@ -49,9 +53,18 @@ class _DebtEditorPageState extends ConsumerState<DebtEditorPage> {
       _principalController.text = debt.principalAmount.toStringAsFixed(0);
       _dueAt = debt.dueAt;
       _noteController.text = debt.note ?? '';
+      _categoryId = debt.categoryId;
+      if (_categoryId != null) _loadCategory(_categoryId!);
     } else {
       _direction = kDebtDirectionPayable;
     }
+  }
+
+  Future<void> _loadCategory(int id) async {
+    final repo = ref.read(repositoryProvider);
+    final category = await repo.getCategoryById(id);
+    if (!mounted) return;
+    setState(() => _category = category);
   }
 
   @override
@@ -228,11 +241,40 @@ class _DebtEditorPageState extends ConsumerState<DebtEditorPage> {
                           ),
                         ),
                         SizedBox(height: 12.0.scaled(context, ref)),
-                        AccountSelector(
-                          ledgerId: ref.watch(currentLedgerIdProvider),
-                          selectedAccountId: _accountId,
-                          onAccountSelected: (id) =>
-                              setState(() => _accountId = id),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: _pickAccount,
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: BeeTokens.surfaceInput(context),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.credit_card,
+                                    size: 18,
+                                    color: BeeTokens.iconSecondary(context)),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _account?.name ??
+                                        l10n.debtRepaymentAccountLabel,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                        color: BeeTokens.textPrimary(context),
+                                        fontSize: 14),
+                                  ),
+                                ),
+                                Icon(Icons.chevron_right,
+                                    size: 18,
+                                    color: BeeTokens.iconTertiary(context)),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -287,6 +329,53 @@ class _DebtEditorPageState extends ConsumerState<DebtEditorPage> {
                 ),
                 SizedBox(height: 12.0.scaled(context, ref)),
                 SectionCard(
+                  child: InkWell(
+                    onTap: _pickCategory,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                l10n.debtCategoryLabel,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: BeeTokens.textSecondary(context),
+                                ),
+                              ),
+                              SizedBox(height: 6.0.scaled(context, ref)),
+                              Text(
+                                _category?.name ?? l10n.debtCategoryNone,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: _category != null
+                                      ? BeeTokens.textPrimary(context)
+                                      : BeeTokens.textTertiary(context),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (_category != null)
+                          IconButton(
+                            onPressed: () => setState(() {
+                              _categoryId = null;
+                              _category = null;
+                            }),
+                            icon: Icon(Icons.close,
+                                color: BeeTokens.iconTertiary(context)),
+                          )
+                        else
+                          Icon(Icons.chevron_right,
+                              color: BeeTokens.iconTertiary(context)),
+                      ],
+                    ),
+                  ),
+                ),
+                SizedBox(height: 12.0.scaled(context, ref)),
+                SectionCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -325,6 +414,43 @@ class _DebtEditorPageState extends ConsumerState<DebtEditorPage> {
   String _formatDate(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
+  Future<void> _pickAccount() async {
+    final ledgerId = ref.read(currentLedgerIdProvider);
+    final currencyCode =
+        ref.read(currentLedgerProvider).asData?.value?.currency;
+    final result = await AccountCardPicker.show(
+      context,
+      ledgerId: ledgerId,
+      selectedAccountId: _accountId,
+      filterCurrency: currencyCode,
+    );
+    if (result == null || !mounted) return;
+    final id = result.accountId;
+    if (id == null) return;
+    final repo = ref.read(repositoryProvider);
+    final account = await repo.getAccount(id);
+    if (!mounted) return;
+    setState(() {
+      _accountId = id;
+      _account = account;
+    });
+  }
+
+  Future<void> _pickCategory() async {
+    final ledgerId = ref.read(currentLedgerIdProvider);
+    final picked = await showCategorySelector(
+      context,
+      type: _direction == kDebtDirectionPayable ? 'income' : 'expense',
+      currentCategoryId: _categoryId,
+      ledgerId: ledgerId,
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _categoryId = picked.id;
+      _category = picked;
+    });
+  }
+
   Widget _buildDirectionOption(
     BuildContext context,
     String label,
@@ -336,7 +462,18 @@ class _DebtEditorPageState extends ConsumerState<DebtEditorPage> {
     final primary = Theme.of(context).colorScheme.primary;
 
     return InkWell(
-      onTap: disabled ? null : () => setState(() => _direction = direction),
+      onTap: disabled
+          ? null
+          : () => setState(() {
+                if (_direction != direction) {
+                  // 換方向會改變分類要用的 type(income/expense),已選的
+                  // 分類可能不再屬於新 type,清掉避免帶著錯誤 type 的分類
+                  // 送出。
+                  _categoryId = null;
+                  _category = null;
+                }
+                _direction = direction;
+              }),
       borderRadius: BorderRadius.circular(12),
       child: Opacity(
         opacity: disabled && !isSelected ? 0.4 : 1.0,
@@ -417,6 +554,8 @@ class _DebtEditorPageState extends ConsumerState<DebtEditorPage> {
           clearDueAt: _dueAt == null,
           note: note.isEmpty ? null : note,
           clearNote: note.isEmpty,
+          categoryId: _categoryId,
+          clearCategoryId: _categoryId == null,
         );
       } else {
         await repo.createDebtWithOriginTransaction(
@@ -427,6 +566,7 @@ class _DebtEditorPageState extends ConsumerState<DebtEditorPage> {
           accountId: _accountId!,
           dueAt: _dueAt,
           note: note.isEmpty ? null : note,
+          categoryId: _categoryId,
         );
       }
 

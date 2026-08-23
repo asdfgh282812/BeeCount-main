@@ -395,9 +395,17 @@ extension SyncEngineSerializationExt on SyncEngine {
               ..where((t) => t.id.equals(entityId)))
             .getSingleOrNull();
         if (debt == null) return <String, dynamic>{};
+        String? debtCategorySyncId;
+        if (debt.categoryId != null) {
+          final cat = await (db.select(db.categories)
+                ..where((c) => c.id.equals(debt.categoryId!)))
+              .getSingleOrNull();
+          debtCategorySyncId = cat?.syncId;
+        }
         return EntitySerializer.serializeDebt(
           debt,
           ledgerSyncId: parentLedgerSyncId,
+          categorySyncId: debtCategorySyncId,
         );
 
       default:
@@ -690,6 +698,13 @@ extension SyncEngineSerializationExt on SyncEngine {
         await (db.update(db.debts)..where((t) => t.id.equals(debt.id)))
             .write(DebtsCompanion(syncId: d.Value(syncId)));
       }
+      String? debtCategorySyncId;
+      if (debt.categoryId != null) {
+        final cat = categories
+            .cast<Category?>()
+            .firstWhere((c) => c?.id == debt.categoryId, orElse: () => null);
+        debtCategorySyncId = cat?.syncId;
+      }
       syncChanges.add({
         'ledger_id': ledgerId,
         'entity_type': 'debt',
@@ -698,6 +713,7 @@ extension SyncEngineSerializationExt on SyncEngine {
         'payload': EntitySerializer.serializeDebt(
           debt,
           ledgerSyncId: ledger.syncId,
+          categorySyncId: debtCategorySyncId,
         ),
         'updated_at': now,
       });

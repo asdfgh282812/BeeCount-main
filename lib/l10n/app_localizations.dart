@@ -15906,6 +15906,18 @@ abstract class AppLocalizations {
   /// **'Clear due date'**
   String get debtDueDateClear;
 
+  /// No description provided for @debtCategoryLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get debtCategoryLabel;
+
+  /// No description provided for @debtCategoryNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get debtCategoryNone;
+
   /// No description provided for @debtNoteLabel.
   ///
   /// In en, this message translates to:

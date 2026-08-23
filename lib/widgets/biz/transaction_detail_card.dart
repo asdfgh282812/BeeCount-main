@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/db.dart';
 import '../../data/repositories/base_repository.dart';
+import '../../data/repositories/debt_repository.dart';
 import '../../data/repositories/local/local_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers.dart';
@@ -18,6 +19,7 @@ import '../../utils/category_utils.dart';
 import '../../utils/transaction_edit_utils.dart';
 import '../../utils/shared_ledger_picker_filter.dart';
 import '../../pages/attachment/attachment_preview_page.dart';
+import '../../pages/debt/debt_repayment_page.dart';
 import '../category_icon.dart';
 import '../ui/ui.dart';
 import 'amount_text.dart';
@@ -67,6 +69,10 @@ class _DetailBundle {
   final List<CardRewardRule> rewardRules;
   final List<_ResolvedSplit> splits;
 
+  /// 這筆交易關聯的欠款(不管是還款交易本身,還是某筆欠款的起點交易),
+  /// null = 跟欠款無關。見 [_TransactionDetailCardState._loadBundle]。
+  final DebtWithStatus? relatedDebt;
+
   const _DetailBundle({
     required this.account,
     required this.tags,
@@ -74,6 +80,7 @@ class _DetailBundle {
     required this.refunds,
     required this.rewardRules,
     required this.splits,
+    required this.relatedDebt,
   });
 }
 
@@ -155,6 +162,7 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
     final refunds = await refundsFuture;
     final rewardRules = await rewardRulesFuture;
     final splits = await _loadSplits(repo, tx);
+    final relatedDebt = await _loadRelatedDebt(repo, tx);
     return _DetailBundle(
       account: account,
       tags: tags,
@@ -162,7 +170,24 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
       refunds: refunds,
       rewardRules: rewardRules,
       splits: splits,
+      relatedDebt: relatedDebt,
     );
+  }
+
+  /// 找出這筆交易關聯的欠款——還款交易帶 [Transaction.debtSyncId] 直連;
+  /// 欠款建立時的起點交易故意不帶這個欄位(見 [DebtRepository]
+  /// createDebtWithOriginTransaction 文檔,避免污染還款金額加總),要反查
+  /// [Debt.originTransactionSyncId] 才找得到。
+  Future<DebtWithStatus?> _loadRelatedDebt(
+      BaseRepository repo, Transaction tx) async {
+    Debt? debt;
+    if (tx.debtSyncId != null) {
+      debt = await repo.getDebtBySyncId(tx.debtSyncId!);
+    } else if (tx.syncId != null) {
+      debt = await repo.getDebtByOriginTransactionSyncId(tx.syncId!);
+    }
+    if (debt == null) return null;
+    return repo.getDebtWithStatus(debt.id);
   }
 
   /// v38 拆帳:反查每筆明細的分類物件,跟 `transaction_entry_form.dart`
@@ -273,6 +298,18 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
         hostContext, widget.hostRef, widget.transaction, widget.category);
   }
 
+  Future<void> _handleRepay(DebtWithStatus relatedDebt) async {
+    final hostContext = widget.hostContext;
+    Navigator.of(context).pop();
+    if (!hostContext.mounted) return;
+    await Navigator.of(hostContext).push(MaterialPageRoute(
+      builder: (_) => DebtRepaymentPage(
+        debt: relatedDebt.debt,
+        suggestedAmount: relatedDebt.remainingAmount,
+      ),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -310,7 +347,8 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildHeader(context, l10n, canRefund, refundDisabledReason),
+                  _buildHeader(context, l10n, canRefund, refundDisabledReason,
+                      bundle?.relatedDebt),
                   _buildImageOrCategoryBlock(context, bundle),
                   _buildNoteAmountRow(context, l10n, isExpense, isTransfer,
                       isAdjustment, isRefundTx),
@@ -331,7 +369,11 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
   }
 
   Widget _buildHeader(BuildContext context, AppLocalizations l10n,
-      bool canRefund, String? refundDisabledReason) {
+      bool canRefund, String? refundDisabledReason,
+      DebtWithStatus? relatedDebt) {
+    final canRepay = relatedDebt != null &&
+        relatedDebt.status != kDebtStatusSettled &&
+        relatedDebt.status != kDebtStatusClosed;
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
       child: Row(
@@ -342,6 +384,15 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
             onPressed: () => Navigator.of(context).pop(),
           ),
           const Spacer(),
+          if (canRepay)
+            IconButton(
+              icon: const Icon(Icons.payments_outlined),
+              color: BeeTokens.iconSecondary(context),
+              tooltip: relatedDebt.debt.direction == kDebtDirectionPayable
+                  ? l10n.debtRepayButtonPayable
+                  : l10n.debtRepayButtonReceivable,
+              onPressed: () => _handleRepay(relatedDebt),
+            ),
           Tooltip(
             message: refundDisabledReason ?? l10n.txDetailRefund,
             child: IconButton(

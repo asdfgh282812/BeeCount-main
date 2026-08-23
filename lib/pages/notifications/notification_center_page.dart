@@ -4,11 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/db.dart';
 import '../../data/repositories/base_repository.dart';
+import '../../data/repositories/debt_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers.dart';
 import '../../styles/tokens.dart';
 import '../../widgets/ui/ui.dart';
 import '../account/account_detail_page.dart';
+import '../debt/debt_repayment_page.dart';
 import '../transaction/recurring_rule_list_page.dart';
 
 /// [_handleTap] 的 payload 解析結果。跟 Navigator 完全解耦,方便直接用真的
@@ -17,12 +19,13 @@ class NotificationJumpTarget {
   const NotificationJumpTarget._({
     this.account,
     this.hasRuleTarget = false,
+    this.debt,
     this.notFound = false,
     this.ledgerNotSynced = false,
   });
 
-  /// payload 沒有 accountId/recurringRuleId(如 budget_alert/system 或未知
-  /// category)——不用跳轉,只標已讀。
+  /// payload 沒有 accountId/recurringRuleId/debtId(如 budget_alert/system
+  /// 或未知 category)——不用跳轉,只標已讀。
   static const none = NotificationJumpTarget._();
 
   /// payload 帶的 ledgerId 在本機找不到對應帳本(如共享帳本還沒同步下來)。
@@ -30,7 +33,7 @@ class NotificationJumpTarget {
     ledgerNotSynced: true,
   );
 
-  /// payload 帶了 accountId/recurringRuleId,但本機查無此實體。
+  /// payload 帶了 accountId/recurringRuleId/debtId,但本機查無此實體。
   static const notFoundResult = NotificationJumpTarget._(notFound: true);
 
   factory NotificationJumpTarget.account(Account account) =>
@@ -38,17 +41,23 @@ class NotificationJumpTarget {
 
   static const rule = NotificationJumpTarget._(hasRuleTarget: true);
 
+  factory NotificationJumpTarget.debt(DebtWithStatus debt) =>
+      NotificationJumpTarget._(debt: debt);
+
   final Account? account;
   final bool hasRuleTarget;
+  final DebtWithStatus? debt;
   final bool notFound;
   final bool ledgerNotSynced;
 }
 
 /// 依 web 端 `NotificationBell.tsx handleJumpToDetail` 的優先序:
-/// accountId(涵蓋 card_due / card_reward)優先於 recurringRuleId(涵蓋
-/// reminder)。App 沒有 debts/installment plans 實體,對應分支直接省略。
-/// 跳轉前先把 payload 的 ledgerId(=server external_id/syncId)解回本機
-/// ledger,和目前選中的帳本不同就先切過去,否則目標頁會查不到資料。
+/// accountId(涵蓋 card_due / card_reward)優先於 recurringRuleId(涵蓋一般
+/// reminder)優先於 debtId(欠款到期提醒,同樣是 category='reminder' 但
+/// payload 帶的是 debtId 不是 recurringRuleId,見 server 端
+/// `debt_reminders.py`——三者互斥,靠 payload 帶哪個 key 判斷,不是靠
+/// category)。跳轉前先把 payload 的 ledgerId(=server external_id/syncId)
+/// 解回本機 ledger,和目前選中的帳本不同就先切過去,否則目標頁會查不到資料。
 Future<NotificationJumpTarget> resolveNotificationJumpTarget(
   BaseRepository repo,
   Map<String, dynamic>? payload, {
@@ -58,7 +67,10 @@ Future<NotificationJumpTarget> resolveNotificationJumpTarget(
   if (payload == null) return NotificationJumpTarget.none;
   final accountSyncId = payload['accountId'] as String?;
   final recurringRuleSyncId = payload['recurringRuleId'] as String?;
-  if (accountSyncId == null && recurringRuleSyncId == null) {
+  final debtSyncId = payload['debtId'] as String?;
+  if (accountSyncId == null &&
+      recurringRuleSyncId == null &&
+      debtSyncId == null) {
     return NotificationJumpTarget.none;
   }
 
@@ -75,9 +87,17 @@ Future<NotificationJumpTarget> resolveNotificationJumpTarget(
     return NotificationJumpTarget.account(account);
   }
 
-  final rule = await repo.getRuleBySyncId(recurringRuleSyncId!);
-  if (rule == null) return NotificationJumpTarget.notFoundResult;
-  return NotificationJumpTarget.rule;
+  if (recurringRuleSyncId != null) {
+    final rule = await repo.getRuleBySyncId(recurringRuleSyncId);
+    if (rule == null) return NotificationJumpTarget.notFoundResult;
+    return NotificationJumpTarget.rule;
+  }
+
+  final debt = await repo.getDebtBySyncId(debtSyncId!);
+  if (debt == null) return NotificationJumpTarget.notFoundResult;
+  final withStatus = await repo.getDebtWithStatus(debt.id);
+  if (withStatus == null) return NotificationJumpTarget.notFoundResult;
+  return NotificationJumpTarget.debt(withStatus);
 }
 
 /// 通知中心 —— 展示 BeeCount Cloud 服务端已生成的通知(週期性到期/信用卡
@@ -211,6 +231,16 @@ class _NotificationCenterPageState
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const RecurringRuleListPage()),
+      );
+    } else if (target.debt != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DebtRepaymentPage(
+            debt: target.debt!.debt,
+            suggestedAmount: target.debt!.remainingAmount,
+          ),
+        ),
       );
     } else if (target.notFound) {
       showToast(context, l10n.notificationTargetNotFound);

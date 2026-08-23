@@ -288,6 +288,16 @@ class Debts extends Table {
   /// 手動結案可以在未還清時發生(呆帳/不再追蹤)。
   DateTimeColumn get closedAt => dateTime().nullable()();
 
+  /// v41:分類(原始設計刻意留空,使用者反饋後補上)。跟 [Transactions.categoryId]
+  /// 一樣不宣告 FK,零存在性驗證。
+  IntColumn get categoryId => integer().nullable()();
+
+  /// v41:起點交易反查——建立欠款時 App 會同時寫一筆帳戶餘額起點交易,但那筆
+  /// 交易刻意不帶 [Transactions.debtSyncId](避免被還款金額加總誤計入,見上方
+  /// docstring),所以要存這個欄位才能反查回那筆交易。存 syncId 字串直連,
+  /// 不解析成本地 id(那筆交易未必已經同步下來)。建立後不可改。
+  TextColumn get originTransactionSyncId => text().nullable()();
+
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 }
@@ -786,7 +796,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 40; // v40: 待確認帳戶(transactions.needs_account_assignment)
+  int get schemaVersion => 41; // v41: 借還款分類 + 起點交易反查(debts.category_id / origin_transaction_sync_id)
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1694,6 +1704,18 @@ class BeeDatabase extends _$BeeDatabase {
                 'ALTER TABLE transactions ADD COLUMN needs_account_assignment '
                     'BOOLEAN NOT NULL DEFAULT 0;');
             logger.info('DBMigration', 'v40 迁移完成');
+          }
+          if (from < 41) {
+            logger.info('DBMigration',
+                '开始迁移到 v41: 借還款分類 + 起點交易反查(debts.category_id / origin_transaction_sync_id)');
+            await _addColumnIfMissing('debts', 'category_id',
+                'ALTER TABLE debts ADD COLUMN category_id INTEGER;');
+            await _addColumnIfMissing(
+                'debts',
+                'origin_transaction_sync_id',
+                'ALTER TABLE debts ADD COLUMN origin_transaction_sync_id '
+                    'TEXT;');
+            logger.info('DBMigration', 'v41 迁移完成');
           }
         },
         onCreate: (m) async {

@@ -344,16 +344,19 @@ class EntitySerializer {
   /// 借還款(v39,對齐 BeeCount Cloud `debt` sync entity)。ledger-scope,
   /// 跟 [serializeBudget] 同款「全量帶上當下值」語意。
   ///
-  /// **dueAt / note / closedAt 恒發**(同 reconciledAt/deferredPostingAt 那組
-  /// 慣例)——這三個欄位都有明確的清空動作([DebtRepository.updateDebt] 的
-  /// clearDueAt/clearNote、[DebtRepository.reopenDebt]),省略或只在非 null
-  /// 時才發會讓「清空/重開」這個動作永遠同步不出去。direction /
-  /// counterpartyName / principalAmount 建立後不可改,恒為當下值,不需要
-  /// null 判斷。對齐 BeeCount Cloud `sync_applier.py::_LEDGER_MERGE_SPECS
-  /// ["debt"]`——改欄位前先去那邊核對,一字之差會讓整個欄位靜默同步失敗。
+  /// **dueAt / note / closedAt / categoryId 恒發**(同 reconciledAt/
+  /// deferredPostingAt 那組慣例)——這幾個欄位都有明確的清空動作
+  /// ([DebtRepository.updateDebt] 的 clearDueAt/clearNote/clearCategoryId、
+  /// [DebtRepository.reopenDebt]),省略或只在非 null 時才發會讓「清空/重開」
+  /// 這個動作永遠同步不出去。direction / counterpartyName / principalAmount
+  /// 建立後不可改,恒為當下值,不需要 null 判斷。originTransactionSyncId 只在
+  /// 建立時寫入、之後永遠不變,沒有清空動作,維持「非 null 才發」慣例即可。
+  /// 對齐 BeeCount Cloud `sync_applier.py::_LEDGER_MERGE_SPECS["debt"]`——改
+  /// 欄位前先去那邊核對,一字之差會讓整個欄位靜默同步失敗。
   static Map<String, dynamic> serializeDebt(
     Debt debt, {
     String? ledgerSyncId,
+    String? categorySyncId,
   }) {
     return {
       'syncId': debt.syncId,
@@ -365,6 +368,10 @@ class EntitySerializer {
       'dueAt': debt.dueAt?.toUtc().toIso8601String(),
       'note': debt.note,
       'closedAt': debt.closedAt?.toUtc().toIso8601String(),
+      'categoryId': categorySyncId,
+      if (debt.originTransactionSyncId != null &&
+          debt.originTransactionSyncId!.isNotEmpty)
+        'originTxId': debt.originTransactionSyncId,
     };
   }
 

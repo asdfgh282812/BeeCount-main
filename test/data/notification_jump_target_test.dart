@@ -6,6 +6,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:beecount/data/db.dart';
+import 'package:beecount/data/repositories/debt_repository.dart';
 import 'package:beecount/data/repositories/local/local_repository.dart';
 import 'package:beecount/pages/notifications/notification_center_page.dart';
 
@@ -60,6 +61,15 @@ void main() {
         .write(const RecurringTransactionsCompanion(
       syncId: d.Value('rule-sync-1'),
     ));
+    final debtId = await repo.createDebt(
+      ledgerId: 1,
+      direction: kDebtDirectionPayable,
+      counterpartyName: '小明',
+      principalAmount: 300,
+    );
+    await (db.update(db.debts)..where((t) => t.id.equals(debtId))).write(
+      const DebtsCompanion(syncId: d.Value('debt-sync-1')),
+    );
   });
 
   tearDown(() async => db.close());
@@ -184,5 +194,58 @@ void main() {
       onSwitchLedger: (_) {},
     );
     expect(target.account, isNotNull);
+  });
+
+  test('debtId 可解析 → 回傳 debt(附即時算出的 remainingAmount)', () async {
+    final target = await resolveNotificationJumpTarget(
+      repo,
+      {'debtId': 'debt-sync-1', 'ledgerId': 'ledger-sync-1'},
+      currentLedgerId: 1,
+      onSwitchLedger: (_) {},
+    );
+    expect(target.debt, isNotNull);
+    expect(target.debt!.debt.counterpartyName, '小明');
+    expect(target.debt!.remainingAmount, 300);
+    expect(target.account, isNull);
+    expect(target.hasRuleTarget, isFalse);
+  });
+
+  test('debtId 找不到本機實體 → notFound', () async {
+    final target = await resolveNotificationJumpTarget(
+      repo,
+      {'debtId': 'debt-sync-missing', 'ledgerId': 'ledger-sync-1'},
+      currentLedgerId: 1,
+      onSwitchLedger: (_) {},
+    );
+    expect(target.notFound, isTrue);
+    expect(target.debt, isNull);
+  });
+
+  test('recurringRuleId 優先於 debtId（兩者理論上不會同時出現在同一則通知,但解析順序要固定)',
+      () async {
+    final target = await resolveNotificationJumpTarget(
+      repo,
+      {
+        'recurringRuleId': 'rule-sync-1',
+        'debtId': 'debt-sync-1',
+        'ledgerId': 'ledger-sync-1',
+      },
+      currentLedgerId: 1,
+      onSwitchLedger: (_) {},
+    );
+    expect(target.hasRuleTarget, isTrue);
+    expect(target.debt, isNull);
+  });
+
+  test('ledgerId 指向跟目前不同的帳本 → 先切帳本再回傳 debt target', () async {
+    int? switchedTo;
+    final target = await resolveNotificationJumpTarget(
+      repo,
+      {'debtId': 'debt-sync-1', 'ledgerId': 'ledger-sync-1'},
+      currentLedgerId: 2,
+      onSwitchLedger: (id) => switchedTo = id,
+    );
+    expect(switchedTo, 1);
+    expect(target.debt, isNotNull);
   });
 }

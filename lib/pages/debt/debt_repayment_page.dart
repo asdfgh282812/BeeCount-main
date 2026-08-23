@@ -12,14 +12,15 @@ import '../../services/billing/post_processor.dart';
 import '../../styles/tokens.dart';
 import '../../utils/currencies.dart';
 import '../../utils/ui_scale_extensions.dart';
-import '../../widgets/biz/account_selector.dart';
+import '../../widgets/biz/account_card_picker.dart';
+import '../../widgets/biz/category_selector_dialog.dart';
 import '../../widgets/biz/section_card.dart';
 import '../../widgets/ui/ui.dart';
 
 /// 借還款的還款/收款記錄頁。對齐 BeeCount Cloud 的設計:還款「沒有獨立的
 /// 實體」,就是一筆帶 debtSyncId 的普通 expense/income 交易——這裡是一個
 /// 獨立的小頁面(同 Cloud web 的 repayment dialog,不是走完整交易表單),
-/// 只收金額/帳戶/日期/備註,分類留空(還款不需要分類)。
+/// 只收金額/帳戶/日期/分類(可選)/備註。
 class DebtRepaymentPage extends ConsumerStatefulWidget {
   final Debt debt;
   final double suggestedAmount;
@@ -38,6 +39,9 @@ class _DebtRepaymentPageState extends ConsumerState<DebtRepaymentPage> {
   final _amountController = TextEditingController();
   final _noteController = TextEditingController();
   int? _accountId;
+  Account? _account;
+  int? _categoryId;
+  Category? _category;
   DateTime _happenedAt = DateTime.now();
   bool _isLoading = false;
 
@@ -59,7 +63,6 @@ class _DebtRepaymentPageState extends ConsumerState<DebtRepaymentPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final ledgerId = ref.watch(currentLedgerIdProvider);
     final currencyCode =
         ref.watch(currentLedgerProvider).asData?.value?.currency ?? 'CNY';
     final currencySymbol = getCurrencySymbol(currencyCode);
@@ -147,11 +150,40 @@ class _DebtRepaymentPageState extends ConsumerState<DebtRepaymentPage> {
                         ),
                       ),
                       SizedBox(height: 8.0.scaled(context, ref)),
-                      AccountSelector(
-                        ledgerId: ledgerId,
-                        selectedAccountId: _accountId,
-                        onAccountSelected: (id) =>
-                            setState(() => _accountId = id),
+                      InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: _pickAccount,
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: BeeTokens.surfaceInput(context),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.credit_card,
+                                  size: 18,
+                                  color: BeeTokens.iconSecondary(context)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _account?.name ??
+                                      l10n.debtRepaymentAccountLabel,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      color: BeeTokens.textPrimary(context),
+                                      fontSize: 14),
+                                ),
+                              ),
+                              Icon(Icons.chevron_right,
+                                  size: 18,
+                                  color: BeeTokens.iconTertiary(context)),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -186,6 +218,53 @@ class _DebtRepaymentPageState extends ConsumerState<DebtRepaymentPage> {
                         ),
                         Icon(Icons.chevron_right,
                             color: BeeTokens.iconTertiary(context)),
+                      ],
+                    ),
+                  ),
+                ),
+                SizedBox(height: 12.0.scaled(context, ref)),
+                SectionCard(
+                  child: InkWell(
+                    onTap: _pickCategory,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                l10n.debtCategoryLabel,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: BeeTokens.textSecondary(context),
+                                ),
+                              ),
+                              SizedBox(height: 6.0.scaled(context, ref)),
+                              Text(
+                                _category?.name ?? l10n.debtCategoryNone,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: _category != null
+                                      ? BeeTokens.textPrimary(context)
+                                      : BeeTokens.textTertiary(context),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (_category != null)
+                          IconButton(
+                            onPressed: () => setState(() {
+                              _categoryId = null;
+                              _category = null;
+                            }),
+                            icon: Icon(Icons.close,
+                                color: BeeTokens.iconTertiary(context)),
+                          )
+                        else
+                          Icon(Icons.chevron_right,
+                              color: BeeTokens.iconTertiary(context)),
                       ],
                     ),
                   ),
@@ -229,6 +308,40 @@ class _DebtRepaymentPageState extends ConsumerState<DebtRepaymentPage> {
   String _formatDate(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
+  Future<void> _pickAccount() async {
+    final ledgerId = ref.read(currentLedgerIdProvider);
+    final result = await AccountCardPicker.show(
+      context,
+      ledgerId: ledgerId,
+      selectedAccountId: _accountId,
+    );
+    if (result == null || !mounted) return;
+    final id = result.accountId;
+    if (id == null) return;
+    final repo = ref.read(repositoryProvider);
+    final account = await repo.getAccount(id);
+    if (!mounted) return;
+    setState(() {
+      _accountId = id;
+      _account = account;
+    });
+  }
+
+  Future<void> _pickCategory() async {
+    final ledgerId = ref.read(currentLedgerIdProvider);
+    final picked = await showCategorySelector(
+      context,
+      type: _isPayable ? 'expense' : 'income',
+      currentCategoryId: _categoryId,
+      ledgerId: ledgerId,
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _categoryId = picked.id;
+      _category = picked;
+    });
+  }
+
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -269,6 +382,7 @@ class _DebtRepaymentPageState extends ConsumerState<DebtRepaymentPage> {
         ledgerId: ledgerId,
         type: _isPayable ? 'expense' : 'income',
         amount: amount,
+        categoryId: _categoryId,
         accountId: _accountId,
         happenedAt: _happenedAt,
         note: note.isEmpty ? null : note,

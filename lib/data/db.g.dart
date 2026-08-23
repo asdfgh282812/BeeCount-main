@@ -13251,6 +13251,18 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
   late final GeneratedColumn<DateTime> closedAt = GeneratedColumn<DateTime>(
       'closed_at', aliasedName, true,
       type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _categoryIdMeta =
+      const VerificationMeta('categoryId');
+  @override
+  late final GeneratedColumn<int> categoryId = GeneratedColumn<int>(
+      'category_id', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _originTransactionSyncIdMeta =
+      const VerificationMeta('originTransactionSyncId');
+  @override
+  late final GeneratedColumn<String> originTransactionSyncId =
+      GeneratedColumn<String>('origin_transaction_sync_id', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -13278,6 +13290,8 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
         dueAt,
         note,
         closedAt,
+        categoryId,
+        originTransactionSyncId,
         createdAt,
         updatedAt
       ];
@@ -13338,6 +13352,19 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
       context.handle(_closedAtMeta,
           closedAt.isAcceptableOrUnknown(data['closed_at']!, _closedAtMeta));
     }
+    if (data.containsKey('category_id')) {
+      context.handle(
+          _categoryIdMeta,
+          categoryId.isAcceptableOrUnknown(
+              data['category_id']!, _categoryIdMeta));
+    }
+    if (data.containsKey('origin_transaction_sync_id')) {
+      context.handle(
+          _originTransactionSyncIdMeta,
+          originTransactionSyncId.isAcceptableOrUnknown(
+              data['origin_transaction_sync_id']!,
+              _originTransactionSyncIdMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -13373,6 +13400,11 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
           .read(DriftSqlType.string, data['${effectivePrefix}note']),
       closedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}closed_at']),
+      categoryId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}category_id']),
+      originTransactionSyncId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}origin_transaction_sync_id']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -13413,6 +13445,16 @@ class Debt extends DataClass implements Insertable<Debt> {
   /// 非 null = 手動結案(見 [kDebtStatusClosed])。優先於金額判斷的狀態——
   /// 手動結案可以在未還清時發生(呆帳/不再追蹤)。
   final DateTime? closedAt;
+
+  /// v41:分類(原始設計刻意留空,使用者反饋後補上)。跟 [Transactions.categoryId]
+  /// 一樣不宣告 FK,零存在性驗證。
+  final int? categoryId;
+
+  /// v41:起點交易反查——建立欠款時 App 會同時寫一筆帳戶餘額起點交易,但那筆
+  /// 交易刻意不帶 [Transactions.debtSyncId](避免被還款金額加總誤計入,見上方
+  /// docstring),所以要存這個欄位才能反查回那筆交易。存 syncId 字串直連,
+  /// 不解析成本地 id(那筆交易未必已經同步下來)。建立後不可改。
+  final String? originTransactionSyncId;
   final DateTime createdAt;
   final DateTime updatedAt;
   const Debt(
@@ -13425,6 +13467,8 @@ class Debt extends DataClass implements Insertable<Debt> {
       this.dueAt,
       this.note,
       this.closedAt,
+      this.categoryId,
+      this.originTransactionSyncId,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -13447,6 +13491,13 @@ class Debt extends DataClass implements Insertable<Debt> {
     if (!nullToAbsent || closedAt != null) {
       map['closed_at'] = Variable<DateTime>(closedAt);
     }
+    if (!nullToAbsent || categoryId != null) {
+      map['category_id'] = Variable<int>(categoryId);
+    }
+    if (!nullToAbsent || originTransactionSyncId != null) {
+      map['origin_transaction_sync_id'] =
+          Variable<String>(originTransactionSyncId);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -13467,6 +13518,12 @@ class Debt extends DataClass implements Insertable<Debt> {
       closedAt: closedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(closedAt),
+      categoryId: categoryId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(categoryId),
+      originTransactionSyncId: originTransactionSyncId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originTransactionSyncId),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -13485,6 +13542,9 @@ class Debt extends DataClass implements Insertable<Debt> {
       dueAt: serializer.fromJson<DateTime?>(json['dueAt']),
       note: serializer.fromJson<String?>(json['note']),
       closedAt: serializer.fromJson<DateTime?>(json['closedAt']),
+      categoryId: serializer.fromJson<int?>(json['categoryId']),
+      originTransactionSyncId:
+          serializer.fromJson<String?>(json['originTransactionSyncId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -13502,6 +13562,9 @@ class Debt extends DataClass implements Insertable<Debt> {
       'dueAt': serializer.toJson<DateTime?>(dueAt),
       'note': serializer.toJson<String?>(note),
       'closedAt': serializer.toJson<DateTime?>(closedAt),
+      'categoryId': serializer.toJson<int?>(categoryId),
+      'originTransactionSyncId':
+          serializer.toJson<String?>(originTransactionSyncId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -13517,6 +13580,8 @@ class Debt extends DataClass implements Insertable<Debt> {
           Value<DateTime?> dueAt = const Value.absent(),
           Value<String?> note = const Value.absent(),
           Value<DateTime?> closedAt = const Value.absent(),
+          Value<int?> categoryId = const Value.absent(),
+          Value<String?> originTransactionSyncId = const Value.absent(),
           DateTime? createdAt,
           DateTime? updatedAt}) =>
       Debt(
@@ -13529,6 +13594,10 @@ class Debt extends DataClass implements Insertable<Debt> {
         dueAt: dueAt.present ? dueAt.value : this.dueAt,
         note: note.present ? note.value : this.note,
         closedAt: closedAt.present ? closedAt.value : this.closedAt,
+        categoryId: categoryId.present ? categoryId.value : this.categoryId,
+        originTransactionSyncId: originTransactionSyncId.present
+            ? originTransactionSyncId.value
+            : this.originTransactionSyncId,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -13547,6 +13616,11 @@ class Debt extends DataClass implements Insertable<Debt> {
       dueAt: data.dueAt.present ? data.dueAt.value : this.dueAt,
       note: data.note.present ? data.note.value : this.note,
       closedAt: data.closedAt.present ? data.closedAt.value : this.closedAt,
+      categoryId:
+          data.categoryId.present ? data.categoryId.value : this.categoryId,
+      originTransactionSyncId: data.originTransactionSyncId.present
+          ? data.originTransactionSyncId.value
+          : this.originTransactionSyncId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -13564,6 +13638,8 @@ class Debt extends DataClass implements Insertable<Debt> {
           ..write('dueAt: $dueAt, ')
           ..write('note: $note, ')
           ..write('closedAt: $closedAt, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('originTransactionSyncId: $originTransactionSyncId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -13581,6 +13657,8 @@ class Debt extends DataClass implements Insertable<Debt> {
       dueAt,
       note,
       closedAt,
+      categoryId,
+      originTransactionSyncId,
       createdAt,
       updatedAt);
   @override
@@ -13596,6 +13674,8 @@ class Debt extends DataClass implements Insertable<Debt> {
           other.dueAt == this.dueAt &&
           other.note == this.note &&
           other.closedAt == this.closedAt &&
+          other.categoryId == this.categoryId &&
+          other.originTransactionSyncId == this.originTransactionSyncId &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -13610,6 +13690,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
   final Value<DateTime?> dueAt;
   final Value<String?> note;
   final Value<DateTime?> closedAt;
+  final Value<int?> categoryId;
+  final Value<String?> originTransactionSyncId;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const DebtsCompanion({
@@ -13622,6 +13704,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     this.dueAt = const Value.absent(),
     this.note = const Value.absent(),
     this.closedAt = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.originTransactionSyncId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -13635,6 +13719,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     this.dueAt = const Value.absent(),
     this.note = const Value.absent(),
     this.closedAt = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.originTransactionSyncId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   })  : ledgerId = Value(ledgerId),
@@ -13651,6 +13737,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     Expression<DateTime>? dueAt,
     Expression<String>? note,
     Expression<DateTime>? closedAt,
+    Expression<int>? categoryId,
+    Expression<String>? originTransactionSyncId,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
   }) {
@@ -13664,6 +13752,9 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       if (dueAt != null) 'due_at': dueAt,
       if (note != null) 'note': note,
       if (closedAt != null) 'closed_at': closedAt,
+      if (categoryId != null) 'category_id': categoryId,
+      if (originTransactionSyncId != null)
+        'origin_transaction_sync_id': originTransactionSyncId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -13679,6 +13770,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       Value<DateTime?>? dueAt,
       Value<String?>? note,
       Value<DateTime?>? closedAt,
+      Value<int?>? categoryId,
+      Value<String?>? originTransactionSyncId,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt}) {
     return DebtsCompanion(
@@ -13691,6 +13784,9 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       dueAt: dueAt ?? this.dueAt,
       note: note ?? this.note,
       closedAt: closedAt ?? this.closedAt,
+      categoryId: categoryId ?? this.categoryId,
+      originTransactionSyncId:
+          originTransactionSyncId ?? this.originTransactionSyncId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -13726,6 +13822,13 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     if (closedAt.present) {
       map['closed_at'] = Variable<DateTime>(closedAt.value);
     }
+    if (categoryId.present) {
+      map['category_id'] = Variable<int>(categoryId.value);
+    }
+    if (originTransactionSyncId.present) {
+      map['origin_transaction_sync_id'] =
+          Variable<String>(originTransactionSyncId.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -13747,6 +13850,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
           ..write('dueAt: $dueAt, ')
           ..write('note: $note, ')
           ..write('closedAt: $closedAt, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('originTransactionSyncId: $originTransactionSyncId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -19926,6 +20031,8 @@ typedef $$DebtsTableCreateCompanionBuilder = DebtsCompanion Function({
   Value<DateTime?> dueAt,
   Value<String?> note,
   Value<DateTime?> closedAt,
+  Value<int?> categoryId,
+  Value<String?> originTransactionSyncId,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
 });
@@ -19939,6 +20046,8 @@ typedef $$DebtsTableUpdateCompanionBuilder = DebtsCompanion Function({
   Value<DateTime?> dueAt,
   Value<String?> note,
   Value<DateTime?> closedAt,
+  Value<int?> categoryId,
+  Value<String?> originTransactionSyncId,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
 });
@@ -19979,6 +20088,13 @@ class $$DebtsTableFilterComposer extends Composer<_$BeeDatabase, $DebtsTable> {
 
   ColumnFilters<DateTime> get closedAt => $composableBuilder(
       column: $table.closedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get categoryId => $composableBuilder(
+      column: $table.categoryId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get originTransactionSyncId => $composableBuilder(
+      column: $table.originTransactionSyncId,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -20025,6 +20141,13 @@ class $$DebtsTableOrderingComposer
   ColumnOrderings<DateTime> get closedAt => $composableBuilder(
       column: $table.closedAt, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<int> get categoryId => $composableBuilder(
+      column: $table.categoryId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get originTransactionSyncId => $composableBuilder(
+      column: $table.originTransactionSyncId,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -20068,6 +20191,12 @@ class $$DebtsTableAnnotationComposer
   GeneratedColumn<DateTime> get closedAt =>
       $composableBuilder(column: $table.closedAt, builder: (column) => column);
 
+  GeneratedColumn<int> get categoryId => $composableBuilder(
+      column: $table.categoryId, builder: (column) => column);
+
+  GeneratedColumn<String> get originTransactionSyncId => $composableBuilder(
+      column: $table.originTransactionSyncId, builder: (column) => column);
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -20107,6 +20236,8 @@ class $$DebtsTableTableManager extends RootTableManager<
             Value<DateTime?> dueAt = const Value.absent(),
             Value<String?> note = const Value.absent(),
             Value<DateTime?> closedAt = const Value.absent(),
+            Value<int?> categoryId = const Value.absent(),
+            Value<String?> originTransactionSyncId = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
           }) =>
@@ -20120,6 +20251,8 @@ class $$DebtsTableTableManager extends RootTableManager<
             dueAt: dueAt,
             note: note,
             closedAt: closedAt,
+            categoryId: categoryId,
+            originTransactionSyncId: originTransactionSyncId,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
@@ -20133,6 +20266,8 @@ class $$DebtsTableTableManager extends RootTableManager<
             Value<DateTime?> dueAt = const Value.absent(),
             Value<String?> note = const Value.absent(),
             Value<DateTime?> closedAt = const Value.absent(),
+            Value<int?> categoryId = const Value.absent(),
+            Value<String?> originTransactionSyncId = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
           }) =>
@@ -20146,6 +20281,8 @@ class $$DebtsTableTableManager extends RootTableManager<
             dueAt: dueAt,
             note: note,
             closedAt: closedAt,
+            categoryId: categoryId,
+            originTransactionSyncId: originTransactionSyncId,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),

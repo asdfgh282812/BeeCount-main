@@ -3812,12 +3812,18 @@ class LocalRepository extends BaseRepository {
     required int accountId,
     DateTime? dueAt,
     String? note,
+    int? categoryId,
   }) async {
     assert(
       direction == kDebtDirectionPayable ||
           direction == kDebtDirectionReceivable,
       'direction 必须是 payable 或 receivable,实际传入 "$direction"',
     );
+    // 起點交易的 syncId 先在這裡生成,好讓 createDebt 那筆能把
+    // originTransactionSyncId 指過去——顺序上不需要反過来先建 debt(debt 的
+    // syncId 由 createDebt 內部生成,這裡拿不到),見 [DebtRepository]
+    // getDebtByOriginTransactionSyncId 的文檔說明。
+    final originTxSyncId = _uuid.v4();
     return db.transaction(() async {
       await addTransaction(
         ledgerId: ledgerId,
@@ -3825,6 +3831,7 @@ class LocalRepository extends BaseRepository {
         amount: principalAmount,
         happenedAt: DateTime.now(),
         accountId: accountId,
+        syncId: originTxSyncId,
       );
       return createDebt(
         ledgerId: ledgerId,
@@ -3833,6 +3840,8 @@ class LocalRepository extends BaseRepository {
         principalAmount: principalAmount,
         dueAt: dueAt,
         note: note,
+        categoryId: categoryId,
+        originTransactionSyncId: originTxSyncId,
       );
     });
   }
@@ -3845,6 +3854,8 @@ class LocalRepository extends BaseRepository {
     required double principalAmount,
     DateTime? dueAt,
     String? note,
+    int? categoryId,
+    String? originTransactionSyncId,
   }) async {
     final id = await _debtRepo.createDebt(
       ledgerId: ledgerId,
@@ -3853,6 +3864,8 @@ class LocalRepository extends BaseRepository {
       principalAmount: principalAmount,
       dueAt: dueAt,
       note: note,
+      categoryId: categoryId,
+      originTransactionSyncId: originTransactionSyncId,
     );
     if (changeTracker != null) {
       final row =
@@ -3879,6 +3892,8 @@ class LocalRepository extends BaseRepository {
     bool clearDueAt = false,
     String? note,
     bool clearNote = false,
+    int? categoryId,
+    bool clearCategoryId = false,
   }) async {
     await _debtRepo.updateDebt(
       id,
@@ -3887,6 +3902,8 @@ class LocalRepository extends BaseRepository {
       clearDueAt: clearDueAt,
       note: note,
       clearNote: clearNote,
+      categoryId: categoryId,
+      clearCategoryId: clearCategoryId,
     );
     await _recordDebtChange(id, 'update');
   }
@@ -3943,6 +3960,10 @@ class LocalRepository extends BaseRepository {
   @override
   Future<Debt?> getDebtBySyncId(String syncId) =>
       _debtRepo.getDebtBySyncId(syncId);
+
+  @override
+  Future<Debt?> getDebtByOriginTransactionSyncId(String syncId) =>
+      _debtRepo.getDebtByOriginTransactionSyncId(syncId);
 
   @override
   Future<bool> hasRepayments(int debtId) => _debtRepo.hasRepayments(debtId);

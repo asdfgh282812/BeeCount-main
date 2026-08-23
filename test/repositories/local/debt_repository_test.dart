@@ -250,7 +250,7 @@ void main() {
     expect(byLedger[lid2]!.payableRemaining, 50);
   });
 
-  test('createDebtWithOriginTransaction creates both rows atomically and does not link them', () async {
+  test('createDebtWithOriginTransaction creates both rows atomically, linked one-way via originTransactionSyncId', () async {
     final ledgerId = await repo.createLedger(name: 'L', currency: 'CNY');
     final accountId = await repo.createAccount(
       ledgerId: 0,
@@ -277,10 +277,92 @@ void main() {
     expect(txs.first.type, 'income'); // payable = 我欠款 = 帳戶餘額 +本金
     expect(txs.first.amount, 500);
     expect(txs.first.accountId, accountId);
-    expect(txs.first.debtSyncId, isNull); // 起點交易不與欠款連結,見 A.2
+    // 起點交易不與欠款連結(不打 debtSyncId,避免污染還款金額加總,見
+    // A.2),但反過來欠款會記住起點交易的 syncId,見下方
+    // getDebtByOriginTransactionSyncId 測試。
+    expect(txs.first.debtSyncId, isNull);
+    expect(debt.originTransactionSyncId, txs.first.syncId);
+    expect(debt.originTransactionSyncId, isNotNull);
 
     final balance = await repo.getAccountBalance(accountId);
     expect(balance, 500);
+  });
+
+  test('getDebtByOriginTransactionSyncId 能反查回起點交易對應的欠款', () async {
+    final ledgerId = await repo.createLedger(name: 'L3', currency: 'CNY');
+    final accountId = await repo.createAccount(
+      ledgerId: 0,
+      name: 'Cash3',
+      type: 'cash',
+      currency: 'CNY',
+      initialBalance: 0,
+    );
+
+    final debtId = await repo.createDebtWithOriginTransaction(
+      ledgerId: ledgerId,
+      direction: kDebtDirectionPayable,
+      counterpartyName: 'Carol',
+      principalAmount: 200,
+      accountId: accountId,
+    );
+    final debt = (await repo.getDebt(debtId))!;
+    final originTx = (await repo.getTransactionsByLedger(ledgerId)).single;
+
+    final found =
+        await repo.getDebtByOriginTransactionSyncId(originTx.syncId!);
+    expect(found, isNotNull);
+    expect(found!.id, debtId);
+
+    // 一筆普通(非起點)交易的 syncId 不該反查到任何欠款。
+    final notFound = await repo.getDebtByOriginTransactionSyncId('unrelated');
+    expect(notFound, isNull);
+
+    // 還款交易帶的是 debtSyncId,不是 originTransactionSyncId——反查不該
+    // 命中,兩個欄位語意不能混。
+    await repo.addTransaction(
+      ledgerId: ledgerId,
+      type: 'expense',
+      amount: 50,
+      accountId: accountId,
+      happenedAt: DateTime.now(),
+      debtSyncId: debt.syncId,
+    );
+    final repaymentTx = (await repo.getTransactionsByLedger(ledgerId))
+        .firstWhere((t) => t.debtSyncId != null);
+    final foundByRepayment =
+        await repo.getDebtByOriginTransactionSyncId(repaymentTx.syncId!);
+    expect(foundByRepayment, isNull);
+  });
+
+  test('createDebtWithOriginTransaction/updateDebt 能設定與清除 categoryId', () async {
+    final ledgerId = await repo.createLedger(name: 'L4', currency: 'CNY');
+    final accountId = await repo.createAccount(
+      ledgerId: 0,
+      name: 'Cash4',
+      type: 'cash',
+      currency: 'CNY',
+      initialBalance: 0,
+    );
+    final categoryId = await repo.createCategory(
+      name: '借還款',
+      kind: 'income',
+      icon: 'default',
+    );
+
+    final debtId = await repo.createDebtWithOriginTransaction(
+      ledgerId: ledgerId,
+      direction: kDebtDirectionPayable,
+      counterpartyName: 'Dave',
+      principalAmount: 100,
+      accountId: accountId,
+      categoryId: categoryId,
+    );
+    var debt = (await repo.getDebt(debtId))!;
+    expect(debt.categoryId, categoryId);
+
+    await repo.updateDebt(debtId, clearCategoryId: true);
+    debt = (await repo.getDebt(debtId))!;
+    expect(debt.categoryId, isNull);
   });
 
   test('createDebtWithOriginTransaction: receivable direction creates an expense', () async {
