@@ -16068,6 +16068,12 @@ abstract class AppLocalizations {
   /// **'No repayments yet'**
   String get debtRepaymentRecordsEmpty;
 
+  /// No description provided for @debtOriginRecordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Origin Record'**
+  String get debtOriginRecordLabel;
+
   /// No description provided for @debtRepaymentAccountRequired.
   ///
   /// In en, this message translates to:

@@ -3394,6 +3394,7 @@
   "debtRepaymentSuccess": "已記錄",
   "debtRepaymentRecordsLabel": "還款記錄",
   "debtRepaymentRecordsEmpty": "還沒有還款記錄",
+  "debtOriginRecordLabel": "欠款紀錄",
   "debtRepaymentAccountRequired": "請選擇帳戶",
   "debtRepaymentAmountInvalid": "請輸入有效金額",
   "debtExcludedFromTotalLabel": "排除計入總額",

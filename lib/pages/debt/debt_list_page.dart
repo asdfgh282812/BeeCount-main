@@ -287,7 +287,11 @@ class _DebtCardState extends ConsumerState<_DebtCard> {
               ],
             ),
           ),
-          if (_expanded) _RepaymentList(debtId: debt.id),
+          if (_expanded) ...[
+            if (debt.originTransactionSyncId != null)
+              _OriginRecordSection(originSyncId: debt.originTransactionSyncId!),
+            _RepaymentList(debtId: debt.id),
+          ],
         ],
       ),
     );
@@ -333,6 +337,69 @@ class _DebtCardState extends ConsumerState<_DebtCard> {
   }
 }
 
+/// 欠款紀錄(起點交易)區塊——跟 [_RepaymentList] 平行,讓展開的卡片裡
+/// 「還款紀錄」跟「欠款紀錄」都找得到。web 建立的欠款沒有起點交易概念,
+/// 呼叫端已經在 [_DebtCardState.build] 檢查過 `originTransactionSyncId`
+/// 非 null 才會渲染這個 widget。
+class _OriginRecordSection extends ConsumerWidget {
+  final String originSyncId;
+
+  const _OriginRecordSection({required this.originSyncId});
+
+  String _fmtDate(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final txAsync = ref.watch(debtOriginTransactionProvider(originSyncId));
+
+    return txAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (e, st) => const SizedBox.shrink(),
+      data: (tx) {
+        if (tx == null) return const SizedBox.shrink();
+        return Container(
+          decoration: BoxDecoration(
+            border: Border(top: BorderSide(color: BeeTokens.divider(context))),
+          ),
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.debtOriginRecordLabel,
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: BeeTokens.textTertiary(context)),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Text(
+                    _fmtDate(tx.happenedAt),
+                    style: TextStyle(
+                        fontSize: 13, color: BeeTokens.textPrimary(context)),
+                  ),
+                  const Spacer(),
+                  Text(
+                    tx.amount.toStringAsFixed(2),
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: BeeTokens.textPrimary(context)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _RepaymentList extends ConsumerWidget {
   final int debtId;
 
@@ -374,9 +441,23 @@ class _RepaymentList extends ConsumerWidget {
               ),
             );
           }
-          return Column(
-            children: txs
-                .map((t) => Padding(
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(0, 8, 0, 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    l10n.debtRepaymentRecordsLabel,
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: BeeTokens.textTertiary(context)),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                ...txs.map((t) => Padding(
                       padding:
                           const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       child: Row(
@@ -397,8 +478,9 @@ class _RepaymentList extends ConsumerWidget {
                           ),
                         ],
                       ),
-                    ))
-                .toList(),
+                    )),
+              ],
+            ),
           );
         },
       ),

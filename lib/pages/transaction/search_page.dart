@@ -511,6 +511,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         await repo.deleteTransaction(id);
       }
       ref.read(budgetRefreshProvider.notifier).state++;
+      ref.read(debtsRefreshProvider.notifier).state++;
       await _refreshAfterBatchOperation(
           count, l10n.searchBatchDeleteSuccess(count));
     } catch (e) {

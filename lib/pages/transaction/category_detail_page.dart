@@ -469,6 +469,7 @@ class _CategoryDetailPageState extends ConsumerState<CategoryDetailPage> {
                   ref.invalidate(countsForLedgerProvider(ledgerId));
                   ref.read(statsRefreshProvider.notifier).state++;
                   ref.read(budgetRefreshProvider.notifier).state++;
+                  ref.read(debtsRefreshProvider.notifier).state++;
                 } catch (e) {
                   if (context.mounted) {
                     showToast(context,

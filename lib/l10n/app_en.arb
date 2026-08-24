@@ -3822,6 +3822,7 @@
   "debtRepaymentSuccess": "Recorded",
   "debtRepaymentRecordsLabel": "Repayment Records",
   "debtRepaymentRecordsEmpty": "No repayments yet",
+  "debtOriginRecordLabel": "Origin Record",
   "debtRepaymentAccountRequired": "Please select an account",
   "debtRepaymentAmountInvalid": "Please enter a valid amount",
   "debtExcludedFromTotalLabel": "Exclude from total",

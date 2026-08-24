@@ -476,4 +476,88 @@ void main() {
     expect(withStatus, hasLength(1));
     expect(withStatus.first.debt.id, id);
   });
+
+  test('刪除起點交易且無還款記錄 → 欠款一併被刪除', () async {
+    final ledgerId = await repo.createLedger(name: 'L', currency: 'CNY');
+    final accountId = await repo.createAccount(
+      ledgerId: 0,
+      name: 'Cash',
+      type: 'cash',
+      currency: 'CNY',
+      initialBalance: 0,
+    );
+    final debtId = await repo.createDebtWithOriginTransaction(
+      ledgerId: ledgerId,
+      direction: kDebtDirectionPayable,
+      counterpartyName: 'Dave',
+      principalAmount: 500,
+      accountId: accountId,
+    );
+    final originTx = (await repo.getTransactionsByLedger(ledgerId)).single;
+
+    await repo.deleteTransaction(originTx.id);
+
+    expect(await repo.getDebt(debtId), isNull,
+        reason: '起點交易被刪、又沒有任何還款記錄,這筆欠款已經沒有交易佐證,'
+            '欠款管理頁面上的紀錄應該一併清掉');
+  });
+
+  test('刪除起點交易但已有還款記錄 → 欠款保留(守衛擋住,不誤刪有記錄的欠款)', () async {
+    final ledgerId = await repo.createLedger(name: 'L2', currency: 'CNY');
+    final accountId = await repo.createAccount(
+      ledgerId: 0,
+      name: 'Cash2',
+      type: 'cash',
+      currency: 'CNY',
+      initialBalance: 0,
+    );
+    final debtId = await repo.createDebtWithOriginTransaction(
+      ledgerId: ledgerId,
+      direction: kDebtDirectionPayable,
+      counterpartyName: 'Erin',
+      principalAmount: 500,
+      accountId: accountId,
+    );
+    final debt = (await repo.getDebt(debtId))!;
+    await repo.addTransaction(
+      ledgerId: ledgerId,
+      type: 'expense',
+      amount: 100,
+      happenedAt: DateTime(2026, 1, 1),
+      accountId: accountId,
+      debtSyncId: debt.syncId,
+    );
+    final originTx = (await repo.getTransactionsByLedger(ledgerId))
+        .firstWhere((t) => t.debtSyncId == null);
+
+    await repo.deleteTransaction(originTx.id);
+
+    expect(await repo.getDebt(debtId), isNotNull,
+        reason: '已有還款記錄的欠款不該被刪交易連帶誤刪,跟主動刪欠款的'
+            'DEBT_HAS_REPAYMENTS 守衛是同一條規則');
+  });
+
+  test('刪除還款交易(非起點)不影響欠款本身', () async {
+    final lid = await seedLedger();
+    final id = await repo.createDebt(
+      ledgerId: lid,
+      direction: kDebtDirectionPayable,
+      counterpartyName: '對象',
+      principalAmount: 1000,
+    );
+    final debt = (await repo.getDebt(id))!;
+    await repo.addTransaction(
+      ledgerId: lid,
+      type: 'expense',
+      amount: 100,
+      happenedAt: DateTime(2026, 1, 1),
+      debtSyncId: debt.syncId,
+    );
+    final repaymentTx = (await repo.getTransactionsByLedger(lid)).single;
+
+    await repo.deleteTransaction(repaymentTx.id);
+
+    expect(await repo.getDebt(id), isNotNull,
+        reason: '刪的是還款交易,不是起點交易,欠款本身應該照常保留');
+  });
 }

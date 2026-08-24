@@ -8584,6 +8584,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get debtRepaymentRecordsEmpty => 'No repayments yet';
 
   @override
+  String get debtOriginRecordLabel => 'Origin Record';
+
+  @override
   String get debtRepaymentAccountRequired => 'Please select an account';
 
   @override
@@ -17190,6 +17193,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get debtRepaymentRecordsEmpty => '還沒有還款記錄';
+
+  @override
+  String get debtOriginRecordLabel => '欠款紀錄';
 
   @override
   String get debtRepaymentAccountRequired => '請選擇帳戶';

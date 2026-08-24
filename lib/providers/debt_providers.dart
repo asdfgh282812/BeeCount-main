@@ -36,6 +36,15 @@ final debtRepaymentTransactionsProvider =
   return repo.getDebtRepaymentTransactions(debtId);
 });
 
+/// 欠款的起點交易(欠款紀錄本身)——鍵是 [Debt.originTransactionSyncId],
+/// web 建立的欠款沒有這個概念,呼叫端應先檢查該欄位非 null 再用。
+final debtOriginTransactionProvider =
+    FutureProvider.family<Transaction?, String>((ref, originSyncId) async {
+  ref.watch(debtsRefreshProvider);
+  final repo = ref.watch(repositoryProvider);
+  return repo.getTransactionBySyncId(originSyncId);
+});
+
 /// 當前帳本的淨欠款餘額(Σreceivable − Σpayable 未結餘額)。
 final netDebtBalanceProvider = FutureProvider<double>((ref) async {
   ref.watch(debtsRefreshProvider);

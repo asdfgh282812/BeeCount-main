@@ -376,6 +376,7 @@ class _TagDetailPageState extends ConsumerState<TagDetailPage> {
       ref.read(statsRefreshProvider.notifier).state++;
       ref.read(budgetRefreshProvider.notifier).state++;
       ref.read(tagListRefreshProvider.notifier).state++;
+      ref.read(debtsRefreshProvider.notifier).state++;
     } catch (e) {
       if (mounted) {
         showToast(context, '${l10n.commonError}: $e');

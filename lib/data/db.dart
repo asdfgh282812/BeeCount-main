@@ -74,6 +74,14 @@ class Accounts extends Table {
   /// 上傳到雲端拿到的 fileId/sha256 不落本地欄位 —— push 時即時上傳算,
   /// 對齊分類自訂圖標的做法(見 entity_serializer.dart serializeCategory)。
   TextColumn get avatarPath => text().nullable()();
+
+  /// v43 不納入總餘額(對齊 Moze「balance included」+ BeeCount Cloud
+  /// `include_in_total`,正極性、預設 true=納入,避免同步邊界雙重否定)。
+  /// 只影響淨資產/資產構成/淨值趨勢等「總額」統計與合併帳單主卡的子卡
+  /// 加總 —— 帳戶本身仍正常出現在清單/選擇器,可正常記帳(跟 hidden 是
+  /// 兩個獨立維度,見 lib/data/db.dart 的 hidden 註解與
+  /// Debts.excludedFromTotal 的先例)。
+  BoolColumn get includeInTotal => boolean().withDefault(const Constant(true))();
 }
 
 /// 自动汇率本地缓存。日期键 append-only;可随时整表重建 → **不进同步**(README D2)。
@@ -803,7 +811,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 42; // v42: 欠款排除計入總額(debts.excluded_from_total)
+  int get schemaVersion => 43; // v43: 帳戶不納入總餘額(accounts.include_in_total)
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1733,6 +1741,16 @@ class BeeDatabase extends _$BeeDatabase {
                 'ALTER TABLE debts ADD COLUMN excluded_from_total '
                     'BOOLEAN NOT NULL DEFAULT 0;');
             logger.info('DBMigration', 'v42 迁移完成');
+          }
+          if (from < 43) {
+            logger.info(
+                'DBMigration', '开始迁移到 v43: 帳戶不納入總餘額(accounts.include_in_total)');
+            await _addColumnIfMissing(
+                'accounts',
+                'include_in_total',
+                'ALTER TABLE accounts ADD COLUMN include_in_total '
+                    'BOOLEAN NOT NULL DEFAULT 1;');
+            logger.info('DBMigration', 'v43 迁移完成');
           }
         },
         onCreate: (m) async {

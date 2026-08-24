@@ -598,19 +598,29 @@ class LocalRepository extends BaseRepository {
 
   @override
   Future<void> deleteTransaction(int id) async {
-    if (changeTracker != null) {
-      final tx = await _transactionRepo.getTransactionById(id);
-      if (tx?.syncId != null) {
-        await changeTracker!.recordLedgerChange(
-          entityType: 'transaction',
-          entityId: id,
-          entitySyncId: tx!.syncId!,
-          ledgerId: tx.ledgerId,
-          action: 'delete',
-        );
-      }
+    final tx = await _transactionRepo.getTransactionById(id);
+    if (changeTracker != null && tx?.syncId != null) {
+      await changeTracker!.recordLedgerChange(
+        entityType: 'transaction',
+        entityId: id,
+        entitySyncId: tx!.syncId!,
+        ledgerId: tx.ledgerId,
+        action: 'delete',
+      );
     }
     await _transactionRepo.deleteTransaction(id);
+
+    // 刪除的若是某筆欠款的起點交易,且該欠款還沒有任何還款記錄,這筆欠款
+    // 已經沒有任何交易佐證(起點沒了、也沒還款),欠款管理頁面留著只會是
+    // 找不到起點的空殼記錄,一併刪除——跟使用者主動刪欠款時的
+    // DEBT_HAS_REPAYMENTS 守衛是同一條判斷邏輯,這裡只是反過來在刪交易時
+    // 自動觸發。見 docs/changes/2026-08-25-debt-origin-tx-cascade-and-record-visibility.md。
+    if (tx?.syncId != null) {
+      final relatedDebt = await _debtRepo.getDebtByOriginTransactionSyncId(tx!.syncId!);
+      if (relatedDebt != null && !(await _debtRepo.hasRepayments(relatedDebt.id))) {
+        await deleteDebt(relatedDebt.id);
+      }
+    }
   }
 
   @override

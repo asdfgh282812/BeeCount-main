@@ -513,6 +513,7 @@ class TransactionListState extends ConsumerState<TransactionList> {
                 ref.invalidate(countsForLedgerProvider(curLedger));
                 ref.read(statsRefreshProvider.notifier).state++;
                 ref.read(budgetRefreshProvider.notifier).state++;
+                ref.read(debtsRefreshProvider.notifier).state++;
                 PostProcessor.sync(ref, ledgerId: curLedger);
 
                 if (context.mounted) {

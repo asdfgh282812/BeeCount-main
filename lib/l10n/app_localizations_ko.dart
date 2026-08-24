@@ -8676,6 +8676,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get debtRepaymentRecordsEmpty => 'No repayments yet';
 
   @override
+  String get debtOriginRecordLabel => 'Origin Record';
+
+  @override
   String get debtRepaymentAccountRequired => 'Please select an account';
 
   @override

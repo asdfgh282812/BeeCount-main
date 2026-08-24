@@ -263,6 +263,7 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
     ref.read(statsRefreshProvider.notifier).state++;
     ref.read(budgetRefreshProvider.notifier).state++;
     ref.read(tagListRefreshProvider.notifier).state++;
+    ref.read(debtsRefreshProvider.notifier).state++;
     PostProcessor.sync(ref, ledgerId: curLedger);
 
     final overlay = Overlay.of(context);
