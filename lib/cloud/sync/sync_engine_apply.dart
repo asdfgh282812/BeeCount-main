@@ -956,6 +956,7 @@ extension SyncEngineApplyExt on SyncEngine {
     final closedAt = closedAtStr != null ? DateTime.tryParse(closedAtStr) : null;
     final categorySyncId = payload['categoryId'] as String?;
     final originTxId = payload['originTxId'] as String?;
+    final excludedFromTotal = payload['excludedFromTotal'] as bool? ?? false;
 
     final localLedgerId = await _resolveLedgerIdBySyncId(ledgerSyncId);
     if (localLedgerId == null) {
@@ -981,6 +982,7 @@ extension SyncEngineApplyExt on SyncEngine {
         closedAt: d.Value(closedAt),
         categoryId: d.Value(localCategoryId),
         originTransactionSyncId: d.Value(originTxId),
+        excludedFromTotal: d.Value(excludedFromTotal),
         updatedAt: d.Value(DateTime.now()),
       ));
       logger.debug('SyncEngine', 'pull: 更新欠款 $syncId');
@@ -995,6 +997,7 @@ extension SyncEngineApplyExt on SyncEngine {
             closedAt: d.Value(closedAt),
             categoryId: d.Value(localCategoryId),
             originTransactionSyncId: d.Value(originTxId),
+            excludedFromTotal: d.Value(excludedFromTotal),
             syncId: d.Value(syncId),
           ));
       logger.debug('SyncEngine', 'pull: 新增欠款 $syncId');

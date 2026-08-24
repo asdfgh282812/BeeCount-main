@@ -8590,6 +8590,20 @@ class AppLocalizationsZh extends AppLocalizations {
   String get debtRepaymentAmountInvalid => 'Please enter a valid amount';
 
   @override
+  String get debtExcludedFromTotalLabel => 'Exclude from total';
+
+  @override
+  String get debtExcludedFromTotalHint =>
+      'Only affects net worth totals — still shows in this list and in notifications';
+
+  @override
+  String get debtRenameCounterpartyHint =>
+      'Renaming applies to every record under this counterparty';
+
+  @override
+  String get debtRenameCounterpartySuccess => 'Counterparty renamed';
+
+  @override
   String get pendingAccountPageTitle => 'Accounts to Confirm';
 
   @override
@@ -17182,6 +17196,18 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get debtRepaymentAmountInvalid => '請輸入有效金額';
+
+  @override
+  String get debtExcludedFromTotalLabel => '排除計入總額';
+
+  @override
+  String get debtExcludedFromTotalHint => '只影響淨資產總額統計——清單跟通知仍會照常顯示';
+
+  @override
+  String get debtRenameCounterpartyHint => '修改對象名稱會套用到此對象名下所有記錄';
+
+  @override
+  String get debtRenameCounterpartySuccess => '對象名稱已更新';
 
   @override
   String get pendingAccountPageTitle => '待確認帳戶';

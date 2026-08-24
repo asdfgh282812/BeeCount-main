@@ -26,6 +26,7 @@ class LocalDebtRepository implements DebtRepository {
     String? note,
     int? categoryId,
     String? originTransactionSyncId,
+    bool excludedFromTotal = false,
   }) async {
     assert(
       direction == kDebtDirectionPayable ||
@@ -42,6 +43,7 @@ class LocalDebtRepository implements DebtRepository {
             note: d.Value(note),
             categoryId: d.Value(categoryId),
             originTransactionSyncId: d.Value(originTransactionSyncId),
+            excludedFromTotal: d.Value(excludedFromTotal),
             syncId: d.Value(_uuid.v4()),
           ),
         );
@@ -57,6 +59,7 @@ class LocalDebtRepository implements DebtRepository {
     DateTime? dueAt,
     String? note,
     int? categoryId,
+    bool excludedFromTotal = false,
   }) {
     // 這個方法需要同時寫入一筆交易(TransactionRepository 的職責)+一筆欠款,
     // 但本類只持有 db,沒有 TransactionRepository 引用可組出 addTransaction
@@ -80,6 +83,7 @@ class LocalDebtRepository implements DebtRepository {
     bool clearNote = false,
     int? categoryId,
     bool clearCategoryId = false,
+    bool? excludedFromTotal,
   }) async {
     await (db.update(db.debts)..where((t) => t.id.equals(id))).write(
       DebtsCompanion(
@@ -97,9 +101,36 @@ class LocalDebtRepository implements DebtRepository {
             : (categoryId != null
                 ? d.Value(categoryId)
                 : const d.Value.absent()),
+        excludedFromTotal: excludedFromTotal != null
+            ? d.Value(excludedFromTotal)
+            : const d.Value.absent(),
         updatedAt: d.Value(DateTime.now()),
       ),
     );
+  }
+
+  @override
+  Future<int> renameCounterparty({
+    required int ledgerId,
+    required String oldName,
+    required String newName,
+  }) async {
+    final rows = await (db.select(db.debts)
+          ..where((t) =>
+              t.ledgerId.equals(ledgerId) & t.counterpartyName.equals(oldName)))
+        .get();
+    if (rows.isEmpty) return 0;
+    await db.transaction(() async {
+      for (final row in rows) {
+        await (db.update(db.debts)..where((t) => t.id.equals(row.id))).write(
+          DebtsCompanion(
+            counterpartyName: d.Value(newName),
+            updatedAt: d.Value(DateTime.now()),
+          ),
+        );
+      }
+    });
+    return rows.length;
   }
 
   @override
@@ -230,6 +261,7 @@ class LocalDebtRepository implements DebtRepository {
     double net = 0;
     for (final entry in withStatus) {
       if (entry.status == kDebtStatusClosed) continue;
+      if (entry.debt.excludedFromTotal) continue;
       if (entry.debt.direction == kDebtDirectionReceivable) {
         net += entry.remainingAmount;
       } else {
@@ -247,6 +279,7 @@ class LocalDebtRepository implements DebtRepository {
     for (final debt in allDebts) {
       final withStatus = await _withStatus(debt);
       if (withStatus.status == kDebtStatusClosed) continue;
+      if (debt.excludedFromTotal) continue;
       final prev = byLedger[debt.ledgerId] ?? (receivable: 0.0, payable: 0.0);
       if (debt.direction == kDebtDirectionReceivable) {
         byLedger[debt.ledgerId] =

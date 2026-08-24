@@ -248,4 +248,45 @@ void main() {
     expect(switchedTo, 1);
     expect(target.debt, isNotNull);
   });
+
+  test('§5.5 只帶 counterpartyName(未結清對象清單摘要) → hasCounterpartyTarget',
+      () async {
+    final target = await resolveNotificationJumpTarget(
+      repo,
+      {'counterpartyName': '小明', 'ledgerId': 'ledger-sync-1'},
+      currentLedgerId: 1,
+      onSwitchLedger: (_) {},
+    );
+    expect(target.hasCounterpartyTarget, isTrue);
+    expect(target.debt, isNull);
+    expect(target.notFound, isFalse);
+  });
+
+  test('debtId 優先於 counterpartyName（兩者理論上不會同時出現,但解析順序要固定)',
+      () async {
+    final target = await resolveNotificationJumpTarget(
+      repo,
+      {
+        'debtId': 'debt-sync-1',
+        'counterpartyName': '小明',
+        'ledgerId': 'ledger-sync-1',
+      },
+      currentLedgerId: 1,
+      onSwitchLedger: (_) {},
+    );
+    expect(target.debt, isNotNull);
+    expect(target.hasCounterpartyTarget, isFalse);
+  });
+
+  test('ledgerId 指向跟目前不同的帳本 → 先切帳本再回傳 counterparty target', () async {
+    int? switchedTo;
+    final target = await resolveNotificationJumpTarget(
+      repo,
+      {'counterpartyName': '小明', 'ledgerId': 'ledger-sync-1'},
+      currentLedgerId: 2,
+      onSwitchLedger: (id) => switchedTo = id,
+    );
+    expect(switchedTo, 1);
+    expect(target.hasCounterpartyTarget, isTrue);
+  });
 }

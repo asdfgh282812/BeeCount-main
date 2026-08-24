@@ -19,6 +19,7 @@ import '../../utils/category_utils.dart';
 import '../../utils/transaction_edit_utils.dart';
 import '../../utils/shared_ledger_picker_filter.dart';
 import '../../pages/attachment/attachment_preview_page.dart';
+import '../../pages/debt/debt_editor_page.dart';
 import '../../pages/debt/debt_repayment_page.dart';
 import '../category_icon.dart';
 import '../ui/ui.dart';
@@ -277,17 +278,37 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
         hostContext, widget.hostRef, widget.transaction, widget.category);
   }
 
-  Future<void> _handleEdit() async {
+  Future<void> _handleEdit(DebtWithStatus? relatedDebt) async {
     final hostContext = widget.hostContext;
+    final tx = widget.transaction;
     Navigator.of(context).pop();
     if (!hostContext.mounted) return;
+    // 欠款相關交易(起點交易或還款交易)不走一般交易編輯表單——改回原本
+    // 建立/記錄它時用的欠款專用表單,才看得出跟欠款的關係、也才有欠款特有
+    // 的欄位/限制(本金不可改、還款金額回顯等)。
+    if (relatedDebt != null) {
+      if (tx.debtSyncId != null) {
+        await Navigator.of(hostContext).push(MaterialPageRoute(
+          builder: (_) => DebtRepaymentPage(
+            debt: relatedDebt.debt,
+            suggestedAmount: relatedDebt.remainingAmount,
+            editingTransaction: tx,
+          ),
+        ));
+      } else {
+        await Navigator.of(hostContext).push(MaterialPageRoute(
+          builder: (_) => DebtEditorPage(debt: relatedDebt.debt),
+        ));
+      }
+      return;
+    }
     // 用 widget.hostRef(呼叫端、生命週期比這張卡片長的 ref),不要用這個
     // State 自己的 ref——上面这行 pop 之后卡片马上开始 dispose,
     // `editTransaction` 内部会先 `await showRecurringEditChoiceSheet(...)`
     // 等使用者选「此記錄/連同未來週期」,这段等待通常比卡片的 dispose 慢
     // 得多,等使用者选完,这个 State 早就 dispose 完了,自己的 ref 已失效。
     await TransactionEditUtils.editTransaction(
-        hostContext, widget.hostRef, widget.transaction, widget.category);
+        hostContext, widget.hostRef, tx, widget.category);
   }
 
   Future<void> _handleRefund() async {
@@ -419,7 +440,7 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
             icon: const Icon(Icons.edit_outlined),
             color: BeeTokens.iconSecondary(context),
             tooltip: l10n.commonEdit,
-            onPressed: _handleEdit,
+            onPressed: () => _handleEdit(relatedDebt),
           ),
         ],
       ),

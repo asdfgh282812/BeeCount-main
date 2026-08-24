@@ -151,6 +151,55 @@ syncId,傳給 `addTransaction(syncId: ...)`,再把同一個值傳給
 有「建立欠款連帶起點交易」的流程,所以 web 建立的欠款這欄會維持 null,這
 是正確的(沒有起點交易可以連結)。
 
+## 4. 追加修正(同日):分類選了卻沒有生效
+
+上線後使用者實測回饋:在建立欠款時選了分類,交易列表/明細卡上還是顯示
+「未分類」;點編輯進去,看起來像是一個全新的表單(名稱/商家/分類都是空
+的),不是原本編輯頁該有的樣子。
+
+**根因**:`LocalRepository.createDebtWithOriginTransaction`
+([local_repository.dart:3828](lib/data/repositories/local/local_repository.dart:3828))
+裡,`categoryId` 參數只被轉傳給 `createDebt(...)`,寫進
+`Debts.categoryId`——但這欄位在整個 App 裡**沒有任何 UI 會讀它來顯示**
+(`debt_list_page.dart`/`debt_editor_page.dart` 只在 edit 模式重新載入它來
+預填分類選擇器本身,不會拿去渲染成一個分類標籤)。真正會被使用者看到分類
+的地方(交易列表、`transaction_detail_card.dart` 明細卡)全部是讀
+`Transactions.categoryId`,而起點交易的 `addTransaction(...)` 呼叫從頭到
+尾沒有帶 `categoryId` 參數,永遠是 `null`。所以使用者選的分類,實際上被
+悄悄存進一個沒人看的欄位,交易本身仍是未分類——第二個「編輯像新表單」的
+現象是同一個根因的下游症狀:編輯頁忠實地載入了真正的交易資料,商家/名稱
+原本就是空的(起點交易本來就沒有這些欄位),分類也如實顯示成未選中,三者
+加在一起讓使用者覺得整頁像是空白的新表單,而不是編輯頁邏輯本身有問題。
+
+**修正**:
+- `createDebtWithOriginTransaction` 的 `addTransaction(...)` 呼叫補上
+  `categoryId: categoryId`,讓起點交易跟 `Debts.categoryId` 同時寫入同一
+  個分類。
+- `LocalRepository.updateDebt`:新增 `categoryId`/`clearCategoryId` 時
+  (`categoryId != null || clearCategoryId`),額外反查
+  `debt.originTransactionSyncId` 對應的起點交易,用
+  `updateTransaction(...)` 連動更新/清空它的 `categoryId`——否則
+  `DebtEditorPage` edit 模式裡新增的分類選擇列只會改到
+  `Debts.categoryId`,使用者在編輯頁選了新分類,交易上還是看不到變化,等於
+  是同一個 bug 的第二個發生點。這個連動呼叫顯式帶入起點交易當前的
+  `note`/`merchant`/`happenedAt`/`accountId`/`currencyCode`/
+  `nativeAmount`/`excludeFromStats`/`excludeFromBudget`/`rewardRuleIds`
+  （全部從查到的交易本身讀出),因為
+  `local_transaction_repository.dart::updateTransaction` 對
+  `note`/`merchant`/`rewardRuleIds` 是「傳 null 就顯式清空」的語意，沒有
+  「不傳=不動」的保留機制，必須把現有值原封傳回去，否則會在修改分類的同
+  時意外清掉這些欄位。
+- `Debts.categoryId` 本身沒有拿掉——sync wire contract 已經在用它，且
+  server 端的 `read_debt_projection.category_sync_id` 仍需要一個來源，只
+  是它現在單純扮演「跟起點交易同步的一份副本」，不再是唯一的顯示來源。
+
+**沒有處理的邊界情況**:如果起點交易被使用者直接在交易明細卡上編輯分類
+（而不是透過 `DebtEditorPage`），目前**不會**反向同步回
+`Debts.categoryId`——這個方向的連動被判斷為超出這次回報範圍（使用者沒有
+反映「直接編輯交易的分類後,欠款頁看到的分類沒跟著變」），且
+`Debts.categoryId` 本身在 UI 上不可見，這個不一致目前無法被使用者觀察
+到，等真的有人反饋再處理。
+
 ## 刻意不做的事
 
 - 沒有對 `categoryId`/`originTxId` 做任何存在性/擁有權驗證,對齐這個
@@ -173,7 +222,9 @@ server 跟 app 分開部署。
   `createDebtWithOriginTransaction` 案例斷言(起點交易透過
   `originTransactionSyncId` 被欠款反向記住,而不是完全沒有連結),新增
   `getDebtByOriginTransactionSyncId` 反查案例(含還款交易不該被誤認成起
-  點交易的反例)、`categoryId` 設定與清空案例。
+  點交易的反例)、`categoryId` 設定與清空案例——這個案例在追加修正
+  (§4)之後額外斷言起點交易本身的 `categoryId` 也跟著設定/清空,而不是只
+  斷言 `Debts.categoryId`,直接覆蓋這次修的 bug。
 - `test/data/notification_jump_target_test.dart`:見
   `2026-08-23-notification-pinning.md`(跟這篇是分開的通知功能,但兩者共
   用同一批 debt 相關 fixture)。

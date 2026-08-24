@@ -13263,6 +13263,16 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
   late final GeneratedColumn<String> originTransactionSyncId =
       GeneratedColumn<String>('origin_transaction_sync_id', aliasedName, true,
           type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _excludedFromTotalMeta =
+      const VerificationMeta('excludedFromTotal');
+  @override
+  late final GeneratedColumn<bool> excludedFromTotal = GeneratedColumn<bool>(
+      'excluded_from_total', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("excluded_from_total" IN (0, 1))'),
+      defaultValue: const Constant(false));
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -13292,6 +13302,7 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
         closedAt,
         categoryId,
         originTransactionSyncId,
+        excludedFromTotal,
         createdAt,
         updatedAt
       ];
@@ -13365,6 +13376,12 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
               data['origin_transaction_sync_id']!,
               _originTransactionSyncIdMeta));
     }
+    if (data.containsKey('excluded_from_total')) {
+      context.handle(
+          _excludedFromTotalMeta,
+          excludedFromTotal.isAcceptableOrUnknown(
+              data['excluded_from_total']!, _excludedFromTotalMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -13405,6 +13422,8 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
       originTransactionSyncId: attachedDatabase.typeMapping.read(
           DriftSqlType.string,
           data['${effectivePrefix}origin_transaction_sync_id']),
+      excludedFromTotal: attachedDatabase.typeMapping.read(
+          DriftSqlType.bool, data['${effectivePrefix}excluded_from_total'])!,
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -13455,6 +13474,12 @@ class Debt extends DataClass implements Insertable<Debt> {
   /// docstring),所以要存這個欄位才能反查回那筆交易。存 syncId 字串直連,
   /// 不解析成本地 id(那筆交易未必已經同步下來)。建立後不可改。
   final String? originTransactionSyncId;
+
+  /// v42:排除計入總額(對齐 Moze「排除在帳戶總覽計算」)。只影響
+  /// [DebtRepository.getNetDebtBalance]/[getDebtBalancesByLedgerForAllLedgers]
+  /// 這兩個「總額」方法,不影響清單(getDebtsWithStatus/getAllDebts)或
+  /// §5.5 通知中心的未結清清單——那兩者刻意不套用這個過濾。
+  final bool excludedFromTotal;
   final DateTime createdAt;
   final DateTime updatedAt;
   const Debt(
@@ -13469,6 +13494,7 @@ class Debt extends DataClass implements Insertable<Debt> {
       this.closedAt,
       this.categoryId,
       this.originTransactionSyncId,
+      required this.excludedFromTotal,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -13498,6 +13524,7 @@ class Debt extends DataClass implements Insertable<Debt> {
       map['origin_transaction_sync_id'] =
           Variable<String>(originTransactionSyncId);
     }
+    map['excluded_from_total'] = Variable<bool>(excludedFromTotal);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -13524,6 +13551,7 @@ class Debt extends DataClass implements Insertable<Debt> {
       originTransactionSyncId: originTransactionSyncId == null && nullToAbsent
           ? const Value.absent()
           : Value(originTransactionSyncId),
+      excludedFromTotal: Value(excludedFromTotal),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -13545,6 +13573,7 @@ class Debt extends DataClass implements Insertable<Debt> {
       categoryId: serializer.fromJson<int?>(json['categoryId']),
       originTransactionSyncId:
           serializer.fromJson<String?>(json['originTransactionSyncId']),
+      excludedFromTotal: serializer.fromJson<bool>(json['excludedFromTotal']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -13565,6 +13594,7 @@ class Debt extends DataClass implements Insertable<Debt> {
       'categoryId': serializer.toJson<int?>(categoryId),
       'originTransactionSyncId':
           serializer.toJson<String?>(originTransactionSyncId),
+      'excludedFromTotal': serializer.toJson<bool>(excludedFromTotal),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -13582,6 +13612,7 @@ class Debt extends DataClass implements Insertable<Debt> {
           Value<DateTime?> closedAt = const Value.absent(),
           Value<int?> categoryId = const Value.absent(),
           Value<String?> originTransactionSyncId = const Value.absent(),
+          bool? excludedFromTotal,
           DateTime? createdAt,
           DateTime? updatedAt}) =>
       Debt(
@@ -13598,6 +13629,7 @@ class Debt extends DataClass implements Insertable<Debt> {
         originTransactionSyncId: originTransactionSyncId.present
             ? originTransactionSyncId.value
             : this.originTransactionSyncId,
+        excludedFromTotal: excludedFromTotal ?? this.excludedFromTotal,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -13621,6 +13653,9 @@ class Debt extends DataClass implements Insertable<Debt> {
       originTransactionSyncId: data.originTransactionSyncId.present
           ? data.originTransactionSyncId.value
           : this.originTransactionSyncId,
+      excludedFromTotal: data.excludedFromTotal.present
+          ? data.excludedFromTotal.value
+          : this.excludedFromTotal,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -13640,6 +13675,7 @@ class Debt extends DataClass implements Insertable<Debt> {
           ..write('closedAt: $closedAt, ')
           ..write('categoryId: $categoryId, ')
           ..write('originTransactionSyncId: $originTransactionSyncId, ')
+          ..write('excludedFromTotal: $excludedFromTotal, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -13659,6 +13695,7 @@ class Debt extends DataClass implements Insertable<Debt> {
       closedAt,
       categoryId,
       originTransactionSyncId,
+      excludedFromTotal,
       createdAt,
       updatedAt);
   @override
@@ -13676,6 +13713,7 @@ class Debt extends DataClass implements Insertable<Debt> {
           other.closedAt == this.closedAt &&
           other.categoryId == this.categoryId &&
           other.originTransactionSyncId == this.originTransactionSyncId &&
+          other.excludedFromTotal == this.excludedFromTotal &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -13692,6 +13730,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
   final Value<DateTime?> closedAt;
   final Value<int?> categoryId;
   final Value<String?> originTransactionSyncId;
+  final Value<bool> excludedFromTotal;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const DebtsCompanion({
@@ -13706,6 +13745,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     this.closedAt = const Value.absent(),
     this.categoryId = const Value.absent(),
     this.originTransactionSyncId = const Value.absent(),
+    this.excludedFromTotal = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -13721,6 +13761,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     this.closedAt = const Value.absent(),
     this.categoryId = const Value.absent(),
     this.originTransactionSyncId = const Value.absent(),
+    this.excludedFromTotal = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   })  : ledgerId = Value(ledgerId),
@@ -13739,6 +13780,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     Expression<DateTime>? closedAt,
     Expression<int>? categoryId,
     Expression<String>? originTransactionSyncId,
+    Expression<bool>? excludedFromTotal,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
   }) {
@@ -13755,6 +13797,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       if (categoryId != null) 'category_id': categoryId,
       if (originTransactionSyncId != null)
         'origin_transaction_sync_id': originTransactionSyncId,
+      if (excludedFromTotal != null) 'excluded_from_total': excludedFromTotal,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -13772,6 +13815,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       Value<DateTime?>? closedAt,
       Value<int?>? categoryId,
       Value<String?>? originTransactionSyncId,
+      Value<bool>? excludedFromTotal,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt}) {
     return DebtsCompanion(
@@ -13787,6 +13831,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       categoryId: categoryId ?? this.categoryId,
       originTransactionSyncId:
           originTransactionSyncId ?? this.originTransactionSyncId,
+      excludedFromTotal: excludedFromTotal ?? this.excludedFromTotal,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -13829,6 +13874,9 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       map['origin_transaction_sync_id'] =
           Variable<String>(originTransactionSyncId.value);
     }
+    if (excludedFromTotal.present) {
+      map['excluded_from_total'] = Variable<bool>(excludedFromTotal.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -13852,6 +13900,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
           ..write('closedAt: $closedAt, ')
           ..write('categoryId: $categoryId, ')
           ..write('originTransactionSyncId: $originTransactionSyncId, ')
+          ..write('excludedFromTotal: $excludedFromTotal, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -20033,6 +20082,7 @@ typedef $$DebtsTableCreateCompanionBuilder = DebtsCompanion Function({
   Value<DateTime?> closedAt,
   Value<int?> categoryId,
   Value<String?> originTransactionSyncId,
+  Value<bool> excludedFromTotal,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
 });
@@ -20048,6 +20098,7 @@ typedef $$DebtsTableUpdateCompanionBuilder = DebtsCompanion Function({
   Value<DateTime?> closedAt,
   Value<int?> categoryId,
   Value<String?> originTransactionSyncId,
+  Value<bool> excludedFromTotal,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
 });
@@ -20094,6 +20145,10 @@ class $$DebtsTableFilterComposer extends Composer<_$BeeDatabase, $DebtsTable> {
 
   ColumnFilters<String> get originTransactionSyncId => $composableBuilder(
       column: $table.originTransactionSyncId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get excludedFromTotal => $composableBuilder(
+      column: $table.excludedFromTotal,
       builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
@@ -20148,6 +20203,10 @@ class $$DebtsTableOrderingComposer
       column: $table.originTransactionSyncId,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get excludedFromTotal => $composableBuilder(
+      column: $table.excludedFromTotal,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -20197,6 +20256,9 @@ class $$DebtsTableAnnotationComposer
   GeneratedColumn<String> get originTransactionSyncId => $composableBuilder(
       column: $table.originTransactionSyncId, builder: (column) => column);
 
+  GeneratedColumn<bool> get excludedFromTotal => $composableBuilder(
+      column: $table.excludedFromTotal, builder: (column) => column);
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -20238,6 +20300,7 @@ class $$DebtsTableTableManager extends RootTableManager<
             Value<DateTime?> closedAt = const Value.absent(),
             Value<int?> categoryId = const Value.absent(),
             Value<String?> originTransactionSyncId = const Value.absent(),
+            Value<bool> excludedFromTotal = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
           }) =>
@@ -20253,6 +20316,7 @@ class $$DebtsTableTableManager extends RootTableManager<
             closedAt: closedAt,
             categoryId: categoryId,
             originTransactionSyncId: originTransactionSyncId,
+            excludedFromTotal: excludedFromTotal,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
@@ -20268,6 +20332,7 @@ class $$DebtsTableTableManager extends RootTableManager<
             Value<DateTime?> closedAt = const Value.absent(),
             Value<int?> categoryId = const Value.absent(),
             Value<String?> originTransactionSyncId = const Value.absent(),
+            Value<bool> excludedFromTotal = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
           }) =>
@@ -20283,6 +20348,7 @@ class $$DebtsTableTableManager extends RootTableManager<
             closedAt: closedAt,
             categoryId: categoryId,
             originTransactionSyncId: originTransactionSyncId,
+            excludedFromTotal: excludedFromTotal,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),

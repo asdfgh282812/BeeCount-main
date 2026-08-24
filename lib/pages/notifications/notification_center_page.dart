@@ -10,6 +10,7 @@ import '../../providers.dart';
 import '../../styles/tokens.dart';
 import '../../widgets/ui/ui.dart';
 import '../account/account_detail_page.dart';
+import '../debt/debt_list_page.dart';
 import '../debt/debt_repayment_page.dart';
 import '../transaction/recurring_rule_list_page.dart';
 
@@ -20,12 +21,13 @@ class NotificationJumpTarget {
     this.account,
     this.hasRuleTarget = false,
     this.debt,
+    this.hasCounterpartyTarget = false,
     this.notFound = false,
     this.ledgerNotSynced = false,
   });
 
-  /// payload 沒有 accountId/recurringRuleId/debtId(如 budget_alert/system
-  /// 或未知 category)——不用跳轉,只標已讀。
+  /// payload 沒有 accountId/recurringRuleId/debtId/counterpartyName(如
+  /// budget_alert/system 或未知 category)——不用跳轉,只標已讀。
   static const none = NotificationJumpTarget._();
 
   /// payload 帶的 ledgerId 在本機找不到對應帳本(如共享帳本還沒同步下來)。
@@ -44,9 +46,16 @@ class NotificationJumpTarget {
   factory NotificationJumpTarget.debt(DebtWithStatus debt) =>
       NotificationJumpTarget._(debt: debt);
 
+  /// §5.5 通知中心「未結清對象清單」——payload 只帶 counterpartyName(對象
+  /// 分組摘要,不是單一 debt),沒有可跳轉的單一欠款詳情,導去欠款清單頁
+  /// 即可(見 [DebtListPage])。
+  static const counterparty =
+      NotificationJumpTarget._(hasCounterpartyTarget: true);
+
   final Account? account;
   final bool hasRuleTarget;
   final DebtWithStatus? debt;
+  final bool hasCounterpartyTarget;
   final bool notFound;
   final bool ledgerNotSynced;
 }
@@ -55,9 +64,11 @@ class NotificationJumpTarget {
 /// accountId(涵蓋 card_due / card_reward)優先於 recurringRuleId(涵蓋一般
 /// reminder)優先於 debtId(欠款到期提醒,同樣是 category='reminder' 但
 /// payload 帶的是 debtId 不是 recurringRuleId,見 server 端
-/// `debt_reminders.py`——三者互斥,靠 payload 帶哪個 key 判斷,不是靠
-/// category)。跳轉前先把 payload 的 ledgerId(=server external_id/syncId)
-/// 解回本機 ledger,和目前選中的帳本不同就先切過去,否則目標頁會查不到資料。
+/// `debt_reminders.py`)優先於 counterpartyName(§5.5 未結清對象清單,
+/// `category='debt_unsettled'`,對象分組摘要沒有單一 debtId)——四者互斥,
+/// 靠 payload 帶哪個 key 判斷,不是靠 category)。跳轉前先把 payload 的
+/// ledgerId(=server external_id/syncId)解回本機 ledger,和目前選中的帳本
+/// 不同就先切過去,否則目標頁會查不到資料。
 Future<NotificationJumpTarget> resolveNotificationJumpTarget(
   BaseRepository repo,
   Map<String, dynamic>? payload, {
@@ -68,9 +79,11 @@ Future<NotificationJumpTarget> resolveNotificationJumpTarget(
   final accountSyncId = payload['accountId'] as String?;
   final recurringRuleSyncId = payload['recurringRuleId'] as String?;
   final debtSyncId = payload['debtId'] as String?;
+  final counterpartyName = payload['counterpartyName'] as String?;
   if (accountSyncId == null &&
       recurringRuleSyncId == null &&
-      debtSyncId == null) {
+      debtSyncId == null &&
+      counterpartyName == null) {
     return NotificationJumpTarget.none;
   }
 
@@ -93,11 +106,15 @@ Future<NotificationJumpTarget> resolveNotificationJumpTarget(
     return NotificationJumpTarget.rule;
   }
 
-  final debt = await repo.getDebtBySyncId(debtSyncId!);
-  if (debt == null) return NotificationJumpTarget.notFoundResult;
-  final withStatus = await repo.getDebtWithStatus(debt.id);
-  if (withStatus == null) return NotificationJumpTarget.notFoundResult;
-  return NotificationJumpTarget.debt(withStatus);
+  if (debtSyncId != null) {
+    final debt = await repo.getDebtBySyncId(debtSyncId);
+    if (debt == null) return NotificationJumpTarget.notFoundResult;
+    final withStatus = await repo.getDebtWithStatus(debt.id);
+    if (withStatus == null) return NotificationJumpTarget.notFoundResult;
+    return NotificationJumpTarget.debt(withStatus);
+  }
+
+  return NotificationJumpTarget.counterparty;
 }
 
 /// 通知中心 —— 展示 BeeCount Cloud 服务端已生成的通知(週期性到期/信用卡
@@ -242,6 +259,11 @@ class _NotificationCenterPageState
           ),
         ),
       );
+    } else if (target.hasCounterpartyTarget) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const DebtListPage()),
+      );
     } else if (target.notFound) {
       showToast(context, l10n.notificationTargetNotFound);
     } else if (target.ledgerNotSynced) {
@@ -264,6 +286,8 @@ class _NotificationTile extends StatelessWidget {
         return Icons.credit_card;
       case 'card_reward':
         return Icons.card_giftcard;
+      case 'debt_unsettled':
+        return Icons.groups_outlined;
       default:
         return Icons.info_outline;
     }

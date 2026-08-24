@@ -55,6 +55,7 @@ abstract class DebtRepository {
     String? note,
     int? categoryId,
     String? originTransactionSyncId,
+    bool excludedFromTotal = false,
   });
 
   /// 從欠款分頁/欠款編輯頁「新增」時建立:同時建一筆一般交易(帳戶餘額
@@ -76,12 +77,14 @@ abstract class DebtRepository {
     DateTime? dueAt,
     String? note,
     int? categoryId,
+    bool excludedFromTotal = false,
   });
 
   /// 更新可變欄位(counterpartyName / dueAt / note)。principalAmount /
   /// direction 不在這裡 —— 對齐 Cloud `WriteDebtUpdateRequest` 刻意不帶這兩個
   /// 欄位。[clearDueAt] / [clearNote] 顯式清空對應欄位(區分「沒傳」跟
-  /// 「傳 null 清空」)。
+  /// 「傳 null 清空」)。[excludedFromTotal] 為 null 代表不變更(這個欄位
+  /// 只有 true/false 兩種有效值,不需要額外的 clear-flag)。
   Future<void> updateDebt(
     int id, {
     String? counterpartyName,
@@ -91,6 +94,15 @@ abstract class DebtRepository {
     bool clearNote = false,
     int? categoryId,
     bool clearCategoryId = false,
+    bool? excludedFromTotal,
+  });
+
+  /// 對象改名——同一帳本下所有 counterpartyName == oldName 的欠款一次改名
+  /// (對齐 Moze「改名連動該對象所有記錄」)。回傳受影響的筆數。
+  Future<int> renameCounterparty({
+    required int ledgerId,
+    required String oldName,
+    required String newName,
   });
 
   /// 手動結案(closedAt = now)。結案不代表已還清,只是不再追蹤。

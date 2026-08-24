@@ -351,6 +351,7 @@ class EntitySerializer {
   /// 這個動作永遠同步不出去。direction / counterpartyName / principalAmount
   /// 建立後不可改,恒為當下值,不需要 null 判斷。originTransactionSyncId 只在
   /// 建立時寫入、之後永遠不變,沒有清空動作,維持「非 null 才發」慣例即可。
+  /// excludedFromTotal(v42)是一般的 bool 開關,恒發,跟 direction 同款。
   /// 對齐 BeeCount Cloud `sync_applier.py::_LEDGER_MERGE_SPECS["debt"]`——改
   /// 欄位前先去那邊核對,一字之差會讓整個欄位靜默同步失敗。
   static Map<String, dynamic> serializeDebt(
@@ -372,6 +373,7 @@ class EntitySerializer {
       if (debt.originTransactionSyncId != null &&
           debt.originTransactionSyncId!.isNotEmpty)
         'originTxId': debt.originTransactionSyncId,
+      'excludedFromTotal': debt.excludedFromTotal,
     };
   }
 

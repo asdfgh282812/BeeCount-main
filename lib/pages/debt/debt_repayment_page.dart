@@ -21,13 +21,21 @@ import '../../widgets/ui/ui.dart';
 /// 實體」,就是一筆帶 debtSyncId 的普通 expense/income 交易——這裡是一個
 /// 獨立的小頁面(同 Cloud web 的 repayment dialog,不是走完整交易表單),
 /// 只收金額/帳戶/日期/分類(可選)/備註。
+///
+/// [editingTransaction] 非 null 時是編輯模式:回填該筆既有還款交易的欄位,
+/// 儲存時呼叫 `updateTransaction` 而不是 `addTransaction`(欠款關聯欄位
+/// `debtSyncId` 不在 `updateTransaction` 的參數裡,不會被動到,原本的關聯
+/// 自動保留)——這是「點一筆還款交易編輯,打開的是這個表單而不是一般交易
+/// 編輯表單」的入口(見 `transaction_detail_card.dart._handleEdit`)。
 class DebtRepaymentPage extends ConsumerStatefulWidget {
   final Debt debt;
   final double suggestedAmount;
+  final Transaction? editingTransaction;
 
   const DebtRepaymentPage({
     required this.debt,
     required this.suggestedAmount,
+    this.editingTransaction,
     super.key,
   });
 
@@ -50,7 +58,34 @@ class _DebtRepaymentPageState extends ConsumerState<DebtRepaymentPage> {
   @override
   void initState() {
     super.initState();
-    _amountController.text = widget.suggestedAmount.toStringAsFixed(2);
+    final editing = widget.editingTransaction;
+    if (editing != null) {
+      _amountController.text = editing.amount.abs().toStringAsFixed(2);
+      _noteController.text = editing.note ?? '';
+      _happenedAt = editing.happenedAt;
+      _categoryId = editing.categoryId;
+      if (_categoryId != null) _loadCategory(_categoryId!);
+      if (editing.accountId != null) _loadAccount(editing.accountId!);
+    } else {
+      _amountController.text = widget.suggestedAmount.toStringAsFixed(2);
+    }
+  }
+
+  Future<void> _loadCategory(int id) async {
+    final repo = ref.read(repositoryProvider);
+    final category = await repo.getCategoryById(id);
+    if (!mounted) return;
+    setState(() => _category = category);
+  }
+
+  Future<void> _loadAccount(int id) async {
+    final repo = ref.read(repositoryProvider);
+    final account = await repo.getAccount(id);
+    if (!mounted) return;
+    setState(() {
+      _accountId = id;
+      _account = account;
+    });
   }
 
   @override
@@ -318,13 +353,7 @@ class _DebtRepaymentPageState extends ConsumerState<DebtRepaymentPage> {
     if (result == null || !mounted) return;
     final id = result.accountId;
     if (id == null) return;
-    final repo = ref.read(repositoryProvider);
-    final account = await repo.getAccount(id);
-    if (!mounted) return;
-    setState(() {
-      _accountId = id;
-      _account = account;
-    });
+    await _loadAccount(id);
   }
 
   Future<void> _pickCategory() async {
@@ -377,17 +406,32 @@ class _DebtRepaymentPageState extends ConsumerState<DebtRepaymentPage> {
       final repo = ref.read(repositoryProvider);
       final ledgerId = ref.read(currentLedgerIdProvider);
       final note = _noteController.text.trim();
+      final type = _isPayable ? 'expense' : 'income';
 
-      await repo.addTransaction(
-        ledgerId: ledgerId,
-        type: _isPayable ? 'expense' : 'income',
-        amount: amount,
-        categoryId: _categoryId,
-        accountId: _accountId,
-        happenedAt: _happenedAt,
-        note: note.isEmpty ? null : note,
-        debtSyncId: widget.debt.syncId,
-      );
+      final editing = widget.editingTransaction;
+      if (editing != null) {
+        await repo.updateTransaction(
+          id: editing.id,
+          type: type,
+          amount: amount,
+          categoryId: _categoryId,
+          accountId: _accountId,
+          happenedAt: _happenedAt,
+          note: note.isEmpty ? null : note,
+          merchant: editing.merchant,
+        );
+      } else {
+        await repo.addTransaction(
+          ledgerId: ledgerId,
+          type: type,
+          amount: amount,
+          categoryId: _categoryId,
+          accountId: _accountId,
+          happenedAt: _happenedAt,
+          note: note.isEmpty ? null : note,
+          debtSyncId: widget.debt.syncId,
+        );
+      }
 
       ref.read(debtsRefreshProvider.notifier).state++;
       ref.read(statsRefreshProvider.notifier).state++;

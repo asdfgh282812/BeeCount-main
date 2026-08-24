@@ -16080,6 +16080,30 @@ abstract class AppLocalizations {
   /// **'Please enter a valid amount'**
   String get debtRepaymentAmountInvalid;
 
+  /// No description provided for @debtExcludedFromTotalLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Exclude from total'**
+  String get debtExcludedFromTotalLabel;
+
+  /// No description provided for @debtExcludedFromTotalHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Only affects net worth totals — still shows in this list and in notifications'**
+  String get debtExcludedFromTotalHint;
+
+  /// No description provided for @debtRenameCounterpartyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Renaming applies to every record under this counterparty'**
+  String get debtRenameCounterpartyHint;
+
+  /// No description provided for @debtRenameCounterpartySuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Counterparty renamed'**
+  String get debtRenameCounterpartySuccess;
+
   /// No description provided for @pendingAccountPageTitle.
   ///
   /// In en, this message translates to:

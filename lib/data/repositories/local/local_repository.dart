@@ -3813,6 +3813,7 @@ class LocalRepository extends BaseRepository {
     DateTime? dueAt,
     String? note,
     int? categoryId,
+    bool excludedFromTotal = false,
   }) async {
     assert(
       direction == kDebtDirectionPayable ||
@@ -3829,6 +3830,7 @@ class LocalRepository extends BaseRepository {
         ledgerId: ledgerId,
         type: direction == kDebtDirectionPayable ? 'income' : 'expense',
         amount: principalAmount,
+        categoryId: categoryId,
         happenedAt: DateTime.now(),
         accountId: accountId,
         syncId: originTxSyncId,
@@ -3842,6 +3844,7 @@ class LocalRepository extends BaseRepository {
         note: note,
         categoryId: categoryId,
         originTransactionSyncId: originTxSyncId,
+        excludedFromTotal: excludedFromTotal,
       );
     });
   }
@@ -3856,6 +3859,7 @@ class LocalRepository extends BaseRepository {
     String? note,
     int? categoryId,
     String? originTransactionSyncId,
+    bool excludedFromTotal = false,
   }) async {
     final id = await _debtRepo.createDebt(
       ledgerId: ledgerId,
@@ -3866,6 +3870,7 @@ class LocalRepository extends BaseRepository {
       note: note,
       categoryId: categoryId,
       originTransactionSyncId: originTransactionSyncId,
+      excludedFromTotal: excludedFromTotal,
     );
     if (changeTracker != null) {
       final row =
@@ -3894,7 +3899,35 @@ class LocalRepository extends BaseRepository {
     bool clearNote = false,
     int? categoryId,
     bool clearCategoryId = false,
+    bool? excludedFromTotal,
   }) async {
+    // 分類變更要連動起點交易,否則交易列表/明細卡看到的分類(來自
+    // Transactions.categoryId)跟使用者在這裡選的(寫進 Debts.categoryId)
+    // 永遠對不上——見 docs/changes/2026-08-23-debt-category-and-origin-link.md。
+    if (categoryId != null || clearCategoryId) {
+      final debt = await _debtRepo.getDebt(id);
+      final originSyncId = debt?.originTransactionSyncId;
+      if (originSyncId != null) {
+        final tx = await getTransactionBySyncId(originSyncId);
+        if (tx != null) {
+          await updateTransaction(
+            id: tx.id,
+            type: tx.type,
+            amount: tx.amount,
+            categoryId: clearCategoryId ? null : categoryId,
+            note: tx.note,
+            merchant: tx.merchant,
+            happenedAt: tx.happenedAt,
+            accountId: tx.accountId,
+            currencyCode: tx.currencyCode,
+            nativeAmount: tx.nativeAmount,
+            excludeFromStats: tx.excludeFromStats,
+            excludeFromBudget: tx.excludeFromBudget,
+            rewardRuleIds: tx.rewardRuleIds,
+          );
+        }
+      }
+    }
     await _debtRepo.updateDebt(
       id,
       counterpartyName: counterpartyName,
@@ -3904,8 +3937,32 @@ class LocalRepository extends BaseRepository {
       clearNote: clearNote,
       categoryId: categoryId,
       clearCategoryId: clearCategoryId,
+      excludedFromTotal: excludedFromTotal,
     );
     await _recordDebtChange(id, 'update');
+  }
+
+  @override
+  Future<int> renameCounterparty({
+    required int ledgerId,
+    required String oldName,
+    required String newName,
+  }) async {
+    // 改名前先查出受影響的 id——改完之後就再也查不到 counterpartyName ==
+    // oldName 的列了,change tracking 需要每一筆各自的 id/syncId。
+    final affected = await (db.select(db.debts)
+          ..where((t) =>
+              t.ledgerId.equals(ledgerId) & t.counterpartyName.equals(oldName)))
+        .get();
+    final count = await _debtRepo.renameCounterparty(
+      ledgerId: ledgerId,
+      oldName: oldName,
+      newName: newName,
+    );
+    for (final row in affected) {
+      await _recordDebtChange(row.id, 'update');
+    }
+    return count;
   }
 
   @override

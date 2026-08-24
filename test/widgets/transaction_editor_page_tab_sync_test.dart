@@ -31,6 +31,7 @@ import 'package:beecount/l10n/app_localizations.dart';
 import 'package:beecount/providers/database_providers.dart';
 import 'package:beecount/pages/transaction/transaction_editor_page.dart';
 import 'package:beecount/widgets/biz/transaction_entry_form.dart';
+import 'package:beecount/widgets/transaction/debt_entry_form.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -119,6 +120,44 @@ void main() {
     // 見 transaction_detail_card_edit_navigation_test.dart 同樣的說明:主動
     // 在測試本體內 dispose,才能排乾 drift stream provider dispose 時新建
     // 的一次性 Timer,避免 teardown 階段踩到 `!timersPending` 断言。
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 10));
+  });
+
+  testWidgets('支出分頁輸入內容後切到欠款 tab,內容同步帶過去(不再被吃進隱藏的轉帳分頁)',
+      (tester) async {
+    // 迴歸測試——`_applySharedFields` 原本的 switch 用 `_ => null` 當
+    // default,同時吃掉 tabIndex 2(轉帳)跟 3(欠款),導致切到欠款分頁時
+    // 什麼都沒拿到,反而把剛匯出的欄位誤寫進隱藏的轉帳分頁狀態。
+    await tester.pumpWidget(host());
+    await tester.pumpAndSettle();
+
+    final expenseState = formStateFor(tester, 'expense');
+    expenseState.applySharedFields((
+      amountStr: '600',
+      amountAcc: 0,
+      amountOp: null,
+      date: DateTime(2026, 3, 10),
+      note: '晚餐',
+      merchant: '肯德基',
+      tagIds: const [],
+      accountId: null,
+    ));
+    await tester.pump();
+
+    await tester.tap(find.text('欠款'));
+    await tester.pumpAndSettle();
+
+    final debtState =
+        tester.state<DebtEntryFormState>(find.byType(DebtEntryForm));
+    final debtFields = debtState.exportSharedFields();
+
+    // 修復前:欠款分頁完全沒收到套用,金額停留在自己預設的 '0'。
+    expect(debtFields.amountStr, '600');
+    expect(debtFields.note, '晚餐');
+    // 商家欄位映射到欠款分頁的「對象」欄位——語意最接近。
+    expect(debtFields.merchant, '肯德基');
+
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 10));
   });

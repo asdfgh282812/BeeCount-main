@@ -94,6 +94,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
   final _expenseFormKey = GlobalKey<TransactionEntryFormState>();
   final _incomeFormKey = GlobalKey<TransactionEntryFormState>();
   final _transferFormKey = GlobalKey<TransferFormState>();
+  final _debtFormKey = GlobalKey<DebtEntryFormState>();
 
   @override
   void initState() {
@@ -187,12 +188,18 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
         return _incomeFormKey.currentState?.exportSharedFields();
       case 2:
         return _transferFormKey.currentState?.exportSharedFields();
+      case 3:
+        return _debtFormKey.currentState?.exportSharedFields();
     }
     return null;
   }
 
   /// 回傳是否真的套用成功(目標分頁的 `GlobalKey.currentState` 已 mount)
   /// ——`_applySharedFieldsWhenReady` 靠這個回傳值判斷要不要排下一幀重試。
+  ///
+  /// tabIndex 2(轉帳)跟 3(欠款)以前共用同一個 `_ => null` default 分支,
+  /// 導致切到欠款分頁時,匯出的欄位被誤套用到隱藏的轉帳分頁狀態,欠款分頁
+  /// 本身什麼都沒拿到——這裡拆成各自獨立的分支。
   bool _applySharedFields(int tabIndex, SharedEntryFields fields) {
     final GlobalKey<TransactionEntryFormState>? entryKey = switch (tabIndex) {
       0 => _expenseFormKey,
@@ -203,6 +210,12 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
       final state = entryKey.currentState;
       if (state == null) return false;
       state.applySharedFields(fields);
+      return true;
+    }
+    if (tabIndex == 3) {
+      final debtState = _debtFormKey.currentState;
+      if (debtState == null) return false;
+      debtState.applySharedFields(fields);
       return true;
     }
     final transferState = _transferFormKey.currentState;
@@ -333,6 +346,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
                   recurringEditScope: widget.initialRecurringEditScope,
                 ),
                 DebtEntryForm(
+                  key: _debtFormKey,
                   onDebtCreated: () {
                     if (Navigator.of(context).canPop()) {
                       Navigator.of(context).pop();

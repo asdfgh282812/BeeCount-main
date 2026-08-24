@@ -359,10 +359,18 @@ void main() {
     );
     var debt = (await repo.getDebt(debtId))!;
     expect(debt.categoryId, categoryId);
+    var originTx =
+        (await repo.getTransactionBySyncId(debt.originTransactionSyncId!))!;
+    expect(originTx.categoryId, categoryId,
+        reason: '起點交易的分類要跟 Debts.categoryId 連動,否則交易列表/明細卡看到的還是未分類');
 
     await repo.updateDebt(debtId, clearCategoryId: true);
     debt = (await repo.getDebt(debtId))!;
     expect(debt.categoryId, isNull);
+    originTx =
+        (await repo.getTransactionBySyncId(debt.originTransactionSyncId!))!;
+    expect(originTx.categoryId, isNull,
+        reason: '清空 debt 分類也要連動清空起點交易的分類');
   });
 
   test('createDebtWithOriginTransaction: receivable direction creates an expense', () async {
@@ -387,5 +395,85 @@ void main() {
     expect(txs.first.type, 'expense'); // receivable = 款項應收 = 帳戶餘額 -本金
     final balance = await repo.getAccountBalance(accountId);
     expect(balance, -300);
+  });
+
+  test('renameCounterparty 一次改名同一帳本下所有同名記錄', () async {
+    final lid = await seedLedger();
+    final id1 = await repo.createDebt(
+      ledgerId: lid,
+      direction: kDebtDirectionPayable,
+      counterpartyName: '小明',
+      principalAmount: 100,
+    );
+    final id2 = await repo.createDebt(
+      ledgerId: lid,
+      direction: kDebtDirectionReceivable,
+      counterpartyName: '小明',
+      principalAmount: 200,
+    );
+    // 別的帳本裡同名的記錄不該被動到。
+    final otherLedger = await seedLedger();
+    final idOther = await repo.createDebt(
+      ledgerId: otherLedger,
+      direction: kDebtDirectionPayable,
+      counterpartyName: '小明',
+      principalAmount: 300,
+    );
+    // 同帳本、不同名字的記錄也不該被動到。
+    final idOtherName = await repo.createDebt(
+      ledgerId: lid,
+      direction: kDebtDirectionPayable,
+      counterpartyName: '小華',
+      principalAmount: 400,
+    );
+
+    final count = await repo.renameCounterparty(
+      ledgerId: lid,
+      oldName: '小明',
+      newName: '小明(已改名)',
+    );
+    expect(count, 2);
+
+    expect((await repo.getDebt(id1))!.counterpartyName, '小明(已改名)');
+    expect((await repo.getDebt(id2))!.counterpartyName, '小明(已改名)');
+    expect((await repo.getDebt(idOther))!.counterpartyName, '小明');
+    expect((await repo.getDebt(idOtherName))!.counterpartyName, '小華');
+  });
+
+  test('renameCounterparty 找不到符合的名字時回傳 0,不拋錯', () async {
+    final lid = await seedLedger();
+    final count = await repo.renameCounterparty(
+      ledgerId: lid,
+      oldName: '不存在的對象',
+      newName: '新名字',
+    );
+    expect(count, 0);
+  });
+
+  test('excludedFromTotal 預設為 false,且只影響總額統計不影響清單', () async {
+    final lid = await seedLedger();
+    final id = await repo.createDebt(
+      ledgerId: lid,
+      direction: kDebtDirectionReceivable,
+      counterpartyName: '對象',
+      principalAmount: 1000,
+    );
+    expect((await repo.getDebt(id))!.excludedFromTotal, isFalse);
+
+    await repo.updateDebt(id, excludedFromTotal: true);
+    final debt = await repo.getDebt(id);
+    expect(debt!.excludedFromTotal, isTrue);
+
+    // 總額統計要排除它。
+    final net = await repo.getNetDebtBalance(lid);
+    expect(net, 0, reason: '排除計入總額後不該再貢獻淨欠款餘額');
+    final balances = await repo.getDebtBalancesByLedgerForAllLedgers();
+    final entry = balances.where((b) => b.ledgerId == lid).toList();
+    expect(entry, isEmpty, reason: '這個帳本唯一的欠款被排除,不該出現在總額聚合裡');
+
+    // 清單/狀態查詢仍要照常顯示。
+    final withStatus = await repo.getDebtsWithStatus(lid);
+    expect(withStatus, hasLength(1));
+    expect(withStatus.first.debt.id, id);
   });
 }

@@ -8909,6 +8909,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get debtRepaymentAmountInvalid => 'Please enter a valid amount';
 
   @override
+  String get debtExcludedFromTotalLabel => 'Exclude from total';
+
+  @override
+  String get debtExcludedFromTotalHint =>
+      'Only affects net worth totals — still shows in this list and in notifications';
+
+  @override
+  String get debtRenameCounterpartyHint =>
+      'Renaming applies to every record under this counterparty';
+
+  @override
+  String get debtRenameCounterpartySuccess => 'Counterparty renamed';
+
+  @override
   String get pendingAccountPageTitle => 'Accounts to Confirm';
 
   @override

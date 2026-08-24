@@ -179,6 +179,71 @@ void main() {
     expect(await repo.getDebtBySyncId(syncId), isNull);
   });
 
+  test('遠端 upsert 帶 excludedFromTotal → 本地欄位正確落地(v42)', () async {
+    final lid = await seedLedger(syncId: 'ledger-excl');
+    final id = await repo.createDebt(
+      ledgerId: lid,
+      direction: 'payable',
+      counterpartyName: '對象',
+      principalAmount: 100,
+    );
+    final syncId = (await repo.getDebt(id))!.syncId!;
+    expect((await repo.getDebt(id))!.excludedFromTotal, isFalse);
+
+    provider.pushFakeChange(
+      entityType: 'debt',
+      entitySyncId: syncId,
+      ledgerId: 'ledger-excl',
+      payload: {
+        'syncId': syncId,
+        'ledgerSyncId': 'ledger-excl',
+        'direction': 'payable',
+        'counterpartyName': '對象',
+        'principalAmount': 100.0,
+        'excludedFromTotal': true,
+      },
+    );
+
+    await engine.pull('');
+
+    final debt = await repo.getDebtBySyncId(syncId);
+    expect(debt!.excludedFromTotal, isTrue);
+  });
+
+  test('遠端 upsert 缺 excludedFromTotal 鍵 → 視為 false(不是 partial merge)',
+      () async {
+    final lid = await seedLedger(syncId: 'ledger-excl2');
+    final id = await repo.createDebt(
+      ledgerId: lid,
+      direction: 'payable',
+      counterpartyName: '對象',
+      principalAmount: 100,
+      excludedFromTotal: true,
+    );
+    final syncId = (await repo.getDebt(id))!.syncId!;
+    expect((await repo.getDebt(id))!.excludedFromTotal, isTrue);
+
+    provider.pushFakeChange(
+      entityType: 'debt',
+      entitySyncId: syncId,
+      ledgerId: 'ledger-excl2',
+      payload: {
+        'syncId': syncId,
+        'ledgerSyncId': 'ledger-excl2',
+        'direction': 'payable',
+        'counterpartyName': '對象',
+        'principalAmount': 100.0,
+        // 故意不帶 excludedFromTotal 鍵——debt 是全量 upsert 語意,缺鍵視為
+        // false,不是保留舊值。
+      },
+    );
+
+    await engine.pull('');
+
+    final debt = await repo.getDebtBySyncId(syncId);
+    expect(debt!.excludedFromTotal, isFalse);
+  });
+
   test('账本本地尚未就緒(ledgerId 對不到)→ 跳過,不建孤兒欠款', () async {
     provider.pushFakeChange(
       entityType: 'debt',

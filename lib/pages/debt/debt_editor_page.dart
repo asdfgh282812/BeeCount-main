@@ -40,6 +40,7 @@ class _DebtEditorPageState extends ConsumerState<DebtEditorPage> {
   Account? _account;
   int? _categoryId;
   Category? _category;
+  bool _excludedFromTotal = false;
 
   bool get _isEditing => widget.debt != null;
 
@@ -54,6 +55,7 @@ class _DebtEditorPageState extends ConsumerState<DebtEditorPage> {
       _dueAt = debt.dueAt;
       _noteController.text = debt.note ?? '';
       _categoryId = debt.categoryId;
+      _excludedFromTotal = debt.excludedFromTotal;
       if (_categoryId != null) _loadCategory(_categoryId!);
     } else {
       _direction = kDebtDirectionPayable;
@@ -177,6 +179,16 @@ class _DebtEditorPageState extends ConsumerState<DebtEditorPage> {
                           border: InputBorder.none,
                         ),
                       ),
+                      if (_isEditing) ...[
+                        SizedBox(height: 6.0.scaled(context, ref)),
+                        Text(
+                          l10n.debtRenameCounterpartyHint,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: BeeTokens.textTertiary(context),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -403,6 +415,41 @@ class _DebtEditorPageState extends ConsumerState<DebtEditorPage> {
                     ],
                   ),
                 ),
+                SizedBox(height: 12.0.scaled(context, ref)),
+                SectionCard(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              l10n.debtExcludedFromTotalLabel,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: BeeTokens.textPrimary(context),
+                              ),
+                            ),
+                            SizedBox(height: 4.0.scaled(context, ref)),
+                            Text(
+                              l10n.debtExcludedFromTotalHint,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: BeeTokens.textTertiary(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Switch(
+                        value: _excludedFromTotal,
+                        onChanged: (v) => setState(() => _excludedFromTotal = v),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -547,15 +594,25 @@ class _DebtEditorPageState extends ConsumerState<DebtEditorPage> {
       final note = _noteController.text.trim();
 
       if (_isEditing) {
+        // 對象改名是全域批次操作(對齐 Moze「改名連動該對象所有記錄」),不是
+        // 這一筆單獨的欄位更新——名稱變了先呼叫 renameCounterparty,其餘
+        // 欄位再走一般的 updateDebt(不再帶 counterpartyName)。
+        if (counterpartyName != widget.debt!.counterpartyName) {
+          await repo.renameCounterparty(
+            ledgerId: ledgerId,
+            oldName: widget.debt!.counterpartyName,
+            newName: counterpartyName,
+          );
+        }
         await repo.updateDebt(
           widget.debt!.id,
-          counterpartyName: counterpartyName,
           dueAt: _dueAt,
           clearDueAt: _dueAt == null,
           note: note.isEmpty ? null : note,
           clearNote: note.isEmpty,
           categoryId: _categoryId,
           clearCategoryId: _categoryId == null,
+          excludedFromTotal: _excludedFromTotal,
         );
       } else {
         await repo.createDebtWithOriginTransaction(
@@ -567,6 +624,7 @@ class _DebtEditorPageState extends ConsumerState<DebtEditorPage> {
           dueAt: _dueAt,
           note: note.isEmpty ? null : note,
           categoryId: _categoryId,
+          excludedFromTotal: _excludedFromTotal,
         );
       }
 

@@ -298,6 +298,13 @@ class Debts extends Table {
   /// 不解析成本地 id(那筆交易未必已經同步下來)。建立後不可改。
   TextColumn get originTransactionSyncId => text().nullable()();
 
+  /// v42:排除計入總額(對齐 Moze「排除在帳戶總覽計算」)。只影響
+  /// [DebtRepository.getNetDebtBalance]/[getDebtBalancesByLedgerForAllLedgers]
+  /// 這兩個「總額」方法,不影響清單(getDebtsWithStatus/getAllDebts)或
+  /// §5.5 通知中心的未結清清單——那兩者刻意不套用這個過濾。
+  BoolColumn get excludedFromTotal =>
+      boolean().withDefault(const Constant(false))();
+
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 }
@@ -796,7 +803,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 41; // v41: 借還款分類 + 起點交易反查(debts.category_id / origin_transaction_sync_id)
+  int get schemaVersion => 42; // v42: 欠款排除計入總額(debts.excluded_from_total)
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1716,6 +1723,16 @@ class BeeDatabase extends _$BeeDatabase {
                 'ALTER TABLE debts ADD COLUMN origin_transaction_sync_id '
                     'TEXT;');
             logger.info('DBMigration', 'v41 迁移完成');
+          }
+          if (from < 42) {
+            logger.info(
+                'DBMigration', '开始迁移到 v42: 欠款排除計入總額(debts.excluded_from_total)');
+            await _addColumnIfMissing(
+                'debts',
+                'excluded_from_total',
+                'ALTER TABLE debts ADD COLUMN excluded_from_total '
+                    'BOOLEAN NOT NULL DEFAULT 0;');
+            logger.info('DBMigration', 'v42 迁移完成');
           }
         },
         onCreate: (m) async {
