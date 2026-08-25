@@ -65,6 +65,10 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
   String? _avatarPath;
   bool _isPickingAvatar = false;
 
+  // 不納入總餘額(對齊 Moze「balance included」/ BeeCount Cloud
+  // include_in_total)。正极性,新建账户默认 true(=納入)。
+  bool _includeInTotal = true;
+
   // 日常账户类型（走流水）
   static const List<String> tradableAccountTypes = [
     'cash',
@@ -111,6 +115,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     _paymentDueDay = widget.account?.paymentDueDay;
     _parentAccountId = widget.account?.parentAccountId;
     _avatarPath = widget.account?.avatarPath;
+    _includeInTotal = widget.account?.includeInTotal ?? true;
     _typeTab = isValuationOnlyType(_selectedType) ? 1 : 0;
     _loadReminderSettings();
     _loadParentCandidates();
@@ -962,6 +967,48 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                     ),
                   ],
 
+                  // ===== 不納入總餘額（所有类型）=====
+                  SizedBox(height: 8.0.scaled(context, ref)),
+                  SectionCard(
+                    margin: EdgeInsets.zero,
+                    child: Padding(
+                      padding: EdgeInsets.all(16.0.scaled(context, ref)),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  l10n.accountIncludeInTotalLabel,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: BeeTokens.textPrimary(context),
+                                  ),
+                                ),
+                                SizedBox(height: 4.0.scaled(context, ref)),
+                                Text(
+                                  l10n.accountIncludeInTotalHint,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: BeeTokens.textTertiary(context),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            value: _includeInTotal,
+                            onChanged: (v) =>
+                                setState(() => _includeInTotal = v),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
                   // ===== 备注（所有类型）=====
                   SizedBox(height: 8.0.scaled(context, ref)),
                   SectionCard(
@@ -1169,6 +1216,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           // 相对路径,这里不会是临时绝对路径,直接落库即可。
           avatarPath: _avatarPath,
           clearAvatar: _avatarPath == null,
+          includeInTotal: _includeInTotal,
         );
 
         // 保存还款提醒设置
@@ -1201,6 +1249,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
               : null,
           note: noteText.isNotEmpty ? noteText : null,
           parentAccountId: _parentAccountId,
+          includeInTotal: _includeInTotal,
         );
 
         // 新建场景头像还是临时裁剪文件的绝对路径（新建时账户 id 还不存在,

@@ -90,6 +90,25 @@ App 端沒有特判邏輯把它隱藏/擋寫入）；如果 App 端某個寫入�
 `_assert_account_not_group` 擋掉。動到「App 端選帳戶」相關 UI 時，如果雲端已經
 有帳戶群組功能，這是一個要考慮的邊界情況（目前 App 端完全沒處理）。
 
+### 1.3 `account.includeInTotal`（不納入總餘額，v43 新增，2026-08-25）
+
+對齊 Cloud 的 `user_account_projection.include_in_total`（正極性 bool，預設
+`true`=納入，仿 Moze「balance included」設定）。Wire key 是 mobile sync 專用的
+camelCase `includeInTotal`（Cloud web REST API 走另一條 snake_case
+`include_in_total`，跟本欄位無關）。Server 端一律無條件送出這個鍵（同 `hidden`
+的模式），所以拉取一定會把伺服器現值帶進 App。
+
+- 本地 Drift 欄位：`Accounts.includeInTotal`（`lib/data/db.dart`，v43 migration）
+- Push：`entity_serializer.dart` `serializeAccount` 無條件帶 `includeInTotal`
+- Pull：`sync_engine_apply.dart` `_applyAccountChange` 用 containsKey 缺鍵保留
+  語義，insert 缺鍵預設 `true`（跟 server 預設一致，不是跟 `hidden` 的
+  `false` 一樣）
+- 影響範圍：只影響 `local_account_repository.dart` 6 個「總額」方法
+  （`getNetWorthBreakdown*`、`getAssetCompositionByType*`）以及
+  `accounts_page.dart` `_aggregateParentStats` 的主卡合併總額 —— 帳戶本身仍
+  正常出現在清單/選擇器，可正常記帳，收支統計不受影響（跟 `hidden` 是獨立
+  維度，兩者可以任意組合）
+
 ---
 
 ## 2. Scope 契約：user-global vs ledger-scoped（兩邊命名必須一致）

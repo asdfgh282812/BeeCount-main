@@ -638,6 +638,7 @@ Account _sampleAccount(
     initialBalance: 0,
     sortOrder: id,
     hidden: false,
+    includeInTotal: true,
   );
 }
 

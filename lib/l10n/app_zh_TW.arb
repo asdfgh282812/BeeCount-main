@@ -2552,6 +2552,8 @@
   "accountCardLastFourHint": "例如：1234",
   "accountNote": "備註",
   "accountNoteHint": "新增備註資訊",
+  "accountIncludeInTotalLabel": "納入總餘額",
+  "accountIncludeInTotalHint": "只影響總餘額統計——清單跟記帳仍會照常顯示、可正常使用",
   "accountAvatarTitle": "帳戶頭像",
   "accountAvatarTapToSelect": "點擊選擇圖片",
   "accountAvatarTapToChange": "點擊更換圖片",

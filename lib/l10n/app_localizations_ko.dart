@@ -6591,6 +6591,13 @@ class AppLocalizationsKo extends AppLocalizations {
   String get accountNoteHint => '메모를 추가하세요';
 
   @override
+  String get accountIncludeInTotalLabel => 'Include in total balance';
+
+  @override
+  String get accountIncludeInTotalHint =>
+      'Only affects the overall total balance — still shows normally in lists and can be used for transactions';
+
+  @override
   String get accountAvatarTitle => '계좌 아바타';
 
   @override

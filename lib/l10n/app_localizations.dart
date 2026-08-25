@@ -12312,6 +12312,18 @@ abstract class AppLocalizations {
   /// **'Add a note'**
   String get accountNoteHint;
 
+  /// No description provided for @accountIncludeInTotalLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Include in total balance'**
+  String get accountIncludeInTotalLabel;
+
+  /// No description provided for @accountIncludeInTotalHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Only affects the overall total balance — still shows normally in lists and can be used for transactions'**
+  String get accountIncludeInTotalHint;
+
   /// No description provided for @accountAvatarTitle.
   ///
   /// In en, this message translates to:

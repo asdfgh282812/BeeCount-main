@@ -1941,19 +1941,23 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
     for (final c in children) {
       final s = allStats[c.id];
       if (s == null) continue;
+      // 不納入總餘額:子卡餘額不捲進主卡的合併總額,但收支統計是獨立口徑,
+      // 不受這個開關影響(跟 server include_in_total 語意對齊)。
       if (c.currency == parent.currency) {
-        balance += s.balance;
+        if (c.includeInTotal) balance += s.balance;
         expense += s.expense;
         income += s.income;
         continue;
       }
-      final convertedBalance = convertBetweenCurrencies(
-          amount: s.balance, from: c.currency, to: parent.currency, rates: rates, base: base);
+      if (c.includeInTotal) {
+        final convertedBalance = convertBetweenCurrencies(
+            amount: s.balance, from: c.currency, to: parent.currency, rates: rates, base: base);
+        if (convertedBalance != null) balance += convertedBalance;
+      }
       final convertedExpense = convertBetweenCurrencies(
           amount: s.expense, from: c.currency, to: parent.currency, rates: rates, base: base);
       final convertedIncome = convertBetweenCurrencies(
           amount: s.income, from: c.currency, to: parent.currency, rates: rates, base: base);
-      if (convertedBalance != null) balance += convertedBalance;
       if (convertedExpense != null) expense += convertedExpense;
       if (convertedIncome != null) income += convertedIncome;
     }

@@ -316,9 +316,11 @@ class LocalTransactionRepository implements TransactionRepository {
       cardLastFour: s.cardLastFour,
       note: s.note,
       syncId: s.syncId,
-      // SharedLedgerAccounts 镜像表没有 hidden 概念(隐藏是 Owner 侧个人状态,
-      // 不随共享账本镜像同步),synthetic 账户固定按「未隐藏」处理。
+      // SharedLedgerAccounts 镜像表没有 hidden/includeInTotal 概念(这些都是
+      // Owner 侧个人状态,不随共享账本镜像同步),synthetic 账户固定按
+      // 「未隐藏、納入總餘額」处理。
       hidden: false,
+      includeInTotal: true,
     );
   }
 
@@ -1486,9 +1488,11 @@ class LocalTransactionRepository implements TransactionRepository {
               createdAt: DateTime.now(),
               updatedAt: DateTime.now(),
               syncId: s.syncId,
-              // SharedLedgerAccounts 镜像表没有 hidden 概念(隐藏是 Owner 侧
-              // 个人状态,不随共享账本镜像同步),synthetic 账户固定按「未隐藏」处理。
+              // SharedLedgerAccounts 镜像表没有 hidden/includeInTotal 概念
+              // (这些都是 Owner 侧个人状态,不随共享账本镜像同步),synthetic
+              // 账户固定按「未隐藏、納入總餘額」处理。
               hidden: false,
+              includeInTotal: true,
             );
           }
         }

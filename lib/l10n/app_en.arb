@@ -2849,6 +2849,8 @@
   "accountCardLastFourHint": "e.g. 1234",
   "accountNote": "Note",
   "accountNoteHint": "Add a note",
+  "accountIncludeInTotalLabel": "Include in total balance",
+  "accountIncludeInTotalHint": "Only affects the overall total balance — still shows normally in lists and can be used for transactions",
   "accountAvatarTitle": "Account Avatar",
   "accountAvatarTapToSelect": "Tap to select image",
   "accountAvatarTapToChange": "Tap to change image",

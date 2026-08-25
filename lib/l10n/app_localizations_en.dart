@@ -6796,6 +6796,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountNoteHint => 'Add a note';
 
   @override
+  String get accountIncludeInTotalLabel => 'Include in total balance';
+
+  @override
+  String get accountIncludeInTotalHint =>
+      'Only affects the overall total balance — still shows normally in lists and can be used for transactions';
+
+  @override
   String get accountAvatarTitle => 'Account Avatar';
 
   @override

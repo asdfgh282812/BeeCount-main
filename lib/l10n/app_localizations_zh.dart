@@ -6513,6 +6513,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get accountNoteHint => '添加备注信息';
 
   @override
+  String get accountIncludeInTotalLabel => 'Include in total balance';
+
+  @override
+  String get accountIncludeInTotalHint =>
+      'Only affects the overall total balance — still shows normally in lists and can be used for transactions';
+
+  @override
   String get accountAvatarTitle => '账户头像';
 
   @override
@@ -15137,6 +15144,12 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get accountNoteHint => '新增備註資訊';
+
+  @override
+  String get accountIncludeInTotalLabel => '納入總餘額';
+
+  @override
+  String get accountIncludeInTotalHint => '只影響總餘額統計——清單跟記帳仍會照常顯示、可正常使用';
 
   @override
   String get accountAvatarTitle => '帳戶頭像';

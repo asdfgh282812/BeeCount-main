@@ -485,6 +485,13 @@ extension SyncEngineApplyExt on SyncEngine {
         ? (payload['hidden'] as bool? ?? false)
         : null;
 
+    // 不納入總餘額(對齊 server include_in_total)。跟 hidden 同款 D6 缺键
+    // 保留语义,只是正极性默认值不同:缺键 → null → update 不覆盖本地,
+    // insert 缺键落默认 true(=納入,跟 server 默认值一致)。
+    final includeInTotal = payload.containsKey('includeInTotal')
+        ? (payload['includeInTotal'] as bool? ?? true)
+        : null;
+
     // 主帳戶(合併帳單,§2.9 Phase 4):跟 hidden 同款 containsKey 保护 ——
     // 老版本 App / 早于本次改动落的历史 sync_change 没有这个键,不能把
     // d.Value(null) 无条件写进去抹掉本地已经建好的挂靠关系。本端 App 自己
@@ -566,6 +573,9 @@ extension SyncEngineApplyExt on SyncEngine {
             hasCardLastFourKey ? d.Value(cardLastFour) : const d.Value.absent(),
         note: hasNoteKey ? d.Value(note) : const d.Value.absent(),
         hidden: hidden == null ? const d.Value.absent() : d.Value(hidden),
+        includeInTotal: includeInTotal == null
+            ? const d.Value.absent()
+            : d.Value(includeInTotal),
         parentAccountId: hasParentAccountIdKey
             ? d.Value(parentAccountId)
             : const d.Value.absent(),
@@ -589,6 +599,7 @@ extension SyncEngineApplyExt on SyncEngine {
               note: d.Value(note),
               syncId: d.Value(syncId),
               hidden: d.Value(hidden ?? false),
+              includeInTotal: d.Value(includeInTotal ?? true),
               parentAccountId: d.Value(parentAccountId),
               avatarPath: d.Value(resolvedAvatarPath),
             ),

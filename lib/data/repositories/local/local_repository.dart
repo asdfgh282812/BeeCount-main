@@ -1990,6 +1990,7 @@ class LocalRepository extends BaseRepository {
     String? syncId,
     String? parentAccountId,
     String? avatarPath,
+    bool includeInTotal = true,
   }) async {
     final id = await _accountRepo.createAccount(
       ledgerId: ledgerId,
@@ -2006,6 +2007,7 @@ class LocalRepository extends BaseRepository {
       syncId: syncId,
       parentAccountId: parentAccountId,
       avatarPath: avatarPath,
+      includeInTotal: includeInTotal,
     );
     if (changeTracker != null) {
       final account = await _accountRepo.getAccount(id);
@@ -2063,6 +2065,7 @@ class LocalRepository extends BaseRepository {
     bool clearParentAccount = false,
     String? avatarPath,
     bool clearAvatar = false,
+    bool? includeInTotal,
   }) async {
     final account =
         changeTracker != null ? await _accountRepo.getAccount(id) : null;
@@ -2085,6 +2088,7 @@ class LocalRepository extends BaseRepository {
       clearParentAccount: clearParentAccount,
       avatarPath: avatarPath,
       clearAvatar: clearAvatar,
+      includeInTotal: includeInTotal,
     );
     if (account?.syncId != null) {
       await changeTracker!.recordUserGlobalChange(

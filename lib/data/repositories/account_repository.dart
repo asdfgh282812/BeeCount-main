@@ -45,6 +45,7 @@ abstract class AccountRepository {
     String? syncId,
     String? parentAccountId,
     String? avatarPath,
+    bool includeInTotal = true,
   });
 
   /// 按 name 取账户(name 全局唯一,账户跨账本可用);不存在则建一条。
@@ -62,8 +63,9 @@ abstract class AccountRepository {
 
   /// 更新账户
   ///
-  /// [hidden] 为 null 表示不改动(见 [setAccountHidden] 便捷法)。true/false
-  /// 显式传入才会写库,配合同步 apply 的「缺键保留」语义(账户隐藏 #240)。
+  /// [hidden]、[includeInTotal] 为 null 表示不改动(见 [setAccountHidden] 便捷
+  /// 法)。true/false 显式传入才会写库,配合同步 apply 的「缺键保留」语义
+  /// (账户隐藏 #240;不納入總餘額同理)。
   Future<void> updateAccount(
     int id, {
     String? name,
@@ -83,6 +85,7 @@ abstract class AccountRepository {
     bool clearParentAccount = false,
     String? avatarPath,
     bool clearAvatar = false,
+    bool? includeInTotal,
   });
 
   /// 隐藏 / 恢复账户(账户隐藏 #240)。内部走 [updateAccount] → 记
