@@ -1721,6 +1721,8 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
     // effectiveRatesProvider + baseCurrencyProvider。
     final rates = ref.watch(effectiveRatesProvider).valueOrNull;
     final base = ref.watch(baseCurrencyProvider).toUpperCase();
+    final useCompactAmt = ref.watch(compactAmountProvider);
+    final subtotal = _computeGroupSubtotals(rates, base);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1781,6 +1783,10 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
                   ),
                 ),
                 const Spacer(),
+                if (subtotal != null) ...[
+                  _buildGroupSubtotal(context, subtotal, typeColor, useCompactAmt),
+                  SizedBox(width: 6.0.scaled(context, ref)),
+                ],
                 AnimatedRotation(
                   turns: _expanded ? 0.25 : 0,
                   duration: const Duration(milliseconds: 200),
@@ -1820,6 +1826,105 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
             ),
           ),
       ],
+    );
+  }
+
+  /// 分類標題列小計:「納入總額」的小計 / 本分類全部帳戶小計(不論是否納入)。
+  /// 對齊 web 端分類清單的合計餘額顯示。分類內幣種不一致時折算成主幣種再加總
+  /// (跟頁面其它折算口徑同一組 rates/base);缺有效匯率的帳戶兩個小計都跳過,
+  /// 不假裝按 1.0 折算(README D5)。[widget.allStats] 還沒載入完成時回傳 null,
+  /// 呼叫端不渲染,避免載入中先閃一個假的 0/0。
+  ({double included, double all, bool hasMissingRate, String currencyCode})?
+      _computeGroupSubtotals(Map<String, EffectiveRate>? rates, String base) {
+    final allStats = widget.allStats;
+    if (allStats == null) return null;
+    final currencies = widget.accounts.map((a) => a.currency.toUpperCase()).toSet();
+    final singleCurrency = currencies.length <= 1;
+    final currencyCode = singleCurrency
+        ? (widget.accounts.isEmpty ? base : widget.accounts.first.currency)
+        : base;
+    double included = 0;
+    double all = 0;
+    var hasMissingRate = false;
+    for (final a in widget.accounts) {
+      final balance = allStats[a.id]?.balance ?? 0;
+      final contribution = singleCurrency
+          ? balance
+          : convertBetweenCurrencies(
+              amount: balance, from: a.currency, to: base, rates: rates, base: base);
+      if (contribution == null) {
+        hasMissingRate = true;
+        continue;
+      }
+      all += contribution;
+      if (a.includeInTotal) included += contribution;
+    }
+    return (
+      included: included,
+      all: all,
+      hasMissingRate: hasMissingRate,
+      currencyCode: currencyCode,
+    );
+  }
+
+  Widget _buildGroupSubtotal(
+    BuildContext context,
+    ({double included, double all, bool hasMissingRate, String currencyCode}) subtotal,
+    Color typeColor,
+    bool useCompact,
+  ) {
+    // 用 ConstrainedBox 而不是 Flexible:Flexible 的 flex 會跟同一個 Row 裡
+    // 前面那顆 const Spacer()(flex 也是 1)平分剩餘空間,等於在數字前面憑空
+    // 多插一段空白——分類標題越短、剩餘空間越多,那段空白就越明顯(現金 vs
+    // 銀行卡的落差就是這樣來的)。改成固定上限寬度,不吃 Spacer 的份額,正常
+    // 情況下貼齊在展開箭頭左邊;內容超寬時才靠 FittedBox 縮小,不溢出。
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: 180.0.scaled(context, ref)),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerRight,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            if (subtotal.hasMissingRate) ...[
+              Icon(
+                Icons.warning_amber_rounded,
+                size: 12.0.scaled(context, ref),
+                color: Colors.orange,
+              ),
+              SizedBox(width: 2.0.scaled(context, ref)),
+            ],
+            AmountText(
+              value: subtotal.included,
+              signed: false,
+              showCurrency: false,
+              useCompactFormat: useCompact,
+              currencyCode: subtotal.currencyCode,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: typeColor,
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 3.0.scaled(context, ref)),
+              child: Text(
+                '/',
+                style: TextStyle(fontSize: 12, color: BeeTokens.textTertiary(context)),
+              ),
+            ),
+            AmountText(
+              value: subtotal.all,
+              signed: false,
+              showCurrency: false,
+              useCompactFormat: useCompact,
+              currencyCode: subtotal.currencyCode,
+              style: TextStyle(fontSize: 12, color: BeeTokens.textTertiary(context)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

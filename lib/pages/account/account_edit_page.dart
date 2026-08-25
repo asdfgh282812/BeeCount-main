@@ -967,48 +967,6 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                     ),
                   ],
 
-                  // ===== 不納入總餘額（所有类型）=====
-                  SizedBox(height: 8.0.scaled(context, ref)),
-                  SectionCard(
-                    margin: EdgeInsets.zero,
-                    child: Padding(
-                      padding: EdgeInsets.all(16.0.scaled(context, ref)),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  l10n.accountIncludeInTotalLabel,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    color: BeeTokens.textPrimary(context),
-                                  ),
-                                ),
-                                SizedBox(height: 4.0.scaled(context, ref)),
-                                Text(
-                                  l10n.accountIncludeInTotalHint,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: BeeTokens.textTertiary(context),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Switch(
-                            value: _includeInTotal,
-                            onChanged: (v) =>
-                                setState(() => _includeInTotal = v),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
                   // ===== 备注（所有类型）=====
                   SizedBox(height: 8.0.scaled(context, ref)),
                   SectionCard(

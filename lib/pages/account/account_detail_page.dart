@@ -227,6 +227,31 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     return ids.join(',');
   }
 
+  /// 從即時的 [allAccountsStreamProvider] 找同一筆帳戶的最新值,讓「帳戶
+  /// 資訊」tab 的開關切換後能立刻反映,不必依賴 widget.account 這個建構時
+  /// 傳入、不會自動更新的快照。
+  db.Account _liveAccount(db.Account account) {
+    final all = ref.watch(allAccountsStreamProvider).valueOrNull;
+    if (all == null) return account;
+    for (final a in all) {
+      if (a.id == account.id) return a;
+    }
+    return account;
+  }
+
+  Future<void> _toggleIncludeInTotal(db.Account account, bool value) async {
+    try {
+      await ref.read(repositoryProvider).updateAccount(
+            account.id,
+            includeInTotal: value,
+          );
+    } catch (e) {
+      if (mounted) {
+        showToast(context, '${AppLocalizations.of(context).commonError}: $e');
+      }
+    }
+  }
+
   void _onScroll() {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
@@ -1744,10 +1769,15 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
           _InfoSwitchRow(label: l10n.accountLowCreditAlertLabel, value: false));
     }
 
-    // 納入總餘額:目前所有账户(隐藏账户也不例外)一律计入净资产,没有排除
-    // 开关,这里如实展示成常亮、不可交互的占位开关。
-    rows.add(
-        _InfoSwitchRow(label: l10n.accountIncludeInNetWorthLabel, value: true));
+    // 納入總餘額:直接在資訊頁切換,不用再跳去編輯頁(編輯頁已移除這個開關)。
+    // 用 _liveAccount 讀即時值,切換後馬上反映資料庫最新狀態。
+    final liveAccount = _liveAccount(account);
+    rows.add(_InfoSwitchRow(
+      label: l10n.accountIncludeInTotalLabel,
+      hint: l10n.accountIncludeInTotalHint,
+      value: liveAccount.includeInTotal,
+      onChanged: (v) => _toggleIncludeInTotal(liveAccount, v),
+    ));
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 12.0.scaled(context, ref)),
@@ -2266,28 +2296,51 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-/// 「帳戶資訊」tab 的開關列。目前都是没有真实后端逻辑的占位展示
-/// (onChanged: null 禁用交互),如实反映现状而不是假装可配置。
+/// 「帳戶資訊」tab 的開關列。[onChanged] 為 null 時是純展示的占位開關(目前
+/// 只剩信用卡「可用額度不足提醒」還沒有真实後端邏輯);傳入 [onChanged] 則是
+/// 真的能切換、立刻寫回資料庫的開關(納入總餘額)。[hint] 選填,顯示在標籤
+/// 下方的說明文字。
 class _InfoSwitchRow extends StatelessWidget {
   final String label;
+  final String? hint;
   final bool value;
+  final ValueChanged<bool>? onChanged;
 
-  const _InfoSwitchRow({required this.label, required this.value});
+  const _InfoSwitchRow({
+    required this.label,
+    this.hint,
+    required this.value,
+    this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                  fontSize: 14, color: BeeTokens.textSecondary(context)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                      fontSize: 14, color: BeeTokens.textSecondary(context)),
+                ),
+                if (hint != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    hint!,
+                    style: TextStyle(
+                        fontSize: 11, color: BeeTokens.textTertiary(context)),
+                  ),
+                ],
+              ],
             ),
           ),
-          Switch(value: value, onChanged: null),
+          Switch(value: value, onChanged: onChanged),
         ],
       ),
     );
