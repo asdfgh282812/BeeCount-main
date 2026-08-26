@@ -408,6 +408,16 @@ extension SyncEngineSerializationExt on SyncEngine {
           categorySyncId: debtCategorySyncId,
         );
 
+      case 'project':
+        final project = await (db.select(db.projects)
+              ..where((t) => t.id.equals(entityId)))
+            .getSingleOrNull();
+        if (project == null) return <String, dynamic>{};
+        return EntitySerializer.serializeProject(
+          project,
+          ledgerSyncId: parentLedgerSyncId,
+        );
+
       default:
         return <String, dynamic>{};
     }
@@ -714,6 +724,29 @@ extension SyncEngineSerializationExt on SyncEngine {
           debt,
           ledgerSyncId: ledger.syncId,
           categorySyncId: debtCategorySyncId,
+        ),
+        'updated_at': now,
+      });
+    }
+
+    // 專案(v44):按账本过滤推,不跨账本,同 budget/debt 同一套模式。
+    final projects = await (db.select(db.projects)
+          ..where((t) => t.ledgerId.equals(ledger.id)))
+        .get();
+    for (final project in projects) {
+      final syncId = project.syncId ?? _uuid.v4();
+      if (project.syncId == null) {
+        await (db.update(db.projects)..where((t) => t.id.equals(project.id)))
+            .write(ProjectsCompanion(syncId: d.Value(syncId)));
+      }
+      syncChanges.add({
+        'ledger_id': ledgerId,
+        'entity_type': 'project',
+        'entity_sync_id': syncId,
+        'action': 'upsert',
+        'payload': EntitySerializer.serializeProject(
+          project,
+          ledgerSyncId: ledger.syncId,
         ),
         'updated_at': now,
       });
