@@ -25,6 +25,7 @@ import 'services/platform/screenshot_monitor_service.dart';
 import 'services/platform/image_share_handler_service.dart';
 import 'services/platform/app_link_service.dart';
 import 'services/system/logger_service.dart';
+import 'services/data/project_migration_service.dart';
 import 'l10n/app_localizations.dart';
 import 'widget/widget_manager.dart';
 import 'package:home_widget/home_widget.dart';
@@ -155,6 +156,7 @@ Future<void> main() async {
   // 清理历史版本遗留的文件。标志位 SharedPreferences 保证只跑一次。后台异步
   // 执行,失败不致命。
   unawaited(_runOrphanFileGcOnce(container));
+  unawaited(_runProjectMigrationOnce(container));
 
   runApp(ProviderScope(
     parent: container,
@@ -744,4 +746,12 @@ Future<void> _runOrphanFileGcOnce(ProviderContainer container) async {
     // 任何异常都不该影响 app 启动。下次启动还会重试(因为没设 flag)。
     logger.warning('OrphanGC', '一次性清理异常(会在下次启动重试): $e\n$st');
   }
+}
+
+/// 啟動時觸發專案功能的一次性資料遷移(分類預算 → 專案 + 歷史交易回填)。
+/// 實際邏輯在 [ProjectMigrationService],這裡只負責從 Riverpod 容器拿
+/// repository——邏輯本身不依賴 Riverpod,方便單獨做單元測試。
+Future<void> _runProjectMigrationOnce(ProviderContainer container) async {
+  final repo = container.read(repositoryProvider);
+  await ProjectMigrationService(repo).runIfNeeded();
 }
