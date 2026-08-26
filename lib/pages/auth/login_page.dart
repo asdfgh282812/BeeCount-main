@@ -279,7 +279,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
         onLoggedIn();
         return;
       }
-      ref.read(bottomTabIndexProvider.notifier).state = 3; // Mine tab index
+      ref.read(bottomTabIndexProvider.notifier).state = 4; // Mine tab index (index 0-4: 帐户/专案/明细/洞察/我的)
       final can = Navigator.of(context).canPop();
       logger.info('nav', 'sso login: success -> switch tab to Mine, canPop=$can; pop login');
       if (can) {
@@ -610,7 +610,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                                             ref
                                                 .read(bottomTabIndexProvider
                                                     .notifier)
-                                                .state = 3; // Mine tab index
+                                                .state = 4; // Mine tab index (index 0-4: 帐户/专案/明细/洞察/我的)
                                             final can = Navigator.of(context)
                                                 .canPop();
                                             logger.info('nav',

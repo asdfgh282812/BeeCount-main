@@ -11,7 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'pages/main/home_page.dart';
 import 'pages/main/analytics_page.dart';
 import 'pages/account/accounts_page.dart';
-import 'pages/budget/budget_page.dart';
+import 'pages/project/project_overview_page.dart';
 import 'pages/main/mine_page.dart';
 import 'pages/transaction/transaction_editor_page.dart';
 import 'providers.dart';
@@ -45,12 +45,21 @@ class BeeApp extends ConsumerStatefulWidget {
 
 class _BeeAppState extends ConsumerState<BeeApp>
     with WidgetsBindingObserver, SingleTickerProviderStateMixin {
+  // 順序對齊底部導覽列的視覺順序:帳戶、專案、明細(中間動態按鈕)、洞察、我的。
+  // 「明細」原本是 index 0 的獨立分頁,現在搬到中間跟「記帳」共用同一顆按鈕
+  // (見 _BeeBottomBar._buildCenterTabItem),但它在 IndexedStack 裡仍然是
+  // 一個正常分頁,只是視覺位置換到中間。
   final _pages = const [
+    AccountsPage(asTab: true),
+    ProjectOverviewPage(asTab: true),
     HomePage(),
     AnalyticsPage(),
-    AccountsPage(asTab: true),
     MinePage(),
   ];
+
+  /// 「明細」在 [_pages]/底部導覽列裡的 index(中間動態按鈕)。集中定義一處,
+  /// 避免多個地方各自寫死數字、改版面時漏改。
+  static const int _homeTabIndex = 2;
 
   // 双击检测：记录最后一次点击的时间和索引
   DateTime? _lastTapTime;
@@ -565,14 +574,18 @@ class _BeeAppState extends ConsumerState<BeeApp>
         nav.push(MaterialPageRoute(builder: (_) => const AccountsPage()));
         break;
       case 'budget':
-        nav.push(MaterialPageRoute(builder: (_) => const BudgetPage()));
+        // v44:「预算」小组件卡片的落地页现在是专案总览页(取代原本的
+        // BudgetPage)——原生 widget 端目前仍发送 page=budget 这个 wire 字
+        // 符串(Phase 4 才重做原生 widget),这里维持不动,只换 App 端渲染的
+        // 目标页面。
+        nav.push(MaterialPageRoute(builder: (_) => const ProjectOverviewPage()));
         break;
       case 'detail':
         // 最近交易 / 仪表盘主体 → 首页明细列表:App 没有独立的明细页,首页
         // 就是完整账单流,切回主壳首页 tab 而不是 push 页面。(此前误映射到
         // 洞察/统计页,真机反馈"点小组件进了洞察页"。)
         nav.popUntil((route) => route.isFirst);
-        ref.read(bottomTabIndexProvider.notifier).state = 0;
+        ref.read(bottomTabIndexProvider.notifier).state = _homeTabIndex;
         break;
       default:
         logger.warning('AppLink', 'open 未知 page: $page');
@@ -593,6 +606,26 @@ class _BeeAppState extends ConsumerState<BeeApp>
   void _removeOverlay() {
     _overlayEntry?.remove();
     _overlayEntry = null;
+  }
+
+  /// 統一的底部分頁點擊處理——一般分頁按鈕跟中間按鈕在「明細」態下都走這裡,
+  /// 保留原本雙擊置頂等語意(原本只有 index==0/明細 才會觸發雙擊置頂,搬到
+  /// 中間後改判斷 _homeTabIndex)。
+  void _handleTabTap(int index) {
+    final now = DateTime.now();
+    if (_lastTappedIndex == index &&
+        _lastTapTime != null &&
+        now.difference(_lastTapTime!) < const Duration(milliseconds: 300)) {
+      if (index == _homeTabIndex) {
+        ref.read(homeScrollToTopProvider.notifier).state++;
+      }
+      _lastTapTime = null;
+      _lastTappedIndex = null;
+    } else {
+      _lastTapTime = now;
+      _lastTappedIndex = index;
+      ref.read(bottomTabIndexProvider.notifier).state = index;
+    }
   }
 
   void _onLongPressStart(LongPressStartDetails details) {
@@ -838,6 +871,7 @@ class _BeeAppState extends ConsumerState<BeeApp>
             ),
             bottomNavigationBar: _BeeBottomBar(
               currentIndex: idx,
+              homeTabIndex: _homeTabIndex,
               primaryColor: primaryColor,
               isDark: isDark,
               bottomPadding: bottomPadding,
@@ -845,24 +879,16 @@ class _BeeAppState extends ConsumerState<BeeApp>
               avatarPath: avatarPath,
               skin: headerSkin,
               centerButtonKey: _centerButtonKey,
-              onTabTap: (index) {
-                final now = DateTime.now();
-                if (_lastTappedIndex == index &&
-                    _lastTapTime != null &&
-                    now.difference(_lastTapTime!) <
-                        const Duration(milliseconds: 300)) {
-                  if (index == 0) {
-                    ref.read(homeScrollToTopProvider.notifier).state++;
-                  }
-                  _lastTapTime = null;
-                  _lastTappedIndex = null;
-                } else {
-                  _lastTapTime = now;
-                  _lastTappedIndex = index;
-                  ref.read(bottomTabIndexProvider.notifier).state = index;
-                }
-              },
+              onTabTap: _handleTabTap,
               onCenterTap: () {
+                // 中间按钮是「明細/記帳」双态(见 _BeeBottomBar._buildCenterTabItem
+                // 的说明):目前就在明細分頁时,维持原本「记一笔」行为;否则跟
+                // 点其他分頁一样,只是切过去(含双击滚动置顶等既有语意,统一
+                // 走 _handleTabTap,不在这里另写一份)。
+                if (idx != _homeTabIndex) {
+                  _handleTabTap(_homeTabIndex);
+                  return;
+                }
                 // 预设日期跟随行事历当前选中的日期(为 null 表示未选中/不在
                 // 明細 tab,退回今天),而不是恒定今天——见需求 #1。
                 final selectedDate = ref.read(calendarSelectedDateProvider);
@@ -881,9 +907,14 @@ class _BeeAppState extends ConsumerState<BeeApp>
                   ),
                 );
               },
-              onCenterLongPressStart: _onLongPressStart,
-              onCenterLongPressMoveUpdate: _onLongPressMoveUpdate,
-              onCenterLongPressEnd: _onLongPressEnd,
+              // 相机/相簿/语音快速记帐扇形选单只在中间按钮处于「記帳」态(已经
+              // 在明細分頁)时才有意义——「明細」态长按不该弹出这组动作。
+              onCenterLongPressStart:
+                  idx == _homeTabIndex ? _onLongPressStart : (_) {},
+              onCenterLongPressMoveUpdate:
+                  idx == _homeTabIndex ? _onLongPressMoveUpdate : (_) {},
+              onCenterLongPressEnd:
+                  idx == _homeTabIndex ? _onLongPressEnd : (_) {},
             ),
           ),
           // 开发模式下的主题切换按钮
@@ -922,6 +953,9 @@ class _BeeAppState extends ConsumerState<BeeApp>
 /// Telegram 风格悬浮胶囊底部导航栏
 class _BeeBottomBar extends StatelessWidget {
   final int currentIndex;
+  // 「明細」在 _pages 里的 index——中间按钮据此判断目前是「明細」态(点了
+  // 显示紀帳/長按彈快速記帳選單)还是「記帳」态(点了切去明細分頁)。
+  final int homeTabIndex;
   final Color primaryColor;
   final bool isDark;
   final double bottomPadding;
@@ -937,6 +971,7 @@ class _BeeBottomBar extends StatelessWidget {
 
   const _BeeBottomBar({
     required this.currentIndex,
+    required this.homeTabIndex,
     required this.primaryColor,
     required this.isDark,
     required this.bottomPadding,
@@ -985,23 +1020,23 @@ class _BeeBottomBar extends StatelessWidget {
                                   skin!.tabBarBuilder!(primaryColor, isDark)))),
                 Row(
                   children: [
-                    _buildTabItem(0, Icons.receipt_long_outlined,
-                        Icons.receipt_long, l10n.tabHome, inactiveColor),
                     _buildTabItem(
-                        1,
-                        Icons.pie_chart_outline_rounded,
-                        Icons.pie_chart_rounded,
-                        l10n.tabInsights,
-                        inactiveColor),
-                    // 中间记账按钮（作为 Tab 样式）
-                    _buildCenterTabItem(inactiveColor),
-                    _buildTabItem(
-                        2,
+                        0,
                         Icons.account_balance_wallet_outlined,
                         Icons.account_balance_wallet,
                         l10n.tabAssets,
                         inactiveColor),
-                    _buildAvatarTabItem(3, l10n.tabMine, inactiveColor),
+                    _buildTabItem(1, Icons.folder_outlined, Icons.folder,
+                        l10n.projectOverviewTitle, inactiveColor),
+                    // 中间按钮：明細⇄記帳雙態（见 _buildCenterTabItem）
+                    _buildCenterTabItem(inactiveColor),
+                    _buildTabItem(
+                        3,
+                        Icons.pie_chart_outline_rounded,
+                        Icons.pie_chart_rounded,
+                        l10n.tabInsights,
+                        inactiveColor),
+                    _buildAvatarTabItem(4, l10n.tabMine, inactiveColor),
                   ],
                 ),
               ],
@@ -1068,7 +1103,13 @@ class _BeeBottomBar extends StatelessWidget {
     );
   }
 
+  /// 中间按钮双态(使用者需求:「明細」搬到中间,同一顆按鈕依目前是否已经
+  /// 在明細分頁動態切換):
+  /// - 目前不在明細分頁 → 顯示「明細」,點擊切過去(同一般分頁)。
+  /// - 目前就在明細分頁 → 顯示「記帳」,點擊開新增交易頁(維持原本行為),
+  ///   長按彈相機/相簿/語音快速記帳選單。
   Widget _buildCenterTabItem(Color inactiveColor) {
+    final isRecordMode = currentIndex == homeTabIndex;
     return Expanded(
       child: GestureDetector(
         key: centerButtonKey,
@@ -1082,10 +1123,16 @@ class _BeeBottomBar extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.add_circle_outline, color: inactiveColor, size: 22),
+              Icon(
+                isRecordMode
+                    ? Icons.add_circle_outline
+                    : Icons.receipt_long_outlined,
+                color: inactiveColor,
+                size: 22,
+              ),
               const SizedBox(height: 1),
               Text(
-                l10n.tabRecord,
+                isRecordMode ? l10n.tabRecord : l10n.tabHome,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 softWrap: false,

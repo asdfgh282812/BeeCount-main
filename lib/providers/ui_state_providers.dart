@@ -20,8 +20,9 @@ import '../ai/providers/ai_constants.dart';
 import '../services/platform/app_link_service.dart';
 import 'security_providers.dart';
 
-// 底部导航索引（0: 明细, 1: 图表, 2: 账本, 3: 我的）
-final bottomTabIndexProvider = StateProvider<int>((ref) => 0);
+// 底部导航索引（0: 账户, 1: 专案, 2: 明细/记帐(中间动态按钮), 3: 洞察, 4: 我的）
+// 默认落在明细分页（2），维持改版前「打开 app 先看到明细」的既有体验。
+final bottomTabIndexProvider = StateProvider<int>((ref) => 2);
 
 // AppLink 待处理动作（用于通知 UI 层执行导航）
 final pendingAppLinkActionProvider = StateProvider<AppLinkAction?>((ref) => null);
