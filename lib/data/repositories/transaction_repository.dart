@@ -238,6 +238,9 @@ abstract class TransactionRepository {
     // 只在新建時填(還款對話框/交易表單「關聯欠款」建立新交易時);既有交易
     // 改連結走 [setTransactionDebtLink]。
     String? debtSyncId,
+    // v44 專案:這筆交易關聯的 Project 的 syncId。跟 debtSyncId 同款存
+    // syncId 字串,可在新建/編輯時直接傳,也可透過交易編輯表單事後改。
+    String? projectSyncId,
     bool needsAccountAssignment = false,
   });
 
@@ -385,6 +388,15 @@ abstract class TransactionRepository {
   Future<void> setTransactionDebtLink({
     required int id,
     String? debtSyncId,
+  });
+
+  /// 設定/清除這筆交易的專案關聯(v44 專案,交易表單「選擇專案」用)。跟
+  /// [setTransactionDebtLink] 同款分工——只在新建當下用 [addTransaction]
+  /// 的 projectSyncId 參數填,既有交易改連結走這個專用方法。
+  /// [projectSyncId]=null 代表取消關聯。
+  Future<void> setTransactionProjectLink({
+    required int id,
+    String? projectSyncId,
   });
 
   /// 「待確認帳戶」列表裡使用者補選帳戶:寫入 [accountId] 並清除

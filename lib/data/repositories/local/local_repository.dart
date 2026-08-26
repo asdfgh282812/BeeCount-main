@@ -403,6 +403,7 @@ class LocalRepository extends BaseRepository {
     String? recurringRuleId,
     List<TransactionSplitInput>? splits,
     String? debtSyncId,
+    String? projectSyncId,
     bool needsAccountAssignment = false,
   }) async {
     // v30 带折算兜底(02 §六):任何调用方(单币种记账/AI/周期模板)未传两字段
@@ -437,6 +438,7 @@ class LocalRepository extends BaseRepository {
       recurringRuleId: recurringRuleId,
       splits: splits,
       debtSyncId: debtSyncId,
+      projectSyncId: projectSyncId,
       needsAccountAssignment: needsAccountAssignment,
     );
     if (changeTracker != null) {
@@ -1098,6 +1100,25 @@ class LocalRepository extends BaseRepository {
     final old = await _transactionRepo.getTransactionById(id);
     await _transactionRepo.setTransactionDebtLink(
         id: id, debtSyncId: debtSyncId);
+    if (changeTracker != null && old?.syncId != null) {
+      await changeTracker!.recordLedgerChange(
+        entityType: 'transaction',
+        entityId: id,
+        entitySyncId: old!.syncId!,
+        ledgerId: old.ledgerId,
+        action: 'update',
+      );
+    }
+  }
+
+  @override
+  Future<void> setTransactionProjectLink({
+    required int id,
+    String? projectSyncId,
+  }) async {
+    final old = await _transactionRepo.getTransactionById(id);
+    await _transactionRepo.setTransactionProjectLink(
+        id: id, projectSyncId: projectSyncId);
     if (changeTracker != null && old?.syncId != null) {
       await changeTracker!.recordLedgerChange(
         entityType: 'transaction',

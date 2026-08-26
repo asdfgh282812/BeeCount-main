@@ -439,6 +439,7 @@ class LocalTransactionRepository implements TransactionRepository {
     String? recurringRuleId,
     List<TransactionSplitInput>? splits,
     String? debtSyncId,
+    String? projectSyncId,
     bool needsAccountAssignment = false,
   }) async {
     // v30:子仓收「已定值」直写;带折算的兜底(查账户/汇率)在聚合
@@ -469,6 +470,7 @@ class LocalTransactionRepository implements TransactionRepository {
             recurringRuleId: d.Value(recurringRuleId),
             hasSplits: d.Value(hasSplits),
             debtSyncId: d.Value(debtSyncId),
+            projectSyncId: d.Value(projectSyncId),
             needsAccountAssignment: d.Value(needsAccountAssignment),
           ));
       if (hasSplits) {
@@ -1114,6 +1116,18 @@ class LocalTransactionRepository implements TransactionRepository {
     await (db.update(db.transactions)..where((t) => t.id.equals(id))).write(
       TransactionsCompanion(
         debtSyncId: d.Value(debtSyncId),
+      ),
+    );
+  }
+
+  @override
+  Future<void> setTransactionProjectLink({
+    required int id,
+    String? projectSyncId,
+  }) async {
+    await (db.update(db.transactions)..where((t) => t.id.equals(id))).write(
+      TransactionsCompanion(
+        projectSyncId: d.Value(projectSyncId),
       ),
     );
   }
