@@ -19,7 +19,7 @@ import '../../widgets/biz/biz.dart';
 import '../cloud/member_list_page.dart';
 import '../cloud/member_stats_page.dart';
 import '../cloud/join_shared_ledger_page.dart';
-import '../budget/budget_page.dart';
+import '../project/project_overview_page.dart';
 import '../../styles/tokens.dart';
 import '../../utils/currencies.dart';
 import '../../services/attachment_service.dart';
@@ -463,15 +463,16 @@ class _LedgersPageNewState extends ConsumerState<LedgersPageNew> {
                   ],
                 ),
               ),
-            // 预算管理入口 — 每个账本独立预算,Owner/Editor 都能看(Editor 进
-            // BudgetPage 后 isEditorInShared 隐藏 + 按钮和编辑入口,只看不改)。
+            // 专案管理入口(v44 取代原本的预算管理)— 每个账本独立,Owner/Editor
+            // 都能看(Editor 进 ProjectOverviewPage 后 isEditorInShared 隐藏
+            // + 按钮和编辑入口,只看不改)。
             SimpleDialogOption(
               onPressed: () => Navigator.pop(dctx, 'budget'),
               child: Row(
                 children: [
-                  Icon(Icons.pie_chart_outline_rounded, color: primary),
+                  Icon(Icons.folder_outlined, color: primary),
                   const SizedBox(width: 8),
-                  Text(AppLocalizations.of(context).budgetManagement),
+                  Text(AppLocalizations.of(context).projectOverviewTitle),
                 ],
               ),
             ),
@@ -560,15 +561,16 @@ class _LedgersPageNewState extends ConsumerState<LedgersPageNew> {
     if (action == 'edit') {
       await _handleEditLedger(context, ledger);
     } else if (action == 'budget') {
-      // 切到长按的账本(BudgetPage 内部 watch currentLedger,不接 ledgerId 参
-      // 数),再 push。语义上"从账本列表 → 长按 A → 预算管理"自然就是切到 A。
+      // 切到长按的账本(ProjectOverviewPage 内部 watch currentLedger,不接
+      // ledgerId 参数),再 push。语义上"从账本列表 → 长按 A → 专案管理"自然
+      // 就是切到 A。
       if (ref.read(currentLedgerIdProvider) != ledger.id) {
         ref.read(currentLedgerIdProvider.notifier).state = ledger.id;
         ref.invalidate(currentLedgerProvider);
       }
       if (mounted) {
         await Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const BudgetPage()),
+          MaterialPageRoute(builder: (_) => const ProjectOverviewPage()),
         );
       }
     } else if (action == 'members') {

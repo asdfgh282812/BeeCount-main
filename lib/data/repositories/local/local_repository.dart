@@ -1340,6 +1340,10 @@ class LocalRepository extends BaseRepository {
       _transactionRepo.getRefundsOf(originalSyncId);
 
   @override
+  Future<List<Transaction>> getTransactionsByProject(String projectSyncId) =>
+      _transactionRepo.getTransactionsByProject(projectSyncId);
+
+  @override
   Future<void> updateTransactionBySyncId({
     required String syncId,
     required String type,

@@ -1674,6 +1674,15 @@ class LocalTransactionRepository implements TransactionRepository {
   }
 
   @override
+  Future<List<Transaction>> getTransactionsByProject(
+      String projectSyncId) async {
+    return await (db.select(db.transactions)
+          ..where((t) => t.projectSyncId.equals(projectSyncId))
+          ..orderBy([(t) => d.OrderingTerm.desc(t.happenedAt)]))
+        .get();
+  }
+
+  @override
   Future<void> updateTransactionBySyncId({
     required String syncId,
     required String type,

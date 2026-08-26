@@ -3841,5 +3841,47 @@
   "accountsDebtEntryBalanced": "Settled",
   "projectSelectTitle": "Select Project",
   "projectPickerNone": "No Project",
-  "projectPickerEmptyHint": "No projects yet"
+  "projectPickerEmptyHint": "No projects yet",
+  "projectOverviewTitle": "Projects",
+  "projectShowArchived": "Show archived",
+  "projectHideArchived": "Hide archived",
+  "projectSetTotalBudgetCta": "Set total budget",
+  "projectOverviewEmptyHint": "No projects yet",
+  "projectAddCta": "Add Project",
+  "projectPeriodMonthlyLabel": "This month",
+  "projectPeriodYearlyLabel": "Year {year}",
+  "@projectPeriodYearlyLabel": {
+    "placeholders": {
+      "year": {
+        "type": "int"
+      }
+    }
+  },
+  "projectCardArchivedBadge": "Archived",
+  "projectCardPureTracking": "Tracking only",
+  "projectEditTitle": "Edit Project",
+  "projectAddTitle": "New Project",
+  "projectNameLabel": "Project Name",
+  "projectNameHint": "e.g.: Japan Trip, Kitchen Reno",
+  "projectIconLabel": "Icon",
+  "projectPureTrackingToggle": "Tracking only",
+  "projectPeriodTypeLabel": "Period",
+  "projectPeriodMonthlyOption": "Monthly",
+  "projectPeriodYearlyOption": "Yearly",
+  "projectPeriodFixedOption": "Fixed",
+  "projectPeriodStartLabel": "Start date",
+  "projectPeriodEndLabel": "End date",
+  "projectCarryoverToggle": "Carry over remaining budget",
+  "projectVisibleOnHomeToggle": "Show on home",
+  "projectEnabledToggle": "Active",
+  "projectNameRequiredHint": "Please enter a project name",
+  "projectPeriodFixedRequiredHint": "Please select a start and end date",
+  "projectSaveSuccess": "Saved",
+  "projectArchiveInsteadConfirmBody": "This project has related transactions. It will be archived instead of deleted; existing transactions keep their project link.",
+  "projectDeleteConfirmBody": "This project has no related transactions and will be permanently deleted. Continue?",
+  "projectArchiveSuccess": "Archived",
+  "projectDeleteSuccess": "Deleted",
+  "projectDetailPureTrackingHint": "This project has no budget — spending is tracked only.",
+  "projectDetailCarriedOverLabel": "Carried over",
+  "projectDetailNoTransactionsHint": "No transactions in this project yet"
 }

@@ -477,6 +477,10 @@ abstract class TransactionRepository {
   /// 查出所有「退款自 [originalSyncId] 这笔交易」的退款单(refundOfSyncId 指向它)。
   Future<List<Transaction>> getRefundsOf(String originalSyncId);
 
+  /// v44:查出所有指定了某個專案(projectSyncId)的交易,依時間新到舊排序。
+  /// 專案詳情頁交易列表用,同 [getRefundsOf] 的 syncId 過濾模式。
+  Future<List<Transaction>> getTransactionsByProject(String projectSyncId);
+
   /// 根据 syncId 更新交易的全部字段
   Future<void> updateTransactionBySyncId({
     required String syncId,

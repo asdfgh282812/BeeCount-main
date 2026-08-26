@@ -5,7 +5,7 @@ import '../../data/repositories/budget_repository.dart';
 import '../../providers/budget_providers.dart';
 import '../../styles/tokens.dart';
 import '../../l10n/app_localizations.dart';
-import '../../pages/budget/budget_page.dart';
+import '../../pages/project/project_overview_page.dart';
 
 /// 首页 Header 底部预算进度条
 /// 替代 header 的 border-bottom，百分比显示在进度条中间
@@ -59,7 +59,7 @@ class _BudgetProgressBar extends ConsumerWidget {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const BudgetPage()),
+          MaterialPageRoute(builder: (_) => const ProjectOverviewPage()),
         );
       },
       behavior: HitTestBehavior.opaque,

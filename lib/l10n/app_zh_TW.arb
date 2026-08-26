@@ -3413,5 +3413,47 @@
   "accountsDebtEntryBalanced": "已結清",
   "projectSelectTitle": "選擇專案",
   "projectPickerNone": "不指定專案",
-  "projectPickerEmptyHint": "還沒有任何專案"
+  "projectPickerEmptyHint": "還沒有任何專案",
+  "projectOverviewTitle": "專案",
+  "projectShowArchived": "顯示已封存",
+  "projectHideArchived": "隱藏已封存",
+  "projectSetTotalBudgetCta": "設定總預算",
+  "projectOverviewEmptyHint": "還沒有任何專案",
+  "projectAddCta": "新增專案",
+  "projectPeriodMonthlyLabel": "本月",
+  "projectPeriodYearlyLabel": "{year} 年度",
+  "@projectPeriodYearlyLabel": {
+    "placeholders": {
+      "year": {
+        "type": "int"
+      }
+    }
+  },
+  "projectCardArchivedBadge": "已封存",
+  "projectCardPureTracking": "純記錄",
+  "projectEditTitle": "編輯專案",
+  "projectAddTitle": "新增專案",
+  "projectNameLabel": "專案名稱",
+  "projectNameHint": "例如:日本旅行、廚房翻新",
+  "projectIconLabel": "圖示",
+  "projectPureTrackingToggle": "純記錄",
+  "projectPeriodTypeLabel": "週期",
+  "projectPeriodMonthlyOption": "每月",
+  "projectPeriodYearlyOption": "每年",
+  "projectPeriodFixedOption": "固定期間",
+  "projectPeriodStartLabel": "起始日期",
+  "projectPeriodEndLabel": "結束日期",
+  "projectCarryoverToggle": "結轉上期結餘",
+  "projectVisibleOnHomeToggle": "顯示於首頁",
+  "projectEnabledToggle": "啟用中",
+  "projectNameRequiredHint": "請輸入專案名稱",
+  "projectPeriodFixedRequiredHint": "請選擇起訖日期",
+  "projectSaveSuccess": "已儲存",
+  "projectArchiveInsteadConfirmBody": "此專案已有關聯交易,將改為封存而非刪除;既有交易仍保留專案連結。",
+  "projectDeleteConfirmBody": "此專案沒有關聯交易,將永久刪除,確定嗎?",
+  "projectArchiveSuccess": "已封存",
+  "projectDeleteSuccess": "已刪除",
+  "projectDetailPureTrackingHint": "此專案未設預算,僅作花費記錄。",
+  "projectDetailCarriedOverLabel": "結轉",
+  "projectDetailNoTransactionsHint": "此專案還沒有任何交易"
 }

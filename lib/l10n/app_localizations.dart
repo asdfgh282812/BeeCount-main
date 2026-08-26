@@ -16187,6 +16187,216 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No projects yet'**
   String get projectPickerEmptyHint;
+
+  /// No description provided for @projectOverviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Projects'**
+  String get projectOverviewTitle;
+
+  /// No description provided for @projectShowArchived.
+  ///
+  /// In en, this message translates to:
+  /// **'Show archived'**
+  String get projectShowArchived;
+
+  /// No description provided for @projectHideArchived.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide archived'**
+  String get projectHideArchived;
+
+  /// No description provided for @projectSetTotalBudgetCta.
+  ///
+  /// In en, this message translates to:
+  /// **'Set total budget'**
+  String get projectSetTotalBudgetCta;
+
+  /// No description provided for @projectOverviewEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No projects yet'**
+  String get projectOverviewEmptyHint;
+
+  /// No description provided for @projectAddCta.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Project'**
+  String get projectAddCta;
+
+  /// No description provided for @projectPeriodMonthlyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'This month'**
+  String get projectPeriodMonthlyLabel;
+
+  /// No description provided for @projectPeriodYearlyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Year {year}'**
+  String projectPeriodYearlyLabel(int year);
+
+  /// No description provided for @projectCardArchivedBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Archived'**
+  String get projectCardArchivedBadge;
+
+  /// No description provided for @projectCardPureTracking.
+  ///
+  /// In en, this message translates to:
+  /// **'Tracking only'**
+  String get projectCardPureTracking;
+
+  /// No description provided for @projectEditTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Project'**
+  String get projectEditTitle;
+
+  /// No description provided for @projectAddTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New Project'**
+  String get projectAddTitle;
+
+  /// No description provided for @projectNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Project Name'**
+  String get projectNameLabel;
+
+  /// No description provided for @projectNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g.: Japan Trip, Kitchen Reno'**
+  String get projectNameHint;
+
+  /// No description provided for @projectIconLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Icon'**
+  String get projectIconLabel;
+
+  /// No description provided for @projectPureTrackingToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tracking only'**
+  String get projectPureTrackingToggle;
+
+  /// No description provided for @projectPeriodTypeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Period'**
+  String get projectPeriodTypeLabel;
+
+  /// No description provided for @projectPeriodMonthlyOption.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly'**
+  String get projectPeriodMonthlyOption;
+
+  /// No description provided for @projectPeriodYearlyOption.
+  ///
+  /// In en, this message translates to:
+  /// **'Yearly'**
+  String get projectPeriodYearlyOption;
+
+  /// No description provided for @projectPeriodFixedOption.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed'**
+  String get projectPeriodFixedOption;
+
+  /// No description provided for @projectPeriodStartLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Start date'**
+  String get projectPeriodStartLabel;
+
+  /// No description provided for @projectPeriodEndLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'End date'**
+  String get projectPeriodEndLabel;
+
+  /// No description provided for @projectCarryoverToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Carry over remaining budget'**
+  String get projectCarryoverToggle;
+
+  /// No description provided for @projectVisibleOnHomeToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show on home'**
+  String get projectVisibleOnHomeToggle;
+
+  /// No description provided for @projectEnabledToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get projectEnabledToggle;
+
+  /// No description provided for @projectNameRequiredHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a project name'**
+  String get projectNameRequiredHint;
+
+  /// No description provided for @projectPeriodFixedRequiredHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a start and end date'**
+  String get projectPeriodFixedRequiredHint;
+
+  /// No description provided for @projectSaveSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get projectSaveSuccess;
+
+  /// No description provided for @projectArchiveInsteadConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This project has related transactions. It will be archived instead of deleted; existing transactions keep their project link.'**
+  String get projectArchiveInsteadConfirmBody;
+
+  /// No description provided for @projectDeleteConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This project has no related transactions and will be permanently deleted. Continue?'**
+  String get projectDeleteConfirmBody;
+
+  /// No description provided for @projectArchiveSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Archived'**
+  String get projectArchiveSuccess;
+
+  /// No description provided for @projectDeleteSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted'**
+  String get projectDeleteSuccess;
+
+  /// No description provided for @projectDetailPureTrackingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This project has no budget — spending is tracked only.'**
+  String get projectDetailPureTrackingHint;
+
+  /// No description provided for @projectDetailCarriedOverLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Carried over'**
+  String get projectDetailCarriedOverLabel;
+
+  /// No description provided for @projectDetailNoTransactionsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No transactions in this project yet'**
+  String get projectDetailNoTransactionsHint;
 }
 
 class _AppLocalizationsDelegate

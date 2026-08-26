@@ -8737,4 +8737,116 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get projectPickerEmptyHint => 'No projects yet';
+
+  @override
+  String get projectOverviewTitle => 'Projects';
+
+  @override
+  String get projectShowArchived => 'Show archived';
+
+  @override
+  String get projectHideArchived => 'Hide archived';
+
+  @override
+  String get projectSetTotalBudgetCta => 'Set total budget';
+
+  @override
+  String get projectOverviewEmptyHint => 'No projects yet';
+
+  @override
+  String get projectAddCta => 'Add Project';
+
+  @override
+  String get projectPeriodMonthlyLabel => 'This month';
+
+  @override
+  String projectPeriodYearlyLabel(int year) {
+    return 'Year $year';
+  }
+
+  @override
+  String get projectCardArchivedBadge => 'Archived';
+
+  @override
+  String get projectCardPureTracking => 'Tracking only';
+
+  @override
+  String get projectEditTitle => 'Edit Project';
+
+  @override
+  String get projectAddTitle => 'New Project';
+
+  @override
+  String get projectNameLabel => 'Project Name';
+
+  @override
+  String get projectNameHint => 'e.g.: Japan Trip, Kitchen Reno';
+
+  @override
+  String get projectIconLabel => 'Icon';
+
+  @override
+  String get projectPureTrackingToggle => 'Tracking only';
+
+  @override
+  String get projectPeriodTypeLabel => 'Period';
+
+  @override
+  String get projectPeriodMonthlyOption => 'Monthly';
+
+  @override
+  String get projectPeriodYearlyOption => 'Yearly';
+
+  @override
+  String get projectPeriodFixedOption => 'Fixed';
+
+  @override
+  String get projectPeriodStartLabel => 'Start date';
+
+  @override
+  String get projectPeriodEndLabel => 'End date';
+
+  @override
+  String get projectCarryoverToggle => 'Carry over remaining budget';
+
+  @override
+  String get projectVisibleOnHomeToggle => 'Show on home';
+
+  @override
+  String get projectEnabledToggle => 'Active';
+
+  @override
+  String get projectNameRequiredHint => 'Please enter a project name';
+
+  @override
+  String get projectPeriodFixedRequiredHint =>
+      'Please select a start and end date';
+
+  @override
+  String get projectSaveSuccess => 'Saved';
+
+  @override
+  String get projectArchiveInsteadConfirmBody =>
+      'This project has related transactions. It will be archived instead of deleted; existing transactions keep their project link.';
+
+  @override
+  String get projectDeleteConfirmBody =>
+      'This project has no related transactions and will be permanently deleted. Continue?';
+
+  @override
+  String get projectArchiveSuccess => 'Archived';
+
+  @override
+  String get projectDeleteSuccess => 'Deleted';
+
+  @override
+  String get projectDetailPureTrackingHint =>
+      'This project has no budget — spending is tracked only.';
+
+  @override
+  String get projectDetailCarriedOverLabel => 'Carried over';
+
+  @override
+  String get projectDetailNoTransactionsHint =>
+      'No transactions in this project yet';
 }

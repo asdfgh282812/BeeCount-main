@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import '../../providers/budget_providers.dart';
-import '../budget/budget_page.dart';
+import '../project/project_overview_page.dart';
 import '../../providers.dart';
 import '../settings/personalize_page.dart' show headerStyleProvider;
 import '../../widgets/ui/ui.dart';
@@ -475,7 +475,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const BudgetPage()),
+                        MaterialPageRoute(
+                            builder: (_) => const ProjectOverviewPage()),
                       );
                     },
                     child: Text(

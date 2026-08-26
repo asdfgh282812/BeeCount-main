@@ -8645,6 +8645,118 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get projectPickerEmptyHint => 'No projects yet';
+
+  @override
+  String get projectOverviewTitle => 'Projects';
+
+  @override
+  String get projectShowArchived => 'Show archived';
+
+  @override
+  String get projectHideArchived => 'Hide archived';
+
+  @override
+  String get projectSetTotalBudgetCta => 'Set total budget';
+
+  @override
+  String get projectOverviewEmptyHint => 'No projects yet';
+
+  @override
+  String get projectAddCta => 'Add Project';
+
+  @override
+  String get projectPeriodMonthlyLabel => 'This month';
+
+  @override
+  String projectPeriodYearlyLabel(int year) {
+    return 'Year $year';
+  }
+
+  @override
+  String get projectCardArchivedBadge => 'Archived';
+
+  @override
+  String get projectCardPureTracking => 'Tracking only';
+
+  @override
+  String get projectEditTitle => 'Edit Project';
+
+  @override
+  String get projectAddTitle => 'New Project';
+
+  @override
+  String get projectNameLabel => 'Project Name';
+
+  @override
+  String get projectNameHint => 'e.g.: Japan Trip, Kitchen Reno';
+
+  @override
+  String get projectIconLabel => 'Icon';
+
+  @override
+  String get projectPureTrackingToggle => 'Tracking only';
+
+  @override
+  String get projectPeriodTypeLabel => 'Period';
+
+  @override
+  String get projectPeriodMonthlyOption => 'Monthly';
+
+  @override
+  String get projectPeriodYearlyOption => 'Yearly';
+
+  @override
+  String get projectPeriodFixedOption => 'Fixed';
+
+  @override
+  String get projectPeriodStartLabel => 'Start date';
+
+  @override
+  String get projectPeriodEndLabel => 'End date';
+
+  @override
+  String get projectCarryoverToggle => 'Carry over remaining budget';
+
+  @override
+  String get projectVisibleOnHomeToggle => 'Show on home';
+
+  @override
+  String get projectEnabledToggle => 'Active';
+
+  @override
+  String get projectNameRequiredHint => 'Please enter a project name';
+
+  @override
+  String get projectPeriodFixedRequiredHint =>
+      'Please select a start and end date';
+
+  @override
+  String get projectSaveSuccess => 'Saved';
+
+  @override
+  String get projectArchiveInsteadConfirmBody =>
+      'This project has related transactions. It will be archived instead of deleted; existing transactions keep their project link.';
+
+  @override
+  String get projectDeleteConfirmBody =>
+      'This project has no related transactions and will be permanently deleted. Continue?';
+
+  @override
+  String get projectArchiveSuccess => 'Archived';
+
+  @override
+  String get projectDeleteSuccess => 'Deleted';
+
+  @override
+  String get projectDetailPureTrackingHint =>
+      'This project has no budget — spending is tracked only.';
+
+  @override
+  String get projectDetailCarriedOverLabel => 'Carried over';
+
+  @override
+  String get projectDetailNoTransactionsHint =>
+      'No transactions in this project yet';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -17269,4 +17381,112 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get projectPickerEmptyHint => '還沒有任何專案';
+
+  @override
+  String get projectOverviewTitle => '專案';
+
+  @override
+  String get projectShowArchived => '顯示已封存';
+
+  @override
+  String get projectHideArchived => '隱藏已封存';
+
+  @override
+  String get projectSetTotalBudgetCta => '設定總預算';
+
+  @override
+  String get projectOverviewEmptyHint => '還沒有任何專案';
+
+  @override
+  String get projectAddCta => '新增專案';
+
+  @override
+  String get projectPeriodMonthlyLabel => '本月';
+
+  @override
+  String projectPeriodYearlyLabel(int year) {
+    return '$year 年度';
+  }
+
+  @override
+  String get projectCardArchivedBadge => '已封存';
+
+  @override
+  String get projectCardPureTracking => '純記錄';
+
+  @override
+  String get projectEditTitle => '編輯專案';
+
+  @override
+  String get projectAddTitle => '新增專案';
+
+  @override
+  String get projectNameLabel => '專案名稱';
+
+  @override
+  String get projectNameHint => '例如:日本旅行、廚房翻新';
+
+  @override
+  String get projectIconLabel => '圖示';
+
+  @override
+  String get projectPureTrackingToggle => '純記錄';
+
+  @override
+  String get projectPeriodTypeLabel => '週期';
+
+  @override
+  String get projectPeriodMonthlyOption => '每月';
+
+  @override
+  String get projectPeriodYearlyOption => '每年';
+
+  @override
+  String get projectPeriodFixedOption => '固定期間';
+
+  @override
+  String get projectPeriodStartLabel => '起始日期';
+
+  @override
+  String get projectPeriodEndLabel => '結束日期';
+
+  @override
+  String get projectCarryoverToggle => '結轉上期結餘';
+
+  @override
+  String get projectVisibleOnHomeToggle => '顯示於首頁';
+
+  @override
+  String get projectEnabledToggle => '啟用中';
+
+  @override
+  String get projectNameRequiredHint => '請輸入專案名稱';
+
+  @override
+  String get projectPeriodFixedRequiredHint => '請選擇起訖日期';
+
+  @override
+  String get projectSaveSuccess => '已儲存';
+
+  @override
+  String get projectArchiveInsteadConfirmBody =>
+      '此專案已有關聯交易,將改為封存而非刪除;既有交易仍保留專案連結。';
+
+  @override
+  String get projectDeleteConfirmBody => '此專案沒有關聯交易,將永久刪除,確定嗎?';
+
+  @override
+  String get projectArchiveSuccess => '已封存';
+
+  @override
+  String get projectDeleteSuccess => '已刪除';
+
+  @override
+  String get projectDetailPureTrackingHint => '此專案未設預算,僅作花費記錄。';
+
+  @override
+  String get projectDetailCarriedOverLabel => '結轉';
+
+  @override
+  String get projectDetailNoTransactionsHint => '此專案還沒有任何交易';
 }
