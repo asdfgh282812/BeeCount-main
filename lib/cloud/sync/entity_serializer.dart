@@ -111,6 +111,11 @@ class EntitySerializer {
       // 傳 null),必須讓 null 能傳達給 server。BeeCount Cloud 端字段是
       // read_tx_projection.debt_sync_id,wire 字段名 debtId。
       'debtId': tx.debtSyncId,
+      // v44 專案:這筆交易關聯的 Project syncId。恆發(同 debtId)——記帳
+      // 表單「選擇專案」的取消連結是明確動作,必須讓 null 能傳達給
+      // server。BeeCount Cloud 端字段是 read_tx_projection.project_sync_id,
+      // wire 字段名 projectId。
+      'projectId': tx.projectSyncId,
     };
   }
 
@@ -377,6 +382,37 @@ class EntitySerializer {
           debt.originTransactionSyncId!.isNotEmpty)
         'originTxId': debt.originTransactionSyncId,
       'excludedFromTotal': debt.excludedFromTotal,
+    };
+  }
+
+  // ==================== Project ====================
+
+  /// 專案(v44,對齐 BeeCount Cloud `project` sync entity)。ledger-scope,
+  /// 跟 [serializeBudget]/[serializeDebt] 同款「全量帶上當下值」語意——
+  /// 每個欄位都恆發(即使 null),因為 icon/budgetAmount/periodStart/
+  /// periodEnd 都有明確的清空動作([ProjectRepository.updateProject] 的
+  /// clearIcon/clearBudgetAmount/clearPeriodStart/clearPeriodEnd),省略
+  /// 或只在非 null 時才發會讓「清空」這個動作永遠同步不出去。對齐
+  /// BeeCount Cloud `sync_applier.py::_MERGE_SPECS["project"]`——改欄位前
+  /// 先去那邊核對,一字之差會讓整個欄位靜默同步失敗。
+  static Map<String, dynamic> serializeProject(
+    Project project, {
+    String? ledgerSyncId,
+  }) {
+    return {
+      'syncId': project.syncId,
+      if (ledgerSyncId != null && ledgerSyncId.isNotEmpty)
+        'ledgerSyncId': ledgerSyncId,
+      'name': project.name,
+      'icon': project.icon,
+      'budgetAmount': project.budgetAmount,
+      'periodType': project.periodType,
+      'periodStart': project.periodStart?.toUtc().toIso8601String(),
+      'periodEnd': project.periodEnd?.toUtc().toIso8601String(),
+      'carryoverEnabled': project.carryoverEnabled,
+      'visibleOnHome': project.visibleOnHome,
+      'enabled': project.enabled,
+      'sortOrder': project.sortOrder,
     };
   }
 
