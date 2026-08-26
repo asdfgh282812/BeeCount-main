@@ -2219,6 +2219,12 @@ class $TransactionsTable extends Transactions
   late final GeneratedColumn<String> debtSyncId = GeneratedColumn<String>(
       'debt_sync_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _projectSyncIdMeta =
+      const VerificationMeta('projectSyncId');
+  @override
+  late final GeneratedColumn<String> projectSyncId = GeneratedColumn<String>(
+      'project_sync_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _needsAccountAssignmentMeta =
       const VerificationMeta('needsAccountAssignment');
   @override
@@ -2260,6 +2266,7 @@ class $TransactionsTable extends Transactions
         deferredPostingAt,
         hasSplits,
         debtSyncId,
+        projectSyncId,
         needsAccountAssignment
       ];
   @override
@@ -2435,6 +2442,12 @@ class $TransactionsTable extends Transactions
           debtSyncId.isAcceptableOrUnknown(
               data['debt_sync_id']!, _debtSyncIdMeta));
     }
+    if (data.containsKey('project_sync_id')) {
+      context.handle(
+          _projectSyncIdMeta,
+          projectSyncId.isAcceptableOrUnknown(
+              data['project_sync_id']!, _projectSyncIdMeta));
+    }
     if (data.containsKey('needs_account_assignment')) {
       context.handle(
           _needsAccountAssignmentMeta,
@@ -2512,6 +2525,8 @@ class $TransactionsTable extends Transactions
           .read(DriftSqlType.bool, data['${effectivePrefix}has_splits'])!,
       debtSyncId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}debt_sync_id']),
+      projectSyncId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}project_sync_id']),
       needsAccountAssignment: attachedDatabase.typeMapping.read(
           DriftSqlType.bool,
           data['${effectivePrefix}needs_account_assignment'])!,
@@ -2626,6 +2641,15 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   /// (同 reconciledAt)——清空欠款關聯是明確動作,null 必須能傳達給 server。
   final String? debtSyncId;
 
+  /// v44 專案(對齐 BeeCount Cloud project sync entity,取代分類預算):這筆
+  /// 交易關聯的 [Projects] 的 syncId。跟 [debtSyncId]/[recurringRuleId]
+  /// 同款存 syncId 字串(不是本地 int FK)——專案是 ledger-scoped 實體,
+  /// 本地 int id 跨裝置不保證一致。BeeCount Cloud 端字段是
+  /// read_tx_projection.project_sync_id,wire 字段名 projectId。恆發(同
+  /// debtSyncId)——記帳表單「選擇專案」的取消連結是明確動作,必須讓 null
+  /// 能傳達給 server。
+  final String? projectSyncId;
+
   /// v40:這筆交易找不到帳戶、且當下沒有 UI 可以攔截使用者選(背景截圖/
   /// 通知監聽、週期性交易產生、CSV 匯入)時,交易仍照常建立(accountId 保持
   /// null,帳戶餘額計算完全不受影響),但打這個旗標讓使用者能在「待確認
@@ -2663,6 +2687,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       this.deferredPostingAt,
       required this.hasSplits,
       this.debtSyncId,
+      this.projectSyncId,
       required this.needsAccountAssignment});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2739,6 +2764,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     if (!nullToAbsent || debtSyncId != null) {
       map['debt_sync_id'] = Variable<String>(debtSyncId);
     }
+    if (!nullToAbsent || projectSyncId != null) {
+      map['project_sync_id'] = Variable<String>(projectSyncId);
+    }
     map['needs_account_assignment'] = Variable<bool>(needsAccountAssignment);
     return map;
   }
@@ -2811,6 +2839,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       debtSyncId: debtSyncId == null && nullToAbsent
           ? const Value.absent()
           : Value(debtSyncId),
+      projectSyncId: projectSyncId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(projectSyncId),
       needsAccountAssignment: Value(needsAccountAssignment),
     );
   }
@@ -2856,6 +2887,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           serializer.fromJson<DateTime?>(json['deferredPostingAt']),
       hasSplits: serializer.fromJson<bool>(json['hasSplits']),
       debtSyncId: serializer.fromJson<String?>(json['debtSyncId']),
+      projectSyncId: serializer.fromJson<String?>(json['projectSyncId']),
       needsAccountAssignment:
           serializer.fromJson<bool>(json['needsAccountAssignment']),
     );
@@ -2897,6 +2929,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'deferredPostingAt': serializer.toJson<DateTime?>(deferredPostingAt),
       'hasSplits': serializer.toJson<bool>(hasSplits),
       'debtSyncId': serializer.toJson<String?>(debtSyncId),
+      'projectSyncId': serializer.toJson<String?>(projectSyncId),
       'needsAccountAssignment': serializer.toJson<bool>(needsAccountAssignment),
     };
   }
@@ -2931,6 +2964,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           Value<DateTime?> deferredPostingAt = const Value.absent(),
           bool? hasSplits,
           Value<String?> debtSyncId = const Value.absent(),
+          Value<String?> projectSyncId = const Value.absent(),
           bool? needsAccountAssignment}) =>
       Transaction(
         id: id ?? this.id,
@@ -2985,6 +3019,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
             : this.deferredPostingAt,
         hasSplits: hasSplits ?? this.hasSplits,
         debtSyncId: debtSyncId.present ? debtSyncId.value : this.debtSyncId,
+        projectSyncId:
+            projectSyncId.present ? projectSyncId.value : this.projectSyncId,
         needsAccountAssignment:
             needsAccountAssignment ?? this.needsAccountAssignment,
       );
@@ -3055,6 +3091,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       hasSplits: data.hasSplits.present ? data.hasSplits.value : this.hasSplits,
       debtSyncId:
           data.debtSyncId.present ? data.debtSyncId.value : this.debtSyncId,
+      projectSyncId: data.projectSyncId.present
+          ? data.projectSyncId.value
+          : this.projectSyncId,
       needsAccountAssignment: data.needsAccountAssignment.present
           ? data.needsAccountAssignment.value
           : this.needsAccountAssignment,
@@ -3094,6 +3133,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('deferredPostingAt: $deferredPostingAt, ')
           ..write('hasSplits: $hasSplits, ')
           ..write('debtSyncId: $debtSyncId, ')
+          ..write('projectSyncId: $projectSyncId, ')
           ..write('needsAccountAssignment: $needsAccountAssignment')
           ..write(')'))
         .toString();
@@ -3130,6 +3170,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         deferredPostingAt,
         hasSplits,
         debtSyncId,
+        projectSyncId,
         needsAccountAssignment
       ]);
   @override
@@ -3166,6 +3207,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.deferredPostingAt == this.deferredPostingAt &&
           other.hasSplits == this.hasSplits &&
           other.debtSyncId == this.debtSyncId &&
+          other.projectSyncId == this.projectSyncId &&
           other.needsAccountAssignment == this.needsAccountAssignment);
 }
 
@@ -3199,6 +3241,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<DateTime?> deferredPostingAt;
   final Value<bool> hasSplits;
   final Value<String?> debtSyncId;
+  final Value<String?> projectSyncId;
   final Value<bool> needsAccountAssignment;
   const TransactionsCompanion({
     this.id = const Value.absent(),
@@ -3230,6 +3273,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.deferredPostingAt = const Value.absent(),
     this.hasSplits = const Value.absent(),
     this.debtSyncId = const Value.absent(),
+    this.projectSyncId = const Value.absent(),
     this.needsAccountAssignment = const Value.absent(),
   });
   TransactionsCompanion.insert({
@@ -3262,6 +3306,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.deferredPostingAt = const Value.absent(),
     this.hasSplits = const Value.absent(),
     this.debtSyncId = const Value.absent(),
+    this.projectSyncId = const Value.absent(),
     this.needsAccountAssignment = const Value.absent(),
   })  : ledgerId = Value(ledgerId),
         type = Value(type),
@@ -3296,6 +3341,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<DateTime>? deferredPostingAt,
     Expression<bool>? hasSplits,
     Expression<String>? debtSyncId,
+    Expression<String>? projectSyncId,
     Expression<bool>? needsAccountAssignment,
   }) {
     return RawValuesInsertable({
@@ -3334,6 +3380,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (deferredPostingAt != null) 'deferred_posting_at': deferredPostingAt,
       if (hasSplits != null) 'has_splits': hasSplits,
       if (debtSyncId != null) 'debt_sync_id': debtSyncId,
+      if (projectSyncId != null) 'project_sync_id': projectSyncId,
       if (needsAccountAssignment != null)
         'needs_account_assignment': needsAccountAssignment,
     });
@@ -3369,6 +3416,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       Value<DateTime?>? deferredPostingAt,
       Value<bool>? hasSplits,
       Value<String?>? debtSyncId,
+      Value<String?>? projectSyncId,
       Value<bool>? needsAccountAssignment}) {
     return TransactionsCompanion(
       id: id ?? this.id,
@@ -3404,6 +3452,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       deferredPostingAt: deferredPostingAt ?? this.deferredPostingAt,
       hasSplits: hasSplits ?? this.hasSplits,
       debtSyncId: debtSyncId ?? this.debtSyncId,
+      projectSyncId: projectSyncId ?? this.projectSyncId,
       needsAccountAssignment:
           needsAccountAssignment ?? this.needsAccountAssignment,
     );
@@ -3504,6 +3553,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     if (debtSyncId.present) {
       map['debt_sync_id'] = Variable<String>(debtSyncId.value);
     }
+    if (projectSyncId.present) {
+      map['project_sync_id'] = Variable<String>(projectSyncId.value);
+    }
     if (needsAccountAssignment.present) {
       map['needs_account_assignment'] =
           Variable<bool>(needsAccountAssignment.value);
@@ -3544,6 +3596,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('deferredPostingAt: $deferredPostingAt, ')
           ..write('hasSplits: $hasSplits, ')
           ..write('debtSyncId: $debtSyncId, ')
+          ..write('projectSyncId: $projectSyncId, ')
           ..write('needsAccountAssignment: $needsAccountAssignment')
           ..write(')'))
         .toString();
@@ -13959,6 +14012,741 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
   }
 }
 
+class $ProjectsTable extends Projects with TableInfo<$ProjectsTable, Project> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ProjectsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _syncIdMeta = const VerificationMeta('syncId');
+  @override
+  late final GeneratedColumn<String> syncId = GeneratedColumn<String>(
+      'sync_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _ledgerIdMeta =
+      const VerificationMeta('ledgerId');
+  @override
+  late final GeneratedColumn<int> ledgerId = GeneratedColumn<int>(
+      'ledger_id', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _iconMeta = const VerificationMeta('icon');
+  @override
+  late final GeneratedColumn<String> icon = GeneratedColumn<String>(
+      'icon', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _budgetAmountMeta =
+      const VerificationMeta('budgetAmount');
+  @override
+  late final GeneratedColumn<double> budgetAmount = GeneratedColumn<double>(
+      'budget_amount', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _periodTypeMeta =
+      const VerificationMeta('periodType');
+  @override
+  late final GeneratedColumn<String> periodType = GeneratedColumn<String>(
+      'period_type', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('monthly'));
+  static const VerificationMeta _periodStartMeta =
+      const VerificationMeta('periodStart');
+  @override
+  late final GeneratedColumn<DateTime> periodStart = GeneratedColumn<DateTime>(
+      'period_start', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _periodEndMeta =
+      const VerificationMeta('periodEnd');
+  @override
+  late final GeneratedColumn<DateTime> periodEnd = GeneratedColumn<DateTime>(
+      'period_end', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _carryoverEnabledMeta =
+      const VerificationMeta('carryoverEnabled');
+  @override
+  late final GeneratedColumn<bool> carryoverEnabled = GeneratedColumn<bool>(
+      'carryover_enabled', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("carryover_enabled" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _visibleOnHomeMeta =
+      const VerificationMeta('visibleOnHome');
+  @override
+  late final GeneratedColumn<bool> visibleOnHome = GeneratedColumn<bool>(
+      'visible_on_home', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("visible_on_home" IN (0, 1))'),
+      defaultValue: const Constant(true));
+  static const VerificationMeta _enabledMeta =
+      const VerificationMeta('enabled');
+  @override
+  late final GeneratedColumn<bool> enabled = GeneratedColumn<bool>(
+      'enabled', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("enabled" IN (0, 1))'),
+      defaultValue: const Constant(true));
+  static const VerificationMeta _sortOrderMeta =
+      const VerificationMeta('sortOrder');
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+      'sort_order', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        syncId,
+        ledgerId,
+        name,
+        icon,
+        budgetAmount,
+        periodType,
+        periodStart,
+        periodEnd,
+        carryoverEnabled,
+        visibleOnHome,
+        enabled,
+        sortOrder,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'projects';
+  @override
+  VerificationContext validateIntegrity(Insertable<Project> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('sync_id')) {
+      context.handle(_syncIdMeta,
+          syncId.isAcceptableOrUnknown(data['sync_id']!, _syncIdMeta));
+    }
+    if (data.containsKey('ledger_id')) {
+      context.handle(_ledgerIdMeta,
+          ledgerId.isAcceptableOrUnknown(data['ledger_id']!, _ledgerIdMeta));
+    } else if (isInserting) {
+      context.missing(_ledgerIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    }
+    if (data.containsKey('icon')) {
+      context.handle(
+          _iconMeta, icon.isAcceptableOrUnknown(data['icon']!, _iconMeta));
+    }
+    if (data.containsKey('budget_amount')) {
+      context.handle(
+          _budgetAmountMeta,
+          budgetAmount.isAcceptableOrUnknown(
+              data['budget_amount']!, _budgetAmountMeta));
+    }
+    if (data.containsKey('period_type')) {
+      context.handle(
+          _periodTypeMeta,
+          periodType.isAcceptableOrUnknown(
+              data['period_type']!, _periodTypeMeta));
+    }
+    if (data.containsKey('period_start')) {
+      context.handle(
+          _periodStartMeta,
+          periodStart.isAcceptableOrUnknown(
+              data['period_start']!, _periodStartMeta));
+    }
+    if (data.containsKey('period_end')) {
+      context.handle(_periodEndMeta,
+          periodEnd.isAcceptableOrUnknown(data['period_end']!, _periodEndMeta));
+    }
+    if (data.containsKey('carryover_enabled')) {
+      context.handle(
+          _carryoverEnabledMeta,
+          carryoverEnabled.isAcceptableOrUnknown(
+              data['carryover_enabled']!, _carryoverEnabledMeta));
+    }
+    if (data.containsKey('visible_on_home')) {
+      context.handle(
+          _visibleOnHomeMeta,
+          visibleOnHome.isAcceptableOrUnknown(
+              data['visible_on_home']!, _visibleOnHomeMeta));
+    }
+    if (data.containsKey('enabled')) {
+      context.handle(_enabledMeta,
+          enabled.isAcceptableOrUnknown(data['enabled']!, _enabledMeta));
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(_sortOrderMeta,
+          sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Project map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Project(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      syncId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sync_id']),
+      ledgerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}ledger_id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      icon: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}icon']),
+      budgetAmount: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}budget_amount']),
+      periodType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}period_type'])!,
+      periodStart: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}period_start']),
+      periodEnd: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}period_end']),
+      carryoverEnabled: attachedDatabase.typeMapping.read(
+          DriftSqlType.bool, data['${effectivePrefix}carryover_enabled'])!,
+      visibleOnHome: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}visible_on_home'])!,
+      enabled: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}enabled'])!,
+      sortOrder: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $ProjectsTable createAlias(String alias) {
+    return $ProjectsTable(attachedDatabase, alias);
+  }
+}
+
+class Project extends DataClass implements Insertable<Project> {
+  final int id;
+
+  /// 跨设备同步 syncId(UUID)。新建必须填(同 budget/debt 的约定)。
+  final String? syncId;
+
+  /// 关联账本ID
+  final int ledgerId;
+  final String name;
+
+  /// emoji icon,可留空。
+  final String? icon;
+
+  /// 預算金額,null = 純記錄型(不設預算上限)。
+  final double? budgetAmount;
+
+  /// 週期類型:'monthly' / 'yearly' / 'fixed'。
+  final String periodType;
+
+  /// 起訖日,僅 periodType='fixed' 使用。
+  final DateTime? periodStart;
+  final DateTime? periodEnd;
+
+  /// 結轉(僅 monthly/yearly 有意義,fixed 週期忽略)。
+  final bool carryoverEnabled;
+
+  /// 顯示於首頁。
+  final bool visibleOnHome;
+
+  /// 啟用/封存旗標(軟刪除)。刪除規則:有交易關聯 → 設 false(封存);沒有
+  /// → 直接刪除整列。見 [ProjectRepository.deleteProject]。
+  final bool enabled;
+
+  /// 使用者自訂排序。
+  final int sortOrder;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const Project(
+      {required this.id,
+      this.syncId,
+      required this.ledgerId,
+      required this.name,
+      this.icon,
+      this.budgetAmount,
+      required this.periodType,
+      this.periodStart,
+      this.periodEnd,
+      required this.carryoverEnabled,
+      required this.visibleOnHome,
+      required this.enabled,
+      required this.sortOrder,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    if (!nullToAbsent || syncId != null) {
+      map['sync_id'] = Variable<String>(syncId);
+    }
+    map['ledger_id'] = Variable<int>(ledgerId);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || icon != null) {
+      map['icon'] = Variable<String>(icon);
+    }
+    if (!nullToAbsent || budgetAmount != null) {
+      map['budget_amount'] = Variable<double>(budgetAmount);
+    }
+    map['period_type'] = Variable<String>(periodType);
+    if (!nullToAbsent || periodStart != null) {
+      map['period_start'] = Variable<DateTime>(periodStart);
+    }
+    if (!nullToAbsent || periodEnd != null) {
+      map['period_end'] = Variable<DateTime>(periodEnd);
+    }
+    map['carryover_enabled'] = Variable<bool>(carryoverEnabled);
+    map['visible_on_home'] = Variable<bool>(visibleOnHome);
+    map['enabled'] = Variable<bool>(enabled);
+    map['sort_order'] = Variable<int>(sortOrder);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  ProjectsCompanion toCompanion(bool nullToAbsent) {
+    return ProjectsCompanion(
+      id: Value(id),
+      syncId:
+          syncId == null && nullToAbsent ? const Value.absent() : Value(syncId),
+      ledgerId: Value(ledgerId),
+      name: Value(name),
+      icon: icon == null && nullToAbsent ? const Value.absent() : Value(icon),
+      budgetAmount: budgetAmount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(budgetAmount),
+      periodType: Value(periodType),
+      periodStart: periodStart == null && nullToAbsent
+          ? const Value.absent()
+          : Value(periodStart),
+      periodEnd: periodEnd == null && nullToAbsent
+          ? const Value.absent()
+          : Value(periodEnd),
+      carryoverEnabled: Value(carryoverEnabled),
+      visibleOnHome: Value(visibleOnHome),
+      enabled: Value(enabled),
+      sortOrder: Value(sortOrder),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory Project.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Project(
+      id: serializer.fromJson<int>(json['id']),
+      syncId: serializer.fromJson<String?>(json['syncId']),
+      ledgerId: serializer.fromJson<int>(json['ledgerId']),
+      name: serializer.fromJson<String>(json['name']),
+      icon: serializer.fromJson<String?>(json['icon']),
+      budgetAmount: serializer.fromJson<double?>(json['budgetAmount']),
+      periodType: serializer.fromJson<String>(json['periodType']),
+      periodStart: serializer.fromJson<DateTime?>(json['periodStart']),
+      periodEnd: serializer.fromJson<DateTime?>(json['periodEnd']),
+      carryoverEnabled: serializer.fromJson<bool>(json['carryoverEnabled']),
+      visibleOnHome: serializer.fromJson<bool>(json['visibleOnHome']),
+      enabled: serializer.fromJson<bool>(json['enabled']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'syncId': serializer.toJson<String?>(syncId),
+      'ledgerId': serializer.toJson<int>(ledgerId),
+      'name': serializer.toJson<String>(name),
+      'icon': serializer.toJson<String?>(icon),
+      'budgetAmount': serializer.toJson<double?>(budgetAmount),
+      'periodType': serializer.toJson<String>(periodType),
+      'periodStart': serializer.toJson<DateTime?>(periodStart),
+      'periodEnd': serializer.toJson<DateTime?>(periodEnd),
+      'carryoverEnabled': serializer.toJson<bool>(carryoverEnabled),
+      'visibleOnHome': serializer.toJson<bool>(visibleOnHome),
+      'enabled': serializer.toJson<bool>(enabled),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  Project copyWith(
+          {int? id,
+          Value<String?> syncId = const Value.absent(),
+          int? ledgerId,
+          String? name,
+          Value<String?> icon = const Value.absent(),
+          Value<double?> budgetAmount = const Value.absent(),
+          String? periodType,
+          Value<DateTime?> periodStart = const Value.absent(),
+          Value<DateTime?> periodEnd = const Value.absent(),
+          bool? carryoverEnabled,
+          bool? visibleOnHome,
+          bool? enabled,
+          int? sortOrder,
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      Project(
+        id: id ?? this.id,
+        syncId: syncId.present ? syncId.value : this.syncId,
+        ledgerId: ledgerId ?? this.ledgerId,
+        name: name ?? this.name,
+        icon: icon.present ? icon.value : this.icon,
+        budgetAmount:
+            budgetAmount.present ? budgetAmount.value : this.budgetAmount,
+        periodType: periodType ?? this.periodType,
+        periodStart: periodStart.present ? periodStart.value : this.periodStart,
+        periodEnd: periodEnd.present ? periodEnd.value : this.periodEnd,
+        carryoverEnabled: carryoverEnabled ?? this.carryoverEnabled,
+        visibleOnHome: visibleOnHome ?? this.visibleOnHome,
+        enabled: enabled ?? this.enabled,
+        sortOrder: sortOrder ?? this.sortOrder,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  Project copyWithCompanion(ProjectsCompanion data) {
+    return Project(
+      id: data.id.present ? data.id.value : this.id,
+      syncId: data.syncId.present ? data.syncId.value : this.syncId,
+      ledgerId: data.ledgerId.present ? data.ledgerId.value : this.ledgerId,
+      name: data.name.present ? data.name.value : this.name,
+      icon: data.icon.present ? data.icon.value : this.icon,
+      budgetAmount: data.budgetAmount.present
+          ? data.budgetAmount.value
+          : this.budgetAmount,
+      periodType:
+          data.periodType.present ? data.periodType.value : this.periodType,
+      periodStart:
+          data.periodStart.present ? data.periodStart.value : this.periodStart,
+      periodEnd: data.periodEnd.present ? data.periodEnd.value : this.periodEnd,
+      carryoverEnabled: data.carryoverEnabled.present
+          ? data.carryoverEnabled.value
+          : this.carryoverEnabled,
+      visibleOnHome: data.visibleOnHome.present
+          ? data.visibleOnHome.value
+          : this.visibleOnHome,
+      enabled: data.enabled.present ? data.enabled.value : this.enabled,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Project(')
+          ..write('id: $id, ')
+          ..write('syncId: $syncId, ')
+          ..write('ledgerId: $ledgerId, ')
+          ..write('name: $name, ')
+          ..write('icon: $icon, ')
+          ..write('budgetAmount: $budgetAmount, ')
+          ..write('periodType: $periodType, ')
+          ..write('periodStart: $periodStart, ')
+          ..write('periodEnd: $periodEnd, ')
+          ..write('carryoverEnabled: $carryoverEnabled, ')
+          ..write('visibleOnHome: $visibleOnHome, ')
+          ..write('enabled: $enabled, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      syncId,
+      ledgerId,
+      name,
+      icon,
+      budgetAmount,
+      periodType,
+      periodStart,
+      periodEnd,
+      carryoverEnabled,
+      visibleOnHome,
+      enabled,
+      sortOrder,
+      createdAt,
+      updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Project &&
+          other.id == this.id &&
+          other.syncId == this.syncId &&
+          other.ledgerId == this.ledgerId &&
+          other.name == this.name &&
+          other.icon == this.icon &&
+          other.budgetAmount == this.budgetAmount &&
+          other.periodType == this.periodType &&
+          other.periodStart == this.periodStart &&
+          other.periodEnd == this.periodEnd &&
+          other.carryoverEnabled == this.carryoverEnabled &&
+          other.visibleOnHome == this.visibleOnHome &&
+          other.enabled == this.enabled &&
+          other.sortOrder == this.sortOrder &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ProjectsCompanion extends UpdateCompanion<Project> {
+  final Value<int> id;
+  final Value<String?> syncId;
+  final Value<int> ledgerId;
+  final Value<String> name;
+  final Value<String?> icon;
+  final Value<double?> budgetAmount;
+  final Value<String> periodType;
+  final Value<DateTime?> periodStart;
+  final Value<DateTime?> periodEnd;
+  final Value<bool> carryoverEnabled;
+  final Value<bool> visibleOnHome;
+  final Value<bool> enabled;
+  final Value<int> sortOrder;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const ProjectsCompanion({
+    this.id = const Value.absent(),
+    this.syncId = const Value.absent(),
+    this.ledgerId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.icon = const Value.absent(),
+    this.budgetAmount = const Value.absent(),
+    this.periodType = const Value.absent(),
+    this.periodStart = const Value.absent(),
+    this.periodEnd = const Value.absent(),
+    this.carryoverEnabled = const Value.absent(),
+    this.visibleOnHome = const Value.absent(),
+    this.enabled = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  ProjectsCompanion.insert({
+    this.id = const Value.absent(),
+    this.syncId = const Value.absent(),
+    required int ledgerId,
+    this.name = const Value.absent(),
+    this.icon = const Value.absent(),
+    this.budgetAmount = const Value.absent(),
+    this.periodType = const Value.absent(),
+    this.periodStart = const Value.absent(),
+    this.periodEnd = const Value.absent(),
+    this.carryoverEnabled = const Value.absent(),
+    this.visibleOnHome = const Value.absent(),
+    this.enabled = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  }) : ledgerId = Value(ledgerId);
+  static Insertable<Project> custom({
+    Expression<int>? id,
+    Expression<String>? syncId,
+    Expression<int>? ledgerId,
+    Expression<String>? name,
+    Expression<String>? icon,
+    Expression<double>? budgetAmount,
+    Expression<String>? periodType,
+    Expression<DateTime>? periodStart,
+    Expression<DateTime>? periodEnd,
+    Expression<bool>? carryoverEnabled,
+    Expression<bool>? visibleOnHome,
+    Expression<bool>? enabled,
+    Expression<int>? sortOrder,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (syncId != null) 'sync_id': syncId,
+      if (ledgerId != null) 'ledger_id': ledgerId,
+      if (name != null) 'name': name,
+      if (icon != null) 'icon': icon,
+      if (budgetAmount != null) 'budget_amount': budgetAmount,
+      if (periodType != null) 'period_type': periodType,
+      if (periodStart != null) 'period_start': periodStart,
+      if (periodEnd != null) 'period_end': periodEnd,
+      if (carryoverEnabled != null) 'carryover_enabled': carryoverEnabled,
+      if (visibleOnHome != null) 'visible_on_home': visibleOnHome,
+      if (enabled != null) 'enabled': enabled,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  ProjectsCompanion copyWith(
+      {Value<int>? id,
+      Value<String?>? syncId,
+      Value<int>? ledgerId,
+      Value<String>? name,
+      Value<String?>? icon,
+      Value<double?>? budgetAmount,
+      Value<String>? periodType,
+      Value<DateTime?>? periodStart,
+      Value<DateTime?>? periodEnd,
+      Value<bool>? carryoverEnabled,
+      Value<bool>? visibleOnHome,
+      Value<bool>? enabled,
+      Value<int>? sortOrder,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt}) {
+    return ProjectsCompanion(
+      id: id ?? this.id,
+      syncId: syncId ?? this.syncId,
+      ledgerId: ledgerId ?? this.ledgerId,
+      name: name ?? this.name,
+      icon: icon ?? this.icon,
+      budgetAmount: budgetAmount ?? this.budgetAmount,
+      periodType: periodType ?? this.periodType,
+      periodStart: periodStart ?? this.periodStart,
+      periodEnd: periodEnd ?? this.periodEnd,
+      carryoverEnabled: carryoverEnabled ?? this.carryoverEnabled,
+      visibleOnHome: visibleOnHome ?? this.visibleOnHome,
+      enabled: enabled ?? this.enabled,
+      sortOrder: sortOrder ?? this.sortOrder,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (syncId.present) {
+      map['sync_id'] = Variable<String>(syncId.value);
+    }
+    if (ledgerId.present) {
+      map['ledger_id'] = Variable<int>(ledgerId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (icon.present) {
+      map['icon'] = Variable<String>(icon.value);
+    }
+    if (budgetAmount.present) {
+      map['budget_amount'] = Variable<double>(budgetAmount.value);
+    }
+    if (periodType.present) {
+      map['period_type'] = Variable<String>(periodType.value);
+    }
+    if (periodStart.present) {
+      map['period_start'] = Variable<DateTime>(periodStart.value);
+    }
+    if (periodEnd.present) {
+      map['period_end'] = Variable<DateTime>(periodEnd.value);
+    }
+    if (carryoverEnabled.present) {
+      map['carryover_enabled'] = Variable<bool>(carryoverEnabled.value);
+    }
+    if (visibleOnHome.present) {
+      map['visible_on_home'] = Variable<bool>(visibleOnHome.value);
+    }
+    if (enabled.present) {
+      map['enabled'] = Variable<bool>(enabled.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProjectsCompanion(')
+          ..write('id: $id, ')
+          ..write('syncId: $syncId, ')
+          ..write('ledgerId: $ledgerId, ')
+          ..write('name: $name, ')
+          ..write('icon: $icon, ')
+          ..write('budgetAmount: $budgetAmount, ')
+          ..write('periodType: $periodType, ')
+          ..write('periodStart: $periodStart, ')
+          ..write('periodEnd: $periodEnd, ')
+          ..write('carryoverEnabled: $carryoverEnabled, ')
+          ..write('visibleOnHome: $visibleOnHome, ')
+          ..write('enabled: $enabled, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$BeeDatabase extends GeneratedDatabase {
   _$BeeDatabase(QueryExecutor e) : super(e);
   $BeeDatabaseManager get managers => $BeeDatabaseManager(this);
@@ -13996,6 +14784,7 @@ abstract class _$BeeDatabase extends GeneratedDatabase {
   late final $TransactionSplitsTable transactionSplits =
       $TransactionSplitsTable(this);
   late final $DebtsTable debts = $DebtsTable(this);
+  late final $ProjectsTable projects = $ProjectsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -14024,7 +14813,8 @@ abstract class _$BeeDatabase extends GeneratedDatabase {
         exchangeRateOverrides,
         cardRewardRules,
         transactionSplits,
-        debts
+        debts,
+        projects
       ];
 }
 
@@ -14954,6 +15744,7 @@ typedef $$TransactionsTableCreateCompanionBuilder = TransactionsCompanion
   Value<DateTime?> deferredPostingAt,
   Value<bool> hasSplits,
   Value<String?> debtSyncId,
+  Value<String?> projectSyncId,
   Value<bool> needsAccountAssignment,
 });
 typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
@@ -14987,6 +15778,7 @@ typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
   Value<DateTime?> deferredPostingAt,
   Value<bool> hasSplits,
   Value<String?> debtSyncId,
+  Value<String?> projectSyncId,
   Value<bool> needsAccountAssignment,
 });
 
@@ -15098,6 +15890,9 @@ class $$TransactionsTableFilterComposer
 
   ColumnFilters<String> get debtSyncId => $composableBuilder(
       column: $table.debtSyncId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get projectSyncId => $composableBuilder(
+      column: $table.projectSyncId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get needsAccountAssignment => $composableBuilder(
       column: $table.needsAccountAssignment,
@@ -15216,6 +16011,10 @@ class $$TransactionsTableOrderingComposer
   ColumnOrderings<String> get debtSyncId => $composableBuilder(
       column: $table.debtSyncId, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get projectSyncId => $composableBuilder(
+      column: $table.projectSyncId,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<bool> get needsAccountAssignment => $composableBuilder(
       column: $table.needsAccountAssignment,
       builder: (column) => ColumnOrderings(column));
@@ -15318,6 +16117,9 @@ class $$TransactionsTableAnnotationComposer
   GeneratedColumn<String> get debtSyncId => $composableBuilder(
       column: $table.debtSyncId, builder: (column) => column);
 
+  GeneratedColumn<String> get projectSyncId => $composableBuilder(
+      column: $table.projectSyncId, builder: (column) => column);
+
   GeneratedColumn<bool> get needsAccountAssignment => $composableBuilder(
       column: $table.needsAccountAssignment, builder: (column) => column);
 }
@@ -15377,6 +16179,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<DateTime?> deferredPostingAt = const Value.absent(),
             Value<bool> hasSplits = const Value.absent(),
             Value<String?> debtSyncId = const Value.absent(),
+            Value<String?> projectSyncId = const Value.absent(),
             Value<bool> needsAccountAssignment = const Value.absent(),
           }) =>
               TransactionsCompanion(
@@ -15409,6 +16212,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             deferredPostingAt: deferredPostingAt,
             hasSplits: hasSplits,
             debtSyncId: debtSyncId,
+            projectSyncId: projectSyncId,
             needsAccountAssignment: needsAccountAssignment,
           ),
           createCompanionCallback: ({
@@ -15441,6 +16245,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<DateTime?> deferredPostingAt = const Value.absent(),
             Value<bool> hasSplits = const Value.absent(),
             Value<String?> debtSyncId = const Value.absent(),
+            Value<String?> projectSyncId = const Value.absent(),
             Value<bool> needsAccountAssignment = const Value.absent(),
           }) =>
               TransactionsCompanion.insert(
@@ -15473,6 +16278,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             deferredPostingAt: deferredPostingAt,
             hasSplits: hasSplits,
             debtSyncId: debtSyncId,
+            projectSyncId: projectSyncId,
             needsAccountAssignment: needsAccountAssignment,
           ),
           withReferenceMapper: (p0) => p0
@@ -20439,6 +21245,319 @@ typedef $$DebtsTableProcessedTableManager = ProcessedTableManager<
     (Debt, BaseReferences<_$BeeDatabase, $DebtsTable, Debt>),
     Debt,
     PrefetchHooks Function()>;
+typedef $$ProjectsTableCreateCompanionBuilder = ProjectsCompanion Function({
+  Value<int> id,
+  Value<String?> syncId,
+  required int ledgerId,
+  Value<String> name,
+  Value<String?> icon,
+  Value<double?> budgetAmount,
+  Value<String> periodType,
+  Value<DateTime?> periodStart,
+  Value<DateTime?> periodEnd,
+  Value<bool> carryoverEnabled,
+  Value<bool> visibleOnHome,
+  Value<bool> enabled,
+  Value<int> sortOrder,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+});
+typedef $$ProjectsTableUpdateCompanionBuilder = ProjectsCompanion Function({
+  Value<int> id,
+  Value<String?> syncId,
+  Value<int> ledgerId,
+  Value<String> name,
+  Value<String?> icon,
+  Value<double?> budgetAmount,
+  Value<String> periodType,
+  Value<DateTime?> periodStart,
+  Value<DateTime?> periodEnd,
+  Value<bool> carryoverEnabled,
+  Value<bool> visibleOnHome,
+  Value<bool> enabled,
+  Value<int> sortOrder,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+});
+
+class $$ProjectsTableFilterComposer
+    extends Composer<_$BeeDatabase, $ProjectsTable> {
+  $$ProjectsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get syncId => $composableBuilder(
+      column: $table.syncId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get ledgerId => $composableBuilder(
+      column: $table.ledgerId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get icon => $composableBuilder(
+      column: $table.icon, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get budgetAmount => $composableBuilder(
+      column: $table.budgetAmount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get periodType => $composableBuilder(
+      column: $table.periodType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get periodStart => $composableBuilder(
+      column: $table.periodStart, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get periodEnd => $composableBuilder(
+      column: $table.periodEnd, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get carryoverEnabled => $composableBuilder(
+      column: $table.carryoverEnabled,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get visibleOnHome => $composableBuilder(
+      column: $table.visibleOnHome, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get enabled => $composableBuilder(
+      column: $table.enabled, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$ProjectsTableOrderingComposer
+    extends Composer<_$BeeDatabase, $ProjectsTable> {
+  $$ProjectsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get syncId => $composableBuilder(
+      column: $table.syncId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get ledgerId => $composableBuilder(
+      column: $table.ledgerId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get icon => $composableBuilder(
+      column: $table.icon, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get budgetAmount => $composableBuilder(
+      column: $table.budgetAmount,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get periodType => $composableBuilder(
+      column: $table.periodType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get periodStart => $composableBuilder(
+      column: $table.periodStart, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get periodEnd => $composableBuilder(
+      column: $table.periodEnd, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get carryoverEnabled => $composableBuilder(
+      column: $table.carryoverEnabled,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get visibleOnHome => $composableBuilder(
+      column: $table.visibleOnHome,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get enabled => $composableBuilder(
+      column: $table.enabled, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$ProjectsTableAnnotationComposer
+    extends Composer<_$BeeDatabase, $ProjectsTable> {
+  $$ProjectsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get syncId =>
+      $composableBuilder(column: $table.syncId, builder: (column) => column);
+
+  GeneratedColumn<int> get ledgerId =>
+      $composableBuilder(column: $table.ledgerId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get icon =>
+      $composableBuilder(column: $table.icon, builder: (column) => column);
+
+  GeneratedColumn<double> get budgetAmount => $composableBuilder(
+      column: $table.budgetAmount, builder: (column) => column);
+
+  GeneratedColumn<String> get periodType => $composableBuilder(
+      column: $table.periodType, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get periodStart => $composableBuilder(
+      column: $table.periodStart, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get periodEnd =>
+      $composableBuilder(column: $table.periodEnd, builder: (column) => column);
+
+  GeneratedColumn<bool> get carryoverEnabled => $composableBuilder(
+      column: $table.carryoverEnabled, builder: (column) => column);
+
+  GeneratedColumn<bool> get visibleOnHome => $composableBuilder(
+      column: $table.visibleOnHome, builder: (column) => column);
+
+  GeneratedColumn<bool> get enabled =>
+      $composableBuilder(column: $table.enabled, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$ProjectsTableTableManager extends RootTableManager<
+    _$BeeDatabase,
+    $ProjectsTable,
+    Project,
+    $$ProjectsTableFilterComposer,
+    $$ProjectsTableOrderingComposer,
+    $$ProjectsTableAnnotationComposer,
+    $$ProjectsTableCreateCompanionBuilder,
+    $$ProjectsTableUpdateCompanionBuilder,
+    (Project, BaseReferences<_$BeeDatabase, $ProjectsTable, Project>),
+    Project,
+    PrefetchHooks Function()> {
+  $$ProjectsTableTableManager(_$BeeDatabase db, $ProjectsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ProjectsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ProjectsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ProjectsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String?> syncId = const Value.absent(),
+            Value<int> ledgerId = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<String?> icon = const Value.absent(),
+            Value<double?> budgetAmount = const Value.absent(),
+            Value<String> periodType = const Value.absent(),
+            Value<DateTime?> periodStart = const Value.absent(),
+            Value<DateTime?> periodEnd = const Value.absent(),
+            Value<bool> carryoverEnabled = const Value.absent(),
+            Value<bool> visibleOnHome = const Value.absent(),
+            Value<bool> enabled = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+          }) =>
+              ProjectsCompanion(
+            id: id,
+            syncId: syncId,
+            ledgerId: ledgerId,
+            name: name,
+            icon: icon,
+            budgetAmount: budgetAmount,
+            periodType: periodType,
+            periodStart: periodStart,
+            periodEnd: periodEnd,
+            carryoverEnabled: carryoverEnabled,
+            visibleOnHome: visibleOnHome,
+            enabled: enabled,
+            sortOrder: sortOrder,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String?> syncId = const Value.absent(),
+            required int ledgerId,
+            Value<String> name = const Value.absent(),
+            Value<String?> icon = const Value.absent(),
+            Value<double?> budgetAmount = const Value.absent(),
+            Value<String> periodType = const Value.absent(),
+            Value<DateTime?> periodStart = const Value.absent(),
+            Value<DateTime?> periodEnd = const Value.absent(),
+            Value<bool> carryoverEnabled = const Value.absent(),
+            Value<bool> visibleOnHome = const Value.absent(),
+            Value<bool> enabled = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+          }) =>
+              ProjectsCompanion.insert(
+            id: id,
+            syncId: syncId,
+            ledgerId: ledgerId,
+            name: name,
+            icon: icon,
+            budgetAmount: budgetAmount,
+            periodType: periodType,
+            periodStart: periodStart,
+            periodEnd: periodEnd,
+            carryoverEnabled: carryoverEnabled,
+            visibleOnHome: visibleOnHome,
+            enabled: enabled,
+            sortOrder: sortOrder,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$ProjectsTableProcessedTableManager = ProcessedTableManager<
+    _$BeeDatabase,
+    $ProjectsTable,
+    Project,
+    $$ProjectsTableFilterComposer,
+    $$ProjectsTableOrderingComposer,
+    $$ProjectsTableAnnotationComposer,
+    $$ProjectsTableCreateCompanionBuilder,
+    $$ProjectsTableUpdateCompanionBuilder,
+    (Project, BaseReferences<_$BeeDatabase, $ProjectsTable, Project>),
+    Project,
+    PrefetchHooks Function()>;
 
 class $BeeDatabaseManager {
   final _$BeeDatabase _db;
@@ -20493,4 +21612,6 @@ class $BeeDatabaseManager {
       $$TransactionSplitsTableTableManager(_db, _db.transactionSplits);
   $$DebtsTableTableManager get debts =>
       $$DebtsTableTableManager(_db, _db.debts);
+  $$ProjectsTableTableManager get projects =>
+      $$ProjectsTableTableManager(_db, _db.projects);
 }

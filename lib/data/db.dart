@@ -241,6 +241,15 @@ class Transactions extends Table {
   /// (同 reconciledAt)——清空欠款關聯是明確動作,null 必須能傳達給 server。
   TextColumn get debtSyncId => text().nullable()();
 
+  /// v44 專案(對齐 BeeCount Cloud project sync entity,取代分類預算):這筆
+  /// 交易關聯的 [Projects] 的 syncId。跟 [debtSyncId]/[recurringRuleId]
+  /// 同款存 syncId 字串(不是本地 int FK)——專案是 ledger-scoped 實體,
+  /// 本地 int id 跨裝置不保證一致。BeeCount Cloud 端字段是
+  /// read_tx_projection.project_sync_id,wire 字段名 projectId。恆發(同
+  /// debtSyncId)——記帳表單「選擇專案」的取消連結是明確動作,必須讓 null
+  /// 能傳達給 server。
+  TextColumn get projectSyncId => text().nullable()();
+
   /// v40:這筆交易找不到帳戶、且當下沒有 UI 可以攔截使用者選(背景截圖/
   /// 通知監聽、週期性交易產生、CSV 匯入)時,交易仍照常建立(accountId 保持
   /// null,帳戶餘額計算完全不受影響),但打這個旗標讓使用者能在「待確認
@@ -696,6 +705,58 @@ class Budgets extends Table {
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 }
 
+/// v44 專案(對齐 BeeCount Cloud `project` sync entity,取代分類預算):
+/// ledger-scoped 實體,同 [Budgets]/[Debts] 那組模式。
+///
+/// **花費/進度不落地存**,讀取時即時算(Phase 2/3 才會加用量計算邏輯,本
+/// 表本身只是骨架)——對齐 Cloud `read_project_projection` 的設計。
+///
+/// 字段/wire key 對照 BeeCount Cloud `sync_applier.py::_MERGE_SPECS
+/// ["project"]`——改字段前先去那邊核對,一字之差會讓整個字段靜默同步失敗。
+class Projects extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// 跨设备同步 syncId(UUID)。新建必须填(同 budget/debt 的约定)。
+  TextColumn get syncId => text().nullable()();
+
+  /// 关联账本ID
+  IntColumn get ledgerId => integer()();
+
+  TextColumn get name => text().withDefault(const Constant(''))();
+
+  /// emoji icon,可留空。
+  TextColumn get icon => text().nullable()();
+
+  /// 預算金額,null = 純記錄型(不設預算上限)。
+  RealColumn get budgetAmount => real().nullable()();
+
+  /// 週期類型:'monthly' / 'yearly' / 'fixed'。
+  TextColumn get periodType =>
+      text().withDefault(const Constant('monthly'))();
+
+  /// 起訖日,僅 periodType='fixed' 使用。
+  DateTimeColumn get periodStart => dateTime().nullable()();
+  DateTimeColumn get periodEnd => dateTime().nullable()();
+
+  /// 結轉(僅 monthly/yearly 有意義,fixed 週期忽略)。
+  BoolColumn get carryoverEnabled =>
+      boolean().withDefault(const Constant(false))();
+
+  /// 顯示於首頁。
+  BoolColumn get visibleOnHome =>
+      boolean().withDefault(const Constant(true))();
+
+  /// 啟用/封存旗標(軟刪除)。刪除規則:有交易關聯 → 設 false(封存);沒有
+  /// → 直接刪除整列。見 [ProjectRepository.deleteProject]。
+  BoolColumn get enabled => boolean().withDefault(const Constant(true))();
+
+  /// 使用者自訂排序。
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+}
+
 // ============================================================================
 // 共享账本(v24)
 // ============================================================================
@@ -801,6 +862,7 @@ class SharedLedgerTags extends Table {
   CardRewardRules,
   TransactionSplits,
   Debts,
+  Projects,
 ])
 class BeeDatabase extends _$BeeDatabase {
   BeeDatabase() : super(_openConnection());
@@ -811,7 +873,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 43; // v43: 帳戶不納入總餘額(accounts.include_in_total)
+  int get schemaVersion => 44; // v44: 專案(projects)取代分類預算
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1751,6 +1813,20 @@ class BeeDatabase extends _$BeeDatabase {
                 'ALTER TABLE accounts ADD COLUMN include_in_total '
                     'BOOLEAN NOT NULL DEFAULT 1;');
             logger.info('DBMigration', 'v43 迁移完成');
+          }
+          if (from < 44) {
+            logger.info('DBMigration',
+                '开始迁移到 v44: 專案(projects) + 交易關聯(transactions.project_sync_id)');
+            await _addColumnIfMissing('transactions', 'project_sync_id',
+                'ALTER TABLE transactions ADD COLUMN project_sync_id TEXT;');
+            await _createTableIfMissing(migrator, 'projects', projects);
+            await customStatement(
+                'CREATE INDEX IF NOT EXISTS idx_projects_ledger ON projects(ledger_id)');
+            await customStatement(
+                'CREATE INDEX IF NOT EXISTS idx_projects_ledger_sort ON projects(ledger_id, sort_order)');
+            await customStatement(
+                'CREATE INDEX IF NOT EXISTS idx_projects_sync_id ON projects(sync_id)');
+            logger.info('DBMigration', 'v44 迁移完成');
           }
         },
         onCreate: (m) async {
