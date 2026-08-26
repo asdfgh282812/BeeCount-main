@@ -33,6 +33,7 @@ import 'local_exchange_rate_repository.dart';
 import 'local_card_reward_rule_repository.dart';
 import '../debt_repository.dart';
 import 'local_debt_repository.dart';
+import '../project_repository.dart' show ProjectUsage, ProjectWithUsage;
 import 'local_project_repository.dart';
 
 /// LocalRepository 本地数据库实现
@@ -4243,6 +4244,16 @@ class LocalRepository extends BaseRepository {
   @override
   Future<bool> projectHasTransactions(String projectSyncId) =>
       _projectRepo.projectHasTransactions(projectSyncId);
+
+  @override
+  Future<ProjectUsage> getProjectUsage(Project project, DateTime now) =>
+      _projectRepo.getProjectUsage(project, now);
+
+  @override
+  Future<List<ProjectWithUsage>> getAllProjectUsages(int ledgerId, DateTime now,
+          {bool includeDisabled = false}) =>
+      _projectRepo.getAllProjectUsages(ledgerId, now,
+          includeDisabled: includeDisabled);
 
   @override
   Future<int> backfillProjectForCategoryBatch({

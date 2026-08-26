@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../db.dart';
 import '../project_repository.dart';
+import '../../../utils/month_range.dart';
 
 const _uuid = Uuid();
 
@@ -160,5 +161,127 @@ class LocalProjectRepository implements ProjectRepository {
           ..limit(1))
         .get();
     return rows.isNotEmpty;
+  }
+
+  /// 同 [LocalBudgetRepository._monthStartDayOf]——两个 repository 各自维护
+  /// 一份而不抽共用工具,帐本行缺失/查询异常时同样降级为 1(自然月)。
+  Future<int> _monthStartDayOf(int ledgerId) async {
+    try {
+      final row = await (db.select(db.ledgers)
+            ..where((l) => l.id.equals(ledgerId)))
+          .getSingleOrNull();
+      return (row?.monthStartDay ?? 1).clamp(1, 28);
+    } catch (_) {
+      return 1;
+    }
+  }
+
+  double _parseDouble(Object? v) {
+    if (v == null) return 0;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString()) ?? 0;
+  }
+
+  Future<double> _sumExpenses(
+      String projectSyncId, DateTime start, DateTime end) async {
+    final result = await db.customSelect(
+      '''
+      SELECT COALESCE(SUM(COALESCE(native_amount, amount)), 0) as total
+      FROM transactions
+      WHERE project_sync_id = ?
+        AND type = 'expense'
+        AND happened_at >= ?
+        AND happened_at < ?
+      ''',
+      variables: [
+        d.Variable.withString(projectSyncId),
+        d.Variable.withDateTime(start),
+        d.Variable.withDateTime(end),
+      ],
+      readsFrom: {db.transactions},
+    ).getSingle();
+    return _parseDouble(result.data['total']);
+  }
+
+  ({DateTime start, DateTime end}) _periodRange(
+      Project project, DateTime now, int monthStartDay) {
+    switch (project.periodType) {
+      case 'yearly':
+        return (
+          start: DateTime(now.year, 1, 1),
+          end: DateTime(now.year + 1, 1, 1),
+        );
+      case 'fixed':
+        final s = project.periodStart ?? now;
+        final e = project.periodEnd ?? now;
+        return (start: s, end: e.add(const Duration(days: 1)));
+      case 'monthly':
+      default:
+        final range = periodContaining(now, monthStartDay);
+        return (start: range.start, end: range.end);
+    }
+  }
+
+  /// 上一週期範圍;`fixed`(或未知)週期沒有「上一期」概念,回傳 null。
+  ({DateTime start, DateTime end})? _previousPeriodRange(
+      Project project, DateTime now, int monthStartDay) {
+    switch (project.periodType) {
+      case 'yearly':
+        return (
+          start: DateTime(now.year - 1, 1, 1),
+          end: DateTime(now.year, 1, 1),
+        );
+      case 'monthly':
+        final label = labelForDate(now, monthStartDay);
+        // month=0 时 DateTime 自动借位到上一年 12 月(同 month_range.dart 注释)。
+        final prev = periodForLabel(label.year, label.month - 1, monthStartDay);
+        return (start: prev.start, end: prev.end);
+      default:
+        return null;
+    }
+  }
+
+  @override
+  Future<ProjectUsage> getProjectUsage(Project project, DateTime now) async {
+    final sd = await _monthStartDayOf(project.ledgerId);
+    final range = _periodRange(project, now, sd);
+    final syncId = project.syncId;
+    final used =
+        syncId == null ? 0.0 : await _sumExpenses(syncId, range.start, range.end);
+
+    double? carriedOver;
+    if (project.carryoverEnabled &&
+        project.budgetAmount != null &&
+        syncId != null) {
+      final prevRange = _previousPeriodRange(project, now, sd);
+      if (prevRange != null) {
+        final prevUsed =
+            await _sumExpenses(syncId, prevRange.start, prevRange.end);
+        carriedOver = project.budgetAmount! - prevUsed;
+      }
+    }
+
+    return ProjectUsage(
+      used: used,
+      budget: project.budgetAmount,
+      carriedOver: carriedOver,
+      periodStart: range.start,
+      periodEnd: range.end,
+    );
+  }
+
+  @override
+  Future<List<ProjectWithUsage>> getAllProjectUsages(int ledgerId, DateTime now,
+      {bool includeDisabled = false}) async {
+    final projects =
+        await getAllProjects(ledgerId, includeDisabled: includeDisabled);
+    final result = <ProjectWithUsage>[];
+    for (final project in projects) {
+      result.add(ProjectWithUsage(
+        project: project,
+        usage: await getProjectUsage(project, now),
+      ));
+    }
+    return result;
   }
 }

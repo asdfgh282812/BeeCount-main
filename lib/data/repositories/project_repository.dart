@@ -1,5 +1,50 @@
 import '../db.dart';
 
+/// 專案在某個週期內的花費/預算/結餘。跟 [BudgetUsage] 的差異:[budget] 可為
+/// null(純記錄型專案,design doc §3.1),[carriedOver] 是 carryoverEnabled 時
+/// 從上一週期帶入的結餘(可能為負,代表上期超支)。
+class ProjectUsage {
+  final double used;
+  final double? budget;
+  final double? carriedOver;
+
+  /// 本次計算採用的週期範圍,半開區間 [periodStart, periodEnd)。UI 顯示週期
+  /// 文字(本月/年度/起訖日)用。
+  final DateTime periodStart;
+  final DateTime periodEnd;
+
+  const ProjectUsage({
+    required this.used,
+    this.budget,
+    this.carriedOver,
+    required this.periodStart,
+    required this.periodEnd,
+  });
+
+  /// 有效預算 = budget + carriedOver(carryoverEnabled 時);純記錄專案為 null。
+  double? get effectiveBudget =>
+      budget == null ? null : budget! + (carriedOver ?? 0);
+
+  double? get remaining =>
+      effectiveBudget == null ? null : effectiveBudget! - used;
+
+  /// 使用率(0-1+,可超過 1 代表超支);純記錄或 effectiveBudget==0 時為 null
+  /// (UI 應顯示「純記錄」而非進度條)。
+  double? get rate {
+    final b = effectiveBudget;
+    if (b == null || b == 0) return null;
+    return (used / b).clamp(0.0, double.infinity);
+  }
+}
+
+/// 專案 + 其花費統計,列表/總覽頁用(同 [CategoryBudgetUsage] 帶完整實體的慣例)。
+class ProjectWithUsage {
+  final Project project;
+  final ProjectUsage usage;
+
+  const ProjectWithUsage({required this.project, required this.usage});
+}
+
 /// 專案 repository 介面。ledger-scoped 实体(同 budget/debt/ledger),對齐
 /// BeeCount Cloud 的 `project` sync entity —— 完整比照其資料模型
 /// (§3.1 design doc):
@@ -69,4 +114,20 @@ abstract class ProjectRepository {
   /// 前綴,避免跟 [AccountRepository.hasTransactions](參數是 accountId)
   /// 在 [BaseRepository] 組合時撞名。
   Future<bool> projectHasTransactions(String projectSyncId);
+
+  /// [project] 在 [now] 所屬週期的花費/預算統計。週期依 [Project.periodType]:
+  /// - `monthly`:跟隨帳本 `monthStartDay`(同 [BudgetRepository.getBudgetUsage]
+  ///   口徑)。
+  /// - `yearly`:自然年 1/1 ~ 次年 1/1(不跟隨 monthStartDay——設計文件未特別
+  ///   要求,取最簡單直覺的定義)。
+  /// - `fixed`:專案自帶的 `periodStart`/`periodEnd`(含當天,內部轉半開區間)。
+  ///
+  /// `carryoverEnabled` 時會多查一次「上一週期」的花費算出結轉金額,只算前一
+  /// 期一次,不做多期遞迴結轉;`fixed` 週期沒有「上一期」概念,即使
+  /// `carryoverEnabled=true` 也不生效(UI 應停用該開關,見 design doc §8)。
+  Future<ProjectUsage> getProjectUsage(Project project, DateTime now);
+
+  /// 帳本下所有(依 [includeDisabled])專案的花費統計,依 [sortOrder] 排序。
+  Future<List<ProjectWithUsage>> getAllProjectUsages(int ledgerId, DateTime now,
+      {bool includeDisabled = false});
 }
