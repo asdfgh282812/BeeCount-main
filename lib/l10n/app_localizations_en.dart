@@ -8955,4 +8955,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get accountsDebtEntryBalanced => 'Settled';
+
+  @override
+  String get projectSelectTitle => 'Select Project';
+
+  @override
+  String get projectPickerNone => 'No Project';
+
+  @override
+  String get projectPickerEmptyHint => 'No projects yet';
 }

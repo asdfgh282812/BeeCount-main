@@ -3410,5 +3410,8 @@
   "accountsDebtEntryTitle": "借還款",
   "accountsDebtEntryNetReceivable": "淨應收",
   "accountsDebtEntryNetPayable": "淨應付",
-  "accountsDebtEntryBalanced": "已結清"
+  "accountsDebtEntryBalanced": "已結清",
+  "projectSelectTitle": "選擇專案",
+  "projectPickerNone": "不指定專案",
+  "projectPickerEmptyHint": "還沒有任何專案"
 }

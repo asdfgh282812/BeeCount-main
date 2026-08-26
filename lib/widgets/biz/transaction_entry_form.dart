@@ -25,6 +25,9 @@ import '../category/category_selector.dart';
 import 'category_selector_dialog.dart';
 import '../category_icon.dart';
 import 'account_card_picker.dart';
+import 'project_picker.dart';
+import '../../providers/project_providers.dart' show projectsStreamProvider;
+import '../../services/data/category_service.dart';
 import 'amount_calculator_keypad.dart';
 import 'note_picker_dialog.dart';
 import '../currency/currency_picker_sheet.dart';
@@ -82,6 +85,9 @@ typedef AmountEditorResult = ({
   // categoryId/categorySyncIdOverride);[]=編輯時使用者把原本的拆帳交易
   // 「還原」成單一分類(上層需顯式清空);非空=目前是拆帳交易,整組覆蓋。
   List<SplitLineResult>? splits,
+  // v44:選定的專案 syncId(design doc §6)。null=不指定專案。跟其他 syncId
+  // 關聯(debtSyncId 等)同款慣例——只存字串,不走本地 int FK。
+  String? projectSyncId,
 });
 
 /// v36:`onSubmit` 回傳 `Future<void>`(原本是 `void`)——編輯「週期規則
@@ -111,6 +117,9 @@ class TransactionEntryForm extends ConsumerStatefulWidget {
   final String? initialMerchant;
   final int? initialAccountId;
   final List<int>? initialTagIds;
+  // v44:編輯模式回填已指定的專案(design doc §6)。只存 syncId,initState
+  // 用它非同步反查完整 Project 顯示名稱/icon(見 _resolveInitialProject)。
+  final String? initialProjectSyncId;
   final int ledgerId;
   final int? editingTransactionId;
   final bool initialExcludeFromStats;
@@ -135,6 +144,7 @@ class TransactionEntryForm extends ConsumerStatefulWidget {
     this.initialMerchant,
     this.initialAccountId,
     this.initialTagIds,
+    this.initialProjectSyncId,
     required this.ledgerId,
     this.editingTransactionId,
     this.initialExcludeFromStats = false,
@@ -203,6 +213,10 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   double _acc = 0;
   String? _op;
 
+  // v44:選定的專案(design doc §6)。跟 _selectedCategory 一樣持有完整
+  // Project 物件供 UI 顯示名稱/icon,存檔時只送出 syncId。
+  Project? _selectedProject;
+
   List<NoteHistoryEntry> _frequentNotes = [];
   List<double> _recentAmounts = [];
 
@@ -263,6 +277,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
 
     _resolveInitialCategory();
     _resolveInitialSplits();
+    _resolveInitialProject();
     if (widget.editingTransactionId == null &&
         widget.initialAccountId == null) {
       _loadDefaultAccount();
@@ -296,6 +311,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
         merchant: _merchantCtrl.text,
         tagIds: List.of(_selectedTagIds),
         accountId: _selectedAccountId,
+        projectSyncId: _selectedProject?.syncId,
       );
 
   /// 把另一個分頁匯出的共用欄位套用到這裡——切 tab 時讓支出/收入/轉帳「看起
@@ -325,6 +341,17 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
       });
       _loadSelectedAccount(f.accountId!);
     }
+    if (f.projectSyncId != null && f.projectSyncId != _selectedProject?.syncId) {
+      _resolveProjectBySyncId(f.projectSyncId!);
+    }
+  }
+
+  Future<void> _resolveProjectBySyncId(String syncId) async {
+    final repo = ref.read(repositoryProvider);
+    final project = await repo.getProjectBySyncId(syncId);
+    if (project != null && mounted) {
+      setState(() => _selectedProject = project);
+    }
   }
 
   /// 回顯已選類別(編輯模式 / 呼叫端帶入 initialCategoryId 預選時)。
@@ -346,6 +373,21 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
         _categoryGridExpanded = false;
       });
       _onCategoryChanged();
+    }
+  }
+
+  /// 回顯已選專案(編輯模式 / 呼叫端帶入 initialProjectSyncId 預選時)。
+  /// v44:專案只存 syncId(design doc §3.2 同 debtSyncId 模式),沒有本地
+  /// int FK 可以同步回顯,只能非同步反查——跟 [_resolveInitialCategory] 的
+  /// synthetic-id 反查同樣是「編輯時才需要多一趟查詢」,但這裡沒有
+  /// synthetic 的問題(專案不參與 §7 共享帳本 override 機制)。
+  Future<void> _resolveInitialProject() async {
+    final syncId = widget.initialProjectSyncId;
+    if (syncId == null) return;
+    final repo = ref.read(repositoryProvider);
+    final project = await repo.getProjectBySyncId(syncId);
+    if (project != null && mounted) {
+      setState(() => _selectedProject = project);
     }
   }
 
@@ -980,6 +1022,18 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     if (id != null) _loadSelectedAccount(id);
   }
 
+  Future<void> _openProjectPicker() async {
+    final result = await ProjectPicker.show(
+      context,
+      ledgerId: widget.ledgerId,
+      selectedProjectSyncId: _selectedProject?.syncId,
+    );
+    // result == null:取消/滑動關閉,維持原本選擇不變。
+    // result.project == null:明確選了「不指定專案」,清空。
+    if (result == null || !mounted) return;
+    setState(() => _selectedProject = result.project);
+  }
+
   Future<void> _submit() async {
     if (_isSubmitting) return;
     double total;
@@ -1050,6 +1104,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
                     ))
                 .toList()
             : (_wasInitiallySplit ? const <SplitLineResult>[] : null),
+        projectSyncId: _selectedProject?.syncId,
       ),
     ).whenComplete(() {
       // 正常存檔成功:上層已經 pop 頁面,這裡 mounted 已是 false,no-op。
@@ -1237,6 +1292,8 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
                 ),
                 const SizedBox(height: 8),
                 _buildAccountRow(context),
+                const SizedBox(height: 8),
+                _buildProjectRow(context),
                 const SizedBox(height: 8),
                 _buildTagAndAttachmentRow(),
                 _buildEstimatedRewardRow(),
@@ -1496,6 +1553,56 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
         },
         loading: () => const SizedBox.shrink(),
         error: (_, __) => const SizedBox.shrink(),
+      );
+    });
+  }
+
+  /// v44:「選擇專案」欄位(design doc §6),比照 _buildAccountRow 的樣式。
+  /// 帳本裡完全沒有專案、且目前也沒選過(例如切 tab 帶進來)時整列隱藏——
+  /// 建專案的入口在專案總覽頁,不在這裡提供。
+  Widget _buildProjectRow(BuildContext context) {
+    return Consumer(builder: (context, ref, _) {
+      final projectsAsync = ref.watch(projectsStreamProvider);
+      final hasProjects = projectsAsync.valueOrNull?.isNotEmpty ?? false;
+      if (!hasProjects && _selectedProject == null) {
+        return const SizedBox.shrink();
+      }
+      final name = _selectedProject?.name ??
+          AppLocalizations.of(context).projectPickerNone;
+      return InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: _openProjectPicker,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: BeeTokens.surfaceInput(context),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                _selectedProject != null
+                    ? CategoryService.getCategoryIcon(_selectedProject!.icon)
+                    : Icons.folder_outlined,
+                size: 18,
+                color: BeeTokens.iconSecondary(context),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      color: BeeTokens.textPrimary(context), fontSize: 14),
+                ),
+              ),
+              Icon(Icons.chevron_right,
+                  size: 18, color: BeeTokens.iconTertiary(context)),
+            ],
+          ),
+        ),
       );
     });
   }

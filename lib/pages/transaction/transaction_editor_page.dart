@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers.dart';
 import '../../providers/budget_providers.dart';
+import '../../providers/project_providers.dart' show projectRefreshProvider;
 import '../../data/db.dart';
 import '../../data/repositories/local/local_repository.dart';
 import '../../data/repositories/transaction_repository.dart'
@@ -41,6 +42,8 @@ class TransactionEditorPage extends ConsumerStatefulWidget {
   final int? initialAccountId;
   final int? initialToAccountId; // 转账时的目标账户
   final List<int>? initialTagIds; // 初始标签ID列表
+  // v44:編輯/複製模式回填已指定的專案(design doc §6)。
+  final String? initialProjectSyncId;
   final bool initialExcludeFromStats; // 不计入收支，编辑模式回显
   final bool initialExcludeFromBudget; // 不计入预算，编辑模式回显
   // v30 多币种编辑回显(推隐含汇率用)
@@ -68,6 +71,7 @@ class TransactionEditorPage extends ConsumerStatefulWidget {
     this.initialAccountId,
     this.initialToAccountId,
     this.initialTagIds,
+    this.initialProjectSyncId,
     this.initialExcludeFromStats = false,
     this.initialExcludeFromBudget = false,
     this.initialCurrencyCode,
@@ -298,6 +302,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
                   initialMerchant: widget.initialMerchant,
                   initialAccountId: widget.initialAccountId,
                   initialTagIds: widget.initialTagIds,
+                  initialProjectSyncId: widget.initialProjectSyncId,
                   ledgerId: ledgerId,
                   editingTransactionId: widget.editingTransactionId,
                   initialExcludeFromStats: widget.initialExcludeFromStats,
@@ -319,6 +324,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
                   initialMerchant: widget.initialMerchant,
                   initialAccountId: widget.initialAccountId,
                   initialTagIds: widget.initialTagIds,
+                  initialProjectSyncId: widget.initialProjectSyncId,
                   ledgerId: ledgerId,
                   editingTransactionId: widget.editingTransactionId,
                   initialExcludeFromStats: widget.initialExcludeFromStats,
@@ -443,6 +449,12 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
         rewardRuleIds: res.rewardRuleIds,
         splits: splitsForWrite,
       );
+      // v44:專案連結走專用方法,不塞進 updateTransaction(同 debtSyncId 的
+      // 既有分工,見 CLAUDE.md「Sync entity relation pattern」)。
+      await repo.setTransactionProjectLink(
+        id: widget.editingTransactionId!,
+        projectSyncId: res.projectSyncId,
+      );
       transactionId = widget.editingTransactionId!;
       // 共享账本:本地 lastEditedByUserId 立即回填,UI 头像组直接展示
       // 当前 user 为编辑人(否则要等 server 下次 pull 才回来)
@@ -529,6 +541,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
         refundOfSyncId: widget.initialRefundOfSyncId,
         rewardRuleIds: res.rewardRuleIds,
         splits: splitsForWrite,
+        projectSyncId: res.projectSyncId,
       );
       // 共享账本:新建本地 tx 也回填创建人 + 编辑人(同一个 user)
       await TxAuthorService.markCreated(ref, transactionId);
@@ -612,6 +625,8 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
     ref.read(statsRefreshProvider.notifier).state++;
     // 刷新：预算数据
     ref.read(budgetRefreshProvider.notifier).state++;
+    // 刷新：专案花费数据(v44)
+    ref.read(projectRefreshProvider.notifier).state++;
     // 更新小组件数据（后台执行，不阻塞UI）
     if (mounted) {
       updateAppWidget(ref, context);

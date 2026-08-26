@@ -15,4 +15,7 @@ typedef SharedEntryFields = ({
   String merchant,
   List<int> tagIds,
   int? accountId,
+  // 專案(v44)——同 accountId 的「null 不覆蓋」慣例:來源分頁沒選專案時
+  // 維持目標分頁原本的選擇不動,只有非 null 才觸發套用。
+  String? projectSyncId,
 });

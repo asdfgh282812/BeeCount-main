@@ -107,6 +107,9 @@ class TransactionEditUtils {
           initialToAccountId: refs.toAccountId,
           // 标签
           initialTagIds: refs.tagIds,
+          // v44:專案只存 syncId,直接透传,不走 _resolveRefs 的 synthetic 反查
+          // (專案不參與 §7 共享帳本 override 機制)。
+          initialProjectSyncId: transaction.projectSyncId,
           // 账单标记（不计入收支/预算）回显
           initialExcludeFromStats: transaction.excludeFromStats,
           initialExcludeFromBudget: transaction.excludeFromBudget,
@@ -145,6 +148,7 @@ class TransactionEditUtils {
           initialAccountId: refs.accountId,
           initialToAccountId: refs.toAccountId,
           initialTagIds: refs.tagIds,
+          initialProjectSyncId: transaction.projectSyncId,
           initialExcludeFromStats: transaction.excludeFromStats,
           initialExcludeFromBudget: transaction.excludeFromBudget,
           initialCurrencyCode: transaction.currencyCode,

@@ -3838,5 +3838,8 @@
   "accountsDebtEntryTitle": "Debts",
   "accountsDebtEntryNetReceivable": "Net receivable",
   "accountsDebtEntryNetPayable": "Net payable",
-  "accountsDebtEntryBalanced": "Settled"
+  "accountsDebtEntryBalanced": "Settled",
+  "projectSelectTitle": "Select Project",
+  "projectPickerNone": "No Project",
+  "projectPickerEmptyHint": "No projects yet"
 }

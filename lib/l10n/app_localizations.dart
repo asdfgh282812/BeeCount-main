@@ -16169,6 +16169,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Settled'**
   String get accountsDebtEntryBalanced;
+
+  /// No description provided for @projectSelectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Project'**
+  String get projectSelectTitle;
+
+  /// No description provided for @projectPickerNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No Project'**
+  String get projectPickerNone;
+
+  /// No description provided for @projectPickerEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No projects yet'**
+  String get projectPickerEmptyHint;
 }
 
 class _AppLocalizationsDelegate

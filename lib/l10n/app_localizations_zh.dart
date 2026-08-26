@@ -8636,6 +8636,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get accountsDebtEntryBalanced => 'Settled';
+
+  @override
+  String get projectSelectTitle => 'Select Project';
+
+  @override
+  String get projectPickerNone => 'No Project';
+
+  @override
+  String get projectPickerEmptyHint => 'No projects yet';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -17251,4 +17260,13 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get accountsDebtEntryBalanced => '已結清';
+
+  @override
+  String get projectSelectTitle => '選擇專案';
+
+  @override
+  String get projectPickerNone => '不指定專案';
+
+  @override
+  String get projectPickerEmptyHint => '還沒有任何專案';
 }
