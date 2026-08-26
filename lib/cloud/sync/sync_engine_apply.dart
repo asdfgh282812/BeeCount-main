@@ -51,6 +51,9 @@ extension SyncEngineApplyExt on SyncEngine {
       case 'debt':
         await _applyDebtChange(change);
         return true;
+      case 'project':
+        await _applyProjectChange(change);
+        return true;
       case 'ledger_snapshot':
         // 全量快照在 fullPull 中处理，这里跳过
         return false;
@@ -302,6 +305,13 @@ extension SyncEngineApplyExt on SyncEngine {
     final hasDebtIdKey = payload.containsKey('debtId');
     final debtSyncId = hasDebtIdKey ? payload['debtId'] as String? : null;
 
+    // v44 專案:projectId(存 Project 的 syncId)。跟 debtId 同款「恒发/缺键
+    // 不覆盖」——交易表單「選擇專案」的取消連結會顯式傳 null,必須能把
+    // 本地已有的關聯清空,不能被舊客戶端缺這個鍵的 payload 誤觸發清空。
+    final hasProjectIdKey = payload.containsKey('projectId');
+    final projectSyncId =
+        hasProjectIdKey ? payload['projectId'] as String? : null;
+
     if (existingId != null) {
       // 更新 — createdByUserId 走"本地为 null 就回填,否则保持"的策略。
       final shouldBackfillCreator =
@@ -368,6 +378,9 @@ extension SyncEngineApplyExt on SyncEngine {
             hasSplitsKey ? d.Value(txHasSplits) : const d.Value.absent(),
         debtSyncId:
             hasDebtIdKey ? d.Value(debtSyncId) : const d.Value.absent(),
+        projectSyncId: hasProjectIdKey
+            ? d.Value(projectSyncId)
+            : const d.Value.absent(),
       ));
       // 更新标签、附件、拆帳明細(existing 路径)
       await _syncTransactionTags(existingId, syncId, payload);
@@ -409,6 +422,7 @@ extension SyncEngineApplyExt on SyncEngine {
               deferredPostingAt: d.Value(deferredPostingAt),
               hasSplits: d.Value(txHasSplits),
               debtSyncId: d.Value(debtSyncId),
+              projectSyncId: d.Value(projectSyncId),
             ),
           );
       // 写回 cache,后续同 syncId 的 update change 能命中
@@ -1012,6 +1026,91 @@ extension SyncEngineApplyExt on SyncEngine {
             syncId: d.Value(syncId),
           ));
       logger.debug('SyncEngine', 'pull: 新增欠款 $syncId');
+    }
+  }
+
+  /// 應用專案(v44)变更。对齐 [_applyBudgetChange]/[_applyDebtChange]:按
+  /// syncId upsert,delete 走同样的路径。ledger 的外键在 payload 里以
+  /// syncId 形式带来,用 _resolveLedgerIdBySyncId 换成本地 int id。所有
+  /// 欄位恆發(见 entity_serializer.dart serializeProject 的注释),这里
+  /// 无条件覆盖,不做 containsKey 保護。
+  Future<void> _applyProjectChange(BeeCountCloudSyncChange change) async {
+    final syncId = change.entitySyncId;
+
+    if (change.action == 'delete') {
+      final existing = await (db.select(db.projects)
+            ..where((t) => t.syncId.equals(syncId)))
+          .getSingleOrNull();
+      if (existing != null) {
+        await (db.delete(db.projects)..where((t) => t.id.equals(existing.id)))
+            .go();
+        logger.debug('SyncEngine', 'pull: 删除专案 $syncId');
+      }
+      return;
+    }
+
+    // upsert
+    final payload = change.payload!;
+    final ledgerSyncId = payload['ledgerSyncId'] as String?;
+    final name = payload['name'] as String? ?? '';
+    final icon = payload['icon'] as String?;
+    final budgetAmount = (payload['budgetAmount'] as num?)?.toDouble();
+    final periodType = payload['periodType'] as String? ?? 'monthly';
+    final periodStartStr = payload['periodStart'] as String?;
+    final periodStart =
+        periodStartStr != null ? DateTime.tryParse(periodStartStr) : null;
+    final periodEndStr = payload['periodEnd'] as String?;
+    final periodEnd =
+        periodEndStr != null ? DateTime.tryParse(periodEndStr) : null;
+    final carryoverEnabled = payload['carryoverEnabled'] as bool? ?? false;
+    final visibleOnHome = payload['visibleOnHome'] as bool? ?? true;
+    final enabled = payload['enabled'] as bool? ?? true;
+    final sortOrder = (payload['sortOrder'] as num?)?.toInt() ?? 0;
+
+    final localLedgerId = await _resolveLedgerIdBySyncId(ledgerSyncId);
+    if (localLedgerId == null) {
+      logger.info('SyncEngine',
+          'pull: 专案 $syncId 的 ledgerSyncId=$ledgerSyncId 本地未就绪,跳过');
+      return;
+    }
+
+    final existing = await (db.select(db.projects)
+          ..where((t) => t.syncId.equals(syncId)))
+        .getSingleOrNull();
+
+    if (existing != null) {
+      await (db.update(db.projects)..where((t) => t.id.equals(existing.id)))
+          .write(ProjectsCompanion(
+        ledgerId: d.Value(localLedgerId),
+        name: d.Value(name),
+        icon: d.Value(icon),
+        budgetAmount: d.Value(budgetAmount),
+        periodType: d.Value(periodType),
+        periodStart: d.Value(periodStart),
+        periodEnd: d.Value(periodEnd),
+        carryoverEnabled: d.Value(carryoverEnabled),
+        visibleOnHome: d.Value(visibleOnHome),
+        enabled: d.Value(enabled),
+        sortOrder: d.Value(sortOrder),
+        updatedAt: d.Value(DateTime.now()),
+      ));
+      logger.debug('SyncEngine', 'pull: 更新专案 $syncId');
+    } else {
+      await db.into(db.projects).insert(ProjectsCompanion.insert(
+            ledgerId: localLedgerId,
+            name: d.Value(name),
+            icon: d.Value(icon),
+            budgetAmount: d.Value(budgetAmount),
+            periodType: d.Value(periodType),
+            periodStart: d.Value(periodStart),
+            periodEnd: d.Value(periodEnd),
+            carryoverEnabled: d.Value(carryoverEnabled),
+            visibleOnHome: d.Value(visibleOnHome),
+            enabled: d.Value(enabled),
+            sortOrder: d.Value(sortOrder),
+            syncId: d.Value(syncId),
+          ));
+      logger.debug('SyncEngine', 'pull: 新增专案 $syncId');
     }
   }
 
