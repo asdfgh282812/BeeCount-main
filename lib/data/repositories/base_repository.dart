@@ -11,6 +11,7 @@ import 'attachment_repository.dart';
 import 'exchange_rate_repository.dart';
 import 'card_reward_rule_repository.dart';
 import 'debt_repository.dart';
+import 'project_repository.dart';
 
 /// 基础 Repository 抽象类
 /// 组合所有 Repository 接口，用于类型约束
@@ -34,7 +35,8 @@ abstract class BaseRepository
         AttachmentRepository,
         ExchangeRateRepository,
         CardRewardRuleRepository,
-        DebtRepository {
+        DebtRepository,
+        ProjectRepository {
   // -------------------------------------------------------------------
   // v30 交易级多币种(.docs/multi-currency-ledger):重算 / 检测。
   // 声明在聚合层而非 TransactionRepository:这些方法要同时访问交易表与
@@ -65,4 +67,24 @@ abstract class BaseRepository
 
   /// 按 picker 账户 id 解析币种:正数=主表账户;负数=共享账本 synthetic id。
   Future<String?> getAccountCurrencyByAnyId(int accountId);
+
+  // -------------------------------------------------------------------
+  // v44 專案功能上線遷移:分類預算 → 專案的歷史交易回填。聲明在聚合層
+  // (而非 ProjectRepository)——理由同 recalcNativeAmountsForLedger:
+  // 同時要碰 Transactions 與 changeTracker,子仓库拿不到 changeTracker。
+  // -------------------------------------------------------------------
+
+  /// 把 [ledgerId] 底下、`categoryId=[categoryId]`、`type='expense'`、且
+  /// 目前 `projectSyncId IS NULL` 的交易,批次(最多 [limit] 筆)設定
+  /// `projectSyncId=[projectSyncId]`。單一 db.transaction() 包一批,逐筆記
+  /// change(理由同 recalcNativeAmountsForLedger)。呼叫端
+  /// (ProjectMigrationService)應該迴圈呼叫直到回傳 0——已回填過的行因
+  /// `projectSyncId IS NULL` 條件自然被排除,不需要額外的 offset 追蹤。
+  /// 回傳實際改動的筆數。
+  Future<int> backfillProjectForCategoryBatch({
+    required int ledgerId,
+    required int categoryId,
+    required String projectSyncId,
+    required int limit,
+  });
 }

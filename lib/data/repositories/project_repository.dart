@@ -65,6 +65,8 @@ abstract class ProjectRepository {
 
   /// 該專案是否有交易關聯(刪除前置檢查,同
   /// [DebtRepository.hasRepayments])。[projectSyncId] 是
-  /// [Transactions.projectSyncId] 命中的那個字串。
-  Future<bool> hasTransactions(String projectSyncId);
+  /// [Transactions.projectSyncId] 命中的那個字串。命名刻意加 `project`
+  /// 前綴,避免跟 [AccountRepository.hasTransactions](參數是 accountId)
+  /// 在 [BaseRepository] 組合時撞名。
+  Future<bool> projectHasTransactions(String projectSyncId);
 }

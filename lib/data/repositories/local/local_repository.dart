@@ -33,6 +33,7 @@ import 'local_exchange_rate_repository.dart';
 import 'local_card_reward_rule_repository.dart';
 import '../debt_repository.dart';
 import 'local_debt_repository.dart';
+import 'local_project_repository.dart';
 
 /// LocalRepository 本地数据库实现
 /// 基于 Drift 本地数据库实现所有 Repository 接口
@@ -62,6 +63,7 @@ class LocalRepository extends BaseRepository {
   late final LocalExchangeRateRepository _exchangeRateRepo;
   late final LocalCardRewardRuleRepository _cardRewardRuleRepo;
   late final LocalDebtRepository _debtRepo;
+  late final LocalProjectRepository _projectRepo;
 
   LocalRepository(this.db, {this.changeTracker}) {
     _ledgerRepo = LocalLedgerRepository(db);
@@ -78,6 +80,7 @@ class LocalRepository extends BaseRepository {
         LocalExchangeRateRepository(db, trackerGetter: () => changeTracker);
     _cardRewardRuleRepo = LocalCardRewardRuleRepository(db);
     _debtRepo = LocalDebtRepository(db);
+    _projectRepo = LocalProjectRepository(db);
   }
 
   // ============================================
@@ -4066,4 +4069,205 @@ class LocalRepository extends BaseRepository {
 
   @override
   Stream<List<Debt>> watchDebts(int ledgerId) => _debtRepo.watchDebts(ledgerId);
+
+  // ============================================
+  // ProjectRepository 接口实现 - 委托给 LocalProjectRepository
+  // ============================================
+
+  @override
+  Future<int> createProject({
+    required int ledgerId,
+    required String name,
+    String? icon,
+    double? budgetAmount,
+    String periodType = 'monthly',
+    DateTime? periodStart,
+    DateTime? periodEnd,
+    bool carryoverEnabled = false,
+    bool visibleOnHome = true,
+    int sortOrder = 0,
+  }) async {
+    final id = await _projectRepo.createProject(
+      ledgerId: ledgerId,
+      name: name,
+      icon: icon,
+      budgetAmount: budgetAmount,
+      periodType: periodType,
+      periodStart: periodStart,
+      periodEnd: periodEnd,
+      carryoverEnabled: carryoverEnabled,
+      visibleOnHome: visibleOnHome,
+      sortOrder: sortOrder,
+    );
+    if (changeTracker != null) {
+      final row = await (db.select(db.projects)..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+      if (row?.syncId != null) {
+        await changeTracker!.recordLedgerChange(
+          entityType: 'project',
+          entityId: id,
+          entitySyncId: row!.syncId!,
+          ledgerId: ledgerId,
+          action: 'create',
+        );
+      }
+    }
+    return id;
+  }
+
+  @override
+  Future<void> updateProject(
+    int id, {
+    String? name,
+    String? icon,
+    bool clearIcon = false,
+    double? budgetAmount,
+    bool clearBudgetAmount = false,
+    String? periodType,
+    DateTime? periodStart,
+    bool clearPeriodStart = false,
+    DateTime? periodEnd,
+    bool clearPeriodEnd = false,
+    bool? carryoverEnabled,
+    bool? visibleOnHome,
+    bool? enabled,
+    int? sortOrder,
+  }) async {
+    await _projectRepo.updateProject(
+      id,
+      name: name,
+      icon: icon,
+      clearIcon: clearIcon,
+      budgetAmount: budgetAmount,
+      clearBudgetAmount: clearBudgetAmount,
+      periodType: periodType,
+      periodStart: periodStart,
+      clearPeriodStart: clearPeriodStart,
+      periodEnd: periodEnd,
+      clearPeriodEnd: clearPeriodEnd,
+      carryoverEnabled: carryoverEnabled,
+      visibleOnHome: visibleOnHome,
+      enabled: enabled,
+      sortOrder: sortOrder,
+    );
+    await _recordProjectChange(id, 'update');
+  }
+
+  Future<void> _recordProjectChange(int id, String action) async {
+    if (changeTracker == null) return;
+    final row = await (db.select(db.projects)..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
+    if (row == null || row.syncId == null) return;
+    await changeTracker!.recordLedgerChange(
+      entityType: 'project',
+      entityId: id,
+      entitySyncId: row.syncId!,
+      ledgerId: row.ledgerId,
+      action: action,
+    );
+  }
+
+  @override
+  Future<void> deleteProject(int id) async {
+    final target =
+        await (db.select(db.projects)..where((t) => t.id.equals(id)))
+            .getSingleOrNull();
+    if (target == null) return;
+
+    await _projectRepo.deleteProject(id);
+
+    if (changeTracker != null && target.syncId != null) {
+      // deleteProject 可能是軟刪除(封存)也可能是硬刪除,兩種都用同一個
+      // syncId 反查目前狀態來決定要推 update(封存)還是 delete(硬刪)。
+      final stillExists = await (db.select(db.projects)
+            ..where((t) => t.syncId.equals(target.syncId!)))
+          .getSingleOrNull();
+      if (stillExists != null) {
+        await changeTracker!.recordLedgerChange(
+          entityType: 'project',
+          entityId: target.id,
+          entitySyncId: target.syncId!,
+          ledgerId: target.ledgerId,
+          action: 'update',
+        );
+      } else {
+        await changeTracker!.recordLedgerChange(
+          entityType: 'project',
+          entityId: target.id,
+          entitySyncId: target.syncId!,
+          ledgerId: target.ledgerId,
+          action: 'delete',
+        );
+      }
+    }
+  }
+
+  @override
+  Future<Project?> getProject(int id) => _projectRepo.getProject(id);
+
+  @override
+  Future<Project?> getProjectBySyncId(String syncId) =>
+      _projectRepo.getProjectBySyncId(syncId);
+
+  @override
+  Future<List<Project>> getAllProjects(int ledgerId,
+          {bool includeDisabled = false}) =>
+      _projectRepo.getAllProjects(ledgerId, includeDisabled: includeDisabled);
+
+  @override
+  Stream<List<Project>> watchProjects(int ledgerId,
+          {bool includeDisabled = false}) =>
+      _projectRepo.watchProjects(ledgerId, includeDisabled: includeDisabled);
+
+  @override
+  Future<bool> projectHasTransactions(String projectSyncId) =>
+      _projectRepo.projectHasTransactions(projectSyncId);
+
+  @override
+  Future<int> backfillProjectForCategoryBatch({
+    required int ledgerId,
+    required int categoryId,
+    required String projectSyncId,
+    required int limit,
+  }) =>
+      db.transaction(() => _backfillProjectForCategoryBatchInner(
+            ledgerId: ledgerId,
+            categoryId: categoryId,
+            projectSyncId: projectSyncId,
+            limit: limit,
+          ));
+
+  Future<int> _backfillProjectForCategoryBatchInner({
+    required int ledgerId,
+    required int categoryId,
+    required String projectSyncId,
+    required int limit,
+  }) async {
+    final rows = await (db.select(db.transactions)
+          ..where((t) =>
+              t.ledgerId.equals(ledgerId) &
+              t.categoryId.equals(categoryId) &
+              t.type.equals('expense') &
+              t.projectSyncId.isNull())
+          ..limit(limit))
+        .get();
+    for (final t in rows) {
+      await (db.update(db.transactions)..where((x) => x.id.equals(t.id)))
+          .write(TransactionsCompanion(projectSyncId: d.Value(projectSyncId)));
+      if (changeTracker != null && t.syncId != null) {
+        await changeTracker!.recordLedgerChange(
+          entityType: 'transaction',
+          entityId: t.id,
+          entitySyncId: t.syncId!,
+          ledgerId: ledgerId,
+          action: 'update',
+        );
+      }
+    }
+    if (rows.isNotEmpty) {
+      logger.info('LocalRepository',
+          '專案遷移回填 ledger=$ledgerId category=$categoryId project=$projectSyncId 改動 ${rows.length} 筆');
+    }
+    return rows.length;
+  }
 }

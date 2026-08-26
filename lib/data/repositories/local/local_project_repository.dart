@@ -107,7 +107,7 @@ class LocalProjectRepository implements ProjectRepository {
     final project = await getProject(id);
     if (project == null) return;
     final syncId = project.syncId;
-    if (syncId != null && await hasTransactions(syncId)) {
+    if (syncId != null && await projectHasTransactions(syncId)) {
       await (db.update(db.projects)..where((t) => t.id.equals(id))).write(
         ProjectsCompanion(
           enabled: const d.Value(false),
@@ -154,7 +154,7 @@ class LocalProjectRepository implements ProjectRepository {
   }
 
   @override
-  Future<bool> hasTransactions(String projectSyncId) async {
+  Future<bool> projectHasTransactions(String projectSyncId) async {
     final rows = await (db.select(db.transactions)
           ..where((t) => t.projectSyncId.equals(projectSyncId))
           ..limit(1))
