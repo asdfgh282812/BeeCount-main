@@ -26,7 +26,6 @@ import 'category_selector_dialog.dart';
 import '../category_icon.dart';
 import 'account_card_picker.dart';
 import 'project_picker.dart';
-import '../../providers/project_providers.dart' show projectsStreamProvider;
 import '../../services/data/category_service.dart';
 import 'amount_calculator_keypad.dart';
 import 'note_picker_dialog.dart';
@@ -1558,53 +1557,47 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   }
 
   /// v44:「選擇專案」欄位(design doc §6),比照 _buildAccountRow 的樣式。
-  /// 帳本裡完全沒有專案、且目前也沒選過(例如切 tab 帶進來)時整列隱藏——
-  /// 建專案的入口在專案總覽頁,不在這裡提供。
+  /// 恆顯示(同帳戶列)——帳本裡還沒有任何專案時,點開 picker 會看到空狀態
+  /// 提示,不在這裡就把整列藏起來(藏起來會讓使用者以為記帳頁完全沒有專案
+  /// 功能)。建專案的入口仍在專案總覽頁,不在這裡提供「新增專案」捷徑。
   Widget _buildProjectRow(BuildContext context) {
-    return Consumer(builder: (context, ref, _) {
-      final projectsAsync = ref.watch(projectsStreamProvider);
-      final hasProjects = projectsAsync.valueOrNull?.isNotEmpty ?? false;
-      if (!hasProjects && _selectedProject == null) {
-        return const SizedBox.shrink();
-      }
-      final name = _selectedProject?.name ??
-          AppLocalizations.of(context).projectPickerNone;
-      return InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: _openProjectPicker,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: BeeTokens.surfaceInput(context),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                _selectedProject != null
-                    ? CategoryService.getCategoryIcon(_selectedProject!.icon)
-                    : Icons.folder_outlined,
-                size: 18,
-                color: BeeTokens.iconSecondary(context),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      color: BeeTokens.textPrimary(context), fontSize: 14),
-                ),
-              ),
-              Icon(Icons.chevron_right,
-                  size: 18, color: BeeTokens.iconTertiary(context)),
-            ],
-          ),
+    final name =
+        _selectedProject?.name ?? AppLocalizations.of(context).projectPickerNone;
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: _openProjectPicker,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: BeeTokens.surfaceInput(context),
+          borderRadius: BorderRadius.circular(12),
         ),
-      );
-    });
+        child: Row(
+          children: [
+            Icon(
+              _selectedProject != null
+                  ? CategoryService.getCategoryIcon(_selectedProject!.icon)
+                  : Icons.folder_outlined,
+              size: 18,
+              color: BeeTokens.iconSecondary(context),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    color: BeeTokens.textPrimary(context), fontSize: 14),
+              ),
+            ),
+            Icon(Icons.chevron_right,
+                size: 18, color: BeeTokens.iconTertiary(context)),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildDateRow(BuildContext context) {

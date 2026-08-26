@@ -96,6 +96,7 @@ void main() {
       merchant: '肯德基',
       tagIds: const [],
       accountId: null,
+      projectSyncId: null,
     ));
     await tester.pump();
     expect(expenseState.exportSharedFields().amountStr, '600');
@@ -142,6 +143,7 @@ void main() {
       merchant: '肯德基',
       tagIds: const [],
       accountId: null,
+      projectSyncId: null,
     ));
     await tester.pump();
 

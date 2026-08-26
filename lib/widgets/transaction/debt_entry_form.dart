@@ -95,6 +95,8 @@ class DebtEntryFormState extends ConsumerState<DebtEntryForm> {
         merchant: _counterpartyController.text,
         tagIds: const <int>[],
         accountId: _accountId,
+        // 欠款分頁沒有專案概念(design doc §6 只涵蓋支出/收入),恆傳 null。
+        projectSyncId: null,
       );
 
   /// 把另一個分頁匯出的共用欄位套用到這裡——無條件覆蓋,跟
