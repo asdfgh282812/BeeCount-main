@@ -1303,7 +1303,17 @@ class SyncEngine implements app.SyncService {
   /// 只是打个 warning log 就放行,cursor 照常前进(见该方法 default 分支),
   /// 之后再也拉不回。`AppCursorStore.hasBackfilled`/`markBackfilled` 用同
   /// 一个 per 账号+设备的 key 派生方式记录"是否已经补过一次全量 replay"。
-  static const List<String> _entityTypeBackfillTags = ['card_reward_rule_v35'];
+  /// debt_ledger_sync_id_fix / project_ledger_sync_id_fix:v39 欠款、v44 专案
+  /// 上线时 pull apply 就要求 payload 带 ledgerSyncId 键,但 Cloud 端建/改
+  /// debt、project 时从来不发这个键(见 _applyDebtChange/_applyProjectChange
+  /// 顶部注释)。导致老设备第一次 pull 到这些 change 时被当成"账本本地未就
+  /// 绪"直接跳过且 cursor 照常前进——不是"不认识这个 entityType"那种能被
+  /// card_reward_rule_v35 机制复用的场景，所以单独打两个 tag。
+  static const List<String> _entityTypeBackfillTags = [
+    'card_reward_rule_v35',
+    'debt_ledger_sync_id_fix',
+    'project_ledger_sync_id_fix',
+  ];
 
   /// [replayAllChanges] 从 change_id=0 全量重放,一次就能把所有待补齐的
   /// entity type 都覆盖到——不需要为每个 tag 各跑一次,这里只是收集"还有哪些

@@ -11,6 +11,7 @@ import '../../utils/category_utils.dart';
 import '../../utils/currencies.dart';
 import '../../widgets/biz/amount_text.dart';
 import '../../widgets/biz/section_card.dart';
+import '../../widgets/biz/transaction_detail_card.dart';
 import '../../widgets/category_icon.dart';
 import '../../widgets/ui/ui.dart';
 
@@ -390,7 +391,10 @@ class _CardRewardDetailPageState extends ConsumerState<CardRewardDetailPage> {
         kind: categoryKind);
     final noteText =
         (tx.note != null && tx.note!.isNotEmpty) ? tx.note! : displayName;
-    final reward = estimateCardRewardForRule(rule, tx.amount);
+    // 用 rewardByTransactionId(累計扣減週期上限後的結果),不能再各自呼叫
+    // estimateCardRewardForRule——那樣算出來的單筆金額沒有跟本週期內其他交易
+    // 共用 capAmount,逐筆列表加總會超過彙總卡片顯示的 totalReward。
+    final reward = summary.rewardByTransactionId[tx.id] ?? 0;
     // 有自然月拆分時,period_end 入帳應該對到這筆交易「自己所在的自然月」
     // 結尾,不是整顆帳單週期的結尾——否則橫跨兩個自然月時,前一個自然月的
     // 交易會被錯誤地套用後一個自然月的入帳日推算。
@@ -436,80 +440,86 @@ class _CardRewardDetailPageState extends ConsumerState<CardRewardDetailPage> {
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          CategoryIconWidget(
-            category: category,
-            categoryName: displayName,
-            size: 36,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return InkWell(
+      onTap: () => showTransactionDetailCard(context, ref, tx, category),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            CategoryIconWidget(
+              category: category,
+              categoryName: displayName,
+              size: 36,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    noteText,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: BeeTokens.textPrimary(context),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Text(
+                        _formatYmd(tx.happenedAt),
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: BeeTokens.textTertiary(context)),
+                      ),
+                      Text(
+                        ' · ',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: BeeTokens.textTertiary(context)),
+                      ),
+                      AmountText(
+                        value: tx.amount,
+                        signed: false,
+                        currencyCode: tx.currencyCode ?? widget.currencyCode,
+                        decimals: 0,
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: BeeTokens.textTertiary(context)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  noteText,
+                AmountText(
+                  value: reward,
+                  signed: false,
+                  showCurrency: true,
+                  currencyCode: widget.currencyCode,
+                  decimals: 2,
                   style: TextStyle(
                     fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: BeeTokens.textPrimary(context),
+                    fontWeight: FontWeight.w700,
+                    color: BeeTokens.incomeColor(context, ref),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Text(
-                      _formatYmd(tx.happenedAt),
-                      style: TextStyle(
-                          fontSize: 12, color: BeeTokens.textTertiary(context)),
-                    ),
-                    Text(
-                      ' · ',
-                      style: TextStyle(
-                          fontSize: 12, color: BeeTokens.textTertiary(context)),
-                    ),
-                    AmountText(
-                      value: tx.amount,
-                      signed: false,
-                      currencyCode: tx.currencyCode ?? widget.currencyCode,
-                      decimals: 0,
-                      style: TextStyle(
-                          fontSize: 12, color: BeeTokens.textTertiary(context)),
-                    ),
-                  ],
-                ),
+                if (badge != null) ...[
+                  const SizedBox(height: 4),
+                  badge,
+                ],
               ],
             ),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              AmountText(
-                value: reward,
-                signed: false,
-                showCurrency: true,
-                currencyCode: widget.currencyCode,
-                decimals: 2,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: BeeTokens.incomeColor(context, ref),
-                ),
-              ),
-              if (badge != null) ...[
-                const SizedBox(height: 4),
-                badge,
-              ],
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

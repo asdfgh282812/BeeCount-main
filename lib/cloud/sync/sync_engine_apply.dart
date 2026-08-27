@@ -894,7 +894,10 @@ extension SyncEngineApplyExt on SyncEngine {
 
     // upsert
     final payload = change.payload!;
-    final ledgerSyncId = payload['ledgerSyncId'] as String?;
+    // 同 _applyDebtChange：Cloud 目前会在 budget payload 里带 ledgerSyncId，
+    // 但仍加上 change.ledgerId fallback 以防将来跟 debt/project 一样漏带。
+    final ledgerSyncId = (payload['ledgerSyncId'] as String?) ??
+        (change.ledgerId.isEmpty ? null : change.ledgerId);
     final categorySyncId = payload['categoryId'] as String?;
     final type = payload['type'] as String? ?? 'total';
     final amount = (payload['amount'] as num?)?.toDouble() ?? 0.0;
@@ -968,7 +971,12 @@ extension SyncEngineApplyExt on SyncEngine {
 
     // upsert
     final payload = change.payload!;
-    final ledgerSyncId = payload['ledgerSyncId'] as String?;
+    // Cloud 的 debt payload（无论 create/update 还是 snapshot 重建）都不带
+    // ledgerSyncId 键——只有 App 自己 push 时才会带。change.ledgerId 就是
+    // server 端该 change 所属账本的 external_id，跟 _applyTransactionChange
+    // 用法一致，因此优先信 payload，缺键时 fallback 到 change.ledgerId。
+    final ledgerSyncId = (payload['ledgerSyncId'] as String?) ??
+        (change.ledgerId.isEmpty ? null : change.ledgerId);
     final direction =
         payload['direction'] as String? ?? kDebtDirectionPayable;
     final counterpartyName = payload['counterpartyName'] as String? ?? '';
@@ -1051,7 +1059,11 @@ extension SyncEngineApplyExt on SyncEngine {
 
     // upsert
     final payload = change.payload!;
-    final ledgerSyncId = payload['ledgerSyncId'] as String?;
+    // 同 _applyDebtChange：Cloud 的 project payload 也不带 ledgerSyncId
+    // 键，缺键时 fallback 到 change.ledgerId（server 端该 change 所属账本
+    // 的 external_id）。
+    final ledgerSyncId = (payload['ledgerSyncId'] as String?) ??
+        (change.ledgerId.isEmpty ? null : change.ledgerId);
     final name = payload['name'] as String? ?? '';
     final icon = payload['icon'] as String?;
     final budgetAmount = (payload['budgetAmount'] as num?)?.toDouble();

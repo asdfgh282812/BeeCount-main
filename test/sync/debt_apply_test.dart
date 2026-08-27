@@ -87,6 +87,34 @@ void main() {
     expect(debt.closedAt, isNull);
   });
 
+  test('(insert) payload 缺 ledgerSyncId 鍵(Cloud web 寫入的真實形狀)→ 仍靠 change.ledgerId 落地',
+      () async {
+    final lid = await seedLedger(syncId: 'ledger-web');
+
+    provider.pushFakeChange(
+      entityType: 'debt',
+      entitySyncId: 'debt-web-1',
+      ledgerId: 'ledger-web',
+      payload: {
+        'syncId': 'debt-web-1',
+        // 故意不帶 ledgerSyncId 鍵——BeeCount Cloud 的 debt payload(無論
+        // create/update 還是 snapshot 重建)都不帶這個鍵，只有 App 自己
+        // push 時才會帶。必須 fallback 到 change.ledgerId 才能落地。
+        'direction': 'payable',
+        'counterpartyName': '易遊網',
+        'principalAmount': 2920.0,
+      },
+    );
+
+    await engine.pull('');
+
+    final debt = await repo.getDebtBySyncId('debt-web-1');
+    expect(debt, isNotNull);
+    expect(debt!.ledgerId, lid);
+    expect(debt.counterpartyName, '易遊網');
+    expect(debt.principalAmount, 2920.0);
+  });
+
   test('遠端 upsert 全量覆蓋 → dueAt/note/closedAt 缺鍵時視為清空(非 partial merge)',
       () async {
     final lid = await seedLedger(syncId: 'ledger-2');

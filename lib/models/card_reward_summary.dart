@@ -10,8 +10,16 @@ class CardRewardRuleSummary {
   /// 該週期內套用此規則的交易(已按 happenedAt 由新到舊排序)。
   final List<Transaction> transactions;
 
-  /// 逐筆估算回饋金加總。
+  /// 逐筆估算回饋金加總——加總已套用整個週期共用的 [CardRewardRule.capAmount]
+  /// (見 [rewardByTransactionId]),不是把每筆交易各自獨立試算的結果相加。
   final double totalReward;
+
+  /// 週期內每筆交易(依 transaction.id)分到的估算回饋金,由
+  /// [estimateCardRewardCumulative] 依時間順序累加計算,加總恆等於
+  /// [totalReward] 且不超過 [CardRewardRule.capAmount]——明細頁的逐筆列表要用
+  /// 這份資料,不能再各自呼叫 [estimateCardRewardForRule](那樣算出來的單筆
+  /// 金額沒有跟其他交易共用額度,加起來會超過上限)。
+  final Map<int, double> rewardByTransactionId;
 
   /// 逐筆消費金額(僅計 expense 類型)加總,用於「還差多少消費可達上限」投影。
   final double totalSpend;
@@ -30,6 +38,7 @@ class CardRewardRuleSummary {
     required this.periodEnd,
     required this.transactions,
     required this.totalReward,
+    required this.rewardByTransactionId,
     required this.totalSpend,
     this.monthlyBreakdown,
   });

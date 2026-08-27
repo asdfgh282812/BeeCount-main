@@ -94,6 +94,36 @@ void main() {
     expect(project.enabled, isTrue);
   });
 
+  test('(insert) payload 缺 ledgerSyncId 鍵(Cloud web 寫入的真實形狀)→ 仍靠 change.ledgerId 落地',
+      () async {
+    final lid = await seedLedger(syncId: 'ledger-web');
+
+    provider.pushFakeChange(
+      entityType: 'project',
+      entitySyncId: 'project-web-1',
+      ledgerId: 'ledger-web',
+      payload: {
+        'syncId': 'project-web-1',
+        // 故意不帶 ledgerSyncId 鍵——BeeCount Cloud 的 project payload 都
+        // 不帶這個鍵，只有 App 自己 push 時才會帶。必須 fallback 到
+        // change.ledgerId 才能落地。
+        'name': '旅遊基金',
+        'periodType': 'monthly',
+        'carryoverEnabled': false,
+        'visibleOnHome': true,
+        'enabled': true,
+        'sortOrder': 0,
+      },
+    );
+
+    await engine.pull('');
+
+    final project = await repo.getProjectBySyncId('project-web-1');
+    expect(project, isNotNull);
+    expect(project!.ledgerId, lid);
+    expect(project.name, '旅遊基金');
+  });
+
   test('遠端 upsert 全量覆蓋 → budgetAmount/icon 缺鍵時視為清空(非 partial merge)',
       () async {
     final lid = await seedLedger(syncId: 'ledger-2');

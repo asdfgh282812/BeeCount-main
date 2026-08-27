@@ -28,10 +28,15 @@ Future<CardRewardRuleSummary> _summarizeRulePeriod(
   final matched = rule.syncId == null
       ? const <Transaction>[]
       : txs.where((t) => t.rewardRuleIds.contains(rule.syncId)).toList();
+  // matched 是由新到舊排序(見上方查詢),累計扣減額度要照交易發生時間由舊到
+  // 新才對,所以另外排一份升冪清單餵給 estimateCardRewardCumulative。
+  final ascending = List<Transaction>.from(matched)
+    ..sort((a, b) => a.happenedAt.compareTo(b.happenedAt));
+  final rewardByTransactionId = estimateCardRewardCumulative(rule, ascending);
   var totalReward = 0.0;
   var totalSpend = 0.0;
   for (final tx in matched) {
-    totalReward += estimateCardRewardForRule(rule, tx.amount);
+    totalReward += rewardByTransactionId[tx.id] ?? 0;
     if (tx.type == 'expense') totalSpend += tx.amount.abs();
   }
   return CardRewardRuleSummary(
@@ -40,6 +45,7 @@ Future<CardRewardRuleSummary> _summarizeRulePeriod(
     periodEnd: end,
     transactions: matched,
     totalReward: totalReward,
+    rewardByTransactionId: rewardByTransactionId,
     totalSpend: totalSpend,
   );
 }
@@ -74,6 +80,7 @@ Future<CardRewardRuleSummary> _summarizeRuleWindow(
   var totalReward = 0.0;
   var totalSpend = 0.0;
   final allTxs = <Transaction>[];
+  final rewardByTransactionId = <int, double>{};
   for (final month in months) {
     final part = await _summarizeRulePeriod(
         repo, rule, accountId, extraIds, month.start, month.end);
@@ -81,6 +88,7 @@ Future<CardRewardRuleSummary> _summarizeRuleWindow(
     totalReward += part.totalReward;
     totalSpend += part.totalSpend;
     allTxs.addAll(part.transactions);
+    rewardByTransactionId.addAll(part.rewardByTransactionId);
   }
   return CardRewardRuleSummary(
     rule: rule,
@@ -88,6 +96,7 @@ Future<CardRewardRuleSummary> _summarizeRuleWindow(
     periodEnd: window.end,
     transactions: allTxs,
     totalReward: totalReward,
+    rewardByTransactionId: rewardByTransactionId,
     totalSpend: totalSpend,
     monthlyBreakdown: breakdown,
   );
