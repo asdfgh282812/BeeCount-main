@@ -274,6 +274,11 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     final allAccounts = ref.watch(allAccountsStreamProvider).valueOrNull ??
         const <db.Account>[];
     final children = _children(allAccounts);
+    // 「調整總額」只對會累計交易算餘額的帳戶有意義——估值類帳戶已经有自己的
+    // 「更新估值」流程（直接改 initialBalance,不建交易),帳戶群組没有自己的
+    // 餘額,兩者都不顯示這個入口。
+    final canAdjustBalance =
+        !isValuationOnlyType(account.type) && account.type != 'account_group';
 
     return Scaffold(
       backgroundColor: BeeTokens.scaffoldBackground(context),
@@ -286,6 +291,25 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
             showBack: true,
             compact: true,
             actions: [
+              // 「調整總額」跟「編輯」各自是獨立的 IconButton(不用
+              // PopupMenuButton 收在同一個選單裡)——PopupMenuButton 選完後
+              // 馬上開 showDialog/push 新頁面,選單自己的 Overlay 路由還在
+              // 退場動畫、Element 還沒真正拆完,疊在一起偶爾會撞上 Flutter
+              // framework 的 Navigator/Focus 相關 Element 一致性斷言而整頁
+              // 當掉(桌面版更容易撞到)。改成兩個各自獨立的 IconButton,跟
+              // 既有「更新估值」按鈕(ElevatedButton.onPressed 直接開
+              // showDialog)同一種、已經證實沒問題的觸發方式。
+              if (canAdjustBalance)
+                IconButton(
+                  icon: Icon(
+                    Icons.tune,
+                    color: BeeTokens.iconPrimary(context),
+                    size: 20,
+                  ),
+                  tooltip: l10n.balanceAdjustmentAction,
+                  onPressed: () =>
+                      _showBalanceAdjustmentDialog(context, account, l10n),
+                ),
               IconButton(
                 icon: Icon(
                   Icons.edit_outlined,
@@ -767,6 +791,112 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
         // 返回上一页刷新数据
         Navigator.pop(context, true);
       }
+    }
+  }
+
+  /// 調整總額彈窗——比照 BeeCount Cloud 的「餘額調整」(`balance_adjustment_ep`):
+  /// 使用者輸入調整後應該的餘額,系統算出跟目前餘額的差額,自動建一筆
+  /// `type='adjustment'` 交易補上差額。跟估值帳戶的「更新估值」不是同一套
+  /// （那個直接改 initialBalance,不建交易、不同步),這裡走一般交易路徑,
+  /// 會被 ChangeTracker 記錄、正常同步上雲端。
+  Future<void> _showBalanceAdjustmentDialog(
+    BuildContext context,
+    db.Account account,
+    AppLocalizations l10n,
+  ) async {
+    final currentLedger = ref.read(currentLedgerProvider).asData?.value;
+    if (currentLedger == null) return;
+
+    final stats = await ref.read(accountStatsProvider(account.id).future);
+    final currentBalance = stats.balance;
+    if (!context.mounted) return;
+
+    final targetController = TextEditingController(
+      text: currentBalance.toStringAsFixed(2),
+    );
+    final noteController = TextEditingController();
+
+    final result = await showDialog<double>(
+      context: context,
+      builder: (ctx) {
+        final primaryColor = ref.watch(primaryColorProvider);
+        return AlertDialog(
+          title: Text(l10n.balanceAdjustmentDialogTitle),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${l10n.balanceAdjustmentCurrentBalanceLabel}: '
+                '${getCurrencySymbol(account.currency)}${currentBalance.toStringAsFixed(2)}',
+                style: TextStyle(color: BeeTokens.textSecondary(ctx)),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: targetController,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                autofocus: true,
+                decoration: InputDecoration(
+                  prefixText: '${getCurrencySymbol(account.currency)} ',
+                  hintText: l10n.balanceAdjustmentTargetBalanceHint,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: noteController,
+                decoration: InputDecoration(
+                  hintText: l10n.balanceAdjustmentNoteHint,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(l10n.commonCancel),
+            ),
+            TextButton(
+              onPressed: () {
+                final value = double.tryParse(targetController.text.trim());
+                if (value != null) {
+                  Navigator.pop(ctx, value);
+                }
+              },
+              style: TextButton.styleFrom(foregroundColor: primaryColor),
+              child: Text(l10n.commonOk),
+            ),
+          ],
+        );
+      },
+    );
+
+    final note = noteController.text.trim();
+    targetController.dispose();
+    noteController.dispose();
+
+    if (result == null) return;
+    final diff = double.parse((result - currentBalance).toStringAsFixed(2));
+
+    final repo = ref.read(repositoryProvider);
+    await repo.createAdjustmentTransaction(
+      ledgerId: currentLedger.id,
+      accountId: account.id,
+      amount: diff,
+      happenedAt: DateTime.now(),
+      note: note.isNotEmpty
+          ? note
+          : l10n.balanceAdjustmentDefaultNote(currentBalance, result),
+    );
+
+    if (!mounted) return;
+    ref.invalidate(accountStatsProvider(account.id));
+    ref.invalidate(accountTransactionsPaginatedProvider);
+    if (account.type == 'credit_card' || account.type == 'account_group') {
+      _invalidateBillingProviders();
+    }
+    if (context.mounted) {
+      showToast(context, l10n.commonSave);
     }
   }
 

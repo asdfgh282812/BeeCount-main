@@ -68,6 +68,30 @@ DateTime _clampDay(int year, int month, int day) {
   return (start: start, end: end);
 }
 
+/// 由任意日期回推它落在第幾期([billingCyclePeriod] 的 offset)——offset=0 是
+/// 涵蓋今天、尚未結帳的本期,越舊的日期 offset 越負。用於「已知某筆交易的
+/// happenedAt,要找出它屬於哪一期帳單週期」的情境(例如交易詳情卡估算紅利
+/// 回饋時,要撈同一期的其他交易來套用共同的 [CardRewardRule.capAmount]——見
+/// [lib/providers/card_reward_rule_providers.dart] 的
+/// `cardRewardForTransactionProvider`)。[billingCyclePeriod] 的相鄰週期首尾
+/// 銜接(前一期 end 隔天 = 下一期 start),所以由 offset=0 出發、依日期在本期
+/// 之前/之後往負/正方向線性搜尋一定收斂,不會漏掉區間。[maxLookback] 是防禦
+/// 性上限(理論上使用者資料不會有這麼久遠的交易),超出範圍回傳 null,呼叫端
+/// 應該退回不套用跨交易上限的保守估算。
+int? billingCycleOffsetForDate(int? billingDay, DateTime date,
+    {int maxLookback = 120}) {
+  final target = DateTime(date.year, date.month, date.day);
+  var offset = 0;
+  for (var i = 0; i <= maxLookback; i++) {
+    final period = billingCyclePeriod(billingDay, offset);
+    if (!target.isBefore(period.start) && !target.isAfter(period.end)) {
+      return offset;
+    }
+    offset += target.isAfter(period.end) ? 1 : -1;
+  }
+  return null;
+}
+
 /// 「最近一次已結帳」的帳期 offset:[billingCyclePeriod] 的 offset=0 定義是
 /// 「涵蓋今天、尚未結束」的本期,`end` 恆 >= 今天,只有今天剛好是結帳日當天
 /// 這一種情況 `end == 今天`(已結帳);其餘日子 offset=0 都還沒結帳,「最近

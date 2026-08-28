@@ -20,8 +20,9 @@
   新增 `estimateCardRewardCumulative(rule, transactionsAscending)`,依交易發生
   時間由舊到新依序累加,額度隨著交易被扣減,回傳 `{tx.id: 該筆分到的回饋金}`
   的 map,加總保證不超過 `capAmount`。`estimateCardRewardForRule` 本身不動
-  (記帳表單/交易詳情卡等「compose 時」的單筆估算沒有完整週期資料,維持原本
-  的單筆試算行為,這不在本次修正範圍)。
+  (記帳表單「compose 時」還沒有交易 id、無法套用週期上限,維持原本的單筆
+  試算行為當保守估算;交易詳情卡有真正的交易 id 跟所屬帳期,見下面的附帶
+  修正)。
 - [lib/models/card_reward_summary.dart](../../lib/models/card_reward_summary.dart):
   `CardRewardRuleSummary` 新增 `rewardByTransactionId` 欄位,存每筆交易分到的
   估算回饋金,供明細頁逐筆列表跟彙總卡片共用同一份數字。
@@ -51,3 +52,36 @@
 `account_reconciliation_page.dart`、`transaction_list.dart`)點擊交易都會彈出
 `showTransactionDetailCard` 的慣例不一致。補上 `InkWell` + `onTap`,點擊後彈
 出跟其它頁面一樣的唯讀交易詳情卡。
+
+## 追加修正(同日):交易詳情卡的回饋金額也要吃週期累計上限
+
+補上 tap-to-detail 之後發現交易詳情卡(`TransactionDetailCard`)「紅利回饋」
+區塊顯示的金額,跟明細頁逐筆列表對同一筆交易算出來的金額不一樣——詳情卡
+([lib/widgets/biz/transaction_detail_card.dart](../../lib/widgets/biz/transaction_detail_card.dart))
+的 `_buildRewardSection` 直接呼叫 `estimateCardRewardForRule(rule, tx.amount)`,
+是純單筆估算,沒有套用上面提到的週期累計上限,跟明細頁/彙總卡片是兩套不同
+的數字。
+
+- [lib/utils/card_reward_period.dart](../../lib/utils/card_reward_period.dart):
+  新增 `billingCycleOffsetForDate(billingDay, date)`——由任意日期回推它落在
+  `billingCyclePeriod` 的第幾期(offset),線性搜尋,靠相鄰週期首尾銜接的
+  性質保證收斂。交易詳情卡只知道這筆交易的 `happenedAt`,不像明細頁那樣直接
+  拿著使用者正在翻頁的 offset,需要這個反查。
+- [lib/providers/card_reward_rule_providers.dart](../../lib/providers/card_reward_rule_providers.dart):
+  新增 `cardRewardForTransactionProvider((rule, transaction))`——用
+  `billingCycleOffsetForDate` 找出這筆交易所屬帳期,再呼叫既有的
+  `_summarizeRuleWindow` 算出那個帳期的 `rewardByTransactionId`,取這筆交易
+  自己的份。額外處理了合併帳單分組(`account_group`)的情境:交易若掛在分組
+  子帳戶底下,要用「父帳戶 id + 全部子帳戶 id」去查,額度才會跟分組共用對
+  齊(`_resolveRewardAccountContext`,邏輯對齊
+  `account_detail_page.dart` 的 `_children()`)。這個 provider 是
+  `autoDispose` 的即時查詢,不是快取值——如果同一帳期內有更早的交易被刪除
+  /新增/改期,下次重新開啟交易詳情卡(重新 build 出新的 provider 呼叫)就會
+  拿到重算後的金額。
+- [lib/widgets/biz/transaction_detail_card.dart](../../lib/widgets/biz/transaction_detail_card.dart):
+  「紅利回饋」區塊每一列拆成獨立的 `_RewardRuleRow`(`ConsumerWidget`),
+  `watch` 上面這個新 provider;金額比單筆估算(`estimateCardRewardForRule`)
+  低时,代表額度被同帳期其他交易吃掉一部分,加上「已達上限」(`txDetailRewardCapped`,
+  新增 l10n key,只加在 `app_en.arb`/`app_zh_TW.arb`,見
+  [[feedback-l10n-policy-change]])的小標籤,不然使用者會覺得金額對不上
+  記帳表單當初顯示的預估值、看不出原因。

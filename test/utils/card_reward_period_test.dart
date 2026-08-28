@@ -18,4 +18,33 @@ void main() {
       expect(due, DateTime(2027, 1, 5));
     });
   });
+
+  group('billingCycleOffsetForDate', () {
+    // billingCyclePeriod 本身吃即時的 DateTime.now(),測試不寫死年份日期,
+    // 改用 billingCyclePeriod 自己算出來的區間邊界反推——不管實際跑測試的
+    // 那天是哪天都成立,不會隨時間推移變成 flaky test。
+    test('本期(offset=0)內的日期回傳 0', () {
+      final period = billingCyclePeriod(5, 0);
+      final offset = billingCycleOffsetForDate(5, period.start);
+      expect(offset, 0);
+    });
+
+    test('前一期的日期回傳 -1', () {
+      final previous = billingCyclePeriod(5, -1);
+      final offset = billingCycleOffsetForDate(5, previous.end);
+      expect(offset, -1);
+    });
+
+    test('往前推多期一樣算得出來', () {
+      final period = billingCyclePeriod(5, -6);
+      final offset = billingCycleOffsetForDate(5, period.start);
+      expect(offset, -6);
+    });
+
+    test('沒設 billingDay 一樣算得出涵蓋這天的週期(退化成自然月起算)', () {
+      final period = billingCyclePeriod(null, 0);
+      final offset = billingCycleOffsetForDate(null, period.end);
+      expect(offset, 0);
+    });
+  });
 }

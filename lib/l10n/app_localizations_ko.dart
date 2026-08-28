@@ -6707,6 +6707,27 @@ class AppLocalizationsKo extends AppLocalizations {
   String get adjustmentTransaction => '평가액 조정';
 
   @override
+  String get balanceAdjustmentAction => 'Adjust Balance';
+
+  @override
+  String get balanceAdjustmentDialogTitle => 'Adjust Balance';
+
+  @override
+  String get balanceAdjustmentCurrentBalanceLabel => 'Current balance';
+
+  @override
+  String get balanceAdjustmentTargetBalanceHint =>
+      'Enter the corrected balance';
+
+  @override
+  String get balanceAdjustmentNoteHint => 'Note (optional)';
+
+  @override
+  String balanceAdjustmentDefaultNote(double current, double target) {
+    return 'Balance adjusted from $current to $target';
+  }
+
+  @override
   String creditCardBillingInfo(int billingDay, int paymentDueDay) {
     return '매월 $billingDay일 결제 · $paymentDueDay일 만기';
   }
@@ -7409,6 +7430,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get txDetailRefundDisabledType => '이체와 평가 조정은 환불할 수 없습니다';
 
   @override
+  String get txDetailEditDisabledAdjustment =>
+      'Adjustment transactions can\'t be edited, delete and redo instead';
+
+  @override
   String get txDetailRefundDisabledIsRefund => '환불 거래는 다시 환불할 수 없습니다';
 
   @override
@@ -7428,6 +7453,9 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get txDetailRewardSectionTitle => '보너스 리워드:';
+
+  @override
+  String get txDetailRewardCapped => 'Cap reached';
 
   @override
   String get txCurrencyLabel => 'Currency';

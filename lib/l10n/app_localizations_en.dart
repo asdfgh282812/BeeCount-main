@@ -6912,6 +6912,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get adjustmentTransaction => 'Valuation Adjustment';
 
   @override
+  String get balanceAdjustmentAction => 'Adjust Balance';
+
+  @override
+  String get balanceAdjustmentDialogTitle => 'Adjust Balance';
+
+  @override
+  String get balanceAdjustmentCurrentBalanceLabel => 'Current balance';
+
+  @override
+  String get balanceAdjustmentTargetBalanceHint =>
+      'Enter the corrected balance';
+
+  @override
+  String get balanceAdjustmentNoteHint => 'Note (optional)';
+
+  @override
+  String balanceAdjustmentDefaultNote(double current, double target) {
+    return 'Balance adjusted from $current to $target';
+  }
+
+  @override
   String creditCardBillingInfo(int billingDay, int paymentDueDay) {
     return 'Bills on ${billingDay}th · Due on ${paymentDueDay}th';
   }
@@ -7627,6 +7648,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Transfers and adjustments can\'t be refunded';
 
   @override
+  String get txDetailEditDisabledAdjustment =>
+      'Adjustment transactions can\'t be edited, delete and redo instead';
+
+  @override
   String get txDetailRefundDisabledIsRefund =>
       'A refund transaction can\'t be refunded again';
 
@@ -7648,6 +7673,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get txDetailRewardSectionTitle => 'Bonus reward:';
+
+  @override
+  String get txDetailRewardCapped => 'Cap reached';
 
   @override
   String get txCurrencyLabel => 'Currency';

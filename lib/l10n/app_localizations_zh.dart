@@ -6629,6 +6629,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get adjustmentTransaction => '估值调整';
 
   @override
+  String get balanceAdjustmentAction => 'Adjust Balance';
+
+  @override
+  String get balanceAdjustmentDialogTitle => 'Adjust Balance';
+
+  @override
+  String get balanceAdjustmentCurrentBalanceLabel => 'Current balance';
+
+  @override
+  String get balanceAdjustmentTargetBalanceHint =>
+      'Enter the corrected balance';
+
+  @override
+  String get balanceAdjustmentNoteHint => 'Note (optional)';
+
+  @override
+  String balanceAdjustmentDefaultNote(double current, double target) {
+    return 'Balance adjusted from $current to $target';
+  }
+
+  @override
   String creditCardBillingInfo(int billingDay, int paymentDueDay) {
     return '每月$billingDay日出账 · $paymentDueDay日还款';
   }
@@ -7325,6 +7346,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get txDetailRefundDisabledType => '转账和估值调整不能退款';
 
   @override
+  String get txDetailEditDisabledAdjustment =>
+      'Adjustment transactions can\'t be edited, delete and redo instead';
+
+  @override
   String get txDetailRefundDisabledIsRefund => '退款交易不能再退款';
 
   @override
@@ -7344,6 +7369,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get txDetailRewardSectionTitle => '红利回馈：';
+
+  @override
+  String get txDetailRewardCapped => 'Cap reached';
 
   @override
   String get txCurrencyLabel => '币种';
@@ -15382,6 +15410,26 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get adjustmentTransaction => '估值調整';
 
   @override
+  String get balanceAdjustmentAction => '調整總額';
+
+  @override
+  String get balanceAdjustmentDialogTitle => '調整總額';
+
+  @override
+  String get balanceAdjustmentCurrentBalanceLabel => '目前餘額';
+
+  @override
+  String get balanceAdjustmentTargetBalanceHint => '輸入調整後的餘額';
+
+  @override
+  String get balanceAdjustmentNoteHint => '備註（選填）';
+
+  @override
+  String balanceAdjustmentDefaultNote(double current, double target) {
+    return '餘額調整（核對後由 $current 調整為 $target）';
+  }
+
+  @override
   String creditCardBillingInfo(int billingDay, int paymentDueDay) {
     return '每月$billingDay日出帳 · $paymentDueDay日還款';
   }
@@ -16078,6 +16126,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get txDetailRefundDisabledType => '轉帳和估值調整不能退款';
 
   @override
+  String get txDetailEditDisabledAdjustment => '調整交易不能編輯，刪除後重新調整即可';
+
+  @override
   String get txDetailRefundDisabledIsRefund => '退款交易不能再退款';
 
   @override
@@ -16097,6 +16148,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get txDetailRewardSectionTitle => '紅利回饋：';
+
+  @override
+  String get txDetailRewardCapped => '已達上限';
 
   @override
   String get txCurrencyLabel => '幣種';

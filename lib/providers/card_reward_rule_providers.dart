@@ -179,3 +179,75 @@ final cardRewardRulePeriodSummaryProvider = FutureProvider.family.autoDispose<
     );
   },
 );
+
+/// 交易詳情卡「紅利回饋」估算要用的帳戶情境:如果這筆交易掛在合併帳單分組
+/// (`account_group`)底下的子帳戶,要用「父帳戶 id + 所有子帳戶 id」去撈交易,
+/// 才會跟帳戶頁彙總卡片/明細頁看到的是同一組交易——合併帳單的 capAmount 額度
+/// 是整個分組共用,不是單一子帳戶各自一份。對齊
+/// `account_detail_page.dart` `_children()`/`_extraIdsKey()` 的邏輯。找不到
+/// 帳戶或這筆帳戶沒有掛在分組底下時,退回單一帳戶(extraIds=null)。
+Future<({int accountId, List<int>? extraIds, int? billingDay})>
+    _resolveRewardAccountContext(BaseRepository repo, int accountId) async {
+  final account = await repo.getAccount(accountId);
+  if (account == null) {
+    return (accountId: accountId, extraIds: null, billingDay: null);
+  }
+  final parentSyncId = account.parentAccountId;
+  if (parentSyncId != null) {
+    final parent = await repo.getAccountBySyncId(parentSyncId);
+    if (parent != null) {
+      final all = await repo.getAllAccounts();
+      final siblingIds = all
+          .where((a) => a.parentAccountId == parentSyncId)
+          .map((a) => a.id)
+          .toList();
+      return (
+        accountId: parent.id,
+        extraIds: siblingIds.isEmpty ? null : siblingIds,
+        billingDay: parent.billingDay,
+      );
+    }
+  }
+  return (
+    accountId: account.id,
+    extraIds: null,
+    billingDay: account.billingDay,
+  );
+}
+
+/// 交易詳情卡「紅利回饋」區塊用:給定一筆交易 + 它勾選的某條規則,回傳這筆
+/// 交易在「所屬帳單週期」內套用該規則、且已跟同週期其他交易共用
+/// [CardRewardRule.capAmount] 扣減額度後的估算回饋金——跟明細頁
+/// ([cardRewardRulePeriodSummaryProvider])/帳戶頁彙總卡片
+/// ([cardRewardAccountSummaryProvider])用同一份 [estimateCardRewardCumulative]
+/// 邏輯,不能直接呼叫 [estimateCardRewardForRule](那樣只算單筆,忽略同週期
+/// 其他交易已經用掉多少額度,顯示金額可能超過 capAmount)。
+///
+/// 底層是這筆交易所屬帳單週期的即時查詢([_summarizeRuleWindow]),不是快取
+/// 值——同週期內若有交易被新增/刪除/改期,重新打開交易詳情卡(重新 build 出
+/// 新的 provider 呼叫)就會拿到重算後的金額,不會沿用舊快取。找不到
+/// happenedAt 對應的帳期(理論上不會發生)或這筆交易沒有掛帳戶時,退回
+/// [estimateCardRewardForRule] 的單筆估算。
+final cardRewardForTransactionProvider = FutureProvider.family
+    .autoDispose<double, ({CardRewardRule rule, Transaction transaction})>(
+  (ref, params) async {
+    final repo = ref.watch(repositoryProvider);
+    final tx = params.transaction;
+    final fallback = estimateCardRewardForRule(params.rule, tx.amount);
+    if (tx.accountId == null) return fallback;
+
+    final context = await _resolveRewardAccountContext(repo, tx.accountId!);
+    final offset = billingCycleOffsetForDate(context.billingDay, tx.happenedAt);
+    if (offset == null) return fallback;
+
+    final summary = await _summarizeRuleWindow(
+      repo,
+      params.rule,
+      context.accountId,
+      context.extraIds,
+      context.billingDay,
+      offset,
+    );
+    return summary.rewardByTransactionId[tx.id] ?? fallback;
+  },
+);

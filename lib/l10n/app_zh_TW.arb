@@ -99,6 +99,22 @@
   "accountGroupTradable": "日常帳戶",
   "accountGroupValuation": "資產/負債",
   "adjustmentTransaction": "估值調整",
+  "balanceAdjustmentAction": "調整總額",
+  "balanceAdjustmentDialogTitle": "調整總額",
+  "balanceAdjustmentCurrentBalanceLabel": "目前餘額",
+  "balanceAdjustmentTargetBalanceHint": "輸入調整後的餘額",
+  "balanceAdjustmentNoteHint": "備註（選填）",
+  "balanceAdjustmentDefaultNote": "餘額調整（核對後由 {current} 調整為 {target}）",
+  "@balanceAdjustmentDefaultNote": {
+    "placeholders": {
+      "current": {
+        "type": "double"
+      },
+      "target": {
+        "type": "double"
+      }
+    }
+  },
   "accountsEmptyMessage": "還沒有帳戶，點擊右上角添加",
   "accountsEnableFeature": "啟用帳戶功能",
   "accountHide": "隱藏帳戶",
@@ -2847,6 +2863,7 @@
   "txDetailRefund": "退款",
   "txDetailCopy": "複製",
   "txDetailRefundDisabledType": "轉帳和估值調整不能退款",
+  "txDetailEditDisabledAdjustment": "調整交易不能編輯，刪除後重新調整即可",
   "txDetailRefundDisabledIsRefund": "退款交易不能再退款",
   "txDetailRefundDisabledAlreadyRefunded": "這筆交易已經退過款,不能重複退款",
   "txDetailRefundBadge": "退款單",
@@ -2854,6 +2871,7 @@
   "txDetailOnce": "單次",
   "txDetailRecurring": "週期",
   "txDetailRewardSectionTitle": "紅利回饋：",
+  "txDetailRewardCapped": "已達上限",
   "txCurrencyLabel": "幣種",
   "txRateLabel": "匯率",
   "txConvertedPreview": "≈ {amount} {currency}",

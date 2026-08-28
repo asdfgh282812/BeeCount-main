@@ -1445,6 +1445,10 @@ class LocalRepository extends BaseRepository {
   }
 
   @override
+  // 不能直接委托给 _transactionRepo.createAdjustmentTransaction——那样会跳过
+  // changeTracker,建出来的调整交易不会被记进 local_changes,永远同步不上云端。
+  // 改走 this.addTransaction,跟一般交易走同一套（含币种解析 + changeTracker
+  // 记录）。
   Future<int> createAdjustmentTransaction({
     required int ledgerId,
     required int accountId,
@@ -1452,10 +1456,11 @@ class LocalRepository extends BaseRepository {
     required DateTime happenedAt,
     String? note,
   }) =>
-      _transactionRepo.createAdjustmentTransaction(
+      addTransaction(
         ledgerId: ledgerId,
-        accountId: accountId,
+        type: 'adjustment',
         amount: amount,
+        accountId: accountId,
         happenedAt: happenedAt,
         note: note,
       );

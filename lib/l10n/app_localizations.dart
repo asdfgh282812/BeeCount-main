@@ -12534,6 +12534,42 @@ abstract class AppLocalizations {
   /// **'Valuation Adjustment'**
   String get adjustmentTransaction;
 
+  /// No description provided for @balanceAdjustmentAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust Balance'**
+  String get balanceAdjustmentAction;
+
+  /// No description provided for @balanceAdjustmentDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust Balance'**
+  String get balanceAdjustmentDialogTitle;
+
+  /// No description provided for @balanceAdjustmentCurrentBalanceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Current balance'**
+  String get balanceAdjustmentCurrentBalanceLabel;
+
+  /// No description provided for @balanceAdjustmentTargetBalanceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the corrected balance'**
+  String get balanceAdjustmentTargetBalanceHint;
+
+  /// No description provided for @balanceAdjustmentNoteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Note (optional)'**
+  String get balanceAdjustmentNoteHint;
+
+  /// No description provided for @balanceAdjustmentDefaultNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Balance adjusted from {current} to {target}'**
+  String balanceAdjustmentDefaultNote(double current, double target);
+
   /// No description provided for @creditCardBillingInfo.
   ///
   /// In en, this message translates to:
@@ -13716,6 +13752,12 @@ abstract class AppLocalizations {
   /// **'Transfers and adjustments can\'t be refunded'**
   String get txDetailRefundDisabledType;
 
+  /// No description provided for @txDetailEditDisabledAdjustment.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjustment transactions can\'t be edited, delete and redo instead'**
+  String get txDetailEditDisabledAdjustment;
+
   /// No description provided for @txDetailRefundDisabledIsRefund.
   ///
   /// In en, this message translates to:
@@ -13757,6 +13799,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Bonus reward:'**
   String get txDetailRewardSectionTitle;
+
+  /// No description provided for @txDetailRewardCapped.
+  ///
+  /// In en, this message translates to:
+  /// **'Cap reached'**
+  String get txDetailRewardCapped;
 
   /// No description provided for @txCurrencyLabel.
   ///

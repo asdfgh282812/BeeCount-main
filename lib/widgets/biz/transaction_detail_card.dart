@@ -396,6 +396,7 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
     final canRepay = relatedDebt != null &&
         relatedDebt.status != kDebtStatusSettled &&
         relatedDebt.status != kDebtStatusClosed;
+    final isAdjustment = widget.transaction.type == 'adjustment';
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
       child: Row(
@@ -437,11 +438,17 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
             tooltip: l10n.txDetailCopy,
             onPressed: _handleCopy,
           ),
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            color: BeeTokens.iconSecondary(context),
-            tooltip: l10n.commonEdit,
-            onPressed: () => _handleEdit(relatedDebt),
+          Tooltip(
+            message: isAdjustment
+                ? l10n.txDetailEditDisabledAdjustment
+                : l10n.commonEdit,
+            child: IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              color: isAdjustment
+                  ? BeeTokens.iconTertiary(context)
+                  : BeeTokens.iconSecondary(context),
+              onPressed: isAdjustment ? null : () => _handleEdit(relatedDebt),
+            ),
           ),
         ],
       ),
@@ -709,9 +716,12 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
   }
 
   /// 若交易有勾選紅利回饋規則,在日期/時間下方顯示每條規則的名稱、費率與
-  /// 該筆交易的預估回饋金——沒有套用任何規則時整塊不佔空間。實際入帳金額
-  /// 仍由 Server 端排程計算,這裡只用 [estimateCardRewardForRule] 現場估算
-  /// (同記帳表單的估算公式,見 lib/utils/card_reward_calc.dart)。
+  /// 該筆交易的預估回饋金——沒有套用任何規則時整塊不佔空間。每一列交給
+  /// [_RewardRuleRow] 現場算「這筆交易所屬帳單週期」內、已跟同週期其他交易
+  /// 共用 capAmount 扣減額度後的金額,不能直接用 [estimateCardRewardForRule]
+  /// (那只算單筆、忽略同週期其他交易已經用掉多少額度,顯示金額可能超過
+  /// capAmount,跟明細頁/帳戶頁彙總卡片對不上,見 2026-08-28 bugfix)。實際
+  /// 入帳金額仍由 Server 端排程計算,這裡終究只是現場估算。
   Widget _buildRewardSection(
       BuildContext context, AppLocalizations l10n, _DetailBundle? bundle) {
     final rules = bundle?.rewardRules ?? const <CardRewardRule>[];
@@ -731,48 +741,7 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
             ),
           ),
           const SizedBox(height: 4),
-          ...rules.map((rule) {
-            final estimated = estimateCardRewardForRule(rule, tx.amount);
-            final rateLabel = rule.rateType == 'percentage'
-                ? '${rule.label} ${_trimRateZeros(rule.rateValue)}%'
-                : rule.label;
-            return Padding(
-              padding: const EdgeInsets.only(top: 2, bottom: 2),
-              child: Row(
-                children: [
-                  Text(
-                    '➤ ',
-                    style: TextStyle(
-                        fontSize: 13, color: BeeTokens.textTertiary(context)),
-                  ),
-                  Expanded(
-                    child: Text(
-                      rateLabel,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: BeeTokens.textPrimary(context),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  AmountText(
-                    value: estimated,
-                    signed: false,
-                    currencyCode: tx.currencyCode,
-                    showCurrency: true,
-                    decimals: 2,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: BeeTokens.incomeColor(context, ref),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
+          ...rules.map((rule) => _RewardRuleRow(rule: rule, tx: tx)),
         ],
       ),
     );
@@ -864,13 +833,6 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
     );
   }
 
-  String _trimRateZeros(double v) {
-    final s = v.toStringAsFixed(2);
-    return s.contains('.')
-        ? s.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '')
-        : s;
-  }
-
   Widget _buildRefundedList(
       BuildContext context, AppLocalizations l10n, List<Transaction> refunds) {
     final total = refunds.fold<double>(0, (sum, r) => sum + r.amount);
@@ -938,6 +900,94 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
               ),
             );
           }),
+        ],
+      ),
+    );
+  }
+}
+
+String _trimPercentZeros(double v) {
+  final s = v.toStringAsFixed(2);
+  return s.contains('.')
+      ? s.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '')
+      : s;
+}
+
+/// [TransactionDetailCard._buildRewardSection] 的單一規則列——獨立成
+/// ConsumerWidget 才能個別 watch [cardRewardForTransactionProvider](該筆
+/// 交易所屬帳單週期的即時查詢,交易被新增/刪除/改期後重新打開這張卡片會拿到
+/// 重算後的金額)。載入完成前先用 [estimateCardRewardForRule] 的單筆估算頂著
+/// 顯示,避免整列閃爍空白;算出來的金額比單筆估算低,代表這筆交易的回饋被
+/// 同週期其他交易吃掉的額度壓低了,加上「已達上限」提示,不然使用者會覺得
+/// 金額對不上記帳表單當初顯示的預估值。
+class _RewardRuleRow extends ConsumerWidget {
+  final CardRewardRule rule;
+  final Transaction tx;
+
+  const _RewardRuleRow({required this.rule, required this.tx});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final singleTxEstimate = estimateCardRewardForRule(rule, tx.amount);
+    final cappedAsync = ref
+        .watch(cardRewardForTransactionProvider((rule: rule, transaction: tx)));
+    final estimated = cappedAsync.valueOrNull ?? singleTxEstimate;
+    final isCapped = estimated < singleTxEstimate - 0.005;
+    final rateLabel = rule.rateType == 'percentage'
+        ? '${rule.label} ${_trimPercentZeros(rule.rateValue)}%'
+        : rule.label;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 2, bottom: 2),
+      child: Row(
+        children: [
+          Text(
+            '➤ ',
+            style:
+                TextStyle(fontSize: 13, color: BeeTokens.textTertiary(context)),
+          ),
+          Expanded(
+            child: Text(
+              rateLabel,
+              style: TextStyle(
+                fontSize: 13,
+                color: BeeTokens.textPrimary(context),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (isCapped) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: BeeTokens.warning(context).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                l10n.txDetailRewardCapped,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: BeeTokens.warning(context),
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+          ],
+          AmountText(
+            value: estimated,
+            signed: false,
+            currencyCode: tx.currencyCode,
+            showCurrency: true,
+            decimals: 2,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: BeeTokens.incomeColor(context, ref),
+            ),
+          ),
         ],
       ),
     );

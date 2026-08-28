@@ -2898,6 +2898,22 @@
   "accountGroupTradable": "Daily Accounts",
   "accountGroupValuation": "Assets/Liabilities",
   "adjustmentTransaction": "Valuation Adjustment",
+  "balanceAdjustmentAction": "Adjust Balance",
+  "balanceAdjustmentDialogTitle": "Adjust Balance",
+  "balanceAdjustmentCurrentBalanceLabel": "Current balance",
+  "balanceAdjustmentTargetBalanceHint": "Enter the corrected balance",
+  "balanceAdjustmentNoteHint": "Note (optional)",
+  "balanceAdjustmentDefaultNote": "Balance adjusted from {current} to {target}",
+  "@balanceAdjustmentDefaultNote": {
+    "placeholders": {
+      "current": {
+        "type": "double"
+      },
+      "target": {
+        "type": "double"
+      }
+    }
+  },
   "creditCardBillingInfo": "Bills on {billingDay}th · Due on {paymentDueDay}th",
   "@creditCardBillingInfo": {
     "placeholders": {
@@ -3226,6 +3242,7 @@
   "txDetailRefund": "Refund",
   "txDetailCopy": "Copy",
   "txDetailRefundDisabledType": "Transfers and adjustments can't be refunded",
+  "txDetailEditDisabledAdjustment": "Adjustment transactions can't be edited, delete and redo instead",
   "txDetailRefundDisabledIsRefund": "A refund transaction can't be refunded again",
   "txDetailRefundDisabledAlreadyRefunded": "This transaction has already been refunded",
   "txDetailRefundBadge": "Refund",
@@ -3233,6 +3250,7 @@
   "txDetailOnce": "One-time",
   "txDetailRecurring": "Recurring",
   "txDetailRewardSectionTitle": "Bonus reward:",
+  "txDetailRewardCapped": "Cap reached",
   "txCurrencyLabel": "Currency",
   "txRateLabel": "Rate",
   "txConvertedPreview": "≈ {amount} {currency}",
