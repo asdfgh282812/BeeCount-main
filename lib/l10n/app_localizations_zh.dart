@@ -7388,6 +7388,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get txRateMissingHint => '请手动填写本笔汇率后保存';
 
   @override
+  String get txConvertDialogTitle => 'Currency conversion';
+
+  @override
+  String get txConvertedAmountLabel => 'Converted amount';
+
+  @override
+  String get txUseOnlineRateLabel => 'Use online rate';
+
+  @override
   String get txAccountRequiredHint => 'Please select an account';
 
   @override
@@ -16165,6 +16174,15 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get txRateMissingHint => '請手動填寫本筆匯率後儲存';
+
+  @override
+  String get txConvertDialogTitle => '幣別換算';
+
+  @override
+  String get txConvertedAmountLabel => '換算金額';
+
+  @override
+  String get txUseOnlineRateLabel => '採用線上匯率';
 
   @override
   String get txAccountRequiredHint => '請選擇帳戶';

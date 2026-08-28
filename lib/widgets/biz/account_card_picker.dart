@@ -36,6 +36,10 @@ class AccountCardPicker {
     int? pinnedAccountId,
     // 转账页排除对侧已选的账户(不能转出/转入同一个账户)。
     int? excludeAccountId,
+    // 一般收支記帳表單:帳戶清單不再依「目前交易幣別」過濾,列出帳本下所有
+    // 幣別的帳戶(跨幣別帳戶另外走換算流程)。轉帳/債務還款/信用卡還款/定期
+    // 記帳規則維持預設 false,行為不變。
+    bool allowAllCurrencies = false,
   }) {
     return showModalBottomSheet<AccountPickResult?>(
       context: context,
@@ -50,6 +54,7 @@ class AccountCardPicker {
         filterCurrency: filterCurrency,
         pinnedAccountId: pinnedAccountId,
         excludeAccountId: excludeAccountId,
+        allowAllCurrencies: allowAllCurrencies,
       ),
     );
   }
@@ -61,6 +66,7 @@ class _AccountCardPickerSheet extends ConsumerStatefulWidget {
   final String? filterCurrency;
   final int? pinnedAccountId;
   final int? excludeAccountId;
+  final bool allowAllCurrencies;
 
   const _AccountCardPickerSheet({
     required this.ledgerId,
@@ -68,6 +74,7 @@ class _AccountCardPickerSheet extends ConsumerStatefulWidget {
     this.filterCurrency,
     this.pinnedAccountId,
     this.excludeAccountId,
+    this.allowAllCurrencies = false,
   });
 
   @override
@@ -79,6 +86,7 @@ class _AccountCardPickerSheetState
     extends ConsumerState<_AccountCardPickerSheet> {
   bool _loading = true;
   List<Account> _accounts = [];
+  String _wantedCurrency = '';
 
   @override
   void initState() {
@@ -103,7 +111,7 @@ class _AccountCardPickerSheetState
     final wanted = (widget.filterCurrency ?? ledger.currency).toUpperCase();
     var accounts = allAccounts
         .where((a) =>
-            a.currency.toUpperCase() == wanted &&
+            (widget.allowAllCurrencies || a.currency.toUpperCase() == wanted) &&
             isTradableType(a.type) &&
             // 主帳戶(合併帳單分組,type=='account_group')是純管理容器,不是
             // 真實可入帳的帳戶,不該出現在交易的帳戶選擇器裡——底下子帳戶各自
@@ -125,6 +133,7 @@ class _AccountCardPickerSheetState
     if (!mounted) return;
     setState(() {
       _accounts = accounts;
+      _wantedCurrency = wanted;
       _loading = false;
     });
   }
@@ -192,6 +201,7 @@ class _AccountCardPickerSheetState
                               stats: stats,
                               selectedAccountId: widget.selectedAccountId,
                               ledgerId: widget.ledgerId,
+                              wantedCurrency: _wantedCurrency,
                               onSelected: (id) =>
                                   Navigator.pop(context, AccountPickResult(id)),
                             ),
@@ -213,6 +223,7 @@ class _AccountTypeSection extends StatefulWidget {
   final Map<int, ({double balance, double expense, double income})>? stats;
   final int? selectedAccountId;
   final int ledgerId;
+  final String wantedCurrency;
   final ValueChanged<int> onSelected;
 
   const _AccountTypeSection({
@@ -222,6 +233,7 @@ class _AccountTypeSection extends StatefulWidget {
     required this.stats,
     required this.selectedAccountId,
     required this.ledgerId,
+    required this.wantedCurrency,
     required this.onSelected,
   });
 
@@ -320,6 +332,7 @@ class _AccountTypeSectionState extends State<_AccountTypeSection> {
                       primaryColor: widget.primaryColor,
                       balance: widget.stats?[entry.$2.id]?.balance,
                       isSelected: entry.$2.id == widget.selectedAccountId,
+                      wantedCurrency: widget.wantedCurrency,
                       onTap: () => widget.onSelected(entry.$2.id),
                     ),
                   ],
@@ -339,6 +352,7 @@ class _AccountRow extends ConsumerWidget {
   final Color primaryColor;
   final double? balance;
   final bool isSelected;
+  final String wantedCurrency;
   final VoidCallback onTap;
 
   const _AccountRow({
@@ -347,6 +361,7 @@ class _AccountRow extends ConsumerWidget {
     required this.primaryColor,
     required this.balance,
     required this.isSelected,
+    required this.wantedCurrency,
     required this.onTap,
   });
 
@@ -427,7 +442,9 @@ class _AccountRow extends ConsumerWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    getAccountTypeLabel(context, account.type),
+                    account.currency.toUpperCase() != wantedCurrency
+                        ? '${getAccountTypeLabel(context, account.type)} · ${account.currency.toUpperCase()}'
+                        : getAccountTypeLabel(context, account.type),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(

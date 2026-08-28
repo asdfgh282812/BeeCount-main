@@ -340,7 +340,8 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
       });
       _loadSelectedAccount(f.accountId!);
     }
-    if (f.projectSyncId != null && f.projectSyncId != _selectedProject?.syncId) {
+    if (f.projectSyncId != null &&
+        f.projectSyncId != _selectedProject?.syncId) {
       _resolveProjectBySyncId(f.projectSyncId!);
     }
   }
@@ -411,7 +412,8 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
         cat = await repo.getCategoryById(row.categoryId!);
       }
       if (cat != null) {
-        lines.add(_SplitLine(category: cat, amount: row.amount, note: row.note));
+        lines
+            .add(_SplitLine(category: cat, amount: row.amount, note: row.note));
       }
     }
     // 少於 2 筆代表分類都查無資料(異常態),退化成不显示拆帳,避免呈現
@@ -444,7 +446,6 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
       final account =
           await ref.read(accountByIdProvider(defaultAccountId).future);
       if (account == null || account.hidden) return;
-      if (account.currency != ledger.currency) return;
 
       if (!mounted) return;
       setState(() => _selectedAccountId = defaultAccountId);
@@ -571,40 +572,139 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     });
   }
 
+  /// 幣別換算對話框:「換算金額」「匯率」兩欄互相即時反推(單純本地乘除,
+  /// 不需要 debounce/非同步),外加「採用線上匯率」開關——開啟時兩欄唯讀並
+  /// 顯示自動抓取的線上匯率換算結果,關閉後才能手動編輯。確認送出時一律以
+  /// 當下畫面顯示的「匯率」數值寫回 `_rateStr`/`_rateManuallySet`。
   Future<void> _editRate() async {
     final l10n = AppLocalizations.of(context);
-    final ctrl = TextEditingController(
-        text: _rateStr ?? _currentRate()?.toStringAsPrecision(6) ?? '');
-    final entered = await showDialog<String>(
+    final txCurrency = _txCurrency();
+    final ledgerBase = ref.read(currentLedgerCurrencyProvider);
+    final amount = double.tryParse(_amountStr) ?? 0.0;
+
+    double? onlineRate() {
+      final rates = ref.read(effectiveRatesForLedgerProvider).valueOrNull;
+      final er = rates?[txCurrency];
+      return er == null ? null : double.tryParse(er.rate);
+    }
+
+    bool useOnline = !_rateManuallySet;
+    final currentRate = _currentRate();
+    final rateCtrl = TextEditingController(
+        text: _rateStr ?? currentRate?.toStringAsPrecision(6) ?? '');
+    final convertedCtrl = TextEditingController(
+        text: (currentRate != null && amount > 0)
+            ? (amount * currentRate).toStringAsFixed(2)
+            : '');
+
+    bool syncing = false;
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dctx) => AlertDialog(
-        title: Text(l10n.txRateLabel),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            hintText:
-                '1 ${_txCurrency()} = ? ${ref.read(currentLedgerCurrencyProvider)}',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dctx),
-            child: Text(AppLocalizations.of(dctx).commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dctx, ctrl.text.trim()),
-            child: Text(AppLocalizations.of(dctx).commonConfirm),
-          ),
-        ],
+      builder: (dctx) => StatefulBuilder(
+        builder: (dctx, setDialogState) {
+          void syncConvertedFromRate() {
+            if (syncing) return;
+            syncing = true;
+            final r = double.tryParse(rateCtrl.text);
+            if (r != null && amount > 0) {
+              convertedCtrl.text = (amount * r).toStringAsFixed(2);
+            }
+            syncing = false;
+          }
+
+          void syncRateFromConverted() {
+            if (syncing) return;
+            syncing = true;
+            final c = double.tryParse(convertedCtrl.text);
+            if (c != null && amount > 0) {
+              rateCtrl.text = (c / amount).toStringAsPrecision(6);
+            }
+            syncing = false;
+          }
+
+          return AlertDialog(
+            title: Text(l10n.txConvertDialogTitle),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: Text(l10n.txUseOnlineRateLabel)),
+                    Switch(
+                      value: useOnline,
+                      onChanged: (v) {
+                        setDialogState(() {
+                          useOnline = v;
+                          if (v) {
+                            final r = onlineRate();
+                            rateCtrl.text =
+                                r != null ? r.toStringAsPrecision(6) : '';
+                            convertedCtrl.text = (r != null && amount > 0)
+                                ? (amount * r).toStringAsFixed(2)
+                                : '';
+                          }
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: convertedCtrl,
+                  enabled: !useOnline,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    labelText: '${l10n.txConvertedAmountLabel} ($ledgerBase)',
+                  ),
+                  onChanged: (_) => setDialogState(syncRateFromConverted),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: rateCtrl,
+                  enabled: !useOnline,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    labelText: l10n.txRateLabel,
+                    hintText: '1 $txCurrency = ? $ledgerBase',
+                  ),
+                  onChanged: (_) => setDialogState(syncConvertedFromRate),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dctx, false),
+                child: Text(AppLocalizations.of(dctx).commonCancel),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(dctx, true),
+                child: Text(AppLocalizations.of(dctx).commonConfirm),
+              ),
+            ],
+          );
+        },
       ),
     );
-    if (entered == null || !mounted) return;
-    final v = double.tryParse(entered);
+    // 不在这里 dispose 这两个 controller:AlertDialog 关闭走的是退场动画,
+    // Navigator.pop 之后 TextField 还会在动画期间再 build 几帧,提早 dispose
+    // 会炸 "TextEditingController used after being disposed"。两个 controller
+    // 生命周期到此为止就没有其他持有者了,随 GC 回收,不是长期泄漏。
+    final finalRateText = rateCtrl.text.trim();
+    if (confirmed != true || !mounted) return;
+    if (useOnline) {
+      setState(() {
+        _rateManuallySet = false;
+        _rateStr = null;
+      });
+      return;
+    }
+    final v = double.tryParse(finalRateText);
     if (v == null || v <= 0) return;
     setState(() {
-      _rateStr = entered;
+      _rateStr = finalRateText;
       _rateManuallySet = true;
     });
   }
@@ -667,7 +767,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           InkWell(
-            onTap: rateMissing ? _editRate : null,
+            onTap: _editRate,
             child: Text(
               preview != null
                   ? l10n.txConvertedPreview(
@@ -767,8 +867,9 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
 
   /// 目前小算盤(_amountStr/_acc/_op)代表的金額——跟 [_submit] 算 total
   /// 用的算式完全一致,拆帳/非拆帳共用同一套算盤狀態機。
-  double get _keypadTotal =>
-      _op == null ? _parsedAmount() : computeAmountOp(_acc, _op!, _parsedAmount());
+  double get _keypadTotal => _op == null
+      ? _parsedAmount()
+      : computeAmountOp(_acc, _op!, _parsedAmount());
 
   /// 把小算盤目前的金額寫回「正在編輯」的那一筆拆分明細。結構性操作(切換
   /// 焦點/新增/移除/還原)前都要先呼叫這個,否則使用者剛打的數字會在切換
@@ -1003,6 +1104,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
       selectedAccountId: _selectedAccountId,
       filterCurrency: _txCurrency(),
       pinnedAccountId: widget.initialAccountId,
+      allowAllCurrencies: true,
     );
     // result == null:取消/滑动关闭,维持原本选择不变。
     // result.accountId == null:明确选了「不选择账户」,清空。
@@ -1124,8 +1226,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     final isInCalcMode = _op != null;
     final canSubmit = _splits.isNotEmpty
         ? (_splits.length >= 2 &&
-            List.generate(_splits.length, _liveAmountFor)
-                .every((a) => a > 0))
+            List.generate(_splits.length, _liveAmountFor).every((a) => a > 0))
         : (_selectedCategory != null &&
             (isInCalcMode ? true : total.abs() > 0));
 
@@ -1300,8 +1401,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
                 _buildDateRow(context),
                 // v38:拆帳交易不提供「週期」入口(兩者互斥,見
                 // _startSplitMode 對稱的檢查)。
-                if (widget.editingTransactionId == null &&
-                    _splits.isEmpty) ...[
+                if (widget.editingTransactionId == null && _splits.isEmpty) ...[
                   const SizedBox(height: 8),
                   _buildRecurringRow(context),
                 ],
@@ -1434,8 +1534,8 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
                     color: BeeTokens.surfaceInput(context),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.apps,
-                      color: BeeTokens.iconSecondary(context)),
+                  child:
+                      Icon(Icons.apps, color: BeeTokens.iconSecondary(context)),
                 ),
                 Positioned(
                   right: -2,
@@ -1561,8 +1661,8 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   /// 提示,不在這裡就把整列藏起來(藏起來會讓使用者以為記帳頁完全沒有專案
   /// 功能)。建專案的入口仍在專案總覽頁,不在這裡提供「新增專案」捷徑。
   Widget _buildProjectRow(BuildContext context) {
-    final name =
-        _selectedProject?.name ?? AppLocalizations.of(context).projectPickerNone;
+    final name = _selectedProject?.name ??
+        AppLocalizations.of(context).projectPickerNone;
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: _openProjectPicker,

@@ -13830,6 +13830,24 @@ abstract class AppLocalizations {
   /// **'Please enter the rate for this entry before saving'**
   String get txRateMissingHint;
 
+  /// No description provided for @txConvertDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Currency conversion'**
+  String get txConvertDialogTitle;
+
+  /// No description provided for @txConvertedAmountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Converted amount'**
+  String get txConvertedAmountLabel;
+
+  /// No description provided for @txUseOnlineRateLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Use online rate'**
+  String get txUseOnlineRateLabel;
+
   /// No description provided for @txAccountRequiredHint.
   ///
   /// In en, this message translates to:

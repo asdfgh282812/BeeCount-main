@@ -7693,6 +7693,15 @@ class AppLocalizationsEn extends AppLocalizations {
       'Please enter the rate for this entry before saving';
 
   @override
+  String get txConvertDialogTitle => 'Currency conversion';
+
+  @override
+  String get txConvertedAmountLabel => 'Converted amount';
+
+  @override
+  String get txUseOnlineRateLabel => 'Use online rate';
+
+  @override
   String get txAccountRequiredHint => 'Please select an account';
 
   @override

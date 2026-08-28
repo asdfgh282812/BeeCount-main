@@ -47,7 +47,8 @@ void main() {
 
   tearDown(() async => db.close());
 
-  Widget host(Function(AccountPickResult? result) onPicked) {
+  Widget host(Function(AccountPickResult? result) onPicked,
+      {bool allowAllCurrencies = false}) {
     return ProviderScope(
       overrides: [
         repositoryProvider.overrideWithValue(repo),
@@ -64,8 +65,8 @@ void main() {
           body: Builder(builder: (context) {
             return ElevatedButton(
               onPressed: () async {
-                final result =
-                    await AccountCardPicker.show(context, ledgerId: 1);
+                final result = await AccountCardPicker.show(context,
+                    ledgerId: 1, allowAllCurrencies: allowAllCurrencies);
                 onPicked(result);
               },
               child: const Text('open'),
@@ -98,6 +99,19 @@ void main() {
 
     expect(called, true);
     expect(picked?.accountId, 2);
+  });
+
+  testWidgets('allowAllCurrencies:true 時不同幣別帳戶也列入候選清單,並標示幣別', (tester) async {
+    await tester.pumpWidget(host((_) {}, allowAllCurrencies: true));
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    // 跨幣別帳戶(美元户,USD)不再被過濾掉。
+    expect(find.text('美元户'), findsOneWidget);
+    // 副標題附加幣別代碼,方便混合幣別清單裡一眼分辨。
+    expect(find.textContaining('USD'), findsOneWidget);
+    // 帳本本位幣(CNY)帳戶副標題不附加幣別代碼。
+    expect(find.textContaining('CNY'), findsNothing);
   });
 
   testWidgets('主帳戶(account_group 容器)不出現在候選清單裡', (tester) async {
