@@ -442,6 +442,10 @@ class LocalTransactionRepository implements TransactionRepository {
     String? projectSyncId,
     bool needsAccountAssignment = false,
     double? toAmount,
+    double? feeAmount,
+    String? feeLabel,
+    double? discountAmount,
+    String? discountLabel,
   }) async {
     // v30:子仓收「已定值」直写;带折算的兜底(查账户/汇率)在聚合
     // LocalRepository 包装层(子仓拿不到汇率)。
@@ -475,6 +479,10 @@ class LocalTransactionRepository implements TransactionRepository {
                 projectSyncId: d.Value(projectSyncId),
                 needsAccountAssignment: d.Value(needsAccountAssignment),
                 toAmount: d.Value(toAmount),
+                feeAmount: d.Value(feeAmount),
+                feeLabel: d.Value(feeLabel),
+                discountAmount: d.Value(discountAmount),
+                discountLabel: d.Value(discountLabel),
               ));
       if (hasSplits) {
         await _insertSplits(id, splits);
@@ -654,6 +662,10 @@ class LocalTransactionRepository implements TransactionRepository {
     List<String>? rewardRuleIds,
     List<TransactionSplitInput>? splits,
     dynamic toAmount,
+    dynamic feeAmount,
+    dynamic feeLabel,
+    dynamic discountAmount,
+    dynamic discountLabel,
   }) async {
     // 处理 accountId 参数
     final d.Value<int?> accountIdValue;
@@ -674,6 +686,40 @@ class LocalTransactionRepository implements TransactionRepository {
       toAmountValue = toAmount;
     } else {
       toAmountValue = d.Value(toAmount as double?);
+    }
+
+    // v46 轉帳手續費/折損:同款 dynamic tri-state 寫法。
+    final d.Value<double?> feeAmountValue;
+    if (feeAmount == null) {
+      feeAmountValue = const d.Value.absent();
+    } else if (feeAmount is d.Value<double?>) {
+      feeAmountValue = feeAmount;
+    } else {
+      feeAmountValue = d.Value(feeAmount as double?);
+    }
+    final d.Value<String?> feeLabelValue;
+    if (feeLabel == null) {
+      feeLabelValue = const d.Value.absent();
+    } else if (feeLabel is d.Value<String?>) {
+      feeLabelValue = feeLabel;
+    } else {
+      feeLabelValue = d.Value(feeLabel as String?);
+    }
+    final d.Value<double?> discountAmountValue;
+    if (discountAmount == null) {
+      discountAmountValue = const d.Value.absent();
+    } else if (discountAmount is d.Value<double?>) {
+      discountAmountValue = discountAmount;
+    } else {
+      discountAmountValue = d.Value(discountAmount as double?);
+    }
+    final d.Value<String?> discountLabelValue;
+    if (discountLabel == null) {
+      discountLabelValue = const d.Value.absent();
+    } else if (discountLabel is d.Value<String?>) {
+      discountLabelValue = discountLabel;
+    } else {
+      discountLabelValue = d.Value(discountLabel as String?);
     }
 
     // v38 拆帳:splits 非空时強制清空 categoryId/override(明細才有分類);
@@ -715,6 +761,10 @@ class LocalTransactionRepository implements TransactionRepository {
               ? const d.Value.absent()
               : d.Value(splits.isNotEmpty),
           toAmount: toAmountValue,
+          feeAmount: feeAmountValue,
+          feeLabel: feeLabelValue,
+          discountAmount: discountAmountValue,
+          discountLabel: discountLabelValue,
         ),
       );
       if (splits != null) {

@@ -9784,6 +9784,54 @@ abstract class AppLocalizations {
   /// **'1 {from} = {rate} {to}'**
   String transferRateDisplay(Object from, Object rate, Object to);
 
+  /// No description provided for @transferFillBalanceTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Use current balance'**
+  String get transferFillBalanceTooltip;
+
+  /// No description provided for @transferFeeLabelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee'**
+  String get transferFeeLabelHint;
+
+  /// No description provided for @transferAddFeeButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Add fee'**
+  String get transferAddFeeButton;
+
+  /// No description provided for @transferAddDiscountButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Add discount'**
+  String get transferAddDiscountButton;
+
+  /// No description provided for @transferRemoveAdjustmentButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get transferRemoveAdjustmentButton;
+
+  /// No description provided for @transferAmountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount'**
+  String get transferAmountLabel;
+
+  /// No description provided for @transferDiscountExceedsAmountError.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount cannot exceed the transfer-in amount'**
+  String get transferDiscountExceedsAmountError;
+
+  /// No description provided for @transferAdjustmentNegativeError.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount cannot be negative'**
+  String get transferAdjustmentNegativeError;
+
   /// No description provided for @welcomeCategoryModeTitle.
   ///
   /// In en, this message translates to:

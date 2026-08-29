@@ -388,6 +388,18 @@ class LocalAccountRepository implements AccountRepository {
   static const String _kExcludeJoinedSharedLedgerSql =
       "ledger_id NOT IN (SELECT id FROM ledgers WHERE is_shared = 1 AND my_role != 'owner')";
 
+  /// v46 轉帳手續費/折損:轉出腳實際扣款金額,疊加轉出側手續費
+  /// (`feeAmount ?? 0`,轉出帳戶幣別)。沒有手續費的舊資料 `feeAmount` 為
+  /// null,退化回 `t.amount`,行為不變。單一權威公式,餘額/淨值計算全部
+  /// 呼叫這個 helper,不要各自重寫加減算式。
+  double _transferOutEffect(Transaction t) => t.amount + (t.feeAmount ?? 0);
+
+  /// v46 轉帳手續費/折損:轉入腳實際到帳金額,先取 v45 的
+  /// `toAmount ?? amount`(轉入帳戶幣別),再扣掉轉入側折損
+  /// (`discountAmount ?? 0`)。沒有折損的舊資料退化回原本行為。
+  double _transferInEffect(Transaction t) =>
+      (t.toAmount ?? t.amount) - (t.discountAmount ?? 0);
+
   @override
   Future<double> getAccountBalance(int accountId, {DateTime? asOf}) async {
     // 获取账户初始资金
@@ -427,8 +439,8 @@ class LocalAccountRepository implements AccountRepository {
       } else if (t.type == 'expense') {
         balance -= t.amount;
       } else if (t.type == 'transfer') {
-        // 作为转出账户
-        balance -= t.amount;
+        // 作为转出账户。v46:疊加轉出側手續費(見 _transferOutEffect 注釋)。
+        balance -= _transferOutEffect(t);
       } else if (t.type == 'adjustment') {
         balance += t.amount;
       }
@@ -444,9 +456,8 @@ class LocalAccountRepository implements AccountRepository {
         .get();
 
     for (final t in transfersIn) {
-      // v45 跨幣別轉帳:轉入腳按轉入帳戶自己幣別的金額計(toAmount ?? amount,
-      // 同幣別/舊資料 toAmount 為 null 時退化 =amount,行為不變)。
-      balance += t.toAmount ?? t.amount;
+      // v46:折損疊加後的轉入腳(見 _transferInEffect 注釋)。
+      balance += _transferInEffect(t);
     }
 
     return balance;
@@ -485,13 +496,14 @@ class LocalAccountRepository implements AccountRepository {
         } else if (tx.type == 'expense') {
           balance -= tx.amount;
         } else if (tx.type == 'transfer') {
-          balance -= tx.amount;
+          // v46:疊加轉出側手續費(見 _transferOutEffect 注釋)。
+          balance -= _transferOutEffect(tx);
         } else if (tx.type == 'adjustment') {
           balance += tx.amount;
         }
       } else if (tx.toAccountId == accountId) {
-        // 作为转入账户（转账）。v45:toAmount ?? amount(见 getAccountBalance 注释)。
-        balance += tx.toAmount ?? tx.amount;
+        // 作为转入账户（转账）。v46:折損疊加後的轉入腳(見 _transferInEffect 注釋)。
+        balance += _transferInEffect(tx);
       }
     }
 
@@ -521,13 +533,14 @@ class LocalAccountRepository implements AccountRepository {
         } else if (tx.type == 'expense') {
           balance -= tx.amount;
         } else if (tx.type == 'transfer') {
-          balance -= tx.amount;
+          // v46:疊加轉出側手續費(見 _transferOutEffect 注釋)。
+          balance -= _transferOutEffect(tx);
         } else if (tx.type == 'adjustment') {
           balance += tx.amount;
         }
       } else if (tx.toAccountId == accountId) {
-        // 作为转入账户（转账）。v45:toAmount ?? amount(见 getAccountBalance 注释)。
-        balance += tx.toAmount ?? tx.amount;
+        // 作为转入账户（转账）。v46:折損疊加後的轉入腳(見 _transferInEffect 注釋)。
+        balance += _transferInEffect(tx);
       }
     }
 
@@ -592,8 +605,8 @@ class LocalAccountRepository implements AccountRepository {
       if (t.type == 'expense') {
         expense += t.amount;
       } else if (t.type == 'transfer') {
-        // 作为转出账户
-        expense += t.amount;
+        // 作为转出账户。v46:疊加轉出側手續費(見 _transferOutEffect 注釋)。
+        expense += _transferOutEffect(t);
       }
     }
 
@@ -629,8 +642,8 @@ class LocalAccountRepository implements AccountRepository {
         .get();
 
     for (final t in transfersIn) {
-      // v45 跨幣別轉帳:toAmount ?? amount(見 getAccountBalance 注釋)。
-      income += t.toAmount ?? t.amount;
+      // v46:折損疊加後的轉入腳(見 _transferInEffect 注釋)。
+      income += _transferInEffect(t);
     }
 
     return income;
@@ -993,14 +1006,15 @@ class LocalAccountRepository implements AccountRepository {
         } else if (tx.type == 'expense') {
           runningBalance -= tx.amount;
         } else if (tx.type == 'transfer') {
-          runningBalance -= tx.amount;
+          // v46:疊加轉出側手續費(見 _transferOutEffect 注釋)。
+          runningBalance -= _transferOutEffect(tx);
         } else if (tx.type == 'adjustment') {
           runningBalance += tx.amount;
         }
       }
       if (tx.toAccountId == accountId && tx.type == 'transfer') {
-        // v45 跨幣別轉帳:toAmount ?? amount(見 getAccountBalance 注釋)。
-        runningBalance += tx.toAmount ?? tx.amount;
+        // v46:折損疊加後的轉入腳(見 _transferInEffect 注釋)。
+        runningBalance += _transferInEffect(tx);
       }
       txIndex++;
     }
@@ -1023,14 +1037,15 @@ class LocalAccountRepository implements AccountRepository {
           } else if (tx.type == 'expense') {
             runningBalance -= tx.amount;
           } else if (tx.type == 'transfer') {
-            runningBalance -= tx.amount;
+            // v46:疊加轉出側手續費(見 _transferOutEffect 注釋)。
+            runningBalance -= _transferOutEffect(tx);
           } else if (tx.type == 'adjustment') {
             runningBalance += tx.amount;
           }
         }
         if (tx.toAccountId == accountId && tx.type == 'transfer') {
-          // v45 跨幣別轉帳:toAmount ?? amount(見 getAccountBalance 注釋)。
-          runningBalance += tx.toAmount ?? tx.amount;
+          // v46:折損疊加後的轉入腳(見 _transferInEffect 注釋)。
+          runningBalance += _transferInEffect(tx);
         }
         txIndex++;
       }

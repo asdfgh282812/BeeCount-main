@@ -51,6 +51,11 @@ class TransactionEditorPage extends ConsumerStatefulWidget {
   final double? initialNativeAmount;
   // v45 跨幣別轉帳:編輯既有跨幣別轉帳時回填轉入金額(只有 TransferForm 用)。
   final double? initialToAmount;
+  // v46 轉帳手續費/折損:編輯既有轉帳時回填(只有 TransferForm 用)。
+  final double? initialFeeAmount;
+  final String? initialFeeLabel;
+  final double? initialDiscountAmount;
+  final String? initialDiscountLabel;
   // v34:从「退款」入口打开时,带入原交易 syncId,存档时写进新交易的
   // refundOfSyncId。只有新建模式(editingTransactionId == null)会用到。
   final String? initialRefundOfSyncId;
@@ -79,6 +84,10 @@ class TransactionEditorPage extends ConsumerStatefulWidget {
     this.initialCurrencyCode,
     this.initialNativeAmount,
     this.initialToAmount,
+    this.initialFeeAmount,
+    this.initialFeeLabel,
+    this.initialDiscountAmount,
+    this.initialDiscountLabel,
     this.initialRefundOfSyncId,
     this.initialRewardRuleIds,
     this.initialRecurringEditScope,
@@ -354,6 +363,10 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
                   initialTagIds: widget.initialTagIds,
                   recurringEditScope: widget.initialRecurringEditScope,
                   initialToAmount: widget.initialToAmount,
+                  initialFeeAmount: widget.initialFeeAmount,
+                  initialFeeLabel: widget.initialFeeLabel,
+                  initialDiscountAmount: widget.initialDiscountAmount,
+                  initialDiscountLabel: widget.initialDiscountLabel,
                 ),
                 DebtEntryForm(
                   key: _debtFormKey,

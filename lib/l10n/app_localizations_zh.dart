@@ -5183,6 +5183,31 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get transferFillBalanceTooltip => 'Use current balance';
+
+  @override
+  String get transferFeeLabelHint => 'Fee';
+
+  @override
+  String get transferAddFeeButton => 'Add fee';
+
+  @override
+  String get transferAddDiscountButton => 'Add discount';
+
+  @override
+  String get transferRemoveAdjustmentButton => 'Remove';
+
+  @override
+  String get transferAmountLabel => 'Amount';
+
+  @override
+  String get transferDiscountExceedsAmountError =>
+      'Discount cannot exceed the transfer-in amount';
+
+  @override
+  String get transferAdjustmentNegativeError => 'Amount cannot be negative';
+
+  @override
   String get welcomeCategoryModeTitle => '选择分类模式';
 
   @override
@@ -13983,6 +14008,30 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String transferRateDisplay(Object from, Object rate, Object to) {
     return '1 $from = $rate $to';
   }
+
+  @override
+  String get transferFillBalanceTooltip => '代入目前餘額';
+
+  @override
+  String get transferFeeLabelHint => '手續費';
+
+  @override
+  String get transferAddFeeButton => '新增手續費';
+
+  @override
+  String get transferAddDiscountButton => '新增折損';
+
+  @override
+  String get transferRemoveAdjustmentButton => '移除';
+
+  @override
+  String get transferAmountLabel => '金額';
+
+  @override
+  String get transferDiscountExceedsAmountError => '折損金額不能超過轉入金額';
+
+  @override
+  String get transferAdjustmentNegativeError => '金額不可為負數';
 
   @override
   String get welcomeCategoryModeTitle => '選擇分類模式';

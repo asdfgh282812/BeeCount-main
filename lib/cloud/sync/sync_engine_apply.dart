@@ -322,6 +322,22 @@ extension SyncEngineApplyExt on SyncEngine {
     final projectSyncId =
         hasProjectIdKey ? payload['projectId'] as String? : null;
 
+    // v46 轉帳手續費/折損:跟 debtId/projectId 同款「缺鍵不覆蓋」——這 4 個
+    // 欄位是獨立的絕對數值(不像 toAmount 由匯率衍生),不需要比照上面
+    // toAmount 的等比例重算(rescale)邏輯。
+    final hasFeeAmountKey = payload.containsKey('feeAmount');
+    final feeAmount =
+        hasFeeAmountKey ? (payload['feeAmount'] as num?)?.toDouble() : null;
+    final hasFeeLabelKey = payload.containsKey('feeLabel');
+    final feeLabel = hasFeeLabelKey ? payload['feeLabel'] as String? : null;
+    final hasDiscountAmountKey = payload.containsKey('discountAmount');
+    final discountAmount = hasDiscountAmountKey
+        ? (payload['discountAmount'] as num?)?.toDouble()
+        : null;
+    final hasDiscountLabelKey = payload.containsKey('discountLabel');
+    final discountLabel =
+        hasDiscountLabelKey ? payload['discountLabel'] as String? : null;
+
     if (existingId != null) {
       // 更新 — createdByUserId 走"本地为 null 就回填,否则保持"的策略。
       final shouldBackfillCreator =
@@ -411,6 +427,15 @@ extension SyncEngineApplyExt on SyncEngine {
         projectSyncId:
             hasProjectIdKey ? d.Value(projectSyncId) : const d.Value.absent(),
         toAmount: toAmountValue,
+        feeAmount:
+            hasFeeAmountKey ? d.Value(feeAmount) : const d.Value.absent(),
+        feeLabel: hasFeeLabelKey ? d.Value(feeLabel) : const d.Value.absent(),
+        discountAmount: hasDiscountAmountKey
+            ? d.Value(discountAmount)
+            : const d.Value.absent(),
+        discountLabel: hasDiscountLabelKey
+            ? d.Value(discountLabel)
+            : const d.Value.absent(),
       ));
       // 更新标签、附件、拆帳明細(existing 路径)
       await _syncTransactionTags(existingId, syncId, payload);
@@ -454,6 +479,10 @@ extension SyncEngineApplyExt on SyncEngine {
               debtSyncId: d.Value(debtSyncId),
               projectSyncId: d.Value(projectSyncId),
               toAmount: d.Value(payloadToAmount),
+              feeAmount: d.Value(feeAmount),
+              feeLabel: d.Value(feeLabel),
+              discountAmount: d.Value(discountAmount),
+              discountLabel: d.Value(discountLabel),
             ),
           );
       // 写回 cache,后续同 syncId 的 update change 能命中

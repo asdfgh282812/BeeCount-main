@@ -407,6 +407,10 @@ class LocalRepository extends BaseRepository {
     String? projectSyncId,
     bool needsAccountAssignment = false,
     double? toAmount,
+    double? feeAmount,
+    String? feeLabel,
+    double? discountAmount,
+    String? discountLabel,
   }) async {
     // v30 带折算兜底(02 §六):任何调用方(单币种记账/AI/周期模板)未传两字段
     // 时在此补齐 —— 外币先查有效汇率,取不到才 =amount(命中 L11 检测可捞回)。
@@ -443,6 +447,10 @@ class LocalRepository extends BaseRepository {
       projectSyncId: projectSyncId,
       needsAccountAssignment: needsAccountAssignment,
       toAmount: toAmount,
+      feeAmount: feeAmount,
+      feeLabel: feeLabel,
+      discountAmount: discountAmount,
+      discountLabel: discountLabel,
     );
     if (changeTracker != null) {
       final tx = await _transactionRepo.getTransactionById(id);
@@ -521,6 +529,10 @@ class LocalRepository extends BaseRepository {
     List<String>? rewardRuleIds,
     List<TransactionSplitInput>? splits,
     dynamic toAmount,
+    dynamic feeAmount,
+    dynamic feeLabel,
+    dynamic discountAmount,
+    dynamic discountLabel,
   }) async {
     final old = await _transactionRepo.getTransactionById(id);
     // v30 联动兜底(与 Cloud merge/mutator 的 L14 同规则):调用方不传两字段时——
@@ -574,6 +586,10 @@ class LocalRepository extends BaseRepository {
           rewardRuleIds: rewardRuleIds,
           splits: splits,
           toAmount: toAmount,
+          feeAmount: feeAmount,
+          feeLabel: feeLabel,
+          discountAmount: discountAmount,
+          discountLabel: discountLabel,
         );
         await changeTracker!.recordLedgerChange(
           entityType: 'transaction',
@@ -604,6 +620,10 @@ class LocalRepository extends BaseRepository {
       rewardRuleIds: rewardRuleIds,
       splits: splits,
       toAmount: toAmount,
+      feeAmount: feeAmount,
+      feeLabel: feeLabel,
+      discountAmount: discountAmount,
+      discountLabel: discountLabel,
     );
   }
 

@@ -245,6 +245,13 @@ abstract class TransactionRepository {
     // v45 跨幣別轉帳:轉入帳戶自己幣別的金額。只有 type == 'transfer' 且
     // 轉出/轉入帳戶幣別不同時才傳非 null;同幣別轉帳/非轉帳留 null。
     double? toAmount,
+    // v46 轉帳手續費/折損:只在 type == 'transfer' 時有意義。feeAmount 是
+    // 轉出側額外扣款(轉出帳戶幣別),discountAmount 是轉入側到帳前折損
+    // (轉入帳戶幣別)。皆為 null = 沒有手續費/折損。
+    double? feeAmount,
+    String? feeLabel,
+    double? discountAmount,
+    String? discountLabel,
   });
 
   /// 批量新增交易，单事务内插入，返回插入条数。
@@ -315,6 +322,13 @@ abstract class TransactionRepository {
     // `d.Value(x)` 或直接傳 double 寫入新值。呼叫方若不知道這個欄位(一般
     // 收支更新)一律不傳,行為不變。
     dynamic toAmount,
+    // v46 轉帳手續費/折損:tri-state 同 [toAmount]——不傳 = 不動既有值;
+    // 傳 `d.Value<double?>(null)`/`d.Value<String?>(null)` 顯式清空;傳值
+    // 更新。呼叫方若不知道這組欄位(一般收支更新)一律不傳,行為不變。
+    dynamic feeAmount,
+    dynamic feeLabel,
+    dynamic discountAmount,
+    dynamic discountLabel,
   });
 
   /// 获取一笔交易的拆帳明細(依 sortOrder),非拆帳交易返回空列表。

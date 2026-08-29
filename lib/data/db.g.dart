@@ -2241,6 +2241,30 @@ class $TransactionsTable extends Transactions
           defaultConstraints: GeneratedColumn.constraintIsAlways(
               'CHECK ("needs_account_assignment" IN (0, 1))'),
           defaultValue: const Constant(false));
+  static const VerificationMeta _feeAmountMeta =
+      const VerificationMeta('feeAmount');
+  @override
+  late final GeneratedColumn<double> feeAmount = GeneratedColumn<double>(
+      'fee_amount', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _feeLabelMeta =
+      const VerificationMeta('feeLabel');
+  @override
+  late final GeneratedColumn<String> feeLabel = GeneratedColumn<String>(
+      'fee_label', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _discountAmountMeta =
+      const VerificationMeta('discountAmount');
+  @override
+  late final GeneratedColumn<double> discountAmount = GeneratedColumn<double>(
+      'discount_amount', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _discountLabelMeta =
+      const VerificationMeta('discountLabel');
+  @override
+  late final GeneratedColumn<String> discountLabel = GeneratedColumn<String>(
+      'discount_label', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -2274,7 +2298,11 @@ class $TransactionsTable extends Transactions
         debtSyncId,
         toAmount,
         projectSyncId,
-        needsAccountAssignment
+        needsAccountAssignment,
+        feeAmount,
+        feeLabel,
+        discountAmount,
+        discountLabel
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2465,6 +2493,26 @@ class $TransactionsTable extends Transactions
           needsAccountAssignment.isAcceptableOrUnknown(
               data['needs_account_assignment']!, _needsAccountAssignmentMeta));
     }
+    if (data.containsKey('fee_amount')) {
+      context.handle(_feeAmountMeta,
+          feeAmount.isAcceptableOrUnknown(data['fee_amount']!, _feeAmountMeta));
+    }
+    if (data.containsKey('fee_label')) {
+      context.handle(_feeLabelMeta,
+          feeLabel.isAcceptableOrUnknown(data['fee_label']!, _feeLabelMeta));
+    }
+    if (data.containsKey('discount_amount')) {
+      context.handle(
+          _discountAmountMeta,
+          discountAmount.isAcceptableOrUnknown(
+              data['discount_amount']!, _discountAmountMeta));
+    }
+    if (data.containsKey('discount_label')) {
+      context.handle(
+          _discountLabelMeta,
+          discountLabel.isAcceptableOrUnknown(
+              data['discount_label']!, _discountLabelMeta));
+    }
     return context;
   }
 
@@ -2543,6 +2591,14 @@ class $TransactionsTable extends Transactions
       needsAccountAssignment: attachedDatabase.typeMapping.read(
           DriftSqlType.bool,
           data['${effectivePrefix}needs_account_assignment'])!,
+      feeAmount: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}fee_amount']),
+      feeLabel: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}fee_label']),
+      discountAmount: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}discount_amount']),
+      discountLabel: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}discount_label']),
     );
   }
 
@@ -2679,6 +2735,21 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   /// 不會用到這個旗標——那些路徑要求使用者當場選,選不了就直接不建立這筆
   /// 交易。
   final bool needsAccountAssignment;
+
+  /// v46 轉帳手續費/折損(對齐 BeeCount Cloud `read_tx_projection.fee_amount`
+  /// / `fee_label` / `discount_amount` / `discount_label`,`0039_tx_fee_
+  /// discount.py`——Cloud 該組欄位本來就存在,只是原本只放行
+  /// expense/income,本次解除 transfer 的硬性拒絕,App/Cloud 直接共用同一組
+  /// wire key,不需要新 migration):`type == 'transfer'` 時,`feeAmount` 是
+  /// 轉出側額外扣款(轉出帳戶幣別),`discountAmount` 是轉入側到帳前折損
+  /// (轉入帳戶幣別)。皆為 null = 沒有手續費/折損,餘額計算退化回原本行為
+  /// (見 [LocalAccountRepository] 的 `_transferOutEffect`/
+  /// `_transferInEffect`)。**周期性轉帳(`RecurringTransactions`)不支援**,
+  /// 範圍比照現有 Web 版 recurring rule 不支援 fee/discount。
+  final double? feeAmount;
+  final String? feeLabel;
+  final double? discountAmount;
+  final String? discountLabel;
   const Transaction(
       {required this.id,
       required this.ledgerId,
@@ -2711,7 +2782,11 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       this.debtSyncId,
       this.toAmount,
       this.projectSyncId,
-      required this.needsAccountAssignment});
+      required this.needsAccountAssignment,
+      this.feeAmount,
+      this.feeLabel,
+      this.discountAmount,
+      this.discountLabel});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2794,6 +2869,18 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       map['project_sync_id'] = Variable<String>(projectSyncId);
     }
     map['needs_account_assignment'] = Variable<bool>(needsAccountAssignment);
+    if (!nullToAbsent || feeAmount != null) {
+      map['fee_amount'] = Variable<double>(feeAmount);
+    }
+    if (!nullToAbsent || feeLabel != null) {
+      map['fee_label'] = Variable<String>(feeLabel);
+    }
+    if (!nullToAbsent || discountAmount != null) {
+      map['discount_amount'] = Variable<double>(discountAmount);
+    }
+    if (!nullToAbsent || discountLabel != null) {
+      map['discount_label'] = Variable<String>(discountLabel);
+    }
     return map;
   }
 
@@ -2872,6 +2959,18 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ? const Value.absent()
           : Value(projectSyncId),
       needsAccountAssignment: Value(needsAccountAssignment),
+      feeAmount: feeAmount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(feeAmount),
+      feeLabel: feeLabel == null && nullToAbsent
+          ? const Value.absent()
+          : Value(feeLabel),
+      discountAmount: discountAmount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(discountAmount),
+      discountLabel: discountLabel == null && nullToAbsent
+          ? const Value.absent()
+          : Value(discountLabel),
     );
   }
 
@@ -2920,6 +3019,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       projectSyncId: serializer.fromJson<String?>(json['projectSyncId']),
       needsAccountAssignment:
           serializer.fromJson<bool>(json['needsAccountAssignment']),
+      feeAmount: serializer.fromJson<double?>(json['feeAmount']),
+      feeLabel: serializer.fromJson<String?>(json['feeLabel']),
+      discountAmount: serializer.fromJson<double?>(json['discountAmount']),
+      discountLabel: serializer.fromJson<String?>(json['discountLabel']),
     );
   }
   @override
@@ -2962,6 +3065,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'toAmount': serializer.toJson<double?>(toAmount),
       'projectSyncId': serializer.toJson<String?>(projectSyncId),
       'needsAccountAssignment': serializer.toJson<bool>(needsAccountAssignment),
+      'feeAmount': serializer.toJson<double?>(feeAmount),
+      'feeLabel': serializer.toJson<String?>(feeLabel),
+      'discountAmount': serializer.toJson<double?>(discountAmount),
+      'discountLabel': serializer.toJson<String?>(discountLabel),
     };
   }
 
@@ -2997,7 +3104,11 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           Value<String?> debtSyncId = const Value.absent(),
           Value<double?> toAmount = const Value.absent(),
           Value<String?> projectSyncId = const Value.absent(),
-          bool? needsAccountAssignment}) =>
+          bool? needsAccountAssignment,
+          Value<double?> feeAmount = const Value.absent(),
+          Value<String?> feeLabel = const Value.absent(),
+          Value<double?> discountAmount = const Value.absent(),
+          Value<String?> discountLabel = const Value.absent()}) =>
       Transaction(
         id: id ?? this.id,
         ledgerId: ledgerId ?? this.ledgerId,
@@ -3056,6 +3167,12 @@ class Transaction extends DataClass implements Insertable<Transaction> {
             projectSyncId.present ? projectSyncId.value : this.projectSyncId,
         needsAccountAssignment:
             needsAccountAssignment ?? this.needsAccountAssignment,
+        feeAmount: feeAmount.present ? feeAmount.value : this.feeAmount,
+        feeLabel: feeLabel.present ? feeLabel.value : this.feeLabel,
+        discountAmount:
+            discountAmount.present ? discountAmount.value : this.discountAmount,
+        discountLabel:
+            discountLabel.present ? discountLabel.value : this.discountLabel,
       );
   Transaction copyWithCompanion(TransactionsCompanion data) {
     return Transaction(
@@ -3131,6 +3248,14 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       needsAccountAssignment: data.needsAccountAssignment.present
           ? data.needsAccountAssignment.value
           : this.needsAccountAssignment,
+      feeAmount: data.feeAmount.present ? data.feeAmount.value : this.feeAmount,
+      feeLabel: data.feeLabel.present ? data.feeLabel.value : this.feeLabel,
+      discountAmount: data.discountAmount.present
+          ? data.discountAmount.value
+          : this.discountAmount,
+      discountLabel: data.discountLabel.present
+          ? data.discountLabel.value
+          : this.discountLabel,
     );
   }
 
@@ -3169,7 +3294,11 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('debtSyncId: $debtSyncId, ')
           ..write('toAmount: $toAmount, ')
           ..write('projectSyncId: $projectSyncId, ')
-          ..write('needsAccountAssignment: $needsAccountAssignment')
+          ..write('needsAccountAssignment: $needsAccountAssignment, ')
+          ..write('feeAmount: $feeAmount, ')
+          ..write('feeLabel: $feeLabel, ')
+          ..write('discountAmount: $discountAmount, ')
+          ..write('discountLabel: $discountLabel')
           ..write(')'))
         .toString();
   }
@@ -3207,7 +3336,11 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         debtSyncId,
         toAmount,
         projectSyncId,
-        needsAccountAssignment
+        needsAccountAssignment,
+        feeAmount,
+        feeLabel,
+        discountAmount,
+        discountLabel
       ]);
   @override
   bool operator ==(Object other) =>
@@ -3245,7 +3378,11 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.debtSyncId == this.debtSyncId &&
           other.toAmount == this.toAmount &&
           other.projectSyncId == this.projectSyncId &&
-          other.needsAccountAssignment == this.needsAccountAssignment);
+          other.needsAccountAssignment == this.needsAccountAssignment &&
+          other.feeAmount == this.feeAmount &&
+          other.feeLabel == this.feeLabel &&
+          other.discountAmount == this.discountAmount &&
+          other.discountLabel == this.discountLabel);
 }
 
 class TransactionsCompanion extends UpdateCompanion<Transaction> {
@@ -3281,6 +3418,10 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<double?> toAmount;
   final Value<String?> projectSyncId;
   final Value<bool> needsAccountAssignment;
+  final Value<double?> feeAmount;
+  final Value<String?> feeLabel;
+  final Value<double?> discountAmount;
+  final Value<String?> discountLabel;
   const TransactionsCompanion({
     this.id = const Value.absent(),
     this.ledgerId = const Value.absent(),
@@ -3314,6 +3455,10 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.toAmount = const Value.absent(),
     this.projectSyncId = const Value.absent(),
     this.needsAccountAssignment = const Value.absent(),
+    this.feeAmount = const Value.absent(),
+    this.feeLabel = const Value.absent(),
+    this.discountAmount = const Value.absent(),
+    this.discountLabel = const Value.absent(),
   });
   TransactionsCompanion.insert({
     this.id = const Value.absent(),
@@ -3348,6 +3493,10 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.toAmount = const Value.absent(),
     this.projectSyncId = const Value.absent(),
     this.needsAccountAssignment = const Value.absent(),
+    this.feeAmount = const Value.absent(),
+    this.feeLabel = const Value.absent(),
+    this.discountAmount = const Value.absent(),
+    this.discountLabel = const Value.absent(),
   })  : ledgerId = Value(ledgerId),
         type = Value(type),
         amount = Value(amount);
@@ -3384,6 +3533,10 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<double>? toAmount,
     Expression<String>? projectSyncId,
     Expression<bool>? needsAccountAssignment,
+    Expression<double>? feeAmount,
+    Expression<String>? feeLabel,
+    Expression<double>? discountAmount,
+    Expression<String>? discountLabel,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -3425,6 +3578,10 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (projectSyncId != null) 'project_sync_id': projectSyncId,
       if (needsAccountAssignment != null)
         'needs_account_assignment': needsAccountAssignment,
+      if (feeAmount != null) 'fee_amount': feeAmount,
+      if (feeLabel != null) 'fee_label': feeLabel,
+      if (discountAmount != null) 'discount_amount': discountAmount,
+      if (discountLabel != null) 'discount_label': discountLabel,
     });
   }
 
@@ -3460,7 +3617,11 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       Value<String?>? debtSyncId,
       Value<double?>? toAmount,
       Value<String?>? projectSyncId,
-      Value<bool>? needsAccountAssignment}) {
+      Value<bool>? needsAccountAssignment,
+      Value<double?>? feeAmount,
+      Value<String?>? feeLabel,
+      Value<double?>? discountAmount,
+      Value<String?>? discountLabel}) {
     return TransactionsCompanion(
       id: id ?? this.id,
       ledgerId: ledgerId ?? this.ledgerId,
@@ -3499,6 +3660,10 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       projectSyncId: projectSyncId ?? this.projectSyncId,
       needsAccountAssignment:
           needsAccountAssignment ?? this.needsAccountAssignment,
+      feeAmount: feeAmount ?? this.feeAmount,
+      feeLabel: feeLabel ?? this.feeLabel,
+      discountAmount: discountAmount ?? this.discountAmount,
+      discountLabel: discountLabel ?? this.discountLabel,
     );
   }
 
@@ -3607,6 +3772,18 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       map['needs_account_assignment'] =
           Variable<bool>(needsAccountAssignment.value);
     }
+    if (feeAmount.present) {
+      map['fee_amount'] = Variable<double>(feeAmount.value);
+    }
+    if (feeLabel.present) {
+      map['fee_label'] = Variable<String>(feeLabel.value);
+    }
+    if (discountAmount.present) {
+      map['discount_amount'] = Variable<double>(discountAmount.value);
+    }
+    if (discountLabel.present) {
+      map['discount_label'] = Variable<String>(discountLabel.value);
+    }
     return map;
   }
 
@@ -3645,7 +3822,11 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('debtSyncId: $debtSyncId, ')
           ..write('toAmount: $toAmount, ')
           ..write('projectSyncId: $projectSyncId, ')
-          ..write('needsAccountAssignment: $needsAccountAssignment')
+          ..write('needsAccountAssignment: $needsAccountAssignment, ')
+          ..write('feeAmount: $feeAmount, ')
+          ..write('feeLabel: $feeLabel, ')
+          ..write('discountAmount: $discountAmount, ')
+          ..write('discountLabel: $discountLabel')
           ..write(')'))
         .toString();
   }
@@ -15795,6 +15976,10 @@ typedef $$TransactionsTableCreateCompanionBuilder = TransactionsCompanion
   Value<double?> toAmount,
   Value<String?> projectSyncId,
   Value<bool> needsAccountAssignment,
+  Value<double?> feeAmount,
+  Value<String?> feeLabel,
+  Value<double?> discountAmount,
+  Value<String?> discountLabel,
 });
 typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
     Function({
@@ -15830,6 +16015,10 @@ typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
   Value<double?> toAmount,
   Value<String?> projectSyncId,
   Value<bool> needsAccountAssignment,
+  Value<double?> feeAmount,
+  Value<String?> feeLabel,
+  Value<double?> discountAmount,
+  Value<String?> discountLabel,
 });
 
 class $$TransactionsTableFilterComposer
@@ -15950,6 +16139,19 @@ class $$TransactionsTableFilterComposer
   ColumnFilters<bool> get needsAccountAssignment => $composableBuilder(
       column: $table.needsAccountAssignment,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get feeAmount => $composableBuilder(
+      column: $table.feeAmount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get feeLabel => $composableBuilder(
+      column: $table.feeLabel, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get discountAmount => $composableBuilder(
+      column: $table.discountAmount,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get discountLabel => $composableBuilder(
+      column: $table.discountLabel, builder: (column) => ColumnFilters(column));
 }
 
 class $$TransactionsTableOrderingComposer
@@ -16074,6 +16276,20 @@ class $$TransactionsTableOrderingComposer
   ColumnOrderings<bool> get needsAccountAssignment => $composableBuilder(
       column: $table.needsAccountAssignment,
       builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get feeAmount => $composableBuilder(
+      column: $table.feeAmount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get feeLabel => $composableBuilder(
+      column: $table.feeLabel, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get discountAmount => $composableBuilder(
+      column: $table.discountAmount,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get discountLabel => $composableBuilder(
+      column: $table.discountLabel,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$TransactionsTableAnnotationComposer
@@ -16181,6 +16397,18 @@ class $$TransactionsTableAnnotationComposer
 
   GeneratedColumn<bool> get needsAccountAssignment => $composableBuilder(
       column: $table.needsAccountAssignment, builder: (column) => column);
+
+  GeneratedColumn<double> get feeAmount =>
+      $composableBuilder(column: $table.feeAmount, builder: (column) => column);
+
+  GeneratedColumn<String> get feeLabel =>
+      $composableBuilder(column: $table.feeLabel, builder: (column) => column);
+
+  GeneratedColumn<double> get discountAmount => $composableBuilder(
+      column: $table.discountAmount, builder: (column) => column);
+
+  GeneratedColumn<String> get discountLabel => $composableBuilder(
+      column: $table.discountLabel, builder: (column) => column);
 }
 
 class $$TransactionsTableTableManager extends RootTableManager<
@@ -16241,6 +16469,10 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<double?> toAmount = const Value.absent(),
             Value<String?> projectSyncId = const Value.absent(),
             Value<bool> needsAccountAssignment = const Value.absent(),
+            Value<double?> feeAmount = const Value.absent(),
+            Value<String?> feeLabel = const Value.absent(),
+            Value<double?> discountAmount = const Value.absent(),
+            Value<String?> discountLabel = const Value.absent(),
           }) =>
               TransactionsCompanion(
             id: id,
@@ -16275,6 +16507,10 @@ class $$TransactionsTableTableManager extends RootTableManager<
             toAmount: toAmount,
             projectSyncId: projectSyncId,
             needsAccountAssignment: needsAccountAssignment,
+            feeAmount: feeAmount,
+            feeLabel: feeLabel,
+            discountAmount: discountAmount,
+            discountLabel: discountLabel,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
@@ -16309,6 +16545,10 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<double?> toAmount = const Value.absent(),
             Value<String?> projectSyncId = const Value.absent(),
             Value<bool> needsAccountAssignment = const Value.absent(),
+            Value<double?> feeAmount = const Value.absent(),
+            Value<String?> feeLabel = const Value.absent(),
+            Value<double?> discountAmount = const Value.absent(),
+            Value<String?> discountLabel = const Value.absent(),
           }) =>
               TransactionsCompanion.insert(
             id: id,
@@ -16343,6 +16583,10 @@ class $$TransactionsTableTableManager extends RootTableManager<
             toAmount: toAmount,
             projectSyncId: projectSyncId,
             needsAccountAssignment: needsAccountAssignment,
+            feeAmount: feeAmount,
+            feeLabel: feeLabel,
+            discountAmount: discountAmount,
+            discountLabel: discountLabel,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

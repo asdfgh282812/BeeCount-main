@@ -8,9 +8,7 @@ import '../project/project_overview_page.dart';
 import '../../providers.dart';
 import '../settings/personalize_page.dart' show headerStyleProvider;
 import '../../widgets/ui/ui.dart';
-import '../../widgets/biz/biz.dart';
 import '../../widgets/biz/bee_icon.dart';
-import '../../styles/tokens.dart';
 import '../transaction/search_page.dart';
 import '../transaction/transaction_list_page.dart';
 import '../ai/ai_chat_page.dart';
@@ -154,23 +152,6 @@ class _HomePageState extends ConsumerState<HomePage> {
       setState(() {
         _showBudgetSetupHint = false;
       });
-    }
-  }
-
-  // 日期选择处理 —— 现在驱动内嵌的日历(CalendarBody)跳转到目标年月，
-  // 而不是滚动列表(明細列表已挪到 TransactionListPage)。
-  Future<void> _handleDateSelection() async {
-    final month = ref.read(selectedMonthProvider);
-    final res = await showWheelDatePicker(
-      context,
-      initial: month,
-      mode: WheelDatePickerMode.ym,
-      maxDate: DateTime.now(),
-    );
-
-    if (res != null && mounted) {
-      final targetMonth = DateTime(res.year, res.month, 1);
-      _calendarKey.currentState?.jumpToMonth(targetMonth);
     }
   }
 
@@ -510,7 +491,6 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final month = ref.watch(selectedMonthProvider);
     final aiEnabledAsync = ref.watch(aiAssistantEnabledProvider);
     final aiEnabled = aiEnabledAsync.asData?.value ?? true; // 默认开启
 
@@ -774,75 +754,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  // 第二行 - 月份显示和统计
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      InkWell(
-                        borderRadius: BorderRadius.circular(8),
-                        onTap: _handleDateSelection,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                                AppLocalizations.of(context)
-                                    .homeYear(month.year),
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelLarge
-                                    ?.copyWith(
-                                        color: Theme.of(context)
-                                            .textTheme
-                                            .bodyMedium
-                                            ?.color
-                                            ?.withOpacity(0.6), // ⭐ 自适应次要文字颜色
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500)),
-                            const SizedBox(height: 2),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  AppLocalizations.of(context).homeMonth(
-                                      month.month.toString().padLeft(2, '0')),
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium
-                                      ?.copyWith(
-                                          color: Theme.of(context)
-                                              .textTheme
-                                              .bodyLarge
-                                              ?.color, // ⭐ 自适应主文字颜色
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w500),
-                                ),
-                                const SizedBox(width: 4),
-                                // 月份旁边的向下三角形（日期选择）
-                                Icon(
-                                  Icons.keyboard_arrow_down,
-                                  size: 16,
-                                  color: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.color
-                                      ?.withOpacity(0.6), // ⭐ 自适应次要颜色
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 12),
-                        width: 1,
-                        height: 36,
-                        color: Theme.of(context).dividerTheme.color ??
-                            Theme.of(context).dividerColor, // ⭐ 自适应分割线颜色
-                      ),
-                      const Expanded(child: _HeaderCenterSummary()),
-                    ],
-                  ),
                 ],
               ),
               bottom: const HomeBudgetSummary(),
@@ -873,64 +784,6 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _HeaderCenterSummary extends ConsumerWidget {
-  const _HeaderCenterSummary();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final ledgerId = ref.watch(currentLedgerIdProvider);
-    final month = ref.watch(selectedMonthProvider);
-    final params = (ledgerId: ledgerId, month: month);
-
-    ref.watch(monthlyTotalsProvider(params));
-    final cachedTotals = ref.watch(lastMonthlyTotalsProvider(params));
-    final (income, expense) = cachedTotals ?? (0.0, 0.0);
-    final balance = income - expense;
-
-    final amountStyle = Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Theme.of(context).textTheme.bodyLarge?.color,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ) ??
-        TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          color: Theme.of(context).textTheme.bodyLarge?.color,
-        );
-
-    Widget item(String title, double value) => Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title,
-                textAlign: TextAlign.left, style: BeeTextTokens.label(context)),
-            const SizedBox(height: 2),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: AmountText(
-                value: value,
-                signed: false,
-                decimals: 2,
-                style: amountStyle,
-              ),
-            ),
-          ],
-        );
-    return Row(
-      children: [
-        Expanded(child: item(AppLocalizations.of(context).homeIncome, income)),
-        const SizedBox(width: 4),
-        Expanded(
-            child: item(AppLocalizations.of(context).homeExpense, expense)),
-        const SizedBox(width: 4),
-        Expanded(
-            child: item(AppLocalizations.of(context).homeBalance, balance)),
-      ],
     );
   }
 }

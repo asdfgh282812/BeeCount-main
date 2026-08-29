@@ -5409,6 +5409,31 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get transferFillBalanceTooltip => 'Use current balance';
+
+  @override
+  String get transferFeeLabelHint => 'Fee';
+
+  @override
+  String get transferAddFeeButton => 'Add fee';
+
+  @override
+  String get transferAddDiscountButton => 'Add discount';
+
+  @override
+  String get transferRemoveAdjustmentButton => 'Remove';
+
+  @override
+  String get transferAmountLabel => 'Amount';
+
+  @override
+  String get transferDiscountExceedsAmountError =>
+      'Discount cannot exceed the transfer-in amount';
+
+  @override
+  String get transferAdjustmentNegativeError => 'Amount cannot be negative';
+
+  @override
   String get welcomeCategoryModeTitle => 'Choose Category Mode';
 
   @override

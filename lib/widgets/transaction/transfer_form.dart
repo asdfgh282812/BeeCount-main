@@ -55,6 +55,11 @@ class TransferForm extends ConsumerStatefulWidget {
   // v45 跨幣別轉帳:編輯既有跨幣別轉帳時回填轉入金額(存檔當下的歷史值,
   // 不隨目前線上匯率變動),同幣別轉帳/新建模式維持 null。
   final double? initialToAmount;
+  // v46 轉帳手續費/折損:編輯既有轉帳時回填,新建模式維持 null(面板預設收起)。
+  final double? initialFeeAmount;
+  final String? initialFeeLabel;
+  final double? initialDiscountAmount;
+  final String? initialDiscountLabel;
 
   const TransferForm({
     super.key,
@@ -69,6 +74,10 @@ class TransferForm extends ConsumerStatefulWidget {
     this.initialTagIds,
     this.recurringEditScope,
     this.initialToAmount,
+    this.initialFeeAmount,
+    this.initialFeeLabel,
+    this.initialDiscountAmount,
+    this.initialDiscountLabel,
   });
 
   @override
@@ -111,6 +120,19 @@ class TransferFormState extends ConsumerState<TransferForm>
   bool _fetchingToRate = false;
   String? _toRateFetchAttemptedFor;
 
+  // v46 轉帳手續費/折損:轉出側「+」展開手續費面板(轉出帳戶幣別),轉入側
+  // 「+」展開折損面板(轉入帳戶幣別)。兩者獨立、互不影響。
+  bool _feeEnabled = false;
+  bool _discountEnabled = false;
+  final TextEditingController _feeLabelCtrl = TextEditingController();
+  final TextEditingController _feeAmountCtrl = TextEditingController();
+  final TextEditingController _discountLabelCtrl = TextEditingController();
+  final TextEditingController _discountAmountCtrl = TextEditingController();
+  final FocusNode _feeLabelFocus = FocusNode();
+  final FocusNode _feeAmountFocus = FocusNode();
+  final FocusNode _discountLabelFocus = FocusNode();
+  final FocusNode _discountAmountFocus = FocusNode();
+
   late List<int> _selectedTagIds;
   List<File> _pendingAttachments = [];
 
@@ -122,6 +144,10 @@ class TransferFormState extends ConsumerState<TransferForm>
     _nameFocus.addListener(_onTextFieldFocusChange);
     _merchantFocus.addListener(_onTextFieldFocusChange);
     _toAmountFocus.addListener(_onTextFieldFocusChange);
+    _feeLabelFocus.addListener(_onTextFieldFocusChange);
+    _feeAmountFocus.addListener(_onTextFieldFocusChange);
+    _discountLabelFocus.addListener(_onTextFieldFocusChange);
+    _discountAmountFocus.addListener(_onTextFieldFocusChange);
     _fromAccountId = widget.initialFromAccountId;
     _toAccountId = widget.initialToAccountId;
     _date = widget.initialDate ?? DateTime.now();
@@ -141,6 +167,17 @@ class TransferFormState extends ConsumerState<TransferForm>
       _toAmountManuallySet = true;
     }
 
+    if (widget.initialFeeAmount != null) {
+      _feeEnabled = true;
+      _feeAmountCtrl.text = _fmtAbs(widget.initialFeeAmount!);
+      _feeLabelCtrl.text = widget.initialFeeLabel ?? '';
+    }
+    if (widget.initialDiscountAmount != null) {
+      _discountEnabled = true;
+      _discountAmountCtrl.text = _fmtAbs(widget.initialDiscountAmount!);
+      _discountLabelCtrl.text = widget.initialDiscountLabel ?? '';
+    }
+
     if (_fromAccountId != null) _loadAccount(_fromAccountId!, isFrom: true);
     if (_toAccountId != null) _loadAccount(_toAccountId!, isFrom: false);
   }
@@ -153,6 +190,14 @@ class TransferFormState extends ConsumerState<TransferForm>
     _merchantFocus.dispose();
     _toAmountCtrl.dispose();
     _toAmountFocus.dispose();
+    _feeLabelCtrl.dispose();
+    _feeAmountCtrl.dispose();
+    _discountLabelCtrl.dispose();
+    _discountAmountCtrl.dispose();
+    _feeLabelFocus.dispose();
+    _feeAmountFocus.dispose();
+    _discountLabelFocus.dispose();
+    _discountAmountFocus.dispose();
     super.dispose();
   }
 
@@ -166,7 +211,13 @@ class TransferFormState extends ConsumerState<TransferForm>
   }
 
   bool get _textFieldFocused =>
-      _nameFocus.hasFocus || _merchantFocus.hasFocus || _toAmountFocus.hasFocus;
+      _nameFocus.hasFocus ||
+      _merchantFocus.hasFocus ||
+      _toAmountFocus.hasFocus ||
+      _feeLabelFocus.hasFocus ||
+      _feeAmountFocus.hasFocus ||
+      _discountLabelFocus.hasFocus ||
+      _discountAmountFocus.hasFocus;
 
   /// 供 `transaction_editor_page.dart` 切 tab 時讀出目前已輸入的共用欄位。
   /// `accountId` 對應轉出帳戶(`_fromAccountId`)——轉入帳戶語意上不是「選中的
@@ -290,6 +341,27 @@ class TransferFormState extends ConsumerState<TransferForm>
       _toAmountManuallySet = false;
       _toAmountCtrl.clear();
       _toRateFetchAttemptedFor = null;
+    });
+  }
+
+  /// v46 轉帳「代入餘額」(轉出側):把帳戶目前餘額填進計算機式的轉出金額
+  /// 欄位(`_amountStr`),同時清掉未完成的運算子/累加值,行為比照使用者手
+  /// 打數字後直接輸入完成金額。
+  void _fillFromBalance(double balance) {
+    setState(() {
+      _amountStr = _fmtAbs(balance);
+      _acc = 0;
+      _op = null;
+    });
+  }
+
+  /// v46 轉帳「代入餘額」(轉入側):把帳戶目前餘額填進轉入金額欄位,並觸發
+  /// 跟「採用線上匯率」開關關閉時一樣的手動狀態,讓 [_buildCrossCurrencySection]
+  /// 顯示出來(同幣別轉帳原本這個區塊是隱藏的)。
+  void _fillToBalance(double balance) {
+    setState(() {
+      _toAmountCtrl.text = _fmtAbs(balance);
+      _toAmountManuallySet = true;
     });
   }
 
@@ -472,6 +544,10 @@ class TransferFormState extends ConsumerState<TransferForm>
     final fromCurrency = _fromAccount?.currency;
     final toCurrency = _toAccount?.currency;
     final sameCurrency = fromCurrency != null && fromCurrency == toCurrency;
+    // v46:同幣別轉帳時,轉入金額欄位只在折損面板開啟/使用者按過代入箭頭
+    // (`_toAmountManuallySet`)才會顯示,見 [_buildCrossCurrencySection]。
+    final toAmountSectionActive =
+        !sameCurrency || _discountEnabled || _toAmountManuallySet;
     double? resolvedToAmount;
     if (!sameCurrency) {
       resolvedToAmount = double.tryParse(_toAmountCtrl.text);
@@ -479,6 +555,44 @@ class TransferFormState extends ConsumerState<TransferForm>
         showToast(context, l10n.transferToAmountRequiredError);
         return;
       }
+    } else if (toAmountSectionActive) {
+      // 同幣別但區塊顯示:欄位是輔助用途(代入餘額/折損預覽),非必填——
+      // 沒填或填了無效值就當沒填,退化回 toAmount == null(=amount)。
+      final parsed = double.tryParse(_toAmountCtrl.text);
+      if (parsed != null && parsed > 0) resolvedToAmount = parsed;
+    }
+
+    // v46 轉帳手續費/折損:轉出/轉入兩側各自獨立驗證,金額皆須 ≥ 0;折損
+    // 不能讓實際轉入金額變負數(discountAmount <= toAmount ?? amount)。
+    double? resolvedFeeAmount;
+    String? resolvedFeeLabel;
+    if (_feeEnabled) {
+      resolvedFeeAmount = double.tryParse(_feeAmountCtrl.text) ?? 0;
+      if (resolvedFeeAmount < 0) {
+        showToast(context, l10n.transferAdjustmentNegativeError);
+        return;
+      }
+      resolvedFeeLabel = _feeLabelCtrl.text.isEmpty
+          ? l10n.transferFeeLabelHint
+          : _feeLabelCtrl.text;
+    }
+
+    double? resolvedDiscountAmount;
+    String? resolvedDiscountLabel;
+    if (_discountEnabled) {
+      resolvedDiscountAmount = double.tryParse(_discountAmountCtrl.text) ?? 0;
+      if (resolvedDiscountAmount < 0) {
+        showToast(context, l10n.transferAdjustmentNegativeError);
+        return;
+      }
+      final effectiveToAmount = resolvedToAmount ?? total.abs();
+      if (resolvedDiscountAmount > effectiveToAmount) {
+        showToast(context, l10n.transferDiscountExceedsAmountError);
+        return;
+      }
+      resolvedDiscountLabel = _discountLabelCtrl.text.isEmpty
+          ? l10n.transferFeeLabelHint
+          : _discountLabelCtrl.text;
     }
 
     setState(() => _isSubmitting = true);
@@ -542,7 +656,13 @@ class TransferFormState extends ConsumerState<TransferForm>
           happenedAt: _date,
           accountId: d.Value<int?>(fromAccountForAdd),
           accountSyncIdOverride: fromOverride,
-          toAmount: d.Value<double?>(sameCurrency ? null : resolvedToAmount),
+          toAmount: d.Value<double?>(resolvedToAmount),
+          feeAmount: d.Value<double?>(_feeEnabled ? resolvedFeeAmount : null),
+          feeLabel: d.Value<String?>(_feeEnabled ? resolvedFeeLabel : null),
+          discountAmount:
+              d.Value<double?>(_discountEnabled ? resolvedDiscountAmount : null),
+          discountLabel:
+              d.Value<String?>(_discountEnabled ? resolvedDiscountLabel : null),
         );
         // 更新 toAccountId(同时写 toAccountSyncIdOverride,共享账本场景)
         await repo.updateTransactionFields(
@@ -624,7 +744,11 @@ class TransferFormState extends ConsumerState<TransferForm>
           note: note,
           merchant: merchant,
           happenedAt: _date,
-          toAmount: sameCurrency ? null : resolvedToAmount,
+          toAmount: resolvedToAmount,
+          feeAmount: _feeEnabled ? resolvedFeeAmount : null,
+          feeLabel: _feeEnabled ? resolvedFeeLabel : null,
+          discountAmount: _discountEnabled ? resolvedDiscountAmount : null,
+          discountLabel: _discountEnabled ? resolvedDiscountLabel : null,
         );
         // 共享账本:本地立即标记创建人 + 编辑人(同一个 user)
         await TxAuthorService.markCreated(ref, transactionId);
@@ -699,6 +823,20 @@ class TransferFormState extends ConsumerState<TransferForm>
                       Row(
                         children: [
                           _buildCurrencyBadge(context),
+                          const SizedBox(width: 4),
+                          _buildAdjustmentToggleButton(
+                            key: const Key('transferFeeToggle'),
+                            enabled: _feeEnabled,
+                            tooltip: AppLocalizations.of(context)
+                                .transferAddFeeButton,
+                            onPressed: () => setState(() {
+                              _feeEnabled = !_feeEnabled;
+                              if (!_feeEnabled) {
+                                _feeLabelCtrl.clear();
+                                _feeAmountCtrl.clear();
+                              }
+                            }),
+                          ),
                           const Spacer(),
                           if (_op != null) ...[
                             Text(
@@ -747,6 +885,29 @@ class TransferFormState extends ConsumerState<TransferForm>
                                   fontWeight: FontWeight.w600, color: primary),
                             ),
                           ],
+                        ),
+                      ],
+                      if (_feeEnabled) ...[
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: _buildAdjustmentPanel(
+                            context,
+                            labelFieldKey: const Key('transferFeeLabelField'),
+                            amountFieldKey:
+                                const Key('transferFeeAmountField'),
+                            labelCtrl: _feeLabelCtrl,
+                            labelFocus: _feeLabelFocus,
+                            amountCtrl: _feeAmountCtrl,
+                            amountFocus: _feeAmountFocus,
+                            currency: _fromAccount?.currency ??
+                                ref.read(currentLedgerCurrencyProvider),
+                            onRemove: () => setState(() {
+                              _feeEnabled = false;
+                              _feeLabelCtrl.clear();
+                              _feeAmountCtrl.clear();
+                            }),
+                          ),
                         ),
                       ],
                     ],
@@ -868,21 +1029,29 @@ class TransferFormState extends ConsumerState<TransferForm>
   /// 雙欄互算模式,但匯率列本身維持唯讀(不做子專案 A 換算對話框那種匯率欄
   /// 位反向編輯——這裡的交換圖示是「互換轉出/轉入帳戶」用途,跟參考畫面一致,
   /// 避免欄位語意混淆)。
+  ///
+  /// v46 轉帳手續費/折損:除了跨幣別,下列任一條件也要顯示這個區塊——
+  /// (1) 轉入側折損面板開啟(`_discountEnabled`),(2) 使用者按過轉入側
+  /// 「代入餘額」箭頭(沿用既有 `_toAmountManuallySet` 旗標,不加第三個
+  /// bool)。同幣別且兩者皆否時維持原本隱藏行為不變。同幣別但因這兩個新
+  /// 理由顯示時,「採用線上匯率」開關/匯率展示列沒有意義,一併隱藏。
   Widget _buildCrossCurrencySection(BuildContext context) {
     final fromCurrency = _fromAccount?.currency;
     final toCurrency = _toAccount?.currency;
-    if (fromCurrency == null ||
-        toCurrency == null ||
-        fromCurrency == toCurrency) {
+    if (fromCurrency == null || toCurrency == null) {
+      return const SizedBox.shrink();
+    }
+    final isCrossCurrency = fromCurrency != toCurrency;
+    if (!isCrossCurrency && !_discountEnabled && !_toAmountManuallySet) {
       return const SizedBox.shrink();
     }
 
     final l10n = AppLocalizations.of(context);
     final text = Theme.of(context).textTheme;
     final total = _currentTotal().abs();
-    final ratesAsync = ref.watch(effectiveRatesForLedgerProvider);
 
-    if (!_toAmountManuallySet) {
+    if (isCrossCurrency && !_toAmountManuallySet) {
+      final ratesAsync = ref.watch(effectiveRatesForLedgerProvider);
       final rates = ratesAsync.valueOrNull;
       final computed = rates == null
           ? null
@@ -898,6 +1067,12 @@ class TransferFormState extends ConsumerState<TransferForm>
         });
       }
       final newText = computed != null ? computed.toStringAsFixed(2) : '';
+      if (_toAmountCtrl.text != newText) {
+        _toAmountCtrl.text = newText;
+      }
+    } else if (!isCrossCurrency && !_toAmountManuallySet) {
+      // 同幣別、因折損面板而顯示:預設轉入金額 = 轉出金額(沒有匯率換算)。
+      final newText = total > 0 ? total.toStringAsFixed(2) : '';
       if (_toAmountCtrl.text != newText) {
         _toAmountCtrl.text = newText;
       }
@@ -926,19 +1101,33 @@ class TransferFormState extends ConsumerState<TransferForm>
                       ?.copyWith(color: BeeTokens.textSecondary(context)),
                 ),
               ),
-              Text(
-                l10n.txUseOnlineRateLabel,
-                style: text.bodySmall
-                    ?.copyWith(color: BeeTokens.textSecondary(context)),
-              ),
-              Switch(
-                value: !_toAmountManuallySet,
-                onChanged: (useOnline) {
-                  setState(() {
-                    _toAmountManuallySet = !useOnline;
-                    if (useOnline) _toRateFetchAttemptedFor = null;
-                  });
-                },
+              if (isCrossCurrency) ...[
+                Text(
+                  l10n.txUseOnlineRateLabel,
+                  style: text.bodySmall
+                      ?.copyWith(color: BeeTokens.textSecondary(context)),
+                ),
+                Switch(
+                  value: !_toAmountManuallySet,
+                  onChanged: (useOnline) {
+                    setState(() {
+                      _toAmountManuallySet = !useOnline;
+                      if (useOnline) _toRateFetchAttemptedFor = null;
+                    });
+                  },
+                ),
+              ],
+              _buildAdjustmentToggleButton(
+                key: const Key('transferDiscountToggle'),
+                enabled: _discountEnabled,
+                tooltip: l10n.transferAddDiscountButton,
+                onPressed: () => setState(() {
+                  _discountEnabled = !_discountEnabled;
+                  if (!_discountEnabled) {
+                    _discountLabelCtrl.clear();
+                    _discountAmountCtrl.clear();
+                  }
+                }),
               ),
             ],
           ),
@@ -1002,15 +1191,157 @@ class TransferFormState extends ConsumerState<TransferForm>
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          Text(
-            rate != null
-                ? l10n.transferRateDisplay(fromCurrency.toUpperCase(),
-                    rate.toStringAsPrecision(6), toCurrency.toUpperCase())
-                : (_fetchingToRate ? '…' : l10n.txRateMissingHint),
-            style: text.bodySmall?.copyWith(
-              color: BeeTokens.textTertiary(context),
+          if (isCrossCurrency) ...[
+            const SizedBox(height: 6),
+            Text(
+              rate != null
+                  ? l10n.transferRateDisplay(fromCurrency.toUpperCase(),
+                      rate.toStringAsPrecision(6), toCurrency.toUpperCase())
+                  : (_fetchingToRate ? '…' : l10n.txRateMissingHint),
+              style: text.bodySmall?.copyWith(
+                color: BeeTokens.textTertiary(context),
+              ),
             ),
+          ],
+          if (_discountEnabled) ...[
+            const SizedBox(height: 10),
+            _buildAdjustmentPanel(
+              context,
+              labelFieldKey: const Key('transferDiscountLabelField'),
+              amountFieldKey: const Key('transferDiscountAmountField'),
+              labelCtrl: _discountLabelCtrl,
+              labelFocus: _discountLabelFocus,
+              amountCtrl: _discountAmountCtrl,
+              amountFocus: _discountAmountFocus,
+              currency: toCurrency,
+              onRemove: () => setState(() {
+                _discountEnabled = false;
+                _discountLabelCtrl.clear();
+                _discountAmountCtrl.clear();
+              }),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// v46 轉帳手續費/折損:轉出/轉入面板共用的「+」toggle 按鈕(圓形 icon
+  /// button,視覺上比照參考畫面的展開互動)。
+  Widget _buildAdjustmentToggleButton({
+    Key? key,
+    required bool enabled,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return IconButton(
+      key: key,
+      visualDensity: VisualDensity.compact,
+      tooltip: tooltip,
+      onPressed: onPressed,
+      icon: Icon(
+        enabled ? Icons.remove_circle_outline : Icons.add_circle_outline,
+        size: 20,
+        color: enabled
+            ? Theme.of(context).colorScheme.primary
+            : BeeTokens.iconSecondary(context),
+      ),
+    );
+  }
+
+  /// v46 轉帳手續費/折損:展開後的標籤 + 金額輸入面板,轉出/轉入兩側共用。
+  Widget _buildAdjustmentPanel(
+    BuildContext context, {
+    Key? labelFieldKey,
+    Key? amountFieldKey,
+    required TextEditingController labelCtrl,
+    required FocusNode labelFocus,
+    required TextEditingController amountCtrl,
+    required FocusNode amountFocus,
+    required String currency,
+    required VoidCallback onRemove,
+  }) {
+    final l10n = AppLocalizations.of(context);
+    final text = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: BeeTokens.surfaceElevated(context),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  key: labelFieldKey,
+                  controller: labelCtrl,
+                  focusNode: labelFocus,
+                  style: TextStyle(
+                      color: BeeTokens.textPrimary(context), fontSize: 13),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    hintText: l10n.transferFeeLabelHint,
+                    hintStyle: TextStyle(
+                        color: BeeTokens.textTertiary(context), fontSize: 13),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ),
+              InkWell(
+                onTap: onRemove,
+                child: Text(
+                  l10n.transferRemoveAdjustmentButton,
+                  style: text.bodySmall
+                      ?.copyWith(color: BeeTokens.textTertiary(context)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: BeeTokens.surfaceKeySecondary(context),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  currency.toUpperCase(),
+                  style: text.bodySmall?.copyWith(
+                    color: BeeTokens.textSecondary(context),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  key: amountFieldKey,
+                  controller: amountCtrl,
+                  focusNode: amountFocus,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                    color: BeeTokens.textPrimary(context),
+                    fontWeight: FontWeight.w600,
+                  ),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    hintText: l10n.transferAmountLabel,
+                    hintStyle:
+                        TextStyle(color: BeeTokens.textTertiary(context)),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -1027,6 +1358,7 @@ class TransferFormState extends ConsumerState<TransferForm>
             account: _fromAccount,
             label: l10n.transferFromAccount,
             onTap: () => _pickAccount(isFrom: true),
+            onFillBalance: _fillFromBalance,
           ),
         ),
         SizedBox(
@@ -1044,6 +1376,7 @@ class TransferFormState extends ConsumerState<TransferForm>
             account: _toAccount,
             label: l10n.transferToAccount,
             onTap: () => _pickAccount(isFrom: false),
+            onFillBalance: _fillToBalance,
           ),
         ),
       ],
@@ -1294,11 +1627,15 @@ class _AccountCardSlot extends ConsumerWidget {
   final Account? account;
   final String label;
   final VoidCallback onTap;
+  // v46 轉帳「代入餘額」:帳戶目前餘額(帳戶幣別下的數值,已signed=false取絕
+  // 對值前的原始 double)透過這個 callback 回傳給呼叫方填入對應金額欄位。
+  final ValueChanged<double> onFillBalance;
 
   const _AccountCardSlot({
     required this.account,
     required this.label,
     required this.onTap,
+    required this.onFillBalance,
   });
 
   @override
@@ -1377,15 +1714,41 @@ class _AccountCardSlot extends ConsumerWidget {
               Consumer(builder: (context, ref, _) {
                 final statsAsync = ref.watch(allAccountStatsProvider);
                 final balance = statsAsync.valueOrNull?[acc.id]?.balance ?? 0;
-                return AmountText(
-                  value: balance,
-                  signed: false,
-                  showCurrency: false,
-                  currencyCode: acc.currency,
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: BeeTokens.textSecondary(context)),
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AmountText(
+                      value: balance,
+                      signed: false,
+                      showCurrency: false,
+                      currencyCode: acc.currency,
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: BeeTokens.textSecondary(context)),
+                    ),
+                    // v46「代入餘額」:餘額非零才顯示,避免代入一個沒有意義
+                    // 的 0。
+                    if (balance != 0) ...[
+                      const SizedBox(width: 2),
+                      Tooltip(
+                        message: AppLocalizations.of(context)
+                            .transferFillBalanceTooltip,
+                        child: GestureDetector(
+                          onTap: () => onFillBalance(balance),
+                          behavior: HitTestBehavior.opaque,
+                          child: Padding(
+                            padding: const EdgeInsets.all(2),
+                            child: Icon(
+                              Icons.arrow_circle_down_outlined,
+                              size: 14,
+                              color: BeeTokens.iconSecondary(context),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 );
               }),
             ],

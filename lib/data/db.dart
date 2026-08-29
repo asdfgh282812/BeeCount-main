@@ -268,6 +268,21 @@ class Transactions extends Table {
   /// 交易。
   BoolColumn get needsAccountAssignment =>
       boolean().withDefault(const Constant(false))();
+
+  /// v46 轉帳手續費/折損(對齐 BeeCount Cloud `read_tx_projection.fee_amount`
+  /// / `fee_label` / `discount_amount` / `discount_label`,`0039_tx_fee_
+  /// discount.py`——Cloud 該組欄位本來就存在,只是原本只放行
+  /// expense/income,本次解除 transfer 的硬性拒絕,App/Cloud 直接共用同一組
+  /// wire key,不需要新 migration):`type == 'transfer'` 時,`feeAmount` 是
+  /// 轉出側額外扣款(轉出帳戶幣別),`discountAmount` 是轉入側到帳前折損
+  /// (轉入帳戶幣別)。皆為 null = 沒有手續費/折損,餘額計算退化回原本行為
+  /// (見 [LocalAccountRepository] 的 `_transferOutEffect`/
+  /// `_transferInEffect`)。**周期性轉帳(`RecurringTransactions`)不支援**,
+  /// 範圍比照現有 Web 版 recurring rule 不支援 fee/discount。
+  RealColumn get feeAmount => real().nullable()();
+  TextColumn get feeLabel => text().nullable()();
+  RealColumn get discountAmount => real().nullable()();
+  TextColumn get discountLabel => text().nullable()();
 }
 
 /// v39 借還款(§2.5 MOZE_FEATURE_GAP_SD.md,對齊 BeeCount Cloud `debt`
@@ -881,7 +896,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 45; // v45: 跨幣別轉帳(transactions.to_amount)
+  int get schemaVersion => 46; // v46: 轉帳手續費/折損(transactions.fee_amount 等)
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1842,6 +1857,19 @@ class BeeDatabase extends _$BeeDatabase {
             await _addColumnIfMissing('transactions', 'to_amount',
                 'ALTER TABLE transactions ADD COLUMN to_amount REAL;');
             logger.info('DBMigration', 'v45 迁移完成');
+          }
+          if (from < 46) {
+            logger.info('DBMigration',
+                '开始迁移到 v46: 转账手续费/折损(transactions.fee_amount 等)');
+            await _addColumnIfMissing('transactions', 'fee_amount',
+                'ALTER TABLE transactions ADD COLUMN fee_amount REAL;');
+            await _addColumnIfMissing('transactions', 'fee_label',
+                'ALTER TABLE transactions ADD COLUMN fee_label TEXT;');
+            await _addColumnIfMissing('transactions', 'discount_amount',
+                'ALTER TABLE transactions ADD COLUMN discount_amount REAL;');
+            await _addColumnIfMissing('transactions', 'discount_label',
+                'ALTER TABLE transactions ADD COLUMN discount_label TEXT;');
+            logger.info('DBMigration', 'v46 迁移完成');
           }
         },
         onCreate: (m) async {

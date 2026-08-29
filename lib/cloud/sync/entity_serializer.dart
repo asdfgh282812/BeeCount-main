@@ -56,6 +56,15 @@ class EntitySerializer {
       // 有值才發(同 nativeAmount),wire key 用 camelCase toAmount,對齊
       // Cloud sync_applier.py 的 ("toAmount", "to_amount") merge spec。
       if (tx.toAmount != null) 'toAmount': tx.toAmount,
+      // v46 轉帳手續費/折損:同款「有值才發」寫法,wire key 對齊 Cloud 既有
+      // (原本只給 expense/income 用,本次解除 transfer 限制後直接共用同一組
+      // key,不需要跟 Cloud 端另外協調命名)的 ("feeAmount","fee_amount") /
+      // ("feeLabel","fee_label") / ("discountAmount","discount_amount") /
+      // ("discountLabel","discount_label") merge spec。
+      if (tx.feeAmount != null) 'feeAmount': tx.feeAmount,
+      if (tx.feeLabel != null) 'feeLabel': tx.feeLabel,
+      if (tx.discountAmount != null) 'discountAmount': tx.discountAmount,
+      if (tx.discountLabel != null) 'discountLabel': tx.discountLabel,
       // v34:退款关联。有值才发(省略等价"不更新"),wire key 必须是
       // refundOfId —— BeeCount Cloud sync_applier.py 既有 merge spec
       // ("refundOfId", "refund_of_sync_id") 已经这样约定,改键名会让退款
