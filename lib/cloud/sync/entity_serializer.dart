@@ -52,6 +52,10 @@ class EntitySerializer {
       // 语义等价;省略保持 payload 干净。
       if (tx.currencyCode != null) 'currencyCode': tx.currencyCode,
       if (tx.nativeAmount != null) 'nativeAmount': tx.nativeAmount,
+      // v45 跨幣別轉帳:轉入帳戶自己幣別的金額,只有跨幣別轉帳才非 null。
+      // 有值才發(同 nativeAmount),wire key 用 camelCase toAmount,對齊
+      // Cloud sync_applier.py 的 ("toAmount", "to_amount") merge spec。
+      if (tx.toAmount != null) 'toAmount': tx.toAmount,
       // v34:退款关联。有值才发(省略等价"不更新"),wire key 必须是
       // refundOfId —— BeeCount Cloud sync_applier.py 既有 merge spec
       // ("refundOfId", "refund_of_sync_id") 已经这样约定,改键名会让退款

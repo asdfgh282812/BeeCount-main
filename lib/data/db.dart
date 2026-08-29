@@ -81,7 +81,8 @@ class Accounts extends Table {
   /// 加總 —— 帳戶本身仍正常出現在清單/選擇器,可正常記帳(跟 hidden 是
   /// 兩個獨立維度,見 lib/data/db.dart 的 hidden 註解與
   /// Debts.excludedFromTotal 的先例)。
-  BoolColumn get includeInTotal => boolean().withDefault(const Constant(true))();
+  BoolColumn get includeInTotal =>
+      boolean().withDefault(const Constant(true))();
 }
 
 /// 自动汇率本地缓存。日期键 append-only;可随时整表重建 → **不进同步**(README D2)。
@@ -240,6 +241,15 @@ class Transactions extends Table {
   /// 字段是 read_tx_projection.debt_sync_id,wire 字段名 debtId。恆發
   /// (同 reconciledAt)——清空欠款關聯是明確動作,null 必須能傳達給 server。
   TextColumn get debtSyncId => text().nullable()();
+
+  /// v45 跨幣別轉帳(對齐 BeeCount Cloud `to_amount`,alembic
+  /// 0044_tx_transfer_to_amount):`type == 'transfer'` 且轉出/轉入帳戶幣別
+  /// 不同時,存轉入帳戶自己幣別的金額;同幣別轉帳/非轉帳一律維持 null(不要
+  /// 為同幣別轉帳也塞 `toAmount = amount`——`toAmount ?? amount` 這個
+  /// COALESCE 慣例才能同時當「轉入金額」跟「是否跨幣別」的單一事實來源)。
+  /// BeeCount Cloud 端字段是 read_tx_projection.to_amount,wire 字段名
+  /// toAmount(camelCase,對齊 sync_applier.py 的 merge spec)。
+  RealColumn get toAmount => real().nullable()();
 
   /// v44 專案(對齐 BeeCount Cloud project sync entity,取代分類預算):這筆
   /// 交易關聯的 [Projects] 的 syncId。跟 [debtSyncId]/[recurringRuleId]
@@ -731,8 +741,7 @@ class Projects extends Table {
   RealColumn get budgetAmount => real().nullable()();
 
   /// 週期類型:'monthly' / 'yearly' / 'fixed'。
-  TextColumn get periodType =>
-      text().withDefault(const Constant('monthly'))();
+  TextColumn get periodType => text().withDefault(const Constant('monthly'))();
 
   /// 起訖日,僅 periodType='fixed' 使用。
   DateTimeColumn get periodStart => dateTime().nullable()();
@@ -743,8 +752,7 @@ class Projects extends Table {
       boolean().withDefault(const Constant(false))();
 
   /// 顯示於首頁。
-  BoolColumn get visibleOnHome =>
-      boolean().withDefault(const Constant(true))();
+  BoolColumn get visibleOnHome => boolean().withDefault(const Constant(true))();
 
   /// 啟用/封存旗標(軟刪除)。刪除規則:有交易關聯 → 設 false(封存);沒有
   /// → 直接刪除整列。見 [ProjectRepository.deleteProject]。
@@ -873,7 +881,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 44; // v44: 專案(projects)取代分類預算
+  int get schemaVersion => 45; // v45: 跨幣別轉帳(transactions.to_amount)
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1795,8 +1803,8 @@ class BeeDatabase extends _$BeeDatabase {
             logger.info('DBMigration', 'v41 迁移完成');
           }
           if (from < 42) {
-            logger.info(
-                'DBMigration', '开始迁移到 v42: 欠款排除計入總額(debts.excluded_from_total)');
+            logger.info('DBMigration',
+                '开始迁移到 v42: 欠款排除計入總額(debts.excluded_from_total)');
             await _addColumnIfMissing(
                 'debts',
                 'excluded_from_total',
@@ -1805,8 +1813,8 @@ class BeeDatabase extends _$BeeDatabase {
             logger.info('DBMigration', 'v42 迁移完成');
           }
           if (from < 43) {
-            logger.info(
-                'DBMigration', '开始迁移到 v43: 帳戶不納入總餘額(accounts.include_in_total)');
+            logger.info('DBMigration',
+                '开始迁移到 v43: 帳戶不納入總餘額(accounts.include_in_total)');
             await _addColumnIfMissing(
                 'accounts',
                 'include_in_total',
@@ -1827,6 +1835,13 @@ class BeeDatabase extends _$BeeDatabase {
             await customStatement(
                 'CREATE INDEX IF NOT EXISTS idx_projects_sync_id ON projects(sync_id)');
             logger.info('DBMigration', 'v44 迁移完成');
+          }
+          if (from < 45) {
+            logger.info(
+                'DBMigration', '开始迁移到 v45: 转账跨币别(transactions.to_amount)');
+            await _addColumnIfMissing('transactions', 'to_amount',
+                'ALTER TABLE transactions ADD COLUMN to_amount REAL;');
+            logger.info('DBMigration', 'v45 迁移完成');
           }
         },
         onCreate: (m) async {

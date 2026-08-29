@@ -17,6 +17,7 @@ import '../../utils/currencies.dart';
 import '../../styles/tokens.dart';
 import '../../utils/ui_scale_extensions.dart';
 import '../../utils/account_type_utils.dart';
+import '../../widgets/currency/currency_picker_sheet.dart';
 
 class AccountEditPage extends ConsumerStatefulWidget {
   final db.Account? account; // null表示新建
@@ -1436,82 +1437,13 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     }
   }
 
-  /// 显示币种选择器（复用账本页面的实现）
-  Future<String?> _showCurrencyPicker(BuildContext context,
-      {String? initial}) async {
-    return showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: BeeTokens.surfaceElevated(context),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (bctx) {
-        String query = '';
-        String? selected = initial;
-        return StatefulBuilder(builder: (sctx, setState) {
-          final filtered = getCurrencies(context).where((c) {
-            final q = query.trim();
-            if (q.isEmpty) return true;
-            final uq = q.toUpperCase();
-            return c.code.contains(uq) || c.name.contains(q);
-          }).toList();
-
-          return Padding(
-            padding: EdgeInsets.only(
-              left: 16,
-              right: 16,
-              top: 12,
-              bottom: 16 + MediaQuery.of(bctx).viewInsets.bottom,
-            ),
-            child: SizedBox(
-              height: 420,
-              child: Column(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.black12,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  Text(
-                    AppLocalizations.of(bctx).ledgersSelectCurrency,
-                    style: Theme.of(bctx).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.search),
-                      hintText: AppLocalizations.of(bctx).ledgersSearchCurrency,
-                    ),
-                    onChanged: (v) => setState(() => query = v),
-                  ),
-                  const SizedBox(height: 8),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: filtered.length,
-                      itemBuilder: (_, i) {
-                        final c = filtered[i];
-                        final sel = c.code == selected;
-                        return ListTile(
-                          title: Text('${c.name} (${c.code})'),
-                          trailing: sel
-                              ? const Icon(Icons.check, color: Colors.black)
-                              : null,
-                          onTap: () => Navigator.pop(bctx, c.code),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        });
-      },
+  /// 显示币种选择器(账本本位币置顶 + 账户使用频率排序,与其余选币界面同款)。
+  Future<String?> _showCurrencyPicker(BuildContext context, {String? initial}) {
+    return showCurrencyPickerSheet(
+      context,
+      selected: initial ?? '',
+      primaryColor: ref.read(primaryColorProvider),
+      title: AppLocalizations.of(context).ledgersSelectCurrency,
     );
   }
 }

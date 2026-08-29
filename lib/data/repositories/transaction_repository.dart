@@ -242,6 +242,9 @@ abstract class TransactionRepository {
     // syncId 字串,可在新建/編輯時直接傳,也可透過交易編輯表單事後改。
     String? projectSyncId,
     bool needsAccountAssignment = false,
+    // v45 跨幣別轉帳:轉入帳戶自己幣別的金額。只有 type == 'transfer' 且
+    // 轉出/轉入帳戶幣別不同時才傳非 null;同幣別轉帳/非轉帳留 null。
+    double? toAmount,
   });
 
   /// 批量新增交易，单事务内插入，返回插入条数。
@@ -307,6 +310,11 @@ abstract class TransactionRepository {
     // v38 拆帳:null = 不動既有拆帳明細;空列表 = 明確清空(還原成單一分類,
     // 這時 categoryId 參數才會生效寫回主表);非空列表 = 整組刪除重建。
     List<TransactionSplitInput>? splits,
+    // v45 跨幣別轉帳:語意同 [accountId]——不傳(null)= 不動既有值;傳
+    // `d.Value<double?>(null)` 顯式清空(如帳戶對改回同幣別);傳
+    // `d.Value(x)` 或直接傳 double 寫入新值。呼叫方若不知道這個欄位(一般
+    // 收支更新)一律不傳,行為不變。
+    dynamic toAmount,
   });
 
   /// 获取一笔交易的拆帳明細(依 sortOrder),非拆帳交易返回空列表。

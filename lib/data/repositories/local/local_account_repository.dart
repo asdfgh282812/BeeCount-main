@@ -444,7 +444,9 @@ class LocalAccountRepository implements AccountRepository {
         .get();
 
     for (final t in transfersIn) {
-      balance += t.amount;
+      // v45 跨幣別轉帳:轉入腳按轉入帳戶自己幣別的金額計(toAmount ?? amount,
+      // 同幣別/舊資料 toAmount 為 null 時退化 =amount,行為不變)。
+      balance += t.toAmount ?? t.amount;
     }
 
     return balance;
@@ -488,8 +490,8 @@ class LocalAccountRepository implements AccountRepository {
           balance += tx.amount;
         }
       } else if (tx.toAccountId == accountId) {
-        // 作为转入账户（转账）
-        balance += tx.amount;
+        // 作为转入账户（转账）。v45:toAmount ?? amount(见 getAccountBalance 注释)。
+        balance += tx.toAmount ?? tx.amount;
       }
     }
 
@@ -524,8 +526,8 @@ class LocalAccountRepository implements AccountRepository {
           balance += tx.amount;
         }
       } else if (tx.toAccountId == accountId) {
-        // 作为转入账户（转账）
-        balance += tx.amount;
+        // 作为转入账户（转账）。v45:toAmount ?? amount(见 getAccountBalance 注释)。
+        balance += tx.toAmount ?? tx.amount;
       }
     }
 
@@ -627,7 +629,8 @@ class LocalAccountRepository implements AccountRepository {
         .get();
 
     for (final t in transfersIn) {
-      income += t.amount;
+      // v45 跨幣別轉帳:toAmount ?? amount(見 getAccountBalance 注釋)。
+      income += t.toAmount ?? t.amount;
     }
 
     return income;
@@ -996,7 +999,8 @@ class LocalAccountRepository implements AccountRepository {
         }
       }
       if (tx.toAccountId == accountId && tx.type == 'transfer') {
-        runningBalance += tx.amount;
+        // v45 跨幣別轉帳:toAmount ?? amount(見 getAccountBalance 注釋)。
+        runningBalance += tx.toAmount ?? tx.amount;
       }
       txIndex++;
     }
@@ -1025,7 +1029,8 @@ class LocalAccountRepository implements AccountRepository {
           }
         }
         if (tx.toAccountId == accountId && tx.type == 'transfer') {
-          runningBalance += tx.amount;
+          // v45 跨幣別轉帳:toAmount ?? amount(見 getAccountBalance 注釋)。
+          runningBalance += tx.toAmount ?? tx.amount;
         }
         txIndex++;
       }

@@ -137,6 +137,10 @@ abstract class RecurringRuleRepository {
     DateTime? nextRunAt,
     DateTime? endAt,
     bool clearEndAt = false,
+    // v45 跨幣別轉帳:語意同 [TransactionRepository.updateTransaction] 的
+    // toAmount——不傳(null)= 不動既有值;傳 d.Value<double?>(x) 套用到這批
+    // 更新的每一列(單一數值,不做比例換算,跟其餘欄位的批次套用方式一致)。
+    dynamic toAmount,
   });
 
   /// 「刪除連同未來週期」:刪除同規則、`happenedAt > now` 的所有 occurrence
@@ -160,6 +164,10 @@ abstract class RecurringRuleRepository {
   /// transfer 類型(自動扣繳)規則:到期當下才逐筆生成,生成前查來源帳戶當
   /// 下記帳餘額,不夠就跳過(不推進進度,下次呼叫重試同一期)。回傳實際生成
   /// 筆數、被跳過的明細(供呼叫端通知使用者)、涉及的 ledgerId 集合。
-  Future<({int materialized, List<RecurringRuleTransferSkip> skipped, Set<int> ledgerIds})>
-      materializeDueTransferRules();
+  Future<
+      ({
+        int materialized,
+        List<RecurringRuleTransferSkip> skipped,
+        Set<int> ledgerIds
+      })> materializeDueTransferRules();
 }

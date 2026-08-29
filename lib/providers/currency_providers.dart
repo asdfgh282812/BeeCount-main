@@ -63,8 +63,8 @@ void _pushBaseCurrencyToCloud(Ref ref, String code) {
       if (cloudProvider == null) return;
       await cloudProvider.updateMyProfileBaseCurrency(
           primaryCurrency: normalized);
-      logger.info(
-          'currency_providers', 'primary currency pushed to server: $normalized');
+      logger.info('currency_providers',
+          'primary currency pushed to server: $normalized');
     } catch (e, st) {
       logger.warning('currency_providers',
           'push primary currency failed (non-blocking): $e', st);
@@ -143,6 +143,36 @@ final currentLedgerCurrencyProvider = Provider<String>((ref) {
   return (c == null || c.isEmpty) ? 'CNY' : c.toUpperCase();
 });
 
+/// 币种选择弹窗的优先展示顺序:账本本位币恒居首,其后按账户使用数量降序
+/// (账户多的币种排前,同数量按 kCommonCurrencyCodes/字母序兜底)。
+/// 供 [showCurrencyPickerSheet] 及各页面自建的币种选择器统一取用,
+/// 使「所有选择币别的界面」排序口径一致。watch statsRefresh 跟随账户增删改。
+final currencyPickerPriorityProvider =
+    FutureProvider<List<String>>((ref) async {
+  ref.watch(statsRefreshProvider);
+  final ledgerCurrency = ref.watch(currentLedgerCurrencyProvider);
+  final repo = ref.watch(repositoryProvider);
+  final accounts = await repo.getAllAccounts();
+
+  final freq = <String, int>{};
+  for (final a in accounts) {
+    final c = a.currency.toUpperCase();
+    freq[c] = (freq[c] ?? 0) + 1;
+  }
+  final byUsage = freq.keys.toList()
+    ..sort((a, b) {
+      final byCount = freq[b]!.compareTo(freq[a]!);
+      if (byCount != 0) return byCount;
+      return a.compareTo(b);
+    });
+
+  final ordered = <String>[ledgerCurrency];
+  for (final c in byUsage) {
+    if (!ordered.contains(c)) ordered.add(c);
+  }
+  return ordered;
+});
+
 /// 以**账本本位币**为 base 的有效汇率(账户/交易币种 → 账本本位币)。
 /// 结构同 [effectiveRatesProvider],仅 base 从用户主币种换成账本本位币;
 /// 两者默认相同(新账本本位币默认=主币种),不同账本切换时自动重算。
@@ -168,7 +198,8 @@ final effectiveRatesForLedgerProvider =
 
 /// 当前账本「未折算外币交易」条数(L11 检测):>0 时统计页显示补折算横幅。
 /// watch statsRefresh(重算完成/交易变动后重查)。
-final ledgerUnconvertedForeignTxCountProvider = FutureProvider<int>((ref) async {
+final ledgerUnconvertedForeignTxCountProvider =
+    FutureProvider<int>((ref) async {
   ref.watch(statsRefreshProvider);
   ref.watch(rateRefreshTickProvider);
   final ledger = ref.watch(currentLedgerProvider).valueOrNull;
@@ -192,7 +223,8 @@ final convertedNetWorthProvider =
   final breakdown = await ref.watch(netWorthBreakdownByCurrencyProvider.future);
   final rates = await ref.watch(effectiveRatesProvider.future);
   final base = ref.watch(baseCurrencyProvider).toUpperCase();
-  return computeConvertedNetWorth(breakdown: breakdown, rates: rates, base: base);
+  return computeConvertedNetWorth(
+      breakdown: breakdown, rates: rates, base: base);
 });
 
 /// 折算后的资产构成:每 (type, currency) 原币余额 × 汇率 → 按 type 聚合(主币种值)。

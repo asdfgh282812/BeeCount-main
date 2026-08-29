@@ -13,6 +13,7 @@ import '../../pages/tag/widgets/tag_selector.dart';
 import '../../providers.dart';
 import '../../services/attachment_service.dart';
 import '../../services/billing/post_processor.dart';
+import '../../services/currency/rate_math.dart';
 import '../../services/custom_icon_service.dart';
 import '../../services/data/tx_author_service.dart';
 import '../../styles/tokens.dart';
@@ -51,6 +52,9 @@ class TransferForm extends ConsumerStatefulWidget {
   // .editTransaction`)已經在進頁面之前問過「修改此記錄/連同未來週期」,這裡
   // 只是把選擇結果帶進來,存檔時直接沿用,不再重問一次。非週期交易維持 null。
   final RecurringEditScope? recurringEditScope;
+  // v45 跨幣別轉帳:編輯既有跨幣別轉帳時回填轉入金額(存檔當下的歷史值,
+  // 不隨目前線上匯率變動),同幣別轉帳/新建模式維持 null。
+  final double? initialToAmount;
 
   const TransferForm({
     super.key,
@@ -64,6 +68,7 @@ class TransferForm extends ConsumerStatefulWidget {
     this.initialDate,
     this.initialTagIds,
     this.recurringEditScope,
+    this.initialToAmount,
   });
 
   @override
@@ -97,6 +102,15 @@ class TransferFormState extends ConsumerState<TransferForm>
   final FocusNode _nameFocus = FocusNode();
   final FocusNode _merchantFocus = FocusNode();
 
+  // v45 跨幣別轉帳:轉入金額欄位。`_toAmountManuallySet` false = 跟隨線上匯率
+  // (欄位唯讀,line 由 [_maybeAutoFetchToRate] 觸發抓取);true = 使用者手動
+  // 編輯過(離線),欄位可編輯,值以使用者輸入為準,不再被線上匯率覆蓋。
+  final TextEditingController _toAmountCtrl = TextEditingController();
+  final FocusNode _toAmountFocus = FocusNode();
+  bool _toAmountManuallySet = false;
+  bool _fetchingToRate = false;
+  String? _toRateFetchAttemptedFor;
+
   late List<int> _selectedTagIds;
   List<File> _pendingAttachments = [];
 
@@ -107,6 +121,7 @@ class TransferFormState extends ConsumerState<TransferForm>
     super.initState();
     _nameFocus.addListener(_onTextFieldFocusChange);
     _merchantFocus.addListener(_onTextFieldFocusChange);
+    _toAmountFocus.addListener(_onTextFieldFocusChange);
     _fromAccountId = widget.initialFromAccountId;
     _toAccountId = widget.initialToAccountId;
     _date = widget.initialDate ?? DateTime.now();
@@ -121,6 +136,11 @@ class TransferFormState extends ConsumerState<TransferForm>
         : s;
     _amountStr = trimmed.isEmpty ? '0' : trimmed;
 
+    if (widget.initialToAmount != null) {
+      _toAmountCtrl.text = _fmtAbs(widget.initialToAmount!);
+      _toAmountManuallySet = true;
+    }
+
     if (_fromAccountId != null) _loadAccount(_fromAccountId!, isFrom: true);
     if (_toAccountId != null) _loadAccount(_toAccountId!, isFrom: false);
   }
@@ -131,16 +151,22 @@ class TransferFormState extends ConsumerState<TransferForm>
     _merchantCtrl.dispose();
     _nameFocus.dispose();
     _merchantFocus.dispose();
+    _toAmountCtrl.dispose();
+    _toAmountFocus.dispose();
     super.dispose();
   }
 
-  /// 名稱/商家欄位聚焦時收起底部小算盤(改用 iOS 原生鍵盤);兩者都失焦時
-  /// 小算盤才重新出現,跟 `transaction_entry_form.dart` 同款寫法。
+  /// 名稱/商家/轉入金額欄位聚焦時收起底部小算盤(改用系統原生鍵盤);全部
+  /// 失焦時小算盤才重新出現,跟 `transaction_entry_form.dart` 同款寫法。
+  /// v45 修正:轉入金額欄位原本沒掛這個 FocusNode,聚焦後系統鍵盤不會頂掉
+  /// 底部小算盤,使用者點進欄位卻只看得到跟轉出金額共用的計算機鍵盤,數字鍵
+  /// 打進去的是轉出金額而不是這裡,等於完全無法輸入轉入金額。
   void _onTextFieldFocusChange() {
     if (mounted) setState(() {});
   }
 
-  bool get _textFieldFocused => _nameFocus.hasFocus || _merchantFocus.hasFocus;
+  bool get _textFieldFocused =>
+      _nameFocus.hasFocus || _merchantFocus.hasFocus || _toAmountFocus.hasFocus;
 
   /// 供 `transaction_editor_page.dart` 切 tab 時讀出目前已輸入的共用欄位。
   /// `accountId` 對應轉出帳戶(`_fromAccountId`)——轉入帳戶語意上不是「選中的
@@ -228,6 +254,9 @@ class TransferFormState extends ConsumerState<TransferForm>
       ledgerId: ledgerId,
       selectedAccountId: isFrom ? _fromAccountId : _toAccountId,
       filterCurrency: currency,
+      // v45 跨幣別轉帳:不再依幣別過濾候選帳戶,filterCurrency 只影響帳戶列
+      // 的幣別標籤顯示(沿用子專案 A 新增的參數)。
+      allowAllCurrencies: true,
       pinnedAccountId:
           isFrom ? widget.initialFromAccountId : widget.initialToAccountId,
       excludeAccountId: isFrom ? _toAccountId : _fromAccountId,
@@ -241,6 +270,10 @@ class TransferFormState extends ConsumerState<TransferForm>
       } else {
         _toAccountId = id;
       }
+      // 帳戶對變動 → 舊的轉入金額/匯率狀態失效,回到「跟隨線上匯率」重新算。
+      _toAmountManuallySet = false;
+      _toAmountCtrl.clear();
+      _toRateFetchAttemptedFor = null;
     });
     await _loadAccount(id, isFrom: isFrom);
   }
@@ -253,6 +286,10 @@ class TransferFormState extends ConsumerState<TransferForm>
       final tmpAcc = _fromAccount;
       _fromAccount = _toAccount;
       _toAccount = tmpAcc;
+      // 方向對調,原本的轉入金額/匯率不再適用,回到「跟隨線上匯率」重新算。
+      _toAmountManuallySet = false;
+      _toAmountCtrl.clear();
+      _toRateFetchAttemptedFor = null;
     });
   }
 
@@ -291,6 +328,74 @@ class TransferFormState extends ConsumerState<TransferForm>
   }
 
   double _parsedAmount() => double.tryParse(_amountStr) ?? 0.0;
+
+  double _currentTotal() => _op == null
+      ? _parsedAmount()
+      : computeAmountOp(_acc, _op!, _parsedAmount());
+
+  /// 修正(2026-08-29 實機回報):`effectiveRatesForLedgerProvider` 的
+  /// `rates` 是「以帳本本位幣為 base」的一組匯率,key 是相對本位幣的其他
+  /// 幣別(例如本位幣 TWD 時,`rates['JPY']` = 「1 JPY = ? TWD」),**不包含
+  /// 本位幣自己**。原本直接把 [computeNativeAmount] 當成整個換算邏輯用
+  /// (`accountCurrency: fromCurrency, ledgerBase: toCurrency`),只在
+  /// `toCurrency == 帳本本位幣` 時才查得到 `rates[fromCurrency]`;一旦
+  /// `fromCurrency` 才是本位幣(例如 TWD 轉去 JPY 帳戶,這是最常見的方向),
+  /// `rates[fromCurrency]` 永遠查不到,線上匯率永遠顯示「查無資料」,不管開關
+  /// 開或關都無法自動換算。這裡改成先把 `fromCurrency` 換算到帳本本位幣
+  /// (複用 [computeNativeAmount] 這一段既有邏輯),再從本位幣換到
+  /// `toCurrency`(兩者皆非本位幣時就是完整的三角換算),兩段都查得到才回傳。
+  double? _convertCrossCurrency({
+    required double amount,
+    required String fromCurrency,
+    required String toCurrency,
+    required Map<String, EffectiveRate> rates,
+  }) {
+    final ledgerBase = ref.read(currentLedgerCurrencyProvider);
+    final inBase = computeNativeAmount(
+      amount: amount,
+      accountCurrency: fromCurrency,
+      ledgerBase: ledgerBase,
+      rates: rates,
+    );
+    if (inBase == null) return null;
+    if (toCurrency.toUpperCase() == ledgerBase.toUpperCase()) return inBase;
+    final toEff = rates[toCurrency.toUpperCase()];
+    if (toEff == null) return null;
+    final r = double.tryParse(toEff.rate);
+    if (r == null || r <= 0) return null;
+    return inBase / r;
+  }
+
+  /// 線上匯率抓取(§3,精簡版:不複製 transaction_entry_form.dart 那套
+  /// `_currentRate`/`_maybeAutoFetchRate`,直接用 provider + computeNativeAmount
+  /// 現拼)。跟 [_toAmountManuallySet] 互斥——手動編輯過就不再自動抓/覆蓋。
+  /// 需要抓的幣別是轉出/轉入兩者裡「不等於帳本本位幣」的那些(可能兩個都要,
+  /// 例如帳本本位幣是 TWD、轉出/轉入分別是 USD/JPY 時)。
+  void _maybeAutoFetchToRate() {
+    final fromCurrency = _fromAccount?.currency;
+    final toCurrency = _toAccount?.currency;
+    if (fromCurrency == null || toCurrency == null) return;
+    if (_toAmountManuallySet || _fetchingToRate) return;
+    final ledgerBase = ref.read(currentLedgerCurrencyProvider).toUpperCase();
+    final needed = <String>{
+      if (fromCurrency.toUpperCase() != ledgerBase) fromCurrency,
+      if (toCurrency.toUpperCase() != ledgerBase) toCurrency,
+    };
+    if (needed.isEmpty) return;
+    final attemptKey = (needed.toList()..sort()).join(',');
+    if (_toRateFetchAttemptedFor == attemptKey) return;
+    final rates = ref.read(effectiveRatesForLedgerProvider).valueOrNull;
+    if (rates == null) return;
+    final missing =
+        needed.where((c) => !rates.containsKey(c.toUpperCase())).toSet();
+    if (missing.isEmpty) return;
+    _toRateFetchAttemptedFor = attemptKey;
+    setState(() => _fetchingToRate = true);
+    refreshExchangeRatesFromUi(ref, force: true, extraQuotes: needed)
+        .whenComplete(() {
+      if (mounted) setState(() => _fetchingToRate = false);
+    });
+  }
 
   void _applyOp(String op) {
     final cur = _parsedAmount();
@@ -355,25 +460,23 @@ class TransferFormState extends ConsumerState<TransferForm>
     if (_fromAccountId == null || _toAccountId == null || _isSubmitting) {
       return;
     }
-    final total = _op == null
-        ? _parsedAmount()
-        : computeAmountOp(_acc, _op!, _parsedAmount());
+    final total = _currentTotal();
     if (total.abs() <= 0) return;
 
     final l10n = AppLocalizations.of(context);
 
-    // 跨币种转账守卫(.docs/multi-currency-ledger 01 §4.4):存量数据放行
-    // (2026-07-12 细则)——编辑模式且账户对未改动(老数据在守卫上线前就是
-    // 跨币种)才放行,让用户能改备注/日期等,不强迫重选账户。
+    // v45 跨幣別轉帳:不再阻擋跨幣別帳戶對,改成金額驗證——跨幣別時必須有
+    // 一個 > 0 的轉入金額(對應 Cloud _assert_transfer_to_amount_valid 的
+    // 邏輯),否則跳校驗錯誤提示。同幣別時 toAmount 一律傳 null(即使使用者
+    // 曾經選過跨幣別帳戶又改回同幣別,也不殘留舊的轉入金額狀態)。
     final fromCurrency = _fromAccount?.currency;
     final toCurrency = _toAccount?.currency;
     final sameCurrency = fromCurrency != null && fromCurrency == toCurrency;
+    double? resolvedToAmount;
     if (!sameCurrency) {
-      final isOriginalPair = widget.editingTransactionId != null &&
-          _fromAccountId == widget.initialFromAccountId &&
-          _toAccountId == widget.initialToAccountId;
-      if (!isOriginalPair) {
-        showToast(context, l10n.transferDifferentCurrencyError);
+      resolvedToAmount = double.tryParse(_toAmountCtrl.text);
+      if (resolvedToAmount == null || resolvedToAmount <= 0) {
+        showToast(context, l10n.transferToAmountRequiredError);
         return;
       }
     }
@@ -439,6 +542,7 @@ class TransferFormState extends ConsumerState<TransferForm>
           happenedAt: _date,
           accountId: d.Value<int?>(fromAccountForAdd),
           accountSyncIdOverride: fromOverride,
+          toAmount: d.Value<double?>(sameCurrency ? null : resolvedToAmount),
         );
         // 更新 toAccountId(同时写 toAccountSyncIdOverride,共享账本场景)
         await repo.updateTransactionFields(
@@ -474,6 +578,8 @@ class TransferFormState extends ConsumerState<TransferForm>
               toAccountId: toAccountForAdd,
               note: note,
               merchant: merchant,
+              toAmount:
+                  d.Value<double?>(sameCurrency ? null : resolvedToAmount),
             );
           }
         }
@@ -518,6 +624,7 @@ class TransferFormState extends ConsumerState<TransferForm>
           note: note,
           merchant: merchant,
           happenedAt: _date,
+          toAmount: sameCurrency ? null : resolvedToAmount,
         );
         // 共享账本:本地立即标记创建人 + 编辑人(同一个 user)
         await TxAuthorService.markCreated(ref, transactionId);
@@ -645,6 +752,7 @@ class TransferFormState extends ConsumerState<TransferForm>
                     ],
                   ),
                 ),
+                _buildCrossCurrencySection(context),
                 const SizedBox(height: 10),
                 TextField(
                   controller: _nameCtrl,
@@ -748,6 +856,160 @@ class TransferFormState extends ConsumerState<TransferForm>
             style: text.bodySmall?.copyWith(
               color: BeeTokens.textSecondary(context),
               fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// v45 跨幣別轉帳(§3):轉出/轉入帳戶幣別不同時才顯示——轉入金額欄位 +
+  /// 唯讀匯率展示列 + 「採用線上匯率」開關。互動邏輯沿用子專案 A 已確立的
+  /// 雙欄互算模式,但匯率列本身維持唯讀(不做子專案 A 換算對話框那種匯率欄
+  /// 位反向編輯——這裡的交換圖示是「互換轉出/轉入帳戶」用途,跟參考畫面一致,
+  /// 避免欄位語意混淆)。
+  Widget _buildCrossCurrencySection(BuildContext context) {
+    final fromCurrency = _fromAccount?.currency;
+    final toCurrency = _toAccount?.currency;
+    if (fromCurrency == null ||
+        toCurrency == null ||
+        fromCurrency == toCurrency) {
+      return const SizedBox.shrink();
+    }
+
+    final l10n = AppLocalizations.of(context);
+    final text = Theme.of(context).textTheme;
+    final total = _currentTotal().abs();
+    final ratesAsync = ref.watch(effectiveRatesForLedgerProvider);
+
+    if (!_toAmountManuallySet) {
+      final rates = ratesAsync.valueOrNull;
+      final computed = rates == null
+          ? null
+          : _convertCrossCurrency(
+              amount: total,
+              fromCurrency: fromCurrency,
+              toCurrency: toCurrency,
+              rates: rates,
+            );
+      if (computed == null && !_fetchingToRate) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _maybeAutoFetchToRate();
+        });
+      }
+      final newText = computed != null ? computed.toStringAsFixed(2) : '';
+      if (_toAmountCtrl.text != newText) {
+        _toAmountCtrl.text = newText;
+      }
+    }
+
+    final toAmountValue = double.tryParse(_toAmountCtrl.text);
+    final rate =
+        (toAmountValue != null && total > 0) ? toAmountValue / total : null;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 10, bottom: 4),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: BeeTokens.surfaceInput(context),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  l10n.transferToAmountLabel,
+                  style: text.bodySmall
+                      ?.copyWith(color: BeeTokens.textSecondary(context)),
+                ),
+              ),
+              Text(
+                l10n.txUseOnlineRateLabel,
+                style: text.bodySmall
+                    ?.copyWith(color: BeeTokens.textSecondary(context)),
+              ),
+              Switch(
+                value: !_toAmountManuallySet,
+                onChanged: (useOnline) {
+                  setState(() {
+                    _toAmountManuallySet = !useOnline;
+                    if (useOnline) _toRateFetchAttemptedFor = null;
+                  });
+                },
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              // 幣別徽章獨立於 TextField 之外、恆常顯示(比照參考畫面 + 頂部
+              // `_buildCurrencyBadge` 的視覺語言)——不用 InputDecoration 的
+              // suffixText,因為欄位在「採用線上匯率」模式下是 disabled,
+              // disabled 的 suffix 顏色會被 Flutter 壓得跟深色底幾乎融為一
+              // 體,實測看起來像「沒有幣別字樣」,使用者得先點進欄位(欄位變
+              // enabled)才看得到,體感是 bug。
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                decoration: BoxDecoration(
+                  color: BeeTokens.surfaceKeySecondary(context),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    currencyFlag(context, toCurrency.toUpperCase(),
+                        width: 19, height: 14, radius: 4),
+                    const SizedBox(width: 5),
+                    Text(
+                      toCurrency.toUpperCase(),
+                      style: text.bodySmall?.copyWith(
+                        color: BeeTokens.textSecondary(context),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  key: const Key('transferToAmountField'),
+                  controller: _toAmountCtrl,
+                  focusNode: _toAmountFocus,
+                  enabled: _toAmountManuallySet,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                    color: BeeTokens.textPrimary(context),
+                    fontWeight: FontWeight.w600,
+                  ),
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
+                    ),
+                    filled: true,
+                    fillColor: BeeTokens.surfaceElevated(context),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            rate != null
+                ? l10n.transferRateDisplay(fromCurrency.toUpperCase(),
+                    rate.toStringAsPrecision(6), toCurrency.toUpperCase())
+                : (_fetchingToRate ? '…' : l10n.txRateMissingHint),
+            style: text.bodySmall?.copyWith(
+              color: BeeTokens.textTertiary(context),
             ),
           ),
         ],

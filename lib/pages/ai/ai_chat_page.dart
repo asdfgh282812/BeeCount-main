@@ -871,6 +871,7 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
               editingTransactionId: transaction.id,
               initialAccountId: transaction.accountId,
               initialToAccountId: transaction.toAccountId,
+              initialToAmount: transaction.toAmount,
               initialRewardRuleIds: transaction.rewardRuleIds,
               initialRecurringEditScope: recurringScope,
             ),

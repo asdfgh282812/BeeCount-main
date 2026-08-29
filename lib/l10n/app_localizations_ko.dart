@@ -5232,6 +5232,18 @@ class AppLocalizationsKo extends AppLocalizations {
   String get transferFromPrefix => '보내는 곳';
 
   @override
+  String get transferToAmountLabel => 'Received amount';
+
+  @override
+  String get transferToAmountRequiredError =>
+      'Please enter the received amount';
+
+  @override
+  String transferRateDisplay(Object from, Object rate, Object to) {
+    return '1 $from = $rate $to';
+  }
+
+  @override
   String get welcomeCategoryModeTitle => '카테고리 모드 선택';
 
   @override

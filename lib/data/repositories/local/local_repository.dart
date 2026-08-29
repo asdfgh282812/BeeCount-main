@@ -406,6 +406,7 @@ class LocalRepository extends BaseRepository {
     String? debtSyncId,
     String? projectSyncId,
     bool needsAccountAssignment = false,
+    double? toAmount,
   }) async {
     // v30 带折算兜底(02 §六):任何调用方(单币种记账/AI/周期模板)未传两字段
     // 时在此补齐 —— 外币先查有效汇率,取不到才 =amount(命中 L11 检测可捞回)。
@@ -441,6 +442,7 @@ class LocalRepository extends BaseRepository {
       debtSyncId: debtSyncId,
       projectSyncId: projectSyncId,
       needsAccountAssignment: needsAccountAssignment,
+      toAmount: toAmount,
     );
     if (changeTracker != null) {
       final tx = await _transactionRepo.getTransactionById(id);
@@ -518,6 +520,7 @@ class LocalRepository extends BaseRepository {
     double? nativeAmount,
     List<String>? rewardRuleIds,
     List<TransactionSplitInput>? splits,
+    dynamic toAmount,
   }) async {
     final old = await _transactionRepo.getTransactionById(id);
     // v30 联动兜底(与 Cloud merge/mutator 的 L14 同规则):调用方不传两字段时——
@@ -570,6 +573,7 @@ class LocalRepository extends BaseRepository {
           nativeAmount: effNative,
           rewardRuleIds: rewardRuleIds,
           splits: splits,
+          toAmount: toAmount,
         );
         await changeTracker!.recordLedgerChange(
           entityType: 'transaction',
@@ -599,6 +603,7 @@ class LocalRepository extends BaseRepository {
       nativeAmount: effNative,
       rewardRuleIds: rewardRuleIds,
       splits: splits,
+      toAmount: toAmount,
     );
   }
 
@@ -622,8 +627,10 @@ class LocalRepository extends BaseRepository {
     // DEBT_HAS_REPAYMENTS 守衛是同一條判斷邏輯,這裡只是反過來在刪交易時
     // 自動觸發。見 docs/changes/2026-08-25-debt-origin-tx-cascade-and-record-visibility.md。
     if (tx?.syncId != null) {
-      final relatedDebt = await _debtRepo.getDebtByOriginTransactionSyncId(tx!.syncId!);
-      if (relatedDebt != null && !(await _debtRepo.hasRepayments(relatedDebt.id))) {
+      final relatedDebt =
+          await _debtRepo.getDebtByOriginTransactionSyncId(tx!.syncId!);
+      if (relatedDebt != null &&
+          !(await _debtRepo.hasRepayments(relatedDebt.id))) {
         await deleteDebt(relatedDebt.id);
       }
     }
@@ -2399,8 +2406,8 @@ class LocalRepository extends BaseRepository {
             ..where((l) => l.id.equals(b.ledgerId)))
           .getSingleOrNull();
       final currency = (ledger?.currency ?? 'CNY').toUpperCase();
-      final prev =
-          result[currency] ?? (totalAssets: 0.0, totalLiabilities: 0.0, netWorth: 0.0);
+      final prev = result[currency] ??
+          (totalAssets: 0.0, totalLiabilities: 0.0, netWorth: 0.0);
       result[currency] = (
         totalAssets: prev.totalAssets + b.receivableRemaining,
         totalLiabilities: prev.totalLiabilities - b.payableRemaining,
@@ -2805,6 +2812,7 @@ class LocalRepository extends BaseRepository {
     DateTime? nextRunAt,
     DateTime? endAt,
     bool clearEndAt = false,
+    dynamic toAmount,
   }) async {
     final rule = await _recurringRuleRepo.getRuleById(ruleId);
     if (rule == null) return;
@@ -2884,6 +2892,7 @@ class LocalRepository extends BaseRepository {
         merchant: merchant ?? t.merchant,
         accountId: accountId ?? t.accountId,
         rewardRuleIds: rewardRuleSyncIds,
+        toAmount: toAmount,
       );
       if (toAccountId != null) {
         await updateTransactionFields(id: t.id, toAccountId: toAccountId);
@@ -3921,9 +3930,8 @@ class LocalRepository extends BaseRepository {
       excludedFromTotal: excludedFromTotal,
     );
     if (changeTracker != null) {
-      final row =
-          await (db.select(db.debts)..where((t) => t.id.equals(id)))
-              .getSingleOrNull();
+      final row = await (db.select(db.debts)..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
       if (row?.syncId != null) {
         await changeTracker!.recordLedgerChange(
           entityType: 'debt',
@@ -4041,9 +4049,8 @@ class LocalRepository extends BaseRepository {
 
   @override
   Future<void> deleteDebt(int id) async {
-    final target =
-        await (db.select(db.debts)..where((t) => t.id.equals(id)))
-            .getSingleOrNull();
+    final target = await (db.select(db.debts)..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
     if (target == null) return;
 
     await _debtRepo.deleteDebt(id);
@@ -4094,9 +4101,14 @@ class LocalRepository extends BaseRepository {
       _debtRepo.getNetDebtBalance(ledgerId);
 
   @override
-  Future<List<({int ledgerId, double receivableRemaining, double payableRemaining})>>
-      getDebtBalancesByLedgerForAllLedgers() =>
-          _debtRepo.getDebtBalancesByLedgerForAllLedgers();
+  Future<
+      List<
+          ({
+            int ledgerId,
+            double receivableRemaining,
+            double payableRemaining
+          })>> getDebtBalancesByLedgerForAllLedgers() =>
+      _debtRepo.getDebtBalancesByLedgerForAllLedgers();
 
   @override
   Stream<List<Debt>> watchDebts(int ledgerId) => _debtRepo.watchDebts(ledgerId);
@@ -4200,9 +4212,8 @@ class LocalRepository extends BaseRepository {
 
   @override
   Future<void> deleteProject(int id) async {
-    final target =
-        await (db.select(db.projects)..where((t) => t.id.equals(id)))
-            .getSingleOrNull();
+    final target = await (db.select(db.projects)..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
     if (target == null) return;
 
     await _projectRepo.deleteProject(id);

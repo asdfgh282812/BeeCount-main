@@ -5171,6 +5171,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get transferFromPrefix => '来自';
 
   @override
+  String get transferToAmountLabel => 'Received amount';
+
+  @override
+  String get transferToAmountRequiredError =>
+      'Please enter the received amount';
+
+  @override
+  String transferRateDisplay(Object from, Object rate, Object to) {
+    return '1 $from = $rate $to';
+  }
+
+  @override
   String get welcomeCategoryModeTitle => '选择分类模式';
 
   @override
@@ -13960,6 +13972,17 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get transferFromPrefix => '轉出';
+
+  @override
+  String get transferToAmountLabel => '轉入金額';
+
+  @override
+  String get transferToAmountRequiredError => '請輸入轉入金額';
+
+  @override
+  String transferRateDisplay(Object from, Object rate, Object to) {
+    return '1 $from = $rate $to';
+  }
 
   @override
   String get welcomeCategoryModeTitle => '選擇分類模式';

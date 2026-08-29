@@ -250,6 +250,16 @@ extension SyncEngineApplyExt on SyncEngine {
     final payloadNative =
         hasNativeKey ? (payload['nativeAmount'] as num?)?.toDouble() : null;
 
+    // v45 跨幣別轉帳:payload 帶鍵 → 用 payload 值;缺鍵(舊 App 的 change,
+    // sync_changes 存的是原始 push payload)→ 只在本地既有列本身是
+    // type == 'transfer' 且已有 toAmount 快照時才聯動——按舊 amount/舊
+    // toAmount 三個數字算出新 toAmount,公式跟 Cloud
+    // sync_applier.py::_sync_to_amount_after_merge(對應 rescale_native_amount)
+    // 完全一致,兩邊不能各自發明算法,否則多端同步後金額會兜不起來。
+    final hasToAmountKey = payload.containsKey('toAmount');
+    final payloadToAmount =
+        hasToAmountKey ? (payload['toAmount'] as num?)?.toDouble() : null;
+
     // v35:信用卡紅利回饋——跟 excludeFromStats 同款「缺键不覆盖」,旧 payload
     // (老版本 App / 尚未支持此字段的其它客户端)不带这个键时不要清空本地已
     // 有的勾选。
@@ -316,19 +326,41 @@ extension SyncEngineApplyExt on SyncEngine {
       // 更新 — createdByUserId 走"本地为 null 就回填,否则保持"的策略。
       final shouldBackfillCreator =
           existingCreatedByUserId == null && createdByUserId != null;
-      // 快照保护:缺 nativeAmount 键时查本地旧行判断 amount 是否变化。
+      // 快照保护:缺 nativeAmount / toAmount 键时都要查本地旧行,合并成一次
+      // SELECT 避免重复查询。
+      final needOldTx = !hasNativeKey || !hasToAmountKey;
+      final oldTx = needOldTx
+          ? await (db.select(db.transactions)
+                ..where((t) => t.id.equals(existingId!)))
+              .getSingleOrNull()
+          : null;
+
       d.Value<double?> nativeValue;
       if (hasNativeKey) {
         nativeValue = d.Value(payloadNative);
       } else {
-        final oldTx = await (db.select(db.transactions)
-              ..where((t) => t.id.equals(existingId!)))
-            .getSingleOrNull();
         final oldNative = oldTx?.nativeAmount;
         if (oldNative != null && oldTx!.amount != amount) {
           nativeValue = d.Value(amount); // 旧客户端改了金额 → 退化 1:1
         } else {
           nativeValue = const d.Value.absent(); // 金额未变 → 保留本地折算
+        }
+      }
+
+      // v45:跟 nativeValue 同款「缺鍵查舊行」,但公式是真正的等比縮放
+      // (rescale_native_amount),不是 nativeValue 那種退化 1:1。
+      d.Value<double?> toAmountValue;
+      if (hasToAmountKey) {
+        toAmountValue = d.Value(payloadToAmount);
+      } else {
+        final oldToAmount = oldTx?.toAmount;
+        if (oldTx?.type == 'transfer' &&
+            oldToAmount != null &&
+            oldTx!.amount != amount) {
+          toAmountValue =
+              d.Value(_rescaleAmount(oldTx.amount, oldToAmount, amount));
+        } else {
+          toAmountValue = const d.Value.absent();
         }
       }
       await (db.update(db.transactions)..where((t) => t.id.equals(existingId!)))
@@ -374,13 +406,11 @@ extension SyncEngineApplyExt on SyncEngine {
         deferredPostingAt: hasDeferredPostingKey
             ? d.Value(deferredPostingAt)
             : const d.Value.absent(),
-        hasSplits:
-            hasSplitsKey ? d.Value(txHasSplits) : const d.Value.absent(),
-        debtSyncId:
-            hasDebtIdKey ? d.Value(debtSyncId) : const d.Value.absent(),
-        projectSyncId: hasProjectIdKey
-            ? d.Value(projectSyncId)
-            : const d.Value.absent(),
+        hasSplits: hasSplitsKey ? d.Value(txHasSplits) : const d.Value.absent(),
+        debtSyncId: hasDebtIdKey ? d.Value(debtSyncId) : const d.Value.absent(),
+        projectSyncId:
+            hasProjectIdKey ? d.Value(projectSyncId) : const d.Value.absent(),
+        toAmount: toAmountValue,
       ));
       // 更新标签、附件、拆帳明細(existing 路径)
       await _syncTransactionTags(existingId, syncId, payload);
@@ -423,6 +453,7 @@ extension SyncEngineApplyExt on SyncEngine {
               hasSplits: d.Value(txHasSplits),
               debtSyncId: d.Value(debtSyncId),
               projectSyncId: d.Value(projectSyncId),
+              toAmount: d.Value(payloadToAmount),
             ),
           );
       // 写回 cache,后续同 syncId 的 update change 能命中
@@ -977,8 +1008,7 @@ extension SyncEngineApplyExt on SyncEngine {
     // 用法一致，因此优先信 payload，缺键时 fallback 到 change.ledgerId。
     final ledgerSyncId = (payload['ledgerSyncId'] as String?) ??
         (change.ledgerId.isEmpty ? null : change.ledgerId);
-    final direction =
-        payload['direction'] as String? ?? kDebtDirectionPayable;
+    final direction = payload['direction'] as String? ?? kDebtDirectionPayable;
     final counterpartyName = payload['counterpartyName'] as String? ?? '';
     final principalAmount =
         (payload['principalAmount'] as num?)?.toDouble() ?? 0.0;
@@ -986,7 +1016,8 @@ extension SyncEngineApplyExt on SyncEngine {
     final dueAt = dueAtStr != null ? DateTime.tryParse(dueAtStr) : null;
     final note = payload['note'] as String?;
     final closedAtStr = payload['closedAt'] as String?;
-    final closedAt = closedAtStr != null ? DateTime.tryParse(closedAtStr) : null;
+    final closedAt =
+        closedAtStr != null ? DateTime.tryParse(closedAtStr) : null;
     final categorySyncId = payload['categoryId'] as String?;
     final originTxId = payload['originTxId'] as String?;
     final excludedFromTotal = payload['excludedFromTotal'] as bool? ?? false;
@@ -1807,6 +1838,15 @@ extension SyncEngineApplyExt on SyncEngine {
     }
     await db.batch((b) => b.insertAll(db.transactionSplits, inserts));
   }
+}
+
+/// v45 跨幣別轉帳:amount 變化時 toAmount 的等比縮放,唯一權威實現需與
+/// Cloud `snapshot_mutator.rescale_native_amount` 完全一致(同幣種/未折算
+/// → 跟隨新 amount;外幣 → 按隱含匯率等比縮放;old_amount == 0 無法推匯率
+/// → 退化 = 新 amount),不要各自發明算法,否則多端同步後金額會兜不起來。
+double _rescaleAmount(double oldAmount, double oldOther, double newAmount) {
+  if (oldAmount == 0.0 || oldOther == oldAmount) return newAmount;
+  return oldOther / oldAmount * newAmount;
 }
 
 // §Phase 3:`_detectIconExtension` 搬到 `attachments.dart`,因为自定义图标

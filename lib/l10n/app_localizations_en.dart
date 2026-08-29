@@ -5397,6 +5397,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get transferFromPrefix => 'From';
 
   @override
+  String get transferToAmountLabel => 'Received amount';
+
+  @override
+  String get transferToAmountRequiredError =>
+      'Please enter the received amount';
+
+  @override
+  String transferRateDisplay(Object from, Object rate, Object to) {
+    return '1 $from = $rate $to';
+  }
+
+  @override
   String get welcomeCategoryModeTitle => 'Choose Category Mode';
 
   @override

@@ -2219,6 +2219,12 @@ class $TransactionsTable extends Transactions
   late final GeneratedColumn<String> debtSyncId = GeneratedColumn<String>(
       'debt_sync_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _toAmountMeta =
+      const VerificationMeta('toAmount');
+  @override
+  late final GeneratedColumn<double> toAmount = GeneratedColumn<double>(
+      'to_amount', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
   static const VerificationMeta _projectSyncIdMeta =
       const VerificationMeta('projectSyncId');
   @override
@@ -2266,6 +2272,7 @@ class $TransactionsTable extends Transactions
         deferredPostingAt,
         hasSplits,
         debtSyncId,
+        toAmount,
         projectSyncId,
         needsAccountAssignment
       ];
@@ -2442,6 +2449,10 @@ class $TransactionsTable extends Transactions
           debtSyncId.isAcceptableOrUnknown(
               data['debt_sync_id']!, _debtSyncIdMeta));
     }
+    if (data.containsKey('to_amount')) {
+      context.handle(_toAmountMeta,
+          toAmount.isAcceptableOrUnknown(data['to_amount']!, _toAmountMeta));
+    }
     if (data.containsKey('project_sync_id')) {
       context.handle(
           _projectSyncIdMeta,
@@ -2525,6 +2536,8 @@ class $TransactionsTable extends Transactions
           .read(DriftSqlType.bool, data['${effectivePrefix}has_splits'])!,
       debtSyncId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}debt_sync_id']),
+      toAmount: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}to_amount']),
       projectSyncId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}project_sync_id']),
       needsAccountAssignment: attachedDatabase.typeMapping.read(
@@ -2641,6 +2654,15 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   /// (同 reconciledAt)——清空欠款關聯是明確動作,null 必須能傳達給 server。
   final String? debtSyncId;
 
+  /// v45 跨幣別轉帳(對齐 BeeCount Cloud `to_amount`,alembic
+  /// 0044_tx_transfer_to_amount):`type == 'transfer'` 且轉出/轉入帳戶幣別
+  /// 不同時,存轉入帳戶自己幣別的金額;同幣別轉帳/非轉帳一律維持 null(不要
+  /// 為同幣別轉帳也塞 `toAmount = amount`——`toAmount ?? amount` 這個
+  /// COALESCE 慣例才能同時當「轉入金額」跟「是否跨幣別」的單一事實來源)。
+  /// BeeCount Cloud 端字段是 read_tx_projection.to_amount,wire 字段名
+  /// toAmount(camelCase,對齊 sync_applier.py 的 merge spec)。
+  final double? toAmount;
+
   /// v44 專案(對齐 BeeCount Cloud project sync entity,取代分類預算):這筆
   /// 交易關聯的 [Projects] 的 syncId。跟 [debtSyncId]/[recurringRuleId]
   /// 同款存 syncId 字串(不是本地 int FK)——專案是 ledger-scoped 實體,
@@ -2687,6 +2709,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       this.deferredPostingAt,
       required this.hasSplits,
       this.debtSyncId,
+      this.toAmount,
       this.projectSyncId,
       required this.needsAccountAssignment});
   @override
@@ -2764,6 +2787,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     if (!nullToAbsent || debtSyncId != null) {
       map['debt_sync_id'] = Variable<String>(debtSyncId);
     }
+    if (!nullToAbsent || toAmount != null) {
+      map['to_amount'] = Variable<double>(toAmount);
+    }
     if (!nullToAbsent || projectSyncId != null) {
       map['project_sync_id'] = Variable<String>(projectSyncId);
     }
@@ -2839,6 +2865,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       debtSyncId: debtSyncId == null && nullToAbsent
           ? const Value.absent()
           : Value(debtSyncId),
+      toAmount: toAmount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(toAmount),
       projectSyncId: projectSyncId == null && nullToAbsent
           ? const Value.absent()
           : Value(projectSyncId),
@@ -2887,6 +2916,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           serializer.fromJson<DateTime?>(json['deferredPostingAt']),
       hasSplits: serializer.fromJson<bool>(json['hasSplits']),
       debtSyncId: serializer.fromJson<String?>(json['debtSyncId']),
+      toAmount: serializer.fromJson<double?>(json['toAmount']),
       projectSyncId: serializer.fromJson<String?>(json['projectSyncId']),
       needsAccountAssignment:
           serializer.fromJson<bool>(json['needsAccountAssignment']),
@@ -2929,6 +2959,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'deferredPostingAt': serializer.toJson<DateTime?>(deferredPostingAt),
       'hasSplits': serializer.toJson<bool>(hasSplits),
       'debtSyncId': serializer.toJson<String?>(debtSyncId),
+      'toAmount': serializer.toJson<double?>(toAmount),
       'projectSyncId': serializer.toJson<String?>(projectSyncId),
       'needsAccountAssignment': serializer.toJson<bool>(needsAccountAssignment),
     };
@@ -2964,6 +2995,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           Value<DateTime?> deferredPostingAt = const Value.absent(),
           bool? hasSplits,
           Value<String?> debtSyncId = const Value.absent(),
+          Value<double?> toAmount = const Value.absent(),
           Value<String?> projectSyncId = const Value.absent(),
           bool? needsAccountAssignment}) =>
       Transaction(
@@ -3019,6 +3051,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
             : this.deferredPostingAt,
         hasSplits: hasSplits ?? this.hasSplits,
         debtSyncId: debtSyncId.present ? debtSyncId.value : this.debtSyncId,
+        toAmount: toAmount.present ? toAmount.value : this.toAmount,
         projectSyncId:
             projectSyncId.present ? projectSyncId.value : this.projectSyncId,
         needsAccountAssignment:
@@ -3091,6 +3124,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       hasSplits: data.hasSplits.present ? data.hasSplits.value : this.hasSplits,
       debtSyncId:
           data.debtSyncId.present ? data.debtSyncId.value : this.debtSyncId,
+      toAmount: data.toAmount.present ? data.toAmount.value : this.toAmount,
       projectSyncId: data.projectSyncId.present
           ? data.projectSyncId.value
           : this.projectSyncId,
@@ -3133,6 +3167,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('deferredPostingAt: $deferredPostingAt, ')
           ..write('hasSplits: $hasSplits, ')
           ..write('debtSyncId: $debtSyncId, ')
+          ..write('toAmount: $toAmount, ')
           ..write('projectSyncId: $projectSyncId, ')
           ..write('needsAccountAssignment: $needsAccountAssignment')
           ..write(')'))
@@ -3170,6 +3205,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         deferredPostingAt,
         hasSplits,
         debtSyncId,
+        toAmount,
         projectSyncId,
         needsAccountAssignment
       ]);
@@ -3207,6 +3243,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.deferredPostingAt == this.deferredPostingAt &&
           other.hasSplits == this.hasSplits &&
           other.debtSyncId == this.debtSyncId &&
+          other.toAmount == this.toAmount &&
           other.projectSyncId == this.projectSyncId &&
           other.needsAccountAssignment == this.needsAccountAssignment);
 }
@@ -3241,6 +3278,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<DateTime?> deferredPostingAt;
   final Value<bool> hasSplits;
   final Value<String?> debtSyncId;
+  final Value<double?> toAmount;
   final Value<String?> projectSyncId;
   final Value<bool> needsAccountAssignment;
   const TransactionsCompanion({
@@ -3273,6 +3311,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.deferredPostingAt = const Value.absent(),
     this.hasSplits = const Value.absent(),
     this.debtSyncId = const Value.absent(),
+    this.toAmount = const Value.absent(),
     this.projectSyncId = const Value.absent(),
     this.needsAccountAssignment = const Value.absent(),
   });
@@ -3306,6 +3345,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.deferredPostingAt = const Value.absent(),
     this.hasSplits = const Value.absent(),
     this.debtSyncId = const Value.absent(),
+    this.toAmount = const Value.absent(),
     this.projectSyncId = const Value.absent(),
     this.needsAccountAssignment = const Value.absent(),
   })  : ledgerId = Value(ledgerId),
@@ -3341,6 +3381,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<DateTime>? deferredPostingAt,
     Expression<bool>? hasSplits,
     Expression<String>? debtSyncId,
+    Expression<double>? toAmount,
     Expression<String>? projectSyncId,
     Expression<bool>? needsAccountAssignment,
   }) {
@@ -3380,6 +3421,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (deferredPostingAt != null) 'deferred_posting_at': deferredPostingAt,
       if (hasSplits != null) 'has_splits': hasSplits,
       if (debtSyncId != null) 'debt_sync_id': debtSyncId,
+      if (toAmount != null) 'to_amount': toAmount,
       if (projectSyncId != null) 'project_sync_id': projectSyncId,
       if (needsAccountAssignment != null)
         'needs_account_assignment': needsAccountAssignment,
@@ -3416,6 +3458,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       Value<DateTime?>? deferredPostingAt,
       Value<bool>? hasSplits,
       Value<String?>? debtSyncId,
+      Value<double?>? toAmount,
       Value<String?>? projectSyncId,
       Value<bool>? needsAccountAssignment}) {
     return TransactionsCompanion(
@@ -3452,6 +3495,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       deferredPostingAt: deferredPostingAt ?? this.deferredPostingAt,
       hasSplits: hasSplits ?? this.hasSplits,
       debtSyncId: debtSyncId ?? this.debtSyncId,
+      toAmount: toAmount ?? this.toAmount,
       projectSyncId: projectSyncId ?? this.projectSyncId,
       needsAccountAssignment:
           needsAccountAssignment ?? this.needsAccountAssignment,
@@ -3553,6 +3597,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     if (debtSyncId.present) {
       map['debt_sync_id'] = Variable<String>(debtSyncId.value);
     }
+    if (toAmount.present) {
+      map['to_amount'] = Variable<double>(toAmount.value);
+    }
     if (projectSyncId.present) {
       map['project_sync_id'] = Variable<String>(projectSyncId.value);
     }
@@ -3596,6 +3643,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('deferredPostingAt: $deferredPostingAt, ')
           ..write('hasSplits: $hasSplits, ')
           ..write('debtSyncId: $debtSyncId, ')
+          ..write('toAmount: $toAmount, ')
           ..write('projectSyncId: $projectSyncId, ')
           ..write('needsAccountAssignment: $needsAccountAssignment')
           ..write(')'))
@@ -15744,6 +15792,7 @@ typedef $$TransactionsTableCreateCompanionBuilder = TransactionsCompanion
   Value<DateTime?> deferredPostingAt,
   Value<bool> hasSplits,
   Value<String?> debtSyncId,
+  Value<double?> toAmount,
   Value<String?> projectSyncId,
   Value<bool> needsAccountAssignment,
 });
@@ -15778,6 +15827,7 @@ typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
   Value<DateTime?> deferredPostingAt,
   Value<bool> hasSplits,
   Value<String?> debtSyncId,
+  Value<double?> toAmount,
   Value<String?> projectSyncId,
   Value<bool> needsAccountAssignment,
 });
@@ -15890,6 +15940,9 @@ class $$TransactionsTableFilterComposer
 
   ColumnFilters<String> get debtSyncId => $composableBuilder(
       column: $table.debtSyncId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get toAmount => $composableBuilder(
+      column: $table.toAmount, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get projectSyncId => $composableBuilder(
       column: $table.projectSyncId, builder: (column) => ColumnFilters(column));
@@ -16011,6 +16064,9 @@ class $$TransactionsTableOrderingComposer
   ColumnOrderings<String> get debtSyncId => $composableBuilder(
       column: $table.debtSyncId, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<double> get toAmount => $composableBuilder(
+      column: $table.toAmount, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get projectSyncId => $composableBuilder(
       column: $table.projectSyncId,
       builder: (column) => ColumnOrderings(column));
@@ -16117,6 +16173,9 @@ class $$TransactionsTableAnnotationComposer
   GeneratedColumn<String> get debtSyncId => $composableBuilder(
       column: $table.debtSyncId, builder: (column) => column);
 
+  GeneratedColumn<double> get toAmount =>
+      $composableBuilder(column: $table.toAmount, builder: (column) => column);
+
   GeneratedColumn<String> get projectSyncId => $composableBuilder(
       column: $table.projectSyncId, builder: (column) => column);
 
@@ -16179,6 +16238,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<DateTime?> deferredPostingAt = const Value.absent(),
             Value<bool> hasSplits = const Value.absent(),
             Value<String?> debtSyncId = const Value.absent(),
+            Value<double?> toAmount = const Value.absent(),
             Value<String?> projectSyncId = const Value.absent(),
             Value<bool> needsAccountAssignment = const Value.absent(),
           }) =>
@@ -16212,6 +16272,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             deferredPostingAt: deferredPostingAt,
             hasSplits: hasSplits,
             debtSyncId: debtSyncId,
+            toAmount: toAmount,
             projectSyncId: projectSyncId,
             needsAccountAssignment: needsAccountAssignment,
           ),
@@ -16245,6 +16306,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<DateTime?> deferredPostingAt = const Value.absent(),
             Value<bool> hasSplits = const Value.absent(),
             Value<String?> debtSyncId = const Value.absent(),
+            Value<double?> toAmount = const Value.absent(),
             Value<String?> projectSyncId = const Value.absent(),
             Value<bool> needsAccountAssignment = const Value.absent(),
           }) =>
@@ -16278,6 +16340,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             deferredPostingAt: deferredPostingAt,
             hasSplits: hasSplits,
             debtSyncId: debtSyncId,
+            toAmount: toAmount,
             projectSyncId: projectSyncId,
             needsAccountAssignment: needsAccountAssignment,
           ),

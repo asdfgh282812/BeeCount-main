@@ -9766,6 +9766,24 @@ abstract class AppLocalizations {
   /// **'From'**
   String get transferFromPrefix;
 
+  /// No description provided for @transferToAmountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Received amount'**
+  String get transferToAmountLabel;
+
+  /// No description provided for @transferToAmountRequiredError.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter the received amount'**
+  String get transferToAmountRequiredError;
+
+  /// No description provided for @transferRateDisplay.
+  ///
+  /// In en, this message translates to:
+  /// **'1 {from} = {rate} {to}'**
+  String transferRateDisplay(Object from, Object rate, Object to);
+
   /// No description provided for @welcomeCategoryModeTitle.
   ///
   /// In en, this message translates to:

@@ -40,15 +40,15 @@ class AmountCalculatorKeypad extends StatelessWidget {
 
     Widget cell(Widget child, {Color? bg, VoidCallback? onTap}) {
       return Padding(
-        padding: const EdgeInsets.all(6),
+        padding: const EdgeInsets.all(4),
         child: Material(
           color: bg ?? BeeTokens.surfaceKey(context),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           child: InkWell(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
             onTap: onTap,
             child: SizedBox(
-              height: 56,
+              height: 46,
               child: Center(child: child),
             ),
           ),
@@ -61,7 +61,7 @@ class AmountCalculatorKeypad extends StatelessWidget {
             label,
             style: text.titleMedium?.copyWith(
               color: BeeTokens.textPrimary(context),
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -76,7 +76,7 @@ class AmountCalculatorKeypad extends StatelessWidget {
             op,
             style: text.titleMedium?.copyWith(
               color: BeeTokens.textPrimary(context),
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -89,7 +89,8 @@ class AmountCalculatorKeypad extends StatelessWidget {
         );
 
     Widget backspaceKey() => cell(
-          Icon(Icons.backspace_outlined, color: BeeTokens.textPrimary(context)),
+          Icon(Icons.backspace_outlined,
+              color: BeeTokens.textPrimary(context), size: 20),
           onTap: () {
             SystemSound.play(SystemSoundType.click);
             onBackspace();
@@ -101,7 +102,7 @@ class AmountCalculatorKeypad extends StatelessWidget {
             'C',
             style: text.titleMedium?.copyWith(
               color: BeeTokens.textSecondary(context),
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -114,7 +115,7 @@ class AmountCalculatorKeypad extends StatelessWidget {
 
     Widget equalsKey() => cell(
           Icon(Icons.keyboard_return_rounded,
-              color: BeeTokens.textPrimary(context)),
+              color: BeeTokens.textPrimary(context), size: 20),
           bg: BeeTokens.surfaceKeySecondary(context),
           onTap: () {
             HapticFeedback.selectionClick();
@@ -128,8 +129,8 @@ class AmountCalculatorKeypad extends StatelessWidget {
       return cell(
         isSubmitting
             ? const SizedBox(
-                width: 18,
-                height: 18,
+                width: 16,
+                height: 16,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
@@ -138,6 +139,7 @@ class AmountCalculatorKeypad extends StatelessWidget {
             : Icon(
                 Icons.check,
                 color: enabled ? Colors.white : BeeTokens.textTertiary(context),
+                size: 20,
               ),
         bg: enabled ? primary : BeeTokens.surfaceDisabled(context),
         onTap: enabled

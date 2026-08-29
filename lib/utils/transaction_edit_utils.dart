@@ -116,6 +116,7 @@ class TransactionEditUtils {
           // v30 多币种:编辑外币交易时汇率行按隐含汇率回显
           initialCurrencyCode: transaction.currencyCode,
           initialNativeAmount: transaction.nativeAmount,
+          initialToAmount: transaction.toAmount,
           initialRewardRuleIds: transaction.rewardRuleIds,
           initialRecurringEditScope: recurringScope,
         ),
@@ -153,6 +154,7 @@ class TransactionEditUtils {
           initialExcludeFromBudget: transaction.excludeFromBudget,
           initialCurrencyCode: transaction.currencyCode,
           initialNativeAmount: transaction.nativeAmount,
+          initialToAmount: transaction.toAmount,
           initialRewardRuleIds: transaction.rewardRuleIds,
           // 不传 initialRefundOfSyncId:复制出来的是独立新记录
         ),

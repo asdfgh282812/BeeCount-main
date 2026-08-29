@@ -33,118 +33,126 @@ Future<String?> showCurrencyPickerSheet(
       String query = '';
       final sheetTitle = title ?? AppLocalizations.of(bctx).baseCurrencyLabel;
       return StatefulBuilder(builder: (sctx, setSheetState) {
-        // 常用币种置顶(kCommonCurrencyCodes 顺序),其余按地区原顺序。
-        final allCur = getCurrencies(bctx);
-        final ordered = <CurrencyInfo>[];
-        for (final code in kCommonCurrencyCodes) {
-          final hit = allCur.where((c) => c.code == code);
-          if (hit.isNotEmpty) ordered.add(hit.first);
-        }
-        ordered.addAll(
-            allCur.where((c) => !kCommonCurrencyCodes.contains(c.code)));
-        final filtered = ordered.where((c) {
-          final q = query.trim();
-          if (q.isEmpty) return true;
-          final uq = q.toUpperCase();
-          return c.code.contains(uq) || c.name.contains(q);
-        }).toList();
+        return Consumer(builder: (pctx, ref, _) {
+          // 账本本位币 → 账户使用频率降序(currencyPickerPriorityProvider)
+          // → 常用币种(kCommonCurrencyCodes)→ 其余按地区原顺序。
+          final priority =
+              ref.watch(currencyPickerPriorityProvider).valueOrNull ??
+                  const <String>[];
+          final allCur = getCurrencies(bctx);
+          final ordered = <CurrencyInfo>[];
+          for (final code in [...priority, ...kCommonCurrencyCodes]) {
+            if (ordered.any((c) => c.code == code)) continue;
+            final hit = allCur.where((c) => c.code == code);
+            if (hit.isNotEmpty) ordered.add(hit.first);
+          }
+          ordered.addAll(
+              allCur.where((c) => !ordered.any((o) => o.code == c.code)));
+          final filtered = ordered.where((c) {
+            final q = query.trim();
+            if (q.isEmpty) return true;
+            final uq = q.toUpperCase();
+            return c.code.contains(uq) || c.name.contains(q);
+          }).toList();
 
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            top: 12,
-            bottom: 16 + MediaQuery.of(bctx).viewInsets.bottom,
-          ),
-          child: SizedBox(
-            height: 440,
-            child: Column(
-              children: [
-                Container(
-                  width: 36,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
-                    color: BeeTokens.textTertiary(bctx).withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                Text(
-                  sheetTitle,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: BeeTokens.textPrimary(bctx),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.search),
-                    hintText: AppLocalizations.of(bctx).ledgersSearchCurrency,
-                  ),
-                  onChanged: (v) => setSheetState(() => query = v),
-                ),
-                const SizedBox(height: 8),
-                Expanded(
-                  // 汇率展示:rateBase 传入时用 Consumer 拿全量汇率;否则空 map。
-                  child: Consumer(builder: (cctx, ref, _) {
-                    final rates = rateBase == null
-                        ? const <String, double>{}
-                        : (ref
-                                .watch(currencyPickerRatesProvider(
-                                    rateBase.toUpperCase()))
-                                .valueOrNull ??
-                            const <String, double>{});
-                    return ListView.builder(
-                      itemCount: filtered.length,
-                      itemBuilder: (_, i) {
-                        final c = filtered[i];
-                        final sel = c.code == current;
-                        // 汇率行:1 该币种 ≈ x rateBase(base 自身/缺失不显示)
-                        String? rateText;
-                        if (rateBase != null &&
-                            c.code != rateBase!.toUpperCase()) {
-                          final r = rates[c.code];
-                          if (r != null) {
-                            rateText =
-                                '1 ${c.code} ≈ ${r.toStringAsPrecision(4)} ${rateBase!.toUpperCase()}';
-                          }
-                        }
-                        return ListTile(
-                          leading: currencyFlag(cctx, c.code),
-                          title: Text(
-                            '${c.name} (${c.code})',
-                            style: TextStyle(
-                              color: sel
-                                  ? primaryColor
-                                  : BeeTokens.textPrimary(bctx),
-                              fontWeight:
-                                  sel ? FontWeight.w600 : FontWeight.normal,
-                            ),
-                          ),
-                          subtitle: rateText == null
-                              ? null
-                              : Text(
-                                  rateText,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: BeeTokens.textTertiary(cctx),
-                                  ),
-                                ),
-                          trailing: sel
-                              ? Icon(Icons.check, color: primaryColor)
-                              : null,
-                          onTap: () => Navigator.pop(bctx, c.code),
-                        );
-                      },
-                    );
-                  }),
-                ),
-              ],
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 12,
+              bottom: 16 + MediaQuery.of(bctx).viewInsets.bottom,
             ),
-          ),
-        );
+            child: SizedBox(
+              height: 440,
+              child: Column(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color:
+                          BeeTokens.textTertiary(bctx).withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  Text(
+                    sheetTitle,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: BeeTokens.textPrimary(bctx),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.search),
+                      hintText: AppLocalizations.of(bctx).ledgersSearchCurrency,
+                    ),
+                    onChanged: (v) => setSheetState(() => query = v),
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    // 汇率展示:rateBase 传入时用 Consumer 拿全量汇率;否则空 map。
+                    child: Consumer(builder: (cctx, ref, _) {
+                      final rates = rateBase == null
+                          ? const <String, double>{}
+                          : (ref
+                                  .watch(currencyPickerRatesProvider(
+                                      rateBase.toUpperCase()))
+                                  .valueOrNull ??
+                              const <String, double>{});
+                      return ListView.builder(
+                        itemCount: filtered.length,
+                        itemBuilder: (_, i) {
+                          final c = filtered[i];
+                          final sel = c.code == current;
+                          // 汇率行:1 该币种 ≈ x rateBase(base 自身/缺失不显示)
+                          String? rateText;
+                          if (rateBase != null &&
+                              c.code != rateBase!.toUpperCase()) {
+                            final r = rates[c.code];
+                            if (r != null) {
+                              rateText =
+                                  '1 ${c.code} ≈ ${r.toStringAsPrecision(4)} ${rateBase!.toUpperCase()}';
+                            }
+                          }
+                          return ListTile(
+                            leading: currencyFlag(cctx, c.code),
+                            title: Text(
+                              '${c.name} (${c.code})',
+                              style: TextStyle(
+                                color: sel
+                                    ? primaryColor
+                                    : BeeTokens.textPrimary(bctx),
+                                fontWeight:
+                                    sel ? FontWeight.w600 : FontWeight.normal,
+                              ),
+                            ),
+                            subtitle: rateText == null
+                                ? null
+                                : Text(
+                                    rateText,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: BeeTokens.textTertiary(cctx),
+                                    ),
+                                  ),
+                            trailing: sel
+                                ? Icon(Icons.check, color: primaryColor)
+                                : null,
+                            onTap: () => Navigator.pop(bctx, c.code),
+                          );
+                        },
+                      );
+                    }),
+                  ),
+                ],
+              ),
+            ),
+          );
+        });
       });
     },
   );
