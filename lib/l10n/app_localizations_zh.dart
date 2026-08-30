@@ -8831,6 +8831,59 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get projectDetailNoTransactionsHint =>
       'No transactions in this project yet';
+
+  @override
+  String get swipesmartSettingsTitle => 'SwipeSmart Card Recommendation';
+
+  @override
+  String get swipesmartSettingsSubtitle =>
+      'Connect your SwipeSmart account to get card recommendations while entering transactions';
+
+  @override
+  String swipesmartConnected(String masked) {
+    return 'Connected: $masked';
+  }
+
+  @override
+  String get swipesmartNotConnected => 'Not connected';
+
+  @override
+  String get swipesmartApiKeyHint => 'Paste your SwipeSmart Personal API Key';
+
+  @override
+  String get swipesmartConnect => 'Connect';
+
+  @override
+  String get swipesmartDisconnect => 'Disconnect';
+
+  @override
+  String get swipesmartDisconnectConfirm =>
+      'Disconnect from SwipeSmart? Card recommendations will stop working until you reconnect.';
+
+  @override
+  String swipesmartAutoMapped(int count) {
+    return '$count credit card accounts were automatically matched';
+  }
+
+  @override
+  String get swipesmartCardMapping => 'Card Mapping';
+
+  @override
+  String get swipesmartMappingTitle => 'Card Mapping';
+
+  @override
+  String get swipesmartMappingSubtitle =>
+      'Cards with similar or identical names are matched automatically; pick the rest manually so recommendations can fill in the account directly.';
+
+  @override
+  String get swipesmartMappingUnmapped => 'Not mapped';
+
+  @override
+  String get swipesmartMappingNoCards =>
+      'Could not load the card catalog. Check your connection or API key.';
+
+  @override
+  String get swipesmartMappingNoAccounts => 'No credit card accounts yet.';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -17633,4 +17686,55 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get projectDetailNoTransactionsHint => '此專案還沒有任何交易';
+
+  @override
+  String get swipesmartSettingsTitle => 'SwipeSmart 信用卡推薦';
+
+  @override
+  String get swipesmartSettingsSubtitle => '連接你的 SwipeSmart 帳號,記帳時可以取得信用卡推薦';
+
+  @override
+  String swipesmartConnected(String masked) {
+    return '已連接:$masked';
+  }
+
+  @override
+  String get swipesmartNotConnected => '尚未連接';
+
+  @override
+  String get swipesmartApiKeyHint => '貼上你的 SwipeSmart Personal API Key';
+
+  @override
+  String get swipesmartConnect => '連接';
+
+  @override
+  String get swipesmartDisconnect => '中斷連接';
+
+  @override
+  String get swipesmartDisconnectConfirm =>
+      '確定要中斷 SwipeSmart 連接嗎?中斷後信用卡推薦功能會停止運作,直到重新連接。';
+
+  @override
+  String swipesmartAutoMapped(int count) {
+    return '已自動對應 $count 張信用卡帳戶';
+  }
+
+  @override
+  String get swipesmartCardMapping => '卡片對照';
+
+  @override
+  String get swipesmartMappingTitle => '卡片對照';
+
+  @override
+  String get swipesmartMappingSubtitle =>
+      '名稱相近或相同的卡片會自動幫你對應好,其餘的手動選一下,才能在建議上直接點擊代入帳戶。';
+
+  @override
+  String get swipesmartMappingUnmapped => '未對照';
+
+  @override
+  String get swipesmartMappingNoCards => '無法取得卡片目錄,請檢查網路或 API Key 設定。';
+
+  @override
+  String get swipesmartMappingNoAccounts => '尚無信用卡帳戶。';
 }

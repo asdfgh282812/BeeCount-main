@@ -13,6 +13,7 @@ import '../../cloud/sync/sync_engine.dart';
 import '../../services/system/logger_service.dart';
 import '../auth/login_page.dart';
 import '../settings/log_center_page.dart';
+import 'swipesmart_settings_page.dart';
 
 /// BeeCount Cloud 专属同步页
 ///
@@ -193,6 +194,22 @@ class _BeeCountCloudSyncPageState extends ConsumerState<BeeCountCloudSyncPage> {
                         const SizedBox(height: 8),
                         const _TwoFactorStatusRow(),
                         const SizedBox(height: 8),
+                        if (user != null) ...[
+                          SectionCard(
+                            child: AppListTile(
+                              leading: Icons.credit_card,
+                              title: l10n.swipesmartSettingsTitle,
+                              subtitle: l10n.swipesmartSettingsSubtitle,
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const SwipeSmartSettingsPage(),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
                         // Section 2: 同步状态(深度检测结果)
                         SectionCard(
                           child: _buildHealthSection(context),

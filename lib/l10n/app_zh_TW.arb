@@ -3488,5 +3488,20 @@
   "projectDeleteSuccess": "已刪除",
   "projectDetailPureTrackingHint": "此專案未設預算,僅作花費記錄。",
   "projectDetailCarriedOverLabel": "結轉",
-  "projectDetailNoTransactionsHint": "此專案還沒有任何交易"
+  "projectDetailNoTransactionsHint": "此專案還沒有任何交易",
+  "swipesmartSettingsTitle": "SwipeSmart 信用卡推薦",
+  "swipesmartSettingsSubtitle": "連接你的 SwipeSmart 帳號,記帳時可以取得信用卡推薦",
+  "swipesmartConnected": "已連接:{masked}",
+  "swipesmartNotConnected": "尚未連接",
+  "swipesmartApiKeyHint": "貼上你的 SwipeSmart Personal API Key",
+  "swipesmartConnect": "連接",
+  "swipesmartDisconnect": "中斷連接",
+  "swipesmartDisconnectConfirm": "確定要中斷 SwipeSmart 連接嗎?中斷後信用卡推薦功能會停止運作,直到重新連接。",
+  "swipesmartAutoMapped": "已自動對應 {count} 張信用卡帳戶",
+  "swipesmartCardMapping": "卡片對照",
+  "swipesmartMappingTitle": "卡片對照",
+  "swipesmartMappingSubtitle": "名稱相近或相同的卡片會自動幫你對應好,其餘的手動選一下,才能在建議上直接點擊代入帳戶。",
+  "swipesmartMappingUnmapped": "未對照",
+  "swipesmartMappingNoCards": "無法取得卡片目錄,請檢查網路或 API Key 設定。",
+  "swipesmartMappingNoAccounts": "尚無信用卡帳戶。"
 }

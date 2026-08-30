@@ -3916,5 +3916,26 @@
   "projectDeleteSuccess": "Deleted",
   "projectDetailPureTrackingHint": "This project has no budget — spending is tracked only.",
   "projectDetailCarriedOverLabel": "Carried over",
-  "projectDetailNoTransactionsHint": "No transactions in this project yet"
+  "projectDetailNoTransactionsHint": "No transactions in this project yet",
+  "swipesmartSettingsTitle": "SwipeSmart Card Recommendation",
+  "swipesmartSettingsSubtitle": "Connect your SwipeSmart account to get card recommendations while entering transactions",
+  "swipesmartConnected": "Connected: {masked}",
+  "@swipesmartConnected": {
+    "placeholders": { "masked": { "type": "String" } }
+  },
+  "swipesmartNotConnected": "Not connected",
+  "swipesmartApiKeyHint": "Paste your SwipeSmart Personal API Key",
+  "swipesmartConnect": "Connect",
+  "swipesmartDisconnect": "Disconnect",
+  "swipesmartDisconnectConfirm": "Disconnect from SwipeSmart? Card recommendations will stop working until you reconnect.",
+  "swipesmartAutoMapped": "{count} credit card accounts were automatically matched",
+  "@swipesmartAutoMapped": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "swipesmartCardMapping": "Card Mapping",
+  "swipesmartMappingTitle": "Card Mapping",
+  "swipesmartMappingSubtitle": "Cards with similar or identical names are matched automatically; pick the rest manually so recommendations can fill in the account directly.",
+  "swipesmartMappingUnmapped": "Not mapped",
+  "swipesmartMappingNoCards": "Could not load the card catalog. Check your connection or API key.",
+  "swipesmartMappingNoAccounts": "No credit card accounts yet."
 }

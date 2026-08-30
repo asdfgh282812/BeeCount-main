@@ -16529,6 +16529,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No transactions in this project yet'**
   String get projectDetailNoTransactionsHint;
+
+  /// No description provided for @swipesmartSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'SwipeSmart Card Recommendation'**
+  String get swipesmartSettingsTitle;
+
+  /// No description provided for @swipesmartSettingsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect your SwipeSmart account to get card recommendations while entering transactions'**
+  String get swipesmartSettingsSubtitle;
+
+  /// No description provided for @swipesmartConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected: {masked}'**
+  String swipesmartConnected(String masked);
+
+  /// No description provided for @swipesmartNotConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Not connected'**
+  String get swipesmartNotConnected;
+
+  /// No description provided for @swipesmartApiKeyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste your SwipeSmart Personal API Key'**
+  String get swipesmartApiKeyHint;
+
+  /// No description provided for @swipesmartConnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect'**
+  String get swipesmartConnect;
+
+  /// No description provided for @swipesmartDisconnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnect'**
+  String get swipesmartDisconnect;
+
+  /// No description provided for @swipesmartDisconnectConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnect from SwipeSmart? Card recommendations will stop working until you reconnect.'**
+  String get swipesmartDisconnectConfirm;
+
+  /// No description provided for @swipesmartAutoMapped.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} credit card accounts were automatically matched'**
+  String swipesmartAutoMapped(int count);
+
+  /// No description provided for @swipesmartCardMapping.
+  ///
+  /// In en, this message translates to:
+  /// **'Card Mapping'**
+  String get swipesmartCardMapping;
+
+  /// No description provided for @swipesmartMappingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Card Mapping'**
+  String get swipesmartMappingTitle;
+
+  /// No description provided for @swipesmartMappingSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cards with similar or identical names are matched automatically; pick the rest manually so recommendations can fill in the account directly.'**
+  String get swipesmartMappingSubtitle;
+
+  /// No description provided for @swipesmartMappingUnmapped.
+  ///
+  /// In en, this message translates to:
+  /// **'Not mapped'**
+  String get swipesmartMappingUnmapped;
+
+  /// No description provided for @swipesmartMappingNoCards.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load the card catalog. Check your connection or API key.'**
+  String get swipesmartMappingNoCards;
+
+  /// No description provided for @swipesmartMappingNoAccounts.
+  ///
+  /// In en, this message translates to:
+  /// **'No credit card accounts yet.'**
+  String get swipesmartMappingNoAccounts;
 }
 
 class _AppLocalizationsDelegate

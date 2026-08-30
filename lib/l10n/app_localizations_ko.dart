@@ -8923,4 +8923,57 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String get projectDetailNoTransactionsHint =>
       'No transactions in this project yet';
+
+  @override
+  String get swipesmartSettingsTitle => 'SwipeSmart Card Recommendation';
+
+  @override
+  String get swipesmartSettingsSubtitle =>
+      'Connect your SwipeSmart account to get card recommendations while entering transactions';
+
+  @override
+  String swipesmartConnected(String masked) {
+    return 'Connected: $masked';
+  }
+
+  @override
+  String get swipesmartNotConnected => 'Not connected';
+
+  @override
+  String get swipesmartApiKeyHint => 'Paste your SwipeSmart Personal API Key';
+
+  @override
+  String get swipesmartConnect => 'Connect';
+
+  @override
+  String get swipesmartDisconnect => 'Disconnect';
+
+  @override
+  String get swipesmartDisconnectConfirm =>
+      'Disconnect from SwipeSmart? Card recommendations will stop working until you reconnect.';
+
+  @override
+  String swipesmartAutoMapped(int count) {
+    return '$count credit card accounts were automatically matched';
+  }
+
+  @override
+  String get swipesmartCardMapping => 'Card Mapping';
+
+  @override
+  String get swipesmartMappingTitle => 'Card Mapping';
+
+  @override
+  String get swipesmartMappingSubtitle =>
+      'Cards with similar or identical names are matched automatically; pick the rest manually so recommendations can fill in the account directly.';
+
+  @override
+  String get swipesmartMappingUnmapped => 'Not mapped';
+
+  @override
+  String get swipesmartMappingNoCards =>
+      'Could not load the card catalog. Check your connection or API key.';
+
+  @override
+  String get swipesmartMappingNoAccounts => 'No credit card accounts yet.';
 }
