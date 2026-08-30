@@ -540,6 +540,65 @@ class BeeCountCloudProvider implements CloudProvider {
     return storage.readLedgerStats(ledgerId: ledgerId);
   }
 
+  /// SwipeSmart Personal API Key 連接狀態查詢。
+  Future<SwipeSmartKeyStatus> getSwipeSmartKeyStatus() async {
+    final storage = _storage;
+    if (storage == null) {
+      throw CloudConfigurationException(
+          'BeeCount Cloud storage is not initialized.');
+    }
+    return storage.getSwipeSmartKeyStatus();
+  }
+
+  /// 設定/更換 SwipeSmart Personal API Key。
+  Future<SwipeSmartKeyStatus> setSwipeSmartKey(String apiKey) async {
+    final storage = _storage;
+    if (storage == null) {
+      throw CloudConfigurationException(
+          'BeeCount Cloud storage is not initialized.');
+    }
+    return storage.setSwipeSmartKey(apiKey);
+  }
+
+  /// 中斷連接:清除 SwipeSmart Personal API Key。
+  Future<void> deleteSwipeSmartKey() async {
+    final storage = _storage;
+    if (storage == null) {
+      throw CloudConfigurationException(
+          'BeeCount Cloud storage is not initialized.');
+    }
+    return storage.deleteSwipeSmartKey();
+  }
+
+  /// 卡片對照設定視窗用的目錄查詢(會讓 server 順便重跑一次自動比對,呼叫方
+  /// 需要在拿到結果後主動觸發一次 pull)。
+  Future<List<SwipeSmartCard>> getSwipeSmartCards() async {
+    final storage = _storage;
+    if (storage == null) {
+      throw CloudConfigurationException(
+          'BeeCount Cloud storage is not initialized.');
+    }
+    return storage.getSwipeSmartCards();
+  }
+
+  /// 記帳表單即時刷卡建議。
+  Future<List<SwipeSmartCardRecommendation>> getCardRecommendation({
+    required String ledgerId,
+    required double amount,
+    String merchant = '',
+  }) async {
+    final storage = _storage;
+    if (storage == null) {
+      throw CloudConfigurationException(
+          'BeeCount Cloud storage is not initialized.');
+    }
+    return storage.getCardRecommendation(
+      ledgerId: ledgerId,
+      amount: amount,
+      merchant: merchant,
+    );
+  }
+
   /// 拉 server 版本号(公开端点,不需要 token)。用在设置页展示
   /// "BeeCount Cloud vX.Y.Z"。失败抛,调用方自己 swallow。
   Future<BeeCountCloudServerVersion> fetchServerVersion() async {
@@ -2785,6 +2844,91 @@ class BeeCountCloudStorageService implements CloudStorageService {
     return BeeCountCloudLedgerStats.fromJson(payload);
   }
 
+  /// SwipeSmart Personal API Key 連接狀態查詢(design doc 2026-08-30 §2)。
+  Future<SwipeSmartKeyStatus> getSwipeSmartKeyStatus() async {
+    final response = await _authedRequest(
+      method: 'GET',
+      path: '/profile/swipesmart',
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw CloudStorageException(
+          'Get SwipeSmart key status failed: ${_extractErrorMessage(response)}');
+    }
+    return SwipeSmartKeyStatus.fromJson(_decodeJsonObject(response.body));
+  }
+
+  /// 設定/更換 SwipeSmart Personal API Key。回應的 `autoMapped` 是這次貼 Key
+  /// 順帶自動比對成功的信用卡帳戶數,呼叫方可以用來 toast 提示使用者。
+  Future<SwipeSmartKeyStatus> setSwipeSmartKey(String apiKey) async {
+    final response = await _authedRequest(
+      method: 'POST',
+      path: '/profile/swipesmart',
+      body: {'api_key': apiKey},
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw CloudStorageException(
+          'Set SwipeSmart key failed: ${_extractErrorMessage(response)}');
+    }
+    return SwipeSmartKeyStatus.fromJson(_decodeJsonObject(response.body));
+  }
+
+  /// 中斷連接:清除 server 上存的 SwipeSmart Personal API Key。
+  Future<void> deleteSwipeSmartKey() async {
+    final response = await _authedRequest(
+      method: 'DELETE',
+      path: '/profile/swipesmart',
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw CloudStorageException(
+          'Delete SwipeSmart key failed: ${_extractErrorMessage(response)}');
+    }
+  }
+
+  /// 卡片對照設定視窗用的目錄查詢。**呼叫這支端點會讓 server 端順便重跑一次
+  /// 自動比對**(design doc 2026-08-30 §3.2)——呼叫方在拿到結果後必須主動
+  /// 觸發一次 pull,才能看到最新的自動配對結果,不能只靠這支回應本身。
+  Future<List<SwipeSmartCard>> getSwipeSmartCards() async {
+    final response = await _authedRequest(
+      method: 'GET',
+      path: '/profile/swipesmart/cards',
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw CloudStorageException(
+          'Get SwipeSmart cards failed: ${_extractErrorMessage(response)}');
+    }
+    final list = _decodeJsonList(response.body);
+    return list
+        .map((e) => SwipeSmartCard.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// 記帳表單即時刷卡建議(design doc 2026-08-30 §4)。沒有設定 Key 或
+  /// SwipeSmart 逾時/失敗時,server 端一律優雅降級回 `[]`,不會回錯誤狀態碼
+  /// ——呼叫方不需要特別 catch,拿到空陣列就代表「暫時沒有建議」。
+  Future<List<SwipeSmartCardRecommendation>> getCardRecommendation({
+    required String ledgerId,
+    required double amount,
+    String merchant = '',
+  }) async {
+    final response = await _authedRequest(
+      method: 'GET',
+      path: '/ledgers/$ledgerId/card-recommendation',
+      query: {
+        'amount': amount.toString(),
+        if (merchant.isNotEmpty) 'merchant': merchant,
+      },
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw CloudStorageException(
+          'Get card recommendation failed: ${_extractErrorMessage(response)}');
+    }
+    final list = _decodeJsonList(response.body);
+    return list
+        .map((e) =>
+            SwipeSmartCardRecommendation.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   /// 拉 server 公开 /version。绕开 auth token —— 登录页未登录状态下也该能
   /// 显示 server 版本,不需要 token。
   Future<BeeCountCloudServerVersion> fetchServerVersion() async {
@@ -4758,6 +4902,14 @@ String _normalizeApiPrefix(String raw) {
 Map<String, dynamic> _decodeJsonObject(String raw) {
   final decoded = jsonDecode(raw);
   if (decoded is! Map<String, dynamic>) {
+    throw const FormatException('Invalid JSON response');
+  }
+  return decoded;
+}
+
+List<dynamic> _decodeJsonList(String raw) {
+  final decoded = jsonDecode(raw);
+  if (decoded is! List<dynamic>) {
     throw const FormatException('Invalid JSON response');
   }
   return decoded;
