@@ -156,6 +156,11 @@ class EntitySerializer {
       // 发送 + 空串清空,server _merge_from_spec 只过滤 None,省略/null 都
       // 会被当"不更新",空串才是唯一能清掉挂靠关系的路径。
       'parentAccountId': account.parentAccountId ?? '',
+      // SwipeSmart 信用卡對照(design doc 2026-08-30 §3.1):同款「無條件發送
+      // + 空字串清空」約定,跟 parentAccountId 一致,server 端
+      // sync_applier.py 的 "swipesmartCardId" -> "swipesmart_card_id" 映射
+      // 只過濾 None,省略/null 都會被當「不更新」。
+      'swipesmartCardId': account.swipesmartCardId ?? '',
       // 帳戶頭像:调用方(sync_engine_serialization.dart)决定语义 ——
       // null = 不传这俩键(本地头像没变 / 本次上传失败,不要用空串误清掉
       // server 现有值);空串 = 用户主动清空头像;非空 = 新上传成功的引用。
