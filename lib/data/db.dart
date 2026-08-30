@@ -69,6 +69,11 @@ class Accounts extends Table {
   /// (docs/MOZE_FEATURE_GAP_SD.md §2.9 Phase 4)。
   TextColumn get parentAccountId => text().nullable()();
 
+  /// v47 SwipeSmart 信用卡對照:對應 SwipeSmart 卡片目錄的 cardId,null =
+  /// 尚未對照。跟 BeeCount Cloud server `accounts.swipesmart_card_id` 對齊
+  /// (docs/superpowers/specs/2026-08-30-swipesmart-integration-design.md §3.1)。
+  TextColumn get swipesmartCardId => text().nullable()();
+
   /// v32 帳戶頭像本地相對路徑(如 "custom_icons/<fileId>.png"),跟
   /// Categories.customIconPath 同一套目錄/存取邏輯(CustomIconService)。
   /// 上傳到雲端拿到的 fileId/sha256 不落本地欄位 —— push 時即時上傳算,
@@ -896,7 +901,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 46; // v46: 轉帳手續費/折損(transactions.fee_amount 等)
+  int get schemaVersion => 47; // v47: SwipeSmart 信用卡對照(accounts.swipesmart_card_id)
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1870,6 +1875,13 @@ class BeeDatabase extends _$BeeDatabase {
             await _addColumnIfMissing('transactions', 'discount_label',
                 'ALTER TABLE transactions ADD COLUMN discount_label TEXT;');
             logger.info('DBMigration', 'v46 迁移完成');
+          }
+          if (from < 47) {
+            logger.info('DBMigration',
+                '开始迁移到 v47: SwipeSmart 信用卡对照(accounts.swipesmart_card_id)');
+            await _addColumnIfMissing('accounts', 'swipesmart_card_id',
+                'ALTER TABLE accounts ADD COLUMN swipesmart_card_id TEXT;');
+            logger.info('DBMigration', 'v47 迁移完成');
           }
         },
         onCreate: (m) async {

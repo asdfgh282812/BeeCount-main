@@ -660,6 +660,12 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
   late final GeneratedColumn<String> parentAccountId = GeneratedColumn<String>(
       'parent_account_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _swipesmartCardIdMeta =
+      const VerificationMeta('swipesmartCardId');
+  @override
+  late final GeneratedColumn<String> swipesmartCardId = GeneratedColumn<String>(
+      'swipesmart_card_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _avatarPathMeta =
       const VerificationMeta('avatarPath');
   @override
@@ -696,6 +702,7 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         syncId,
         hidden,
         parentAccountId,
+        swipesmartCardId,
         avatarPath,
         includeInTotal
       ];
@@ -796,6 +803,12 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
           parentAccountId.isAcceptableOrUnknown(
               data['parent_account_id']!, _parentAccountIdMeta));
     }
+    if (data.containsKey('swipesmart_card_id')) {
+      context.handle(
+          _swipesmartCardIdMeta,
+          swipesmartCardId.isAcceptableOrUnknown(
+              data['swipesmart_card_id']!, _swipesmartCardIdMeta));
+    }
     if (data.containsKey('avatar_path')) {
       context.handle(
           _avatarPathMeta,
@@ -853,6 +866,8 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
           .read(DriftSqlType.bool, data['${effectivePrefix}hidden'])!,
       parentAccountId: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}parent_account_id']),
+      swipesmartCardId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}swipesmart_card_id']),
       avatarPath: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}avatar_path']),
       includeInTotal: attachedDatabase.typeMapping
@@ -893,6 +908,11 @@ class Account extends DataClass implements Insertable<Account> {
   /// (docs/MOZE_FEATURE_GAP_SD.md §2.9 Phase 4)。
   final String? parentAccountId;
 
+  /// v47 SwipeSmart 信用卡對照:對應 SwipeSmart 卡片目錄的 cardId,null =
+  /// 尚未對照。跟 BeeCount Cloud server `accounts.swipesmart_card_id` 對齊
+  /// (docs/superpowers/specs/2026-08-30-swipesmart-integration-design.md §3.1)。
+  final String? swipesmartCardId;
+
   /// v32 帳戶頭像本地相對路徑(如 "custom_icons/<fileId>.png"),跟
   /// Categories.customIconPath 同一套目錄/存取邏輯(CustomIconService)。
   /// 上傳到雲端拿到的 fileId/sha256 不落本地欄位 —— push 時即時上傳算,
@@ -925,6 +945,7 @@ class Account extends DataClass implements Insertable<Account> {
       this.syncId,
       required this.hidden,
       this.parentAccountId,
+      this.swipesmartCardId,
       this.avatarPath,
       required this.includeInTotal});
   @override
@@ -967,6 +988,9 @@ class Account extends DataClass implements Insertable<Account> {
     map['hidden'] = Variable<bool>(hidden);
     if (!nullToAbsent || parentAccountId != null) {
       map['parent_account_id'] = Variable<String>(parentAccountId);
+    }
+    if (!nullToAbsent || swipesmartCardId != null) {
+      map['swipesmart_card_id'] = Variable<String>(swipesmartCardId);
     }
     if (!nullToAbsent || avatarPath != null) {
       map['avatar_path'] = Variable<String>(avatarPath);
@@ -1012,6 +1036,9 @@ class Account extends DataClass implements Insertable<Account> {
       parentAccountId: parentAccountId == null && nullToAbsent
           ? const Value.absent()
           : Value(parentAccountId),
+      swipesmartCardId: swipesmartCardId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(swipesmartCardId),
       avatarPath: avatarPath == null && nullToAbsent
           ? const Value.absent()
           : Value(avatarPath),
@@ -1041,6 +1068,7 @@ class Account extends DataClass implements Insertable<Account> {
       syncId: serializer.fromJson<String?>(json['syncId']),
       hidden: serializer.fromJson<bool>(json['hidden']),
       parentAccountId: serializer.fromJson<String?>(json['parentAccountId']),
+      swipesmartCardId: serializer.fromJson<String?>(json['swipesmartCardId']),
       avatarPath: serializer.fromJson<String?>(json['avatarPath']),
       includeInTotal: serializer.fromJson<bool>(json['includeInTotal']),
     );
@@ -1067,6 +1095,7 @@ class Account extends DataClass implements Insertable<Account> {
       'syncId': serializer.toJson<String?>(syncId),
       'hidden': serializer.toJson<bool>(hidden),
       'parentAccountId': serializer.toJson<String?>(parentAccountId),
+      'swipesmartCardId': serializer.toJson<String?>(swipesmartCardId),
       'avatarPath': serializer.toJson<String?>(avatarPath),
       'includeInTotal': serializer.toJson<bool>(includeInTotal),
     };
@@ -1091,6 +1120,7 @@ class Account extends DataClass implements Insertable<Account> {
           Value<String?> syncId = const Value.absent(),
           bool? hidden,
           Value<String?> parentAccountId = const Value.absent(),
+          Value<String?> swipesmartCardId = const Value.absent(),
           Value<String?> avatarPath = const Value.absent(),
           bool? includeInTotal}) =>
       Account(
@@ -1116,6 +1146,9 @@ class Account extends DataClass implements Insertable<Account> {
         parentAccountId: parentAccountId.present
             ? parentAccountId.value
             : this.parentAccountId,
+        swipesmartCardId: swipesmartCardId.present
+            ? swipesmartCardId.value
+            : this.swipesmartCardId,
         avatarPath: avatarPath.present ? avatarPath.value : this.avatarPath,
         includeInTotal: includeInTotal ?? this.includeInTotal,
       );
@@ -1149,6 +1182,9 @@ class Account extends DataClass implements Insertable<Account> {
       parentAccountId: data.parentAccountId.present
           ? data.parentAccountId.value
           : this.parentAccountId,
+      swipesmartCardId: data.swipesmartCardId.present
+          ? data.swipesmartCardId.value
+          : this.swipesmartCardId,
       avatarPath:
           data.avatarPath.present ? data.avatarPath.value : this.avatarPath,
       includeInTotal: data.includeInTotal.present
@@ -1178,6 +1214,7 @@ class Account extends DataClass implements Insertable<Account> {
           ..write('syncId: $syncId, ')
           ..write('hidden: $hidden, ')
           ..write('parentAccountId: $parentAccountId, ')
+          ..write('swipesmartCardId: $swipesmartCardId, ')
           ..write('avatarPath: $avatarPath, ')
           ..write('includeInTotal: $includeInTotal')
           ..write(')'))
@@ -1185,27 +1222,29 @@ class Account extends DataClass implements Insertable<Account> {
   }
 
   @override
-  int get hashCode => Object.hash(
-      id,
-      ledgerId,
-      name,
-      type,
-      currency,
-      initialBalance,
-      createdAt,
-      updatedAt,
-      sortOrder,
-      creditLimit,
-      billingDay,
-      paymentDueDay,
-      bankName,
-      cardLastFour,
-      note,
-      syncId,
-      hidden,
-      parentAccountId,
-      avatarPath,
-      includeInTotal);
+  int get hashCode => Object.hashAll([
+        id,
+        ledgerId,
+        name,
+        type,
+        currency,
+        initialBalance,
+        createdAt,
+        updatedAt,
+        sortOrder,
+        creditLimit,
+        billingDay,
+        paymentDueDay,
+        bankName,
+        cardLastFour,
+        note,
+        syncId,
+        hidden,
+        parentAccountId,
+        swipesmartCardId,
+        avatarPath,
+        includeInTotal
+      ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1228,6 +1267,7 @@ class Account extends DataClass implements Insertable<Account> {
           other.syncId == this.syncId &&
           other.hidden == this.hidden &&
           other.parentAccountId == this.parentAccountId &&
+          other.swipesmartCardId == this.swipesmartCardId &&
           other.avatarPath == this.avatarPath &&
           other.includeInTotal == this.includeInTotal);
 }
@@ -1251,6 +1291,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<String?> syncId;
   final Value<bool> hidden;
   final Value<String?> parentAccountId;
+  final Value<String?> swipesmartCardId;
   final Value<String?> avatarPath;
   final Value<bool> includeInTotal;
   const AccountsCompanion({
@@ -1272,6 +1313,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.syncId = const Value.absent(),
     this.hidden = const Value.absent(),
     this.parentAccountId = const Value.absent(),
+    this.swipesmartCardId = const Value.absent(),
     this.avatarPath = const Value.absent(),
     this.includeInTotal = const Value.absent(),
   });
@@ -1294,6 +1336,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.syncId = const Value.absent(),
     this.hidden = const Value.absent(),
     this.parentAccountId = const Value.absent(),
+    this.swipesmartCardId = const Value.absent(),
     this.avatarPath = const Value.absent(),
     this.includeInTotal = const Value.absent(),
   })  : ledgerId = Value(ledgerId),
@@ -1317,6 +1360,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Expression<String>? syncId,
     Expression<bool>? hidden,
     Expression<String>? parentAccountId,
+    Expression<String>? swipesmartCardId,
     Expression<String>? avatarPath,
     Expression<bool>? includeInTotal,
   }) {
@@ -1339,6 +1383,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       if (syncId != null) 'sync_id': syncId,
       if (hidden != null) 'hidden': hidden,
       if (parentAccountId != null) 'parent_account_id': parentAccountId,
+      if (swipesmartCardId != null) 'swipesmart_card_id': swipesmartCardId,
       if (avatarPath != null) 'avatar_path': avatarPath,
       if (includeInTotal != null) 'include_in_total': includeInTotal,
     });
@@ -1363,6 +1408,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       Value<String?>? syncId,
       Value<bool>? hidden,
       Value<String?>? parentAccountId,
+      Value<String?>? swipesmartCardId,
       Value<String?>? avatarPath,
       Value<bool>? includeInTotal}) {
     return AccountsCompanion(
@@ -1384,6 +1430,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       syncId: syncId ?? this.syncId,
       hidden: hidden ?? this.hidden,
       parentAccountId: parentAccountId ?? this.parentAccountId,
+      swipesmartCardId: swipesmartCardId ?? this.swipesmartCardId,
       avatarPath: avatarPath ?? this.avatarPath,
       includeInTotal: includeInTotal ?? this.includeInTotal,
     );
@@ -1446,6 +1493,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     if (parentAccountId.present) {
       map['parent_account_id'] = Variable<String>(parentAccountId.value);
     }
+    if (swipesmartCardId.present) {
+      map['swipesmart_card_id'] = Variable<String>(swipesmartCardId.value);
+    }
     if (avatarPath.present) {
       map['avatar_path'] = Variable<String>(avatarPath.value);
     }
@@ -1476,6 +1526,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
           ..write('syncId: $syncId, ')
           ..write('hidden: $hidden, ')
           ..write('parentAccountId: $parentAccountId, ')
+          ..write('swipesmartCardId: $swipesmartCardId, ')
           ..write('avatarPath: $avatarPath, ')
           ..write('includeInTotal: $includeInTotal')
           ..write(')'))
@@ -15316,6 +15367,7 @@ typedef $$AccountsTableCreateCompanionBuilder = AccountsCompanion Function({
   Value<String?> syncId,
   Value<bool> hidden,
   Value<String?> parentAccountId,
+  Value<String?> swipesmartCardId,
   Value<String?> avatarPath,
   Value<bool> includeInTotal,
 });
@@ -15338,6 +15390,7 @@ typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<String?> syncId,
   Value<bool> hidden,
   Value<String?> parentAccountId,
+  Value<String?> swipesmartCardId,
   Value<String?> avatarPath,
   Value<bool> includeInTotal,
 });
@@ -15405,6 +15458,10 @@ class $$AccountsTableFilterComposer
 
   ColumnFilters<String> get parentAccountId => $composableBuilder(
       column: $table.parentAccountId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get swipesmartCardId => $composableBuilder(
+      column: $table.swipesmartCardId,
       builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get avatarPath => $composableBuilder(
@@ -15482,6 +15539,10 @@ class $$AccountsTableOrderingComposer
       column: $table.parentAccountId,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get swipesmartCardId => $composableBuilder(
+      column: $table.swipesmartCardId,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get avatarPath => $composableBuilder(
       column: $table.avatarPath, builder: (column) => ColumnOrderings(column));
 
@@ -15553,6 +15614,9 @@ class $$AccountsTableAnnotationComposer
   GeneratedColumn<String> get parentAccountId => $composableBuilder(
       column: $table.parentAccountId, builder: (column) => column);
 
+  GeneratedColumn<String> get swipesmartCardId => $composableBuilder(
+      column: $table.swipesmartCardId, builder: (column) => column);
+
   GeneratedColumn<String> get avatarPath => $composableBuilder(
       column: $table.avatarPath, builder: (column) => column);
 
@@ -15601,6 +15665,7 @@ class $$AccountsTableTableManager extends RootTableManager<
             Value<String?> syncId = const Value.absent(),
             Value<bool> hidden = const Value.absent(),
             Value<String?> parentAccountId = const Value.absent(),
+            Value<String?> swipesmartCardId = const Value.absent(),
             Value<String?> avatarPath = const Value.absent(),
             Value<bool> includeInTotal = const Value.absent(),
           }) =>
@@ -15623,6 +15688,7 @@ class $$AccountsTableTableManager extends RootTableManager<
             syncId: syncId,
             hidden: hidden,
             parentAccountId: parentAccountId,
+            swipesmartCardId: swipesmartCardId,
             avatarPath: avatarPath,
             includeInTotal: includeInTotal,
           ),
@@ -15645,6 +15711,7 @@ class $$AccountsTableTableManager extends RootTableManager<
             Value<String?> syncId = const Value.absent(),
             Value<bool> hidden = const Value.absent(),
             Value<String?> parentAccountId = const Value.absent(),
+            Value<String?> swipesmartCardId = const Value.absent(),
             Value<String?> avatarPath = const Value.absent(),
             Value<bool> includeInTotal = const Value.absent(),
           }) =>
@@ -15667,6 +15734,7 @@ class $$AccountsTableTableManager extends RootTableManager<
             syncId: syncId,
             hidden: hidden,
             parentAccountId: parentAccountId,
+            swipesmartCardId: swipesmartCardId,
             avatarPath: avatarPath,
             includeInTotal: includeInTotal,
           ),
