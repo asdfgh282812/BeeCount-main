@@ -196,6 +196,8 @@ class LocalAccountRepository implements AccountRepository {
     String? avatarPath,
     bool clearAvatar = false,
     bool? includeInTotal,
+    String? swipesmartCardId,
+    bool clearSwipesmartCardId = false,
   }) async {
     await (db.update(db.accounts)..where((a) => a.id.equals(id))).write(
       AccountsCompanion(
@@ -245,6 +247,11 @@ class LocalAccountRepository implements AccountRepository {
         includeInTotal: includeInTotal == null
             ? const d.Value.absent()
             : d.Value(includeInTotal),
+        swipesmartCardId: clearSwipesmartCardId
+            ? const d.Value(null)
+            : (swipesmartCardId != null
+                ? d.Value(swipesmartCardId)
+                : const d.Value.absent()),
       ),
     );
   }

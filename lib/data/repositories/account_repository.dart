@@ -86,6 +86,8 @@ abstract class AccountRepository {
     String? avatarPath,
     bool clearAvatar = false,
     bool? includeInTotal,
+    String? swipesmartCardId,
+    bool clearSwipesmartCardId = false,
   });
 
   /// 隐藏 / 恢复账户(账户隐藏 #240)。内部走 [updateAccount] → 记

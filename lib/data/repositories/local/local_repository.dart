@@ -2127,6 +2127,8 @@ class LocalRepository extends BaseRepository {
     String? avatarPath,
     bool clearAvatar = false,
     bool? includeInTotal,
+    String? swipesmartCardId,
+    bool clearSwipesmartCardId = false,
   }) async {
     final account =
         changeTracker != null ? await _accountRepo.getAccount(id) : null;
@@ -2150,6 +2152,8 @@ class LocalRepository extends BaseRepository {
       avatarPath: avatarPath,
       clearAvatar: clearAvatar,
       includeInTotal: includeInTotal,
+      swipesmartCardId: swipesmartCardId,
+      clearSwipesmartCardId: clearSwipesmartCardId,
     );
     if (account?.syncId != null) {
       await changeTracker!.recordUserGlobalChange(
