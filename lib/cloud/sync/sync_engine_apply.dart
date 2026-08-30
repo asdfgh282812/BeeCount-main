@@ -579,6 +579,19 @@ extension SyncEngineApplyExt on SyncEngine {
             ? null
             : parentAccountIdRaw;
 
+    // SwipeSmart 信用卡對照(design doc 2026-08-30 §3.1):跟 parentAccountId
+    // 同款 containsKey 保護 —— 老版本 App / 早于本次改动落的历史
+    // sync_change 没有这个键,不能把 d.Value(null) 无条件写进去抹掉本地已经
+    //做好的對照(不論那個對照是使用者手動選的,還是 server 端自動比對寫
+    // 回的)。
+    final hasSwipesmartCardIdKey = payload.containsKey('swipesmartCardId');
+    final swipesmartCardIdRaw =
+        hasSwipesmartCardIdKey ? payload['swipesmartCardId'] as String? : null;
+    final swipesmartCardId =
+        (swipesmartCardIdRaw == null || swipesmartCardIdRaw.isEmpty)
+            ? null
+            : swipesmartCardIdRaw;
+
     var existing = await (db.select(db.accounts)
           ..where((a) => a.syncId.equals(syncId)))
         .getSingleOrNull();
@@ -653,6 +666,9 @@ extension SyncEngineApplyExt on SyncEngine {
         parentAccountId: hasParentAccountIdKey
             ? d.Value(parentAccountId)
             : const d.Value.absent(),
+        swipesmartCardId: hasSwipesmartCardIdKey
+            ? d.Value(swipesmartCardId)
+            : const d.Value.absent(),
         avatarPath: d.Value(resolvedAvatarPath),
       ));
       logger.debug('SyncEngine', 'pull: 更新账户 $syncId');
@@ -675,6 +691,7 @@ extension SyncEngineApplyExt on SyncEngine {
               hidden: d.Value(hidden ?? false),
               includeInTotal: d.Value(includeInTotal ?? true),
               parentAccountId: d.Value(parentAccountId),
+              swipesmartCardId: d.Value(swipesmartCardId),
               avatarPath: d.Value(resolvedAvatarPath),
             ),
           );
