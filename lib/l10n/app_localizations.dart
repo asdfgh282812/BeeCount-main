@@ -16619,6 +16619,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No credit card accounts yet.'**
   String get swipesmartMappingNoAccounts;
+
+  /// No description provided for @swipesmartRecommendationUnmappedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This card isn\'t mapped yet — set it up in SwipeSmart card mapping to auto-fill the account next time.'**
+  String get swipesmartRecommendationUnmappedHint;
 }
 
 class _AppLocalizationsDelegate

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -97,6 +98,13 @@ typedef AmountEditorResult = ({
 /// 已经是 false,`if (mounted)` 保護下自然是 no-op,行為不變。
 typedef TransactionSubmitCallback = Future<void> Function(
     Category category, AmountEditorResult result);
+
+/// 未對照卡片點擊後要附加進備註的文字("銀行名 卡名")。抽成純函式方便單元
+/// 測試,不用整個 widget tree(design doc 2026-08-30 §4 的未對照 fallback)。
+String swipesmartUnmappedNoteAppend(String bankName, String cardName) {
+  final label = '$bankName $cardName'.trim();
+  return label;
+}
 
 /// 支出/收入新增交易的單頁式表單(比照 Moze 參考圖):類別、金額、名稱、
 /// 商家、帳戶、標籤/附件/旗標、日期一次呈現,不再是「先選類別 → 再彈金額
@@ -243,11 +251,20 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   bool _fetchingRate = false;
   String? _rateFetchAttemptedFor;
 
+  // ===== SwipeSmart 刷卡建議(design doc 2026-08-30 §4)=====
+  List<SwipeSmartCardRecommendation> _recommendations = [];
+  bool _swipesmartHasKey = false;
+  Timer? _recommendationDebounce;
+  ({double amount, String merchant})? _lastRecommendationQuery;
+
   @override
   void initState() {
     super.initState();
     _nameFocus.addListener(_onTextFieldFocusChange);
     _merchantFocus.addListener(_onTextFieldFocusChange);
+    _checkSwipesmartKey();
+    _nameFocus.addListener(_maybeQueueRecommendation);
+    _merchantFocus.addListener(_maybeQueueRecommendation);
     _date = widget.initialDate;
     _excludeFromStats = widget.initialExcludeFromStats;
     _excludeFromBudget = widget.initialExcludeFromBudget;
@@ -285,11 +302,97 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
 
   @override
   void dispose() {
+    _recommendationDebounce?.cancel();
+    _nameFocus.removeListener(_maybeQueueRecommendation);
+    _merchantFocus.removeListener(_maybeQueueRecommendation);
     _nameCtrl.dispose();
     _merchantCtrl.dispose();
     _nameFocus.dispose();
     _merchantFocus.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkSwipesmartKey() async {
+    try {
+      final cloud = await ref.read(beecountCloudProviderInstance.future);
+      if (cloud == null || !mounted) return;
+      final status = await cloud.getSwipeSmartKeyStatus();
+      if (!mounted) return;
+      setState(() => _swipesmartHasKey = status.hasKey);
+    } catch (_) {
+      // 靜默失敗——這是附加功能,絕不能因為查狀態失敗而影響記帳表單本身。
+    }
+  }
+
+  /// 商家/名稱欄位失焦時檢查是否該打一次推薦請求。只在支出交易、有 Key、
+  /// 金額 > 0、商家非空時才打;同一組(金額,商家)不重複打(design doc §4)。
+  void _maybeQueueRecommendation() {
+    if (_textFieldFocused) return; // 還在輸入,等失焦
+    if (!_swipesmartHasKey) return;
+    if (widget.kind != 'expense') return;
+    final amount = double.tryParse(_amountStr) ?? 0;
+    final merchant = _merchantCtrl.text.trim();
+    if (amount <= 0 || merchant.isEmpty) return;
+    if (_lastRecommendationQuery?.amount == amount &&
+        _lastRecommendationQuery?.merchant == merchant) {
+      return; // 同一組合已經查過,不重打
+    }
+
+    _recommendationDebounce?.cancel();
+    _recommendationDebounce = Timer(const Duration(milliseconds: 500), () {
+      _fetchRecommendation(amount, merchant);
+    });
+  }
+
+  Future<void> _fetchRecommendation(double amount, String merchant) async {
+    try {
+      final cloud = await ref.read(beecountCloudProviderInstance.future);
+      if (cloud == null || !mounted) return;
+
+      final db = ref.read(databaseProvider);
+      final ledger = await (db.select(db.ledgers)
+            ..where((l) => l.id.equals(widget.ledgerId)))
+          .getSingleOrNull();
+      final serverLedgerId = ledger?.syncId ?? widget.ledgerId.toString();
+
+      final results = await cloud.getCardRecommendation(
+        ledgerId: serverLedgerId,
+        amount: amount,
+        merchant: merchant,
+      );
+      if (!mounted) return;
+      setState(() {
+        _recommendations = results;
+        _lastRecommendationQuery = (amount: amount, merchant: merchant);
+      });
+    } catch (_) {
+      // 靜默失敗——絕不能讓這個附加功能擋住記帳流程(design doc §4)。
+      if (mounted) setState(() => _recommendations = []);
+    }
+  }
+
+  Future<void> _onRecommendationTapped(
+      SwipeSmartCardRecommendation rec) async {
+    if (rec.accountId != null) {
+      final db = ref.read(databaseProvider);
+      final account = await (db.select(db.accounts)
+            ..where((a) => a.syncId.equals(rec.accountId!)))
+          .getSingleOrNull();
+      if (account != null) {
+        setState(() => _selectedAccountId = account.id);
+        return;
+      }
+    }
+    // 未對照:帳戶不動,備註附加銀行名+卡名,提示使用者去完成對照。
+    final append = swipesmartUnmappedNoteAppend(rec.bankName, rec.cardName);
+    setState(() {
+      _nameCtrl.text =
+          _nameCtrl.text.isEmpty ? append : '${_nameCtrl.text} $append';
+    });
+    if (mounted) {
+      showToast(context,
+          AppLocalizations.of(context).swipesmartRecommendationUnmappedHint);
+    }
   }
 
   /// 名稱/商家欄位聚焦時收起底部小算盤(改用 iOS 原生鍵盤,可輸入中文);
@@ -1390,6 +1493,56 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
                         const BoxConstraints(minWidth: 40, minHeight: 20),
                   ),
                 ),
+                if (_recommendations.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 72,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _recommendations.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      itemBuilder: (context, index) {
+                        final rec = _recommendations[index];
+                        return GestureDetector(
+                          onTap: () => _onRecommendationTapped(rec),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: BeeTokens.surfaceInput(context),
+                              borderRadius: BorderRadius.circular(12),
+                              border: rec.accountId != null
+                                  ? Border.all(
+                                      color: BeeTokens.iconPrimary(context))
+                                  : null,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  '${rec.bankName} ${rec.cardName}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: BeeTokens.textPrimary(context),
+                                  ),
+                                ),
+                                Text(
+                                  '+${rec.estimatedReward.toStringAsFixed(0)} (${(rec.effectiveRate * 100).toStringAsFixed(1)}%)',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: BeeTokens.textSecondary(context),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 8),
                 _buildAccountRow(context),
                 const SizedBox(height: 8),
