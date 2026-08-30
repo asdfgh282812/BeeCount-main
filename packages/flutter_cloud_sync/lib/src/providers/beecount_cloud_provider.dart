@@ -4101,6 +4101,102 @@ class BeeCountCloudLedgerStats {
   }
 }
 
+/// SwipeSmart Personal API Key 連接狀態(design doc 2026-08-30 §2)。
+class SwipeSmartKeyStatus {
+  const SwipeSmartKeyStatus({
+    required this.hasKey,
+    this.masked,
+    this.autoMapped = 0,
+  });
+
+  final bool hasKey;
+  final String? masked;
+
+  /// 只有 POST(貼上/更換 Key)當下有意義,GET/DELETE 恆為 0(對齊 server
+  /// `SwipeSmartKeyStatusOut.auto_mapped` 的語意,見 Cloud
+  /// src/routers/swipesmart.py)。
+  final int autoMapped;
+
+  factory SwipeSmartKeyStatus.fromJson(Map<String, dynamic> json) {
+    return SwipeSmartKeyStatus(
+      hasKey: json['has_key'] as bool? ?? false,
+      masked: json['masked'] as String?,
+      autoMapped: (json['auto_mapped'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+/// SwipeSmart 卡片目錄裡的一張卡(design doc 2026-08-30 §3.3)。
+class SwipeSmartCard {
+  const SwipeSmartCard({
+    required this.cardId,
+    required this.bankName,
+    required this.cardName,
+  });
+
+  final String cardId;
+  final String bankName;
+  final String cardName;
+
+  factory SwipeSmartCard.fromJson(Map<String, dynamic> json) {
+    return SwipeSmartCard(
+      cardId: json['card_id'] as String? ?? '',
+      bankName: json['bank_name'] as String? ?? '',
+      cardName: json['card_name'] as String? ?? '',
+    );
+  }
+}
+
+/// 一筆刷卡建議(design doc 2026-08-30 §4)。`accountId`/`accountName` 只在
+/// 這張 SwipeSmart 卡已經對照到使用者自己的 BeeCount 信用卡帳戶時才有值 ——
+/// 呼叫方據此決定要不要顯示成「可點擊直接代入帳戶」還是「純文字,備註提示
+/// 尚未對照」。
+class SwipeSmartCardRecommendation {
+  const SwipeSmartCardRecommendation({
+    required this.cardId,
+    required this.bankName,
+    required this.cardName,
+    this.ruleName,
+    required this.estimatedReward,
+    required this.effectiveRate,
+    this.note,
+    this.alertMessages = const [],
+    this.accountId,
+    this.accountName,
+  });
+
+  final String cardId;
+  final String bankName;
+  final String cardName;
+  final String? ruleName;
+  final double estimatedReward;
+  final double effectiveRate;
+  final String? note;
+  final List<String> alertMessages;
+
+  /// 對照到的本地帳戶 syncId(不是本地 int id——呼叫方需要自己反查)。
+  final String? accountId;
+  final String? accountName;
+
+  factory SwipeSmartCardRecommendation.fromJson(Map<String, dynamic> json) {
+    return SwipeSmartCardRecommendation(
+      cardId: json['card_id'] as String? ?? '',
+      bankName: json['bank_name'] as String? ?? '',
+      cardName: json['card_name'] as String? ?? '',
+      ruleName: json['rule_name'] as String?,
+      estimatedReward: (json['estimated_reward'] as num?)?.toDouble() ?? 0.0,
+      effectiveRate: (json['effective_rate'] as num?)?.toDouble() ?? 0.0,
+      note: json['note'] as String?,
+      alertMessages: (json['alert_messages'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const [],
+      accountId: json['account_id'] as String?,
+      accountName: json['account_name'] as String?,
+    );
+  }
+}
+
 class BeeCountCloudReadLedgerDetail extends BeeCountCloudReadLedger {
   const BeeCountCloudReadLedgerDetail({
     required super.ledgerId,
