@@ -15,6 +15,7 @@ import '../../utils/currencies.dart';
 import '../../widgets/biz/account_card_picker.dart';
 import '../../widgets/biz/amount_calculator_keypad.dart';
 import '../../widgets/biz/category_selector_dialog.dart';
+import '../../widgets/biz/pull_to_submit_scroll_view.dart';
 import '../../widgets/biz/section_card.dart';
 import '../../widgets/biz/shared_entry_fields.dart';
 import '../ui/ui.dart';
@@ -366,8 +367,11 @@ class DebtEntryFormState extends ConsumerState<DebtEntryForm> {
     return Column(
       children: [
         Expanded(
-          child: SingleChildScrollView(
+          child: PullToSubmitScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            canSubmit: canSubmit,
+            isSubmitting: _isSubmitting,
+            onSubmit: _submit,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

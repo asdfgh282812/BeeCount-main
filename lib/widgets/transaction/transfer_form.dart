@@ -23,6 +23,7 @@ import '../../utils/shared_ledger_picker_filter.dart';
 import '../biz/account_card_picker.dart';
 import '../biz/amount_calculator_keypad.dart';
 import '../biz/amount_text.dart';
+import '../biz/pull_to_submit_scroll_view.dart';
 import '../biz/recurring_occurrence_dialogs.dart';
 import '../biz/shared_entry_fields.dart';
 import '../biz/tag_chip.dart';
@@ -183,6 +184,33 @@ class TransferFormState extends ConsumerState<TransferForm>
 
     if (_fromAccountId != null) _loadAccount(_fromAccountId!, isFrom: true);
     if (_toAccountId != null) _loadAccount(_toAccountId!, isFrom: false);
+
+    // 全新轉帳(沒有指定初始帳戶、也不是編輯既有交易)時,靜默預帶最近一筆
+    // 轉帳用過的兩個帳戶,省去每次都要手動選兩次的麻煩。
+    if (_fromAccountId == null &&
+        _toAccountId == null &&
+        widget.editingTransactionId == null) {
+      _loadLastUsedTransferAccounts();
+    }
+  }
+
+  Future<void> _loadLastUsedTransferAccounts() async {
+    final repo = ref.read(repositoryProvider);
+    final ledgerId = ref.read(currentLedgerIdProvider);
+    final pair = await repo.getLastTransferAccounts(ledgerId: ledgerId);
+    if (pair == null || !mounted) return;
+    // 使用者在等待查詢結果的這段時間手動選過帳戶了,不要覆蓋。
+    if (_fromAccountId != null || _toAccountId != null) return;
+    final from = await _lookupAccount(pair.fromAccountId);
+    final to = await _lookupAccount(pair.toAccountId);
+    if (!mounted || from == null || to == null) return;
+    if (from.hidden || to.hidden) return;
+    setState(() {
+      _fromAccountId = pair.fromAccountId;
+      _toAccountId = pair.toAccountId;
+      _fromAccount = from;
+      _toAccount = to;
+    });
   }
 
   @override
@@ -814,8 +842,11 @@ class TransferFormState extends ConsumerState<TransferForm>
     return Column(
       children: [
         Expanded(
-          child: SingleChildScrollView(
+          child: PullToSubmitScrollView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            canSubmit: canSubmit,
+            isSubmitting: _isSubmitting,
+            onSubmit: _submit,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

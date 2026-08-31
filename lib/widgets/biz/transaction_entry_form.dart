@@ -13,6 +13,8 @@ import '../../styles/tokens.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/data/note_history_service.dart';
 import '../../models/note_history.dart';
+import '../../services/data/merchant_history_service.dart';
+import '../../models/merchant_history.dart';
 import '../../services/attachment_service.dart';
 import '../../providers.dart';
 import '../../utils/ui_scale_extensions.dart';
@@ -30,6 +32,8 @@ import 'project_picker.dart';
 import '../../services/data/category_service.dart';
 import 'amount_calculator_keypad.dart';
 import 'note_picker_dialog.dart';
+import 'merchant_picker_dialog.dart';
+import 'pull_to_submit_scroll_view.dart';
 import '../currency/currency_picker_sheet.dart';
 import '../currency/currency_flag.dart';
 import '../ui/toast.dart';
@@ -228,6 +232,10 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   late String _amountStr;
   late DateTime _date;
   int? _selectedAccountId;
+  // 使用者是否已經「主動」選過帳戶(手動開帳戶選單 / 點 SwipeSmart 推薦卡片)。
+  // true 之後 [_maybeApplyPerCategoryAccountDefault] 不再靜默覆蓋,換分類也一樣
+  // ——避免使用者剛手動選好帳戶,又因為換了個分類被自動代入蓋掉。
+  bool _accountManuallySet = false;
   final TextEditingController _nameCtrl = TextEditingController();
   final TextEditingController _merchantCtrl = TextEditingController();
   final FocusNode _nameFocus = FocusNode();
@@ -243,6 +251,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   Project? _selectedProject;
 
   List<NoteHistoryEntry> _frequentNotes = [];
+  List<MerchantHistoryEntry> _frequentMerchants = [];
   List<double> _recentAmounts = [];
 
   bool _isSubmitting = false;
@@ -416,6 +425,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     final accountChanged = _selectedAccountId != account.id;
     setState(() {
       _selectedAccountId = account.id;
+      _accountManuallySet = true;
       _selectedAccountName = account.name;
       _selectedAccountType = account.type;
       _selectedAccountCurrency =
@@ -425,6 +435,9 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
         ..remove(rec)
         ..insert(0, rec);
     });
+    // 只代入帳戶,不寫入回饋快取(見 [_openRewardRuleSelector] 的說明)——
+    // 但若這個帳戶+目前分類先前已有使用者手動選過的回饋規則,直接套用。
+    _maybeAutoApplyRewardCache();
   }
 
   /// 名稱/商家欄位聚焦時收起底部小算盤(改用 iOS 原生鍵盤,可輸入中文),
@@ -480,6 +493,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
         if (accountChanged) _selectedRewardRuleIds = [];
       });
       _loadSelectedAccount(f.accountId!);
+      _maybeAutoApplyRewardCache();
     }
     if (f.projectSyncId != null &&
         f.projectSyncId != _selectedProject?.syncId) {
@@ -493,6 +507,19 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     if (project != null && mounted) {
       setState(() => _selectedProject = project);
     }
+  }
+
+  /// 供「建議」分頁點類別後呼叫(`transaction_editor_page.dart` 透過
+  /// `GlobalKey<TransactionEntryFormState>` 呼叫,跟 [applySharedFields] 同款
+  /// 跨分頁呼叫寫法)。選中類別、收合類別網格,並用 `viaSuggestion: true`
+  /// 讓備註歷史這一次強制只看當前分類、嘗試靜默代入常用帳戶/回饋規則。
+  void selectCategoryFromSuggestion(Category c) {
+    if (!mounted) return;
+    setState(() {
+      _selectedCategory = c;
+      _categoryGridExpanded = false;
+    });
+    _onCategoryChanged(viaSuggestion: true);
   }
 
   /// 回顯已選類別(編輯模式 / 呼叫端帶入 initialCategoryId 預選時)。
@@ -596,18 +623,26 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     }
   }
 
-  void _onCategoryChanged() {
-    _loadRecentNotes();
+  /// [viaSuggestion] true 代表這次選類別是從「建議」分頁點過來的(見
+  /// [selectCategoryFromSuggestion])——備註歷史這一次強制只看當前分類,
+  /// 不管全域設定,並嘗試靜默代入這個分類的常用帳戶/回饋規則。一般類別格
+  /// (`onCategorySelected`)維持預設 false,行為不變。
+  void _onCategoryChanged({bool viaSuggestion = false}) {
+    _loadRecentNotes(
+        scopeOverride:
+            viaSuggestion ? NoteHistoryScope.currentCategory : null);
+    _loadRecentMerchants();
     _loadRecentAmounts();
+    _maybeApplyPerCategoryAccountDefault();
   }
 
-  Future<void> _loadRecentNotes() async {
+  Future<void> _loadRecentNotes({NoteHistoryScope? scopeOverride}) async {
     final repo = ref.read(repositoryProvider);
     final c = _selectedCategory;
     final notes = await NoteHistoryService.getHistoryNotes(
       repository: repo,
       ledgerId: widget.ledgerId,
-      scope: ref.read(noteHistoryScopeProvider),
+      scope: scopeOverride ?? ref.read(noteHistoryScopeProvider),
       sort: ref.read(noteHistorySortProvider),
       categoryId: c?.id,
       categorySyncId: (c != null && c.id < 0) ? c.syncId : null,
@@ -615,6 +650,46 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     );
     if (!mounted) return;
     setState(() => _frequentNotes = notes);
+  }
+
+  /// 商家欄位「依類別記住常用商家」——恆依當前類別過濾,沒有 scope 設定
+  /// 可調(跟 [_loadRecentNotes] 不同,商家沒有全域範圍偏好設定)。
+  Future<void> _loadRecentMerchants() async {
+    final repo = ref.read(repositoryProvider);
+    final c = _selectedCategory;
+    final merchants = await MerchantHistoryService.getHistoryMerchants(
+      repository: repo,
+      ledgerId: widget.ledgerId,
+      categoryId: c?.id,
+      categorySyncId: (c != null && c.id < 0) ? c.syncId : null,
+    );
+    if (!mounted) return;
+    setState(() => _frequentMerchants = merchants);
+  }
+
+  /// 依目前分類靜默代入歷史上最常用的帳戶——只在「全新交易、還沒指定初始
+  /// 帳戶、使用者也還沒手動選過帳戶」時才生效,語意上比照 [_loadDefaultAccount]
+  /// 的「靜默預設」,不是先高亮再等使用者確認。
+  Future<void> _maybeApplyPerCategoryAccountDefault() async {
+    if (widget.editingTransactionId != null) return;
+    if (widget.initialAccountId != null) return;
+    if (_accountManuallySet) return;
+    final c = _selectedCategory;
+    if (c == null || c.id < 0) return; // synthetic(共享帳本)分類查無本地交易
+    final repo = ref.read(repositoryProvider);
+    final accountId = await repo.getMostUsedAccountForCategory(
+      ledgerId: widget.ledgerId,
+      categoryId: c.id,
+    );
+    if (accountId == null || !mounted) return;
+    // 查詢這段時間使用者可能已經手動選了帳戶,或換了別的分類——都不要覆蓋。
+    if (_accountManuallySet || _selectedCategory?.id != c.id) return;
+    final account = await ref.read(accountByIdProvider(accountId).future);
+    if (account == null || account.hidden || !mounted) return;
+    if (_accountManuallySet || _selectedCategory?.id != c.id) return;
+    setState(() => _selectedAccountId = accountId);
+    _loadSelectedAccount(accountId);
+    _maybeAutoApplyRewardCache();
   }
 
   /// 常用金額列——只在選了「本地」類別(id>=0)時查詢;synthetic(共享帳本
@@ -1254,6 +1329,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     final accountChanged = id != _selectedAccountId;
     setState(() {
       _selectedAccountId = id;
+      _accountManuallySet = true;
       _selectedAccountCurrency = null;
       _selectedAccountName = null;
       _selectedAccountType = null;
@@ -1261,7 +1337,10 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
       // 擇不再有意義(甚至可能不屬於新帳戶,寫入會被 write 校驗擋掉)。
       if (accountChanged) _selectedRewardRuleIds = [];
     });
-    if (id != null) _loadSelectedAccount(id);
+    if (id != null) {
+      _loadSelectedAccount(id);
+      _maybeAutoApplyRewardCache();
+    }
   }
 
   Future<void> _openProjectPicker() async {
@@ -1374,8 +1453,11 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     return Column(
       children: [
         Expanded(
-          child: SingleChildScrollView(
+          child: PullToSubmitScrollView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            canSubmit: canSubmit,
+            isSubmitting: _isSubmitting,
+            onSubmit: _submit,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1528,8 +1610,36 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
                     fillColor: BeeTokens.surfaceInput(context),
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 10),
-                    prefixIcon: Icon(Icons.storefront_outlined,
-                        color: BeeTokens.iconSecondary(context), size: 18),
+                    prefixIcon: _frequentMerchants.isNotEmpty
+                        ? GestureDetector(
+                            onTap: () async {
+                              await showDialog(
+                                context: context,
+                                builder: (context) => MerchantPickerDialog(
+                                  ledgerId: widget.ledgerId,
+                                  categoryId: _selectedCategory?.id,
+                                  categorySyncId: (_selectedCategory != null &&
+                                          _selectedCategory!.id < 0)
+                                      ? _selectedCategory!.syncId
+                                      : null,
+                                  onMerchantPicked: (merchant) {
+                                    setState(() {
+                                      _merchantCtrl.text = merchant;
+                                      _merchantCtrl.selection =
+                                          TextSelection.fromPosition(
+                                              TextPosition(
+                                                  offset: merchant.length));
+                                    });
+                                  },
+                                ),
+                              );
+                            },
+                            child: Icon(Icons.history,
+                                color: BeeTokens.iconSecondary(context),
+                                size: 20),
+                          )
+                        : Icon(Icons.storefront_outlined,
+                            color: BeeTokens.iconSecondary(context), size: 18),
                     prefixIconConstraints:
                         const BoxConstraints(minWidth: 40, minHeight: 20),
                   ),
@@ -2215,7 +2325,63 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     );
     if (result != null) {
       setState(() => _selectedRewardRuleIds = result);
+      _rememberRewardChoice(result);
     }
+  }
+
+  /// 使用者手動選/清空回饋規則後,寫入本機學習快取(見
+  /// [RewardChoiceCacheRepository] 的範圍說明:只有這裡是寫入點,
+  /// SwipeSmart 卡片點選跟依類別靜默代入帳戶都只讀不寫)。
+  void _rememberRewardChoice(List<String> rewardRuleIds) {
+    final c = _selectedCategory;
+    final accountId = _selectedAccountId;
+    if (c == null || c.id < 0 || accountId == null || accountId < 0) return;
+    final repo = ref.read(repositoryProvider);
+    if (rewardRuleIds.isEmpty) {
+      repo.clearRewardChoice(
+          ledgerId: widget.ledgerId, categoryId: c.id, accountId: accountId);
+    } else {
+      repo.upsertRewardChoice(
+        ledgerId: widget.ledgerId,
+        categoryId: c.id,
+        accountId: accountId,
+        rewardRuleIds: rewardRuleIds,
+      );
+    }
+  }
+
+  /// 依「類別+帳戶」自動代入使用者上次手動選過的回饋規則。絕不覆蓋這次
+  /// 已經有選擇的規則(不管是使用者剛手動選的,還是這個方法自己剛代入的)。
+  Future<void> _maybeAutoApplyRewardCache() async {
+    if (!_rewardRuleSelectionEnabled) return;
+    if (_selectedRewardRuleIds.isNotEmpty) return;
+    final c = _selectedCategory;
+    final accountId = _selectedAccountId;
+    if (c == null || c.id < 0 || accountId == null || accountId < 0) return;
+    final repo = ref.read(repositoryProvider);
+    final cached = await repo.getCachedRewardRuleIds(
+      ledgerId: widget.ledgerId,
+      categoryId: c.id,
+      accountId: accountId,
+    );
+    if (cached == null || cached.isEmpty || !mounted) return;
+    // 查詢期間狀態可能已經變了(換了類別/帳戶,或使用者自己手動選了)。
+    if (_selectedCategory?.id != c.id ||
+        _selectedAccountId != accountId ||
+        _selectedRewardRuleIds.isNotEmpty) {
+      return;
+    }
+    final available =
+        await ref.read(cardRewardRulesForAccountProvider(accountId).future);
+    final validIds = available.map((r) => r.syncId).toSet();
+    final filtered = cached.where(validIds.contains).toList();
+    if (filtered.isEmpty || !mounted) return;
+    if (_selectedCategory?.id != c.id ||
+        _selectedAccountId != accountId ||
+        _selectedRewardRuleIds.isNotEmpty) {
+      return;
+    }
+    setState(() => _selectedRewardRuleIds = filtered);
   }
 
   Widget _buildRowContent(List<Tag> selectedTags, int attachmentCount,

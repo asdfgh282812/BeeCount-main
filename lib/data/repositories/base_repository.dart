@@ -12,6 +12,7 @@ import 'exchange_rate_repository.dart';
 import 'card_reward_rule_repository.dart';
 import 'debt_repository.dart';
 import 'project_repository.dart';
+import 'reward_choice_cache_repository.dart';
 
 /// 基础 Repository 抽象类
 /// 组合所有 Repository 接口，用于类型约束
@@ -36,7 +37,8 @@ abstract class BaseRepository
         ExchangeRateRepository,
         CardRewardRuleRepository,
         DebtRepository,
-        ProjectRepository {
+        ProjectRepository,
+        RewardChoiceCacheRepository {
   // -------------------------------------------------------------------
   // v30 交易级多币种(.docs/multi-currency-ledger):重算 / 检测。
   // 声明在聚合层而非 TransactionRepository:这些方法要同时访问交易表与

@@ -865,6 +865,28 @@ class SharedLedgerTags extends Table {
   Set<Column> get primaryKey => {ledgerSyncId, syncId};
 }
 
+// ============================================================================
+// 回饋規則學習快取(v48)
+// ============================================================================
+
+/// 記帳表單「同帳戶+同類別自動代入回饋規則」的本機學習快取。只在使用者手動
+/// 於回饋規則選單選擇/清空時寫入(見 [TransactionEntryFormState._openRewardRuleSelector]),
+/// SwipeSmart 雲端卡片推薦點選不寫入此表——它只能代入帳戶,沒有對應到本機
+/// [CardRewardRules.syncId],無從得知使用者「選了哪條回饋規則」。
+class RewardChoiceCaches extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get ledgerId => integer()();
+  IntColumn get categoryId => integer()();
+  IntColumn get accountId => integer()();
+
+  /// JSON 陣列,元素為 [CardRewardRules.syncId]。這欄只會存非空陣列——使用者
+  /// 清空選取時 [RewardChoiceCacheRepository.clearRewardChoice] 直接刪掉整
+  /// 列,不會存一筆空陣列(呼叫端把「從未設定」跟「空選取」一視同仁)。
+  TextColumn get rewardRuleIdsJson => text()();
+
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+}
+
 @DriftDatabase(tables: [
   Ledgers,
   Accounts,
@@ -891,6 +913,7 @@ class SharedLedgerTags extends Table {
   TransactionSplits,
   Debts,
   Projects,
+  RewardChoiceCaches,
 ])
 class BeeDatabase extends _$BeeDatabase {
   BeeDatabase() : super(_openConnection());
@@ -901,7 +924,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 47; // v47: SwipeSmart 信用卡對照(accounts.swipesmart_card_id)
+  int get schemaVersion => 48; // v48: 建議分頁回饋學習快取 + transactions 排序索引
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1883,12 +1906,37 @@ class BeeDatabase extends _$BeeDatabase {
                 'ALTER TABLE accounts ADD COLUMN swipesmart_card_id TEXT;');
             logger.info('DBMigration', 'v47 迁移完成');
           }
+          if (from < 48) {
+            logger.info('DBMigration',
+                '开始迁移到 v48: 建議分頁回饋學習快取(reward_choice_caches) + 交易排序索引');
+            await _createTableIfMissing(
+                migrator, 'reward_choice_caches', rewardChoiceCaches);
+            await customStatement(
+                'CREATE UNIQUE INDEX IF NOT EXISTS idx_reward_choice_caches_key '
+                'ON reward_choice_caches(ledger_id, category_id, account_id);');
+            // 建議分頁排序查詢 + 既有 note/amount 聚合查詢都是 WHERE ledger_id=?
+            // (+type/happened_at)全表掃描,transactions 之前只有 sync_id 索引,
+            // 這裡一併補上。
+            await customStatement(
+                'CREATE INDEX IF NOT EXISTS idx_transactions_ledger_type_happened '
+                'ON transactions(ledger_id, type, happened_at);');
+            logger.info('DBMigration', 'v48 迁移完成');
+          }
         },
         onCreate: (m) async {
           await m.createAll();
           await customStatement(
               'CREATE UNIQUE INDEX IF NOT EXISTS idx_rate_override_pair '
               'ON exchange_rate_overrides (base_currency, quote_currency);');
+          // v48 的兩個索引只在 onUpgrade 建,全新安裝(直接走 onCreate,不會
+          // 跑 onUpgrade)漏掉——這裡補建,唯一索引那條同時也是資料正確性
+          // 約束(reward_choice_caches 的「類別+帳戶」唯一性),不只是效能。
+          await customStatement(
+              'CREATE UNIQUE INDEX IF NOT EXISTS idx_reward_choice_caches_key '
+              'ON reward_choice_caches(ledger_id, category_id, account_id);');
+          await customStatement(
+              'CREATE INDEX IF NOT EXISTS idx_transactions_ledger_type_happened '
+              'ON transactions(ledger_id, type, happened_at);');
         },
       );
 

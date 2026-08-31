@@ -219,7 +219,7 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
   /// 新增页：伺服器位址（SSO 登录前必须先知道要连去哪个 BeeCount Cloud）。
   Widget _buildServerAddressPage(
       BuildContext context, ThemeData theme, AppLocalizations l10n) {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(32),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,

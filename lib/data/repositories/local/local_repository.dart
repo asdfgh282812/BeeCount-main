@@ -11,6 +11,8 @@ import '../../../services/data/recurring_rule_schedule.dart'
 import '../../../utils/shared_ledger_picker_filter.dart';
 import '../../../services/system/logger_service.dart';
 import '../../../models/note_history.dart';
+import '../../../models/merchant_history.dart';
+import '../../../models/category_suggestion.dart';
 import '../base_repository.dart';
 import '../budget_repository.dart';
 import '../recurring_rule_repository.dart';
@@ -35,6 +37,7 @@ import '../debt_repository.dart';
 import 'local_debt_repository.dart';
 import '../project_repository.dart' show ProjectUsage, ProjectWithUsage;
 import 'local_project_repository.dart';
+import 'local_reward_choice_cache_repository.dart';
 
 /// LocalRepository 本地数据库实现
 /// 基于 Drift 本地数据库实现所有 Repository 接口
@@ -65,6 +68,7 @@ class LocalRepository extends BaseRepository {
   late final LocalCardRewardRuleRepository _cardRewardRuleRepo;
   late final LocalDebtRepository _debtRepo;
   late final LocalProjectRepository _projectRepo;
+  late final LocalRewardChoiceCacheRepository _rewardChoiceCacheRepo;
 
   LocalRepository(this.db, {this.changeTracker}) {
     _ledgerRepo = LocalLedgerRepository(db);
@@ -82,6 +86,7 @@ class LocalRepository extends BaseRepository {
     _cardRewardRuleRepo = LocalCardRewardRuleRepository(db);
     _debtRepo = LocalDebtRepository(db);
     _projectRepo = LocalProjectRepository(db);
+    _rewardChoiceCacheRepo = LocalRewardChoiceCacheRepository(db);
   }
 
   // ============================================
@@ -978,6 +983,21 @@ class LocalRepository extends BaseRepository {
         limit: limit,
       );
 
+  /// 转发历史商家聚合查询，保持交易数据访问统一由子仓储处理。
+  @override
+  Future<List<MerchantHistoryEntry>> getMerchantHistory({
+    required int ledgerId,
+    int? categoryId,
+    String? categorySyncId,
+    int limit = 20,
+  }) =>
+      _transactionRepo.getMerchantHistory(
+        ledgerId: ledgerId,
+        categoryId: categoryId,
+        categorySyncId: categorySyncId,
+        limit: limit,
+      );
+
   @override
   Future<List<double>> getRecentDistinctAmounts({
     required int ledgerId,
@@ -989,6 +1009,36 @@ class LocalRepository extends BaseRepository {
         categoryId: categoryId,
         limit: limit,
       );
+
+  @override
+  Future<List<CategoryUsageSignal>> getCategoryUsageSignals({
+    required int ledgerId,
+    required String kind,
+    required DateTime since,
+    int limit = 500,
+  }) =>
+      _transactionRepo.getCategoryUsageSignals(
+        ledgerId: ledgerId,
+        kind: kind,
+        since: since,
+        limit: limit,
+      );
+
+  @override
+  Future<int?> getMostUsedAccountForCategory({
+    required int ledgerId,
+    required int categoryId,
+  }) =>
+      _transactionRepo.getMostUsedAccountForCategory(
+        ledgerId: ledgerId,
+        categoryId: categoryId,
+      );
+
+  @override
+  Future<({int fromAccountId, int toAccountId})?> getLastTransferAccounts({
+    required int ledgerId,
+  }) =>
+      _transactionRepo.getLastTransferAccounts(ledgerId: ledgerId);
 
   @override
   Future<
@@ -4346,4 +4396,46 @@ class LocalRepository extends BaseRepository {
     }
     return rows.length;
   }
+
+  // ============================================
+  // RewardChoiceCacheRepository 接口实现 - 委托给 LocalRewardChoiceCacheRepository
+  // ============================================
+
+  @override
+  Future<List<String>?> getCachedRewardRuleIds({
+    required int ledgerId,
+    required int categoryId,
+    required int accountId,
+  }) =>
+      _rewardChoiceCacheRepo.getCachedRewardRuleIds(
+        ledgerId: ledgerId,
+        categoryId: categoryId,
+        accountId: accountId,
+      );
+
+  @override
+  Future<void> upsertRewardChoice({
+    required int ledgerId,
+    required int categoryId,
+    required int accountId,
+    required List<String> rewardRuleIds,
+  }) =>
+      _rewardChoiceCacheRepo.upsertRewardChoice(
+        ledgerId: ledgerId,
+        categoryId: categoryId,
+        accountId: accountId,
+        rewardRuleIds: rewardRuleIds,
+      );
+
+  @override
+  Future<void> clearRewardChoice({
+    required int ledgerId,
+    required int categoryId,
+    required int accountId,
+  }) =>
+      _rewardChoiceCacheRepo.clearRewardChoice(
+        ledgerId: ledgerId,
+        categoryId: categoryId,
+        accountId: accountId,
+      );
 }

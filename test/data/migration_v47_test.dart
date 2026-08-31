@@ -17,8 +17,10 @@ void main() {
 
   tearDown(() async => db.close());
 
-  test('schemaVersion = 47', () {
-    expect(db.schemaVersion, 47);
+  test('schemaVersion >= 47', () {
+    // 不断言等于固定值——这份测试只关心 v47 本身的迁移行为,不该因为
+    // 后续版本号推进(如 v48)而失败。
+    expect(db.schemaVersion, greaterThanOrEqualTo(47));
   });
 
   test('v47 schema:accounts 带 swipesmart_card_id 可空列', () async {

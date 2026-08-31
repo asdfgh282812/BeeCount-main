@@ -31,8 +31,10 @@ void main() {
     await db.close();
   });
 
-  test('schemaVersion = 46(确保 sync_pull_errors 表已纳入 schema)', () {
-    expect(db.schemaVersion, 46);
+  test('schemaVersion >= 46(确保 sync_pull_errors 表已纳入 schema)', () {
+    // 不断言等于固定值——这份测试只关心 sync_pull_errors 表本身,不该因为
+    // 后续版本号推进(如 v48)而失败。
+    expect(db.schemaVersion, greaterThanOrEqualTo(46));
   });
 
   test('sync_pull_errors 表存在,所有列就位', () async {

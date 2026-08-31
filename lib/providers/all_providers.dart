@@ -52,3 +52,6 @@ export 'smart_billing_providers.dart';
 
 // 借還款相关
 export 'debt_providers.dart';
+
+// 「建議」分頁排序演算法相关
+export 'suggestion_providers.dart';

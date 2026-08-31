@@ -1,5 +1,7 @@
 import '../db.dart';
 import '../../models/note_history.dart';
+import '../../models/merchant_history.dart';
+import '../../models/category_suggestion.dart';
 
 /// 批量按 syncId 更新交易时的单条 update payload。
 class TransactionUpdateBySyncIdData {
@@ -136,6 +138,17 @@ abstract class TransactionRepository {
     int limit = 20,
   });
 
+  /// 聚合指定账本的历史商家(依类别记住常用商家,新增交易页商家欄位歷史
+  /// 圖示用)。跟 [getNoteHistory] 同款查询形狀,但沒有 scope/sort 使用者
+  /// 可調設定——[categoryId]/[categorySyncId] 都为空时查询账本全部分类,
+  /// 恆按使用次数由高到低排序。
+  Future<List<MerchantHistoryEntry>> getMerchantHistory({
+    required int ledgerId,
+    int? categoryId,
+    String? categorySyncId,
+    int limit = 20,
+  });
+
   /// 该分类下最近使用过的 distinct 金额(新增交易页「常用金額」列用)，
   /// 按最后一次使用时间倒序。共享账本 Owner 分类(仅 syncId override、没有
   /// 本地 categoryId 的场景)暂不支持，直接返回空列表(该场景下这排快捷
@@ -144,6 +157,29 @@ abstract class TransactionRepository {
     required int ledgerId,
     required int categoryId,
     int limit = 8,
+  });
+
+  /// 「建議」分頁排序演算法用的原始使用訊號:最近一段時間內的支出交易
+  /// (分類、發生時間、帳戶、備註)，按時間倒序，供
+  /// [CategorySuggestionService] 在記憶體中計算分數。
+  Future<List<CategoryUsageSignal>> getCategoryUsageSignals({
+    required int ledgerId,
+    required String kind,
+    required DateTime since,
+    int limit = 500,
+  });
+
+  /// 該分類歷史上最常使用的帳戶(依筆數、同筆數再依最近使用時間排序)，
+  /// 用於選類別時靜默預帶帳戶。沒有歷史紀錄時回傳 null。
+  Future<int?> getMostUsedAccountForCategory({
+    required int ledgerId,
+    required int categoryId,
+  });
+
+  /// 該帳本最近一筆轉帳交易使用的來源/目的帳戶，用於開新轉帳時預帶「最近
+  /// 用過的兩個帳戶」。沒有歷史轉帳紀錄時回傳 null。
+  Future<({int fromAccountId, int toAccountId})?> getLastTransferAccounts({
+    required int ledgerId,
   });
 
   /// 根据ID获取单条交易

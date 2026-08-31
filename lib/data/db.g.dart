@@ -15027,6 +15027,353 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
   }
 }
 
+class $RewardChoiceCachesTable extends RewardChoiceCaches
+    with TableInfo<$RewardChoiceCachesTable, RewardChoiceCache> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RewardChoiceCachesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _ledgerIdMeta =
+      const VerificationMeta('ledgerId');
+  @override
+  late final GeneratedColumn<int> ledgerId = GeneratedColumn<int>(
+      'ledger_id', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _categoryIdMeta =
+      const VerificationMeta('categoryId');
+  @override
+  late final GeneratedColumn<int> categoryId = GeneratedColumn<int>(
+      'category_id', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _accountIdMeta =
+      const VerificationMeta('accountId');
+  @override
+  late final GeneratedColumn<int> accountId = GeneratedColumn<int>(
+      'account_id', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _rewardRuleIdsJsonMeta =
+      const VerificationMeta('rewardRuleIdsJson');
+  @override
+  late final GeneratedColumn<String> rewardRuleIdsJson =
+      GeneratedColumn<String>('reward_rule_ids_json', aliasedName, false,
+          type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, ledgerId, categoryId, accountId, rewardRuleIdsJson, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'reward_choice_caches';
+  @override
+  VerificationContext validateIntegrity(Insertable<RewardChoiceCache> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('ledger_id')) {
+      context.handle(_ledgerIdMeta,
+          ledgerId.isAcceptableOrUnknown(data['ledger_id']!, _ledgerIdMeta));
+    } else if (isInserting) {
+      context.missing(_ledgerIdMeta);
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(
+          _categoryIdMeta,
+          categoryId.isAcceptableOrUnknown(
+              data['category_id']!, _categoryIdMeta));
+    } else if (isInserting) {
+      context.missing(_categoryIdMeta);
+    }
+    if (data.containsKey('account_id')) {
+      context.handle(_accountIdMeta,
+          accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta));
+    } else if (isInserting) {
+      context.missing(_accountIdMeta);
+    }
+    if (data.containsKey('reward_rule_ids_json')) {
+      context.handle(
+          _rewardRuleIdsJsonMeta,
+          rewardRuleIdsJson.isAcceptableOrUnknown(
+              data['reward_rule_ids_json']!, _rewardRuleIdsJsonMeta));
+    } else if (isInserting) {
+      context.missing(_rewardRuleIdsJsonMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  RewardChoiceCache map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RewardChoiceCache(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      ledgerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}ledger_id'])!,
+      categoryId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}category_id'])!,
+      accountId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}account_id'])!,
+      rewardRuleIdsJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}reward_rule_ids_json'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $RewardChoiceCachesTable createAlias(String alias) {
+    return $RewardChoiceCachesTable(attachedDatabase, alias);
+  }
+}
+
+class RewardChoiceCache extends DataClass
+    implements Insertable<RewardChoiceCache> {
+  final int id;
+  final int ledgerId;
+  final int categoryId;
+  final int accountId;
+
+  /// JSON 陣列,元素為 [CardRewardRules.syncId]。空陣列代表「使用者明確清空」,
+  /// 與「從未設定過(無此列)」是不同語意——前者下次仍套用空選取,不會被舊快取蓋掉。
+  final String rewardRuleIdsJson;
+  final DateTime updatedAt;
+  const RewardChoiceCache(
+      {required this.id,
+      required this.ledgerId,
+      required this.categoryId,
+      required this.accountId,
+      required this.rewardRuleIdsJson,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['ledger_id'] = Variable<int>(ledgerId);
+    map['category_id'] = Variable<int>(categoryId);
+    map['account_id'] = Variable<int>(accountId);
+    map['reward_rule_ids_json'] = Variable<String>(rewardRuleIdsJson);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  RewardChoiceCachesCompanion toCompanion(bool nullToAbsent) {
+    return RewardChoiceCachesCompanion(
+      id: Value(id),
+      ledgerId: Value(ledgerId),
+      categoryId: Value(categoryId),
+      accountId: Value(accountId),
+      rewardRuleIdsJson: Value(rewardRuleIdsJson),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory RewardChoiceCache.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RewardChoiceCache(
+      id: serializer.fromJson<int>(json['id']),
+      ledgerId: serializer.fromJson<int>(json['ledgerId']),
+      categoryId: serializer.fromJson<int>(json['categoryId']),
+      accountId: serializer.fromJson<int>(json['accountId']),
+      rewardRuleIdsJson: serializer.fromJson<String>(json['rewardRuleIdsJson']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'ledgerId': serializer.toJson<int>(ledgerId),
+      'categoryId': serializer.toJson<int>(categoryId),
+      'accountId': serializer.toJson<int>(accountId),
+      'rewardRuleIdsJson': serializer.toJson<String>(rewardRuleIdsJson),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  RewardChoiceCache copyWith(
+          {int? id,
+          int? ledgerId,
+          int? categoryId,
+          int? accountId,
+          String? rewardRuleIdsJson,
+          DateTime? updatedAt}) =>
+      RewardChoiceCache(
+        id: id ?? this.id,
+        ledgerId: ledgerId ?? this.ledgerId,
+        categoryId: categoryId ?? this.categoryId,
+        accountId: accountId ?? this.accountId,
+        rewardRuleIdsJson: rewardRuleIdsJson ?? this.rewardRuleIdsJson,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  RewardChoiceCache copyWithCompanion(RewardChoiceCachesCompanion data) {
+    return RewardChoiceCache(
+      id: data.id.present ? data.id.value : this.id,
+      ledgerId: data.ledgerId.present ? data.ledgerId.value : this.ledgerId,
+      categoryId:
+          data.categoryId.present ? data.categoryId.value : this.categoryId,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      rewardRuleIdsJson: data.rewardRuleIdsJson.present
+          ? data.rewardRuleIdsJson.value
+          : this.rewardRuleIdsJson,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RewardChoiceCache(')
+          ..write('id: $id, ')
+          ..write('ledgerId: $ledgerId, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('accountId: $accountId, ')
+          ..write('rewardRuleIdsJson: $rewardRuleIdsJson, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id, ledgerId, categoryId, accountId, rewardRuleIdsJson, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RewardChoiceCache &&
+          other.id == this.id &&
+          other.ledgerId == this.ledgerId &&
+          other.categoryId == this.categoryId &&
+          other.accountId == this.accountId &&
+          other.rewardRuleIdsJson == this.rewardRuleIdsJson &&
+          other.updatedAt == this.updatedAt);
+}
+
+class RewardChoiceCachesCompanion extends UpdateCompanion<RewardChoiceCache> {
+  final Value<int> id;
+  final Value<int> ledgerId;
+  final Value<int> categoryId;
+  final Value<int> accountId;
+  final Value<String> rewardRuleIdsJson;
+  final Value<DateTime> updatedAt;
+  const RewardChoiceCachesCompanion({
+    this.id = const Value.absent(),
+    this.ledgerId = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.rewardRuleIdsJson = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  RewardChoiceCachesCompanion.insert({
+    this.id = const Value.absent(),
+    required int ledgerId,
+    required int categoryId,
+    required int accountId,
+    required String rewardRuleIdsJson,
+    this.updatedAt = const Value.absent(),
+  })  : ledgerId = Value(ledgerId),
+        categoryId = Value(categoryId),
+        accountId = Value(accountId),
+        rewardRuleIdsJson = Value(rewardRuleIdsJson);
+  static Insertable<RewardChoiceCache> custom({
+    Expression<int>? id,
+    Expression<int>? ledgerId,
+    Expression<int>? categoryId,
+    Expression<int>? accountId,
+    Expression<String>? rewardRuleIdsJson,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (ledgerId != null) 'ledger_id': ledgerId,
+      if (categoryId != null) 'category_id': categoryId,
+      if (accountId != null) 'account_id': accountId,
+      if (rewardRuleIdsJson != null) 'reward_rule_ids_json': rewardRuleIdsJson,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  RewardChoiceCachesCompanion copyWith(
+      {Value<int>? id,
+      Value<int>? ledgerId,
+      Value<int>? categoryId,
+      Value<int>? accountId,
+      Value<String>? rewardRuleIdsJson,
+      Value<DateTime>? updatedAt}) {
+    return RewardChoiceCachesCompanion(
+      id: id ?? this.id,
+      ledgerId: ledgerId ?? this.ledgerId,
+      categoryId: categoryId ?? this.categoryId,
+      accountId: accountId ?? this.accountId,
+      rewardRuleIdsJson: rewardRuleIdsJson ?? this.rewardRuleIdsJson,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (ledgerId.present) {
+      map['ledger_id'] = Variable<int>(ledgerId.value);
+    }
+    if (categoryId.present) {
+      map['category_id'] = Variable<int>(categoryId.value);
+    }
+    if (accountId.present) {
+      map['account_id'] = Variable<int>(accountId.value);
+    }
+    if (rewardRuleIdsJson.present) {
+      map['reward_rule_ids_json'] = Variable<String>(rewardRuleIdsJson.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RewardChoiceCachesCompanion(')
+          ..write('id: $id, ')
+          ..write('ledgerId: $ledgerId, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('accountId: $accountId, ')
+          ..write('rewardRuleIdsJson: $rewardRuleIdsJson, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$BeeDatabase extends GeneratedDatabase {
   _$BeeDatabase(QueryExecutor e) : super(e);
   $BeeDatabaseManager get managers => $BeeDatabaseManager(this);
@@ -15065,6 +15412,8 @@ abstract class _$BeeDatabase extends GeneratedDatabase {
       $TransactionSplitsTable(this);
   late final $DebtsTable debts = $DebtsTable(this);
   late final $ProjectsTable projects = $ProjectsTable(this);
+  late final $RewardChoiceCachesTable rewardChoiceCaches =
+      $RewardChoiceCachesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -15094,7 +15443,8 @@ abstract class _$BeeDatabase extends GeneratedDatabase {
         cardRewardRules,
         transactionSplits,
         debts,
-        projects
+        projects,
+        rewardChoiceCaches
       ];
 }
 
@@ -21933,6 +22283,192 @@ typedef $$ProjectsTableProcessedTableManager = ProcessedTableManager<
     (Project, BaseReferences<_$BeeDatabase, $ProjectsTable, Project>),
     Project,
     PrefetchHooks Function()>;
+typedef $$RewardChoiceCachesTableCreateCompanionBuilder
+    = RewardChoiceCachesCompanion Function({
+  Value<int> id,
+  required int ledgerId,
+  required int categoryId,
+  required int accountId,
+  required String rewardRuleIdsJson,
+  Value<DateTime> updatedAt,
+});
+typedef $$RewardChoiceCachesTableUpdateCompanionBuilder
+    = RewardChoiceCachesCompanion Function({
+  Value<int> id,
+  Value<int> ledgerId,
+  Value<int> categoryId,
+  Value<int> accountId,
+  Value<String> rewardRuleIdsJson,
+  Value<DateTime> updatedAt,
+});
+
+class $$RewardChoiceCachesTableFilterComposer
+    extends Composer<_$BeeDatabase, $RewardChoiceCachesTable> {
+  $$RewardChoiceCachesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get ledgerId => $composableBuilder(
+      column: $table.ledgerId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get categoryId => $composableBuilder(
+      column: $table.categoryId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get accountId => $composableBuilder(
+      column: $table.accountId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get rewardRuleIdsJson => $composableBuilder(
+      column: $table.rewardRuleIdsJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$RewardChoiceCachesTableOrderingComposer
+    extends Composer<_$BeeDatabase, $RewardChoiceCachesTable> {
+  $$RewardChoiceCachesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get ledgerId => $composableBuilder(
+      column: $table.ledgerId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get categoryId => $composableBuilder(
+      column: $table.categoryId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get accountId => $composableBuilder(
+      column: $table.accountId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get rewardRuleIdsJson => $composableBuilder(
+      column: $table.rewardRuleIdsJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$RewardChoiceCachesTableAnnotationComposer
+    extends Composer<_$BeeDatabase, $RewardChoiceCachesTable> {
+  $$RewardChoiceCachesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get ledgerId =>
+      $composableBuilder(column: $table.ledgerId, builder: (column) => column);
+
+  GeneratedColumn<int> get categoryId => $composableBuilder(
+      column: $table.categoryId, builder: (column) => column);
+
+  GeneratedColumn<int> get accountId =>
+      $composableBuilder(column: $table.accountId, builder: (column) => column);
+
+  GeneratedColumn<String> get rewardRuleIdsJson => $composableBuilder(
+      column: $table.rewardRuleIdsJson, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$RewardChoiceCachesTableTableManager extends RootTableManager<
+    _$BeeDatabase,
+    $RewardChoiceCachesTable,
+    RewardChoiceCache,
+    $$RewardChoiceCachesTableFilterComposer,
+    $$RewardChoiceCachesTableOrderingComposer,
+    $$RewardChoiceCachesTableAnnotationComposer,
+    $$RewardChoiceCachesTableCreateCompanionBuilder,
+    $$RewardChoiceCachesTableUpdateCompanionBuilder,
+    (
+      RewardChoiceCache,
+      BaseReferences<_$BeeDatabase, $RewardChoiceCachesTable, RewardChoiceCache>
+    ),
+    RewardChoiceCache,
+    PrefetchHooks Function()> {
+  $$RewardChoiceCachesTableTableManager(
+      _$BeeDatabase db, $RewardChoiceCachesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RewardChoiceCachesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RewardChoiceCachesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RewardChoiceCachesTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<int> ledgerId = const Value.absent(),
+            Value<int> categoryId = const Value.absent(),
+            Value<int> accountId = const Value.absent(),
+            Value<String> rewardRuleIdsJson = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+          }) =>
+              RewardChoiceCachesCompanion(
+            id: id,
+            ledgerId: ledgerId,
+            categoryId: categoryId,
+            accountId: accountId,
+            rewardRuleIdsJson: rewardRuleIdsJson,
+            updatedAt: updatedAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required int ledgerId,
+            required int categoryId,
+            required int accountId,
+            required String rewardRuleIdsJson,
+            Value<DateTime> updatedAt = const Value.absent(),
+          }) =>
+              RewardChoiceCachesCompanion.insert(
+            id: id,
+            ledgerId: ledgerId,
+            categoryId: categoryId,
+            accountId: accountId,
+            rewardRuleIdsJson: rewardRuleIdsJson,
+            updatedAt: updatedAt,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$RewardChoiceCachesTableProcessedTableManager = ProcessedTableManager<
+    _$BeeDatabase,
+    $RewardChoiceCachesTable,
+    RewardChoiceCache,
+    $$RewardChoiceCachesTableFilterComposer,
+    $$RewardChoiceCachesTableOrderingComposer,
+    $$RewardChoiceCachesTableAnnotationComposer,
+    $$RewardChoiceCachesTableCreateCompanionBuilder,
+    $$RewardChoiceCachesTableUpdateCompanionBuilder,
+    (
+      RewardChoiceCache,
+      BaseReferences<_$BeeDatabase, $RewardChoiceCachesTable, RewardChoiceCache>
+    ),
+    RewardChoiceCache,
+    PrefetchHooks Function()>;
 
 class $BeeDatabaseManager {
   final _$BeeDatabase _db;
@@ -21989,4 +22525,6 @@ class $BeeDatabaseManager {
       $$DebtsTableTableManager(_db, _db.debts);
   $$ProjectsTableTableManager get projects =>
       $$ProjectsTableTableManager(_db, _db.projects);
+  $$RewardChoiceCachesTableTableManager get rewardChoiceCaches =>
+      $$RewardChoiceCachesTableTableManager(_db, _db.rewardChoiceCaches);
 }

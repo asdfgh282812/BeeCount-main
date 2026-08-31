@@ -86,6 +86,11 @@ void main() {
     await tester.pumpWidget(host());
     await tester.pumpAndSettle();
 
+    // v48「建議」分頁上線後,全新支出(無指定分類)預設落地在建議分頁——這裡
+    // 測的是支出/收入分頁互相同步,先切到支出分頁再開始準備資料。
+    await tester.tap(find.text('支出'));
+    await tester.pumpAndSettle();
+
     final expenseState = formStateFor(tester, 'expense');
     expenseState.applySharedFields((
       amountStr: '600',
@@ -131,6 +136,11 @@ void main() {
     // default,同時吃掉 tabIndex 2(轉帳)跟 3(欠款),導致切到欠款分頁時
     // 什麼都沒拿到,反而把剛匯出的欄位誤寫進隱藏的轉帳分頁狀態。
     await tester.pumpWidget(host());
+    await tester.pumpAndSettle();
+
+    // v48「建議」分頁上線後,全新支出(無指定分類)預設落地在建議分頁,先切
+    // 到支出分頁才能準備資料。
+    await tester.tap(find.text('支出'));
     await tester.pumpAndSettle();
 
     final expenseState = formStateFor(tester, 'expense');

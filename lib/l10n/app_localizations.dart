@@ -4189,6 +4189,12 @@ abstract class AppLocalizations {
   /// **'Note history'**
   String get appearanceNoteHistory;
 
+  /// No description provided for @appearanceMerchantHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Merchant history'**
+  String get appearanceMerchantHistory;
+
   /// No description provided for @appearanceNoteHistoryScope.
   ///
   /// In en, this message translates to:
@@ -15989,6 +15995,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Debt'**
   String get debtTabLabel;
+
+  /// No description provided for @suggestedTabLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggested'**
+  String get suggestedTabLabel;
+
+  /// No description provided for @suggestedTabEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No categories to suggest yet'**
+  String get suggestedTabEmpty;
+
+  /// No description provided for @pullToSubmitHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pull up to submit'**
+  String get pullToSubmitHint;
+
+  /// No description provided for @pullToSubmitRelease.
+  ///
+  /// In en, this message translates to:
+  /// **'Release to submit'**
+  String get pullToSubmitRelease;
 
   /// No description provided for @debtDirectionLabel.
   ///

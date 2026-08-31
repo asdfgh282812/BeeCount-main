@@ -2211,6 +2211,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appearanceNoteHistory => '历史备注';
 
   @override
+  String get appearanceMerchantHistory => 'Merchant history';
+
+  @override
   String get appearanceNoteHistoryScope => '展示范围';
 
   @override
@@ -8551,6 +8554,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get debtTabLabel => 'Debt';
 
   @override
+  String get suggestedTabLabel => 'Suggested';
+
+  @override
+  String get suggestedTabEmpty => 'No categories to suggest yet';
+
+  @override
+  String get pullToSubmitHint => 'Pull up to submit';
+
+  @override
+  String get pullToSubmitRelease => 'Release to submit';
+
+  @override
   String get debtDirectionLabel => 'Direction';
 
   @override
@@ -11091,6 +11106,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get appearanceNoteHistory => '歷史備註';
+
+  @override
+  String get appearanceMerchantHistory => '歷史商家';
 
   @override
   String get appearanceNoteHistoryScope => '顯示範圍';
@@ -17413,6 +17431,18 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get debtTabLabel => '欠款';
+
+  @override
+  String get suggestedTabLabel => '建議';
+
+  @override
+  String get suggestedTabEmpty => '目前沒有可建議的分類';
+
+  @override
+  String get pullToSubmitHint => '上拉送出';
+
+  @override
+  String get pullToSubmitRelease => '放開送出';
 
   @override
   String get debtDirectionLabel => '方向';

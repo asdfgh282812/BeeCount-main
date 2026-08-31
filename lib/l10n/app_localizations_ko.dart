@@ -2222,6 +2222,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get appearanceNoteHistory => '메모 기록';
 
   @override
+  String get appearanceMerchantHistory => 'Merchant history';
+
+  @override
   String get appearanceNoteHistoryScope => '표시 범위';
 
   @override
@@ -8641,6 +8644,18 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get debtTabLabel => 'Debt';
+
+  @override
+  String get suggestedTabLabel => 'Suggested';
+
+  @override
+  String get suggestedTabEmpty => 'No categories to suggest yet';
+
+  @override
+  String get pullToSubmitHint => 'Pull up to submit';
+
+  @override
+  String get pullToSubmitRelease => 'Release to submit';
 
   @override
   String get debtDirectionLabel => 'Direction';

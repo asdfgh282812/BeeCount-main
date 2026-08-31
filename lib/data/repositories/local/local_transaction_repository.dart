@@ -11,6 +11,8 @@ import '../../db.dart';
 import '../../../utils/month_range.dart';
 import '../../../utils/shared_ledger_picker_filter.dart';
 import '../../../models/note_history.dart';
+import '../../../models/merchant_history.dart';
+import '../../../models/category_suggestion.dart';
 import '../transaction_repository.dart';
 import '../../../services/system/logger_service.dart';
 
@@ -993,6 +995,63 @@ class LocalTransactionRepository implements TransactionRepository {
   }
 
   @override
+  Future<List<MerchantHistoryEntry>> getMerchantHistory({
+    required int ledgerId,
+    int? categoryId,
+    String? categorySyncId,
+    int limit = 20,
+  }) async {
+    final effectiveLimit = limit.clamp(1, 100).toInt();
+    final whereClauses = <String>[
+      'ledger_id = ?',
+      'merchant IS NOT NULL',
+      "TRIM(merchant) <> ''",
+    ];
+    final variables = <d.Variable>[d.Variable.withInt(ledgerId)];
+
+    if (categorySyncId != null && categorySyncId.isNotEmpty) {
+      whereClauses.add('category_sync_id_override = ?');
+      variables.add(d.Variable.withString(categorySyncId));
+    } else if (categoryId != null) {
+      whereClauses.add('category_id = ?');
+      variables.add(d.Variable.withInt(categoryId));
+    }
+
+    variables.add(d.Variable.withInt(effectiveLimit));
+
+    final rows = await db
+        .customSelect(
+          '''
+      SELECT
+        TRIM(merchant) AS normalized_merchant,
+        COUNT(*) AS usage_count,
+        MAX(happened_at) AS last_used_at
+      FROM transactions
+      WHERE ${whereClauses.join(' AND ')}
+      GROUP BY TRIM(merchant)
+      ORDER BY usage_count DESC, last_used_at DESC, normalized_merchant ASC
+      LIMIT ?
+      ''',
+          variables: variables,
+          readsFrom: {db.transactions},
+        )
+        .get();
+
+    return rows.map((row) {
+      final usageCount = row.data['usage_count'];
+      final count = usageCount is BigInt
+          ? usageCount.toInt()
+          : usageCount is num
+              ? usageCount.toInt()
+              : 0;
+      return MerchantHistoryEntry(
+        merchant: row.read<String>('normalized_merchant'),
+        usageCount: count,
+      );
+    }).toList();
+  }
+
+  @override
   Future<List<double>> getRecentDistinctAmounts({
     required int ledgerId,
     required int categoryId,
@@ -1019,6 +1078,90 @@ class LocalTransactionRepository implements TransactionRepository {
     ).get();
 
     return rows.map((row) => row.read<double>('amount')).toList();
+  }
+
+  @override
+  Future<List<CategoryUsageSignal>> getCategoryUsageSignals({
+    required int ledgerId,
+    required String kind,
+    required DateTime since,
+    int limit = 500,
+  }) async {
+    final effectiveLimit = limit.clamp(1, 2000).toInt();
+    final rows = await db.customSelect(
+      '''
+      SELECT category_id, happened_at, account_id, note
+      FROM transactions
+      WHERE ledger_id = ? AND type = ? AND happened_at >= ?
+        AND category_id IS NOT NULL
+      ORDER BY happened_at DESC
+      LIMIT ?
+      ''',
+      variables: [
+        d.Variable.withInt(ledgerId),
+        d.Variable.withString(kind),
+        d.Variable.withDateTime(since),
+        d.Variable.withInt(effectiveLimit),
+      ],
+      readsFrom: {db.transactions},
+    ).get();
+
+    return rows
+        .map((row) => CategoryUsageSignal(
+              categoryId: row.read<int>('category_id'),
+              happenedAt: row.read<DateTime>('happened_at'),
+              accountId: row.readNullable<int>('account_id'),
+              note: row.readNullable<String>('note'),
+            ))
+        .toList();
+  }
+
+  @override
+  Future<int?> getMostUsedAccountForCategory({
+    required int ledgerId,
+    required int categoryId,
+  }) async {
+    final row = await db.customSelect(
+      '''
+      SELECT account_id, COUNT(*) AS usage_count, MAX(happened_at) AS last_used_at
+      FROM transactions
+      WHERE ledger_id = ? AND category_id = ? AND account_id IS NOT NULL
+      GROUP BY account_id
+      ORDER BY usage_count DESC, last_used_at DESC
+      LIMIT 1
+      ''',
+      variables: [
+        d.Variable.withInt(ledgerId),
+        d.Variable.withInt(categoryId),
+      ],
+      readsFrom: {db.transactions},
+    ).getSingleOrNull();
+
+    return row?.readNullable<int>('account_id');
+  }
+
+  @override
+  Future<({int fromAccountId, int toAccountId})?> getLastTransferAccounts({
+    required int ledgerId,
+  }) async {
+    final row = await db.customSelect(
+      '''
+      SELECT account_id, to_account_id
+      FROM transactions
+      WHERE ledger_id = ? AND type = 'transfer'
+        AND account_id IS NOT NULL AND to_account_id IS NOT NULL
+      ORDER BY happened_at DESC
+      LIMIT 1
+      ''',
+      variables: [d.Variable.withInt(ledgerId)],
+      readsFrom: {db.transactions},
+    ).getSingleOrNull();
+
+    if (row == null) return null;
+    final fromId = row.readNullable<int>('account_id');
+    final toId = row.readNullable<int>('to_account_id');
+    if (fromId == null || toId == null) return null;
+    return (fromAccountId: fromId, toAccountId: toId);
   }
 
   @override

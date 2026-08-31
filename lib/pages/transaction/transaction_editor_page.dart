@@ -17,6 +17,7 @@ import '../../widgets/biz/transaction_entry_form.dart'
     show TransactionEntryForm, TransactionEntryFormState, AmountEditorResult;
 import '../../widgets/biz/recurring_occurrence_dialogs.dart';
 import '../../widgets/biz/shared_entry_fields.dart';
+import '../../widgets/biz/suggested_entry_tab.dart';
 import '../../widgets/transaction/transfer_form.dart';
 import '../../widgets/transaction/debt_entry_form.dart';
 import '../../styles/tokens.dart';
@@ -115,14 +116,22 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 4, vsync: this);
-    // 设置初始tab: 0=支出, 1=收入, 2=转账
-    if (widget.initialKind == 'income') {
-      _tab.index = 1;
-    } else if (widget.initialKind == 'transfer') {
-      _tab.index = 2;
-    } else {
+    _tab = TabController(length: 5, vsync: this);
+    // 设置初始tab: 0=建議, 1=支出, 2=收入, 3=转账, 4=欠款(欠款没有独立
+    // initialKind 值,只能手动切换,维持原状,见下面 else 分支)。
+    // 全新支出、没有指定分类时(首頁「記一筆」入口)直接落地「建議」分頁——
+    // 编辑模式 / 已指定分类(deep link、从分类详情页进来)一律略过建議,
+    // 直接进支出分頁,不打断已经很明确的操作意图。
+    if (widget.editingTransactionId == null &&
+        widget.initialCategoryId == null &&
+        widget.initialKind == 'expense') {
       _tab.index = 0;
+    } else if (widget.initialKind == 'income') {
+      _tab.index = 2;
+    } else if (widget.initialKind == 'transfer') {
+      _tab.index = 3;
+    } else {
+      _tab.index = 1;
     }
     _lastTabIndex = _tab.index;
     _tab.addListener(_unfocusOnTabSwitch);
@@ -196,15 +205,37 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
     });
   }
 
+  /// 「建議」分頁點類別後跳去支出分頁,跟 [_applySharedFieldsWhenReady] 同一個
+  /// 時序問題:`_tab.animateTo(1)` 觸發的當下,支出分頁的 `GlobalKey.currentState`
+  /// 還沒被 `TabBarView`(底層 `PageView`)build 出來,直接呼叫
+  /// `selectCategoryFromSuggestion` 會整個 no-op,使用者會看到支出分頁用
+  /// 預設的空白/展開全部分類狀態呈現,誤以為「點推薦沒有用」。做法比照
+  /// [_applySharedFieldsWhenReady]:每一幀檢查一次,直到 mount 完成或超過
+  /// 重試上限才放棄。
+  void _selectSuggestedCategoryWhenReady(Category c, {int attemptsLeft = 30}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final state = _expenseFormKey.currentState;
+      if (state != null) {
+        state.selectCategoryFromSuggestion(c);
+        return;
+      }
+      if (attemptsLeft <= 0) return;
+      _selectSuggestedCategoryWhenReady(c, attemptsLeft: attemptsLeft - 1);
+    });
+  }
+
   SharedEntryFields? _exportSharedFields(int tabIndex) {
     switch (tabIndex) {
       case 0:
-        return _expenseFormKey.currentState?.exportSharedFields();
+        return null; // 建議分頁沒有自己的欄位狀態,點類別後直接轉交支出分頁
       case 1:
-        return _incomeFormKey.currentState?.exportSharedFields();
+        return _expenseFormKey.currentState?.exportSharedFields();
       case 2:
-        return _transferFormKey.currentState?.exportSharedFields();
+        return _incomeFormKey.currentState?.exportSharedFields();
       case 3:
+        return _transferFormKey.currentState?.exportSharedFields();
+      case 4:
         return _debtFormKey.currentState?.exportSharedFields();
     }
     return null;
@@ -213,13 +244,15 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
   /// 回傳是否真的套用成功(目標分頁的 `GlobalKey.currentState` 已 mount)
   /// ——`_applySharedFieldsWhenReady` 靠這個回傳值判斷要不要排下一幀重試。
   ///
-  /// tabIndex 2(轉帳)跟 3(欠款)以前共用同一個 `_ => null` default 分支,
+  /// tabIndex 3(轉帳)跟 4(欠款)以前共用同一個 `_ => null` default 分支,
   /// 導致切到欠款分頁時,匯出的欄位被誤套用到隱藏的轉帳分頁狀態,欠款分頁
-  /// 本身什麼都沒拿到——這裡拆成各自獨立的分支。
+  /// 本身什麼都沒拿到——這裡拆成各自獨立的分支。tabIndex 0(建議)不會走到
+  /// 這裡,[_exportSharedFields] 對它恆傳 null,`_syncSharedFieldsOnTabChange`
+  /// 提前 no-op。
   bool _applySharedFields(int tabIndex, SharedEntryFields fields) {
     final GlobalKey<TransactionEntryFormState>? entryKey = switch (tabIndex) {
-      0 => _expenseFormKey,
-      1 => _incomeFormKey,
+      1 => _expenseFormKey,
+      2 => _incomeFormKey,
       _ => null,
     };
     if (entryKey != null) {
@@ -228,7 +261,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
       state.applySharedFields(fields);
       return true;
     }
-    if (tabIndex == 3) {
+    if (tabIndex == 4) {
       final debtState = _debtFormKey.currentState;
       if (debtState == null) return false;
       debtState.applySharedFields(fields);
@@ -274,6 +307,9 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
                             tabs: [
                               Tab(
                                   text: AppLocalizations.of(context)!
+                                      .suggestedTabLabel),
+                              Tab(
+                                  text: AppLocalizations.of(context)!
                                       .categoryExpense),
                               Tab(
                                   text: AppLocalizations.of(context)!
@@ -304,6 +340,12 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
             child: TabBarView(
               controller: _tab,
               children: [
+                SuggestedEntryTab(
+                  onCategoryPicked: (c) {
+                    _tab.animateTo(1);
+                    _selectSuggestedCategoryWhenReady(c);
+                  },
+                ),
                 TransactionEntryForm(
                   key: _expenseFormKey,
                   kind: 'expense',

@@ -2284,6 +2284,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appearanceNoteHistory => 'Note history';
 
   @override
+  String get appearanceMerchantHistory => 'Merchant history';
+
+  @override
   String get appearanceNoteHistoryScope => 'Show';
 
   @override
@@ -8868,6 +8871,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get debtTabLabel => 'Debt';
+
+  @override
+  String get suggestedTabLabel => 'Suggested';
+
+  @override
+  String get suggestedTabEmpty => 'No categories to suggest yet';
+
+  @override
+  String get pullToSubmitHint => 'Pull up to submit';
+
+  @override
+  String get pullToSubmitRelease => 'Release to submit';
 
   @override
   String get debtDirectionLabel => 'Direction';
