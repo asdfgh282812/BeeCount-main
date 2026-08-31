@@ -2284,9 +2284,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appearanceNoteHistory => 'Note history';
 
   @override
-  String get appearanceMerchantHistory => 'Merchant history';
-
-  @override
   String get appearanceNoteHistoryScope => 'Show';
 
   @override

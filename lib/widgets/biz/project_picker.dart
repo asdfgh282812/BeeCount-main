@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/db.dart';
+import '../../data/repositories/project_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers.dart';
 import '../../services/data/category_service.dart';
 import '../../styles/tokens.dart';
+import '../../utils/currencies.dart' show getCurrencySymbol;
 
 /// 記帳表單「選擇專案」的結果。`project == null` 代表明確選了「不指定專案」
 /// (清空),跟 [ProjectPicker.show] 回傳頂層 `null`(使用者取消/滑動關閉,
@@ -56,7 +58,7 @@ class _ProjectPickerSheet extends ConsumerStatefulWidget {
 
 class _ProjectPickerSheetState extends ConsumerState<_ProjectPickerSheet> {
   bool _loading = true;
-  List<Project> _projects = [];
+  List<ProjectWithUsage> _projects = [];
 
   @override
   void initState() {
@@ -66,7 +68,10 @@ class _ProjectPickerSheetState extends ConsumerState<_ProjectPickerSheet> {
 
   Future<void> _load() async {
     final repo = ref.read(repositoryProvider);
-    final projects = await repo.getAllProjects(widget.ledgerId);
+    // 帶上花費統計(比照 moze):清單裡每個專案要能看到剩餘額度,不能只有
+    // 名稱——同 [ProjectOverviewPage] 用的 `getAllProjectUsages`。
+    final projects =
+        await repo.getAllProjectUsages(widget.ledgerId, DateTime.now());
     if (!mounted) return;
     setState(() {
       _projects = projects;
@@ -78,6 +83,9 @@ class _ProjectPickerSheetState extends ConsumerState<_ProjectPickerSheet> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final primaryColor = ref.watch(primaryColorProvider);
+    final currencyCode =
+        ref.watch(currentLedgerProvider).asData?.value?.currency ?? 'CNY';
+    final currencySymbol = getCurrencySymbol(currencyCode);
 
     return SafeArea(
       top: false,
@@ -124,8 +132,8 @@ class _ProjectPickerSheetState extends ConsumerState<_ProjectPickerSheet> {
                               color: BeeTokens.surfaceElevated(context),
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
-                                  color: BeeTokens.cardOuterBorderColor(
-                                      context)),
+                                  color:
+                                      BeeTokens.cardOuterBorderColor(context)),
                             ),
                             clipBehavior: Clip.antiAlias,
                             child: Material(
@@ -156,25 +164,36 @@ class _ProjectPickerSheetState extends ConsumerState<_ProjectPickerSheet> {
                                 color: Colors.transparent,
                                 child: Column(
                                   children: [
-                                    for (final entry
-                                        in _projects.indexed) ...[
+                                    for (final entry in _projects.indexed) ...[
                                       if (entry.$1 > 0)
                                         Divider(
                                           height: 1,
                                           thickness: 1,
-                                          color: BeeTokens.cardInnerDividerColor(
-                                              context),
+                                          color:
+                                              BeeTokens.cardInnerDividerColor(
+                                                  context),
                                         ),
                                       _ProjectRow(
                                         icon: CategoryService.getCategoryIcon(
-                                            entry.$2.icon),
-                                        label: entry.$2.name,
-                                        isSelected: entry.$2.syncId != null &&
-                                            entry.$2.syncId ==
+                                            entry.$2.project.icon),
+                                        label: entry.$2.project.name,
+                                        quotaText: _quotaText(l10n,
+                                            entry.$2.usage, currencySymbol),
+                                        quotaColor: entry.$2.usage.remaining ==
+                                                null
+                                            ? BeeTokens.textTertiary(context)
+                                            : (entry.$2.usage.remaining! >= 0
+                                                ? Colors.green
+                                                : Colors.red),
+                                        isSelected: entry.$2.project.syncId !=
+                                                null &&
+                                            entry.$2.project.syncId ==
                                                 widget.selectedProjectSyncId,
                                         primaryColor: primaryColor,
-                                        onTap: () => Navigator.pop(context,
-                                            ProjectPickResult(entry.$2)),
+                                        onTap: () => Navigator.pop(
+                                            context,
+                                            ProjectPickResult(
+                                                entry.$2.project)),
                                       ),
                                     ],
                                   ],
@@ -200,11 +219,23 @@ class _ProjectPickerSheetState extends ConsumerState<_ProjectPickerSheet> {
       ),
     );
   }
+
+  /// 比照 moze 的專案清單:純記錄型專案顯示「純記錄」,有預算的顯示剩餘額度
+  /// (同 [ProjectOverviewPage] 卡片用的 `budgetRemaining` 措辭,不重新發明
+  /// 一套文案)。
+  String _quotaText(
+      AppLocalizations l10n, ProjectUsage usage, String currencySymbol) {
+    final remaining = usage.remaining;
+    if (remaining == null) return l10n.projectCardPureTracking;
+    return '${l10n.budgetRemaining} $currencySymbol${remaining.toStringAsFixed(2)}';
+  }
 }
 
 class _ProjectRow extends StatelessWidget {
   final IconData icon;
   final String label;
+  final String? quotaText;
+  final Color? quotaColor;
   final bool isSelected;
   final Color primaryColor;
   final VoidCallback onTap;
@@ -212,6 +243,8 @@ class _ProjectRow extends StatelessWidget {
   const _ProjectRow({
     required this.icon,
     required this.label,
+    this.quotaText,
+    this.quotaColor,
     required this.isSelected,
     required this.primaryColor,
     required this.onTap,
@@ -249,6 +282,19 @@ class _ProjectRow extends StatelessWidget {
                 ),
               ),
             ),
+            if (quotaText != null) ...[
+              const SizedBox(width: 8),
+              Text(
+                quotaText!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: quotaColor,
+                ),
+              ),
+            ],
             if (isSelected) ...[
               const SizedBox(width: 8),
               Icon(Icons.check, color: primaryColor, size: 18),

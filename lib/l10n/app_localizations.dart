@@ -4189,12 +4189,6 @@ abstract class AppLocalizations {
   /// **'Note history'**
   String get appearanceNoteHistory;
 
-  /// No description provided for @appearanceMerchantHistory.
-  ///
-  /// In en, this message translates to:
-  /// **'Merchant history'**
-  String get appearanceMerchantHistory;
-
   /// No description provided for @appearanceNoteHistoryScope.
   ///
   /// In en, this message translates to:

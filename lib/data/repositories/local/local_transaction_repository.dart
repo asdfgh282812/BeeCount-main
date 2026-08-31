@@ -944,6 +944,10 @@ class LocalTransactionRepository implements TransactionRepository {
       'ledger_id = ?',
       'note IS NOT NULL',
       "TRIM(note) <> ''",
+      // 排除系統自動產生的備註(信用卡回饋入帳、信用卡繳款……),使用者手動
+      // 選過的歷史備註不該混入這些自己從沒打過字的固定文案。
+      for (final prefix in kSystemGeneratedNotePrefixes)
+        "note NOT LIKE '$prefix%'",
     ];
     final variables = <d.Variable>[d.Variable.withInt(ledgerId)];
 

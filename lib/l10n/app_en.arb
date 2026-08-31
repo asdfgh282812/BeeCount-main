@@ -912,7 +912,6 @@
   "appearanceNoteDisplayNote": "Note first",
   "appearanceNoteDisplayNoteDesc": "Show note when present, else category",
   "appearanceNoteHistory": "Note history",
-  "appearanceMerchantHistory": "Merchant history",
   "appearanceNoteHistoryScope": "Show",
   "appearanceNoteHistoryScopeAllCategories": "All categories",
   "appearanceNoteHistoryScopeCurrentCategory": "Current category",

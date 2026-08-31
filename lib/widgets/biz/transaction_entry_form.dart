@@ -31,8 +31,7 @@ import 'account_card_picker.dart';
 import 'project_picker.dart';
 import '../../services/data/category_service.dart';
 import 'amount_calculator_keypad.dart';
-import 'note_picker_dialog.dart';
-import 'merchant_picker_dialog.dart';
+import 'keyboard_suggestion_bar.dart';
 import 'pull_to_submit_scroll_view.dart';
 import '../currency/currency_picker_sheet.dart';
 import '../currency/currency_flag.dart';
@@ -454,6 +453,24 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
 
   bool get _textFieldFocused => _nameFocus.hasFocus || _merchantFocus.hasFocus;
 
+  /// 鍵盤上方建議 chip 列點選後套用——保留鍵盤開啟(比照 moze,選完可能還要
+  /// 微調文字),游標移到文字結尾方便接著打字。
+  void _applyNoteSuggestion(String note) {
+    setState(() {
+      _nameCtrl.text = note;
+      _nameCtrl.selection =
+          TextSelection.fromPosition(TextPosition(offset: note.length));
+    });
+  }
+
+  void _applyMerchantSuggestion(String merchant) {
+    setState(() {
+      _merchantCtrl.text = merchant;
+      _merchantCtrl.selection =
+          TextSelection.fromPosition(TextPosition(offset: merchant.length));
+    });
+  }
+
   /// 供 `transaction_editor_page.dart` 切 tab 時讀出目前已輸入的共用欄位。
   SharedEntryFields exportSharedFields() => (
         amountStr: _amountStr,
@@ -629,8 +646,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   /// (`onCategorySelected`)維持預設 false,行為不變。
   void _onCategoryChanged({bool viaSuggestion = false}) {
     _loadRecentNotes(
-        scopeOverride:
-            viaSuggestion ? NoteHistoryScope.currentCategory : null);
+        scopeOverride: viaSuggestion ? NoteHistoryScope.currentCategory : null);
     _loadRecentMerchants();
     _loadRecentAmounts();
     _maybeApplyPerCategoryAccountDefault();
@@ -1540,6 +1556,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
                 const SizedBox(height: 10),
                 // 名稱欄(=備註,合併掉原本分開的名稱/備註兩個欄位)
                 TextField(
+                  key: const Key('nameField'),
                   controller: _nameCtrl,
                   focusNode: _nameFocus,
                   style: TextStyle(color: BeeTokens.textPrimary(context)),
@@ -1556,43 +1573,12 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
                     fillColor: BeeTokens.surfaceInput(context),
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 10),
-                    prefixIcon: _frequentNotes.isNotEmpty
-                        ? GestureDetector(
-                            onTap: () async {
-                              await showDialog(
-                                context: context,
-                                builder: (context) => NotePickerDialog(
-                                  ledgerId: widget.ledgerId,
-                                  categoryId: _selectedCategory?.id,
-                                  categorySyncId: (_selectedCategory != null &&
-                                          _selectedCategory!.id < 0)
-                                      ? _selectedCategory!.syncId
-                                      : null,
-                                  onNotePicked: (note) {
-                                    setState(() {
-                                      _nameCtrl.text = note;
-                                      _nameCtrl.selection =
-                                          TextSelection.fromPosition(
-                                              TextPosition(
-                                                  offset: note.length));
-                                    });
-                                  },
-                                ),
-                              );
-                            },
-                            child: Icon(Icons.history,
-                                color: BeeTokens.iconSecondary(context),
-                                size: 20),
-                          )
-                        : null,
-                    prefixIconConstraints: _frequentNotes.isNotEmpty
-                        ? const BoxConstraints(minWidth: 40, minHeight: 20)
-                        : null,
                   ),
                 ),
                 const SizedBox(height: 8),
                 // 商家欄(v33 新增,獨立於名稱/備註的自由文本欄位)
                 TextField(
+                  key: const Key('merchantField'),
                   controller: _merchantCtrl,
                   focusNode: _merchantFocus,
                   style: TextStyle(color: BeeTokens.textPrimary(context)),
@@ -1610,36 +1596,8 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
                     fillColor: BeeTokens.surfaceInput(context),
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 10),
-                    prefixIcon: _frequentMerchants.isNotEmpty
-                        ? GestureDetector(
-                            onTap: () async {
-                              await showDialog(
-                                context: context,
-                                builder: (context) => MerchantPickerDialog(
-                                  ledgerId: widget.ledgerId,
-                                  categoryId: _selectedCategory?.id,
-                                  categorySyncId: (_selectedCategory != null &&
-                                          _selectedCategory!.id < 0)
-                                      ? _selectedCategory!.syncId
-                                      : null,
-                                  onMerchantPicked: (merchant) {
-                                    setState(() {
-                                      _merchantCtrl.text = merchant;
-                                      _merchantCtrl.selection =
-                                          TextSelection.fromPosition(
-                                              TextPosition(
-                                                  offset: merchant.length));
-                                    });
-                                  },
-                                ),
-                              );
-                            },
-                            child: Icon(Icons.history,
-                                color: BeeTokens.iconSecondary(context),
-                                size: 20),
-                          )
-                        : Icon(Icons.storefront_outlined,
-                            color: BeeTokens.iconSecondary(context), size: 18),
+                    prefixIcon: Icon(Icons.storefront_outlined,
+                        color: BeeTokens.iconSecondary(context), size: 18),
                     prefixIconConstraints:
                         const BoxConstraints(minWidth: 40, minHeight: 20),
                   ),
@@ -1662,8 +1620,8 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
                             decoration: BoxDecoration(
                               color: BeeTokens.surfaceInput(context),
                               borderRadius: BorderRadius.circular(12),
-                              border:
-                                  Border.all(color: BeeTokens.iconPrimary(context)),
+                              border: Border.all(
+                                  color: BeeTokens.iconPrimary(context)),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1732,6 +1690,18 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
               canSubmit: canSubmit,
               isSubmitting: _isSubmitting,
             ),
+          ),
+        // 名稱/商家欄位聚焦時,貼著系統鍵盤上緣跳出歷史建議(比照 moze),
+        // 取代舊版「點時鐘圖示彈出視窗」的做法——不需要另外點,聚焦就看得到。
+        if (_nameFocus.hasFocus && _frequentNotes.isNotEmpty)
+          KeyboardSuggestionBar(
+            suggestions: _frequentNotes.map((e) => e.note).toList(),
+            onSelected: _applyNoteSuggestion,
+          )
+        else if (_merchantFocus.hasFocus && _frequentMerchants.isNotEmpty)
+          KeyboardSuggestionBar(
+            suggestions: _frequentMerchants.map((e) => e.merchant).toList(),
+            onSelected: _applyMerchantSuggestion,
           ),
       ],
     );

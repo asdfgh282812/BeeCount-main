@@ -341,4 +341,40 @@ void main() {
     expect(tester.widget<TextField>(rateField).controller!.text,
         (30 / 123).toStringAsPrecision(6));
   });
+
+  testWidgets('名稱欄位聚焦時鍵盤上方顯示歷史備註建議,點選後填入且保留焦點', (tester) async {
+    await repo.addTransaction(
+      ledgerId: 1,
+      type: 'expense',
+      amount: 20,
+      categoryId: categoryId,
+      note: '午餐',
+      happenedAt: DateTime(2026, 1, 1),
+    );
+
+    await tester.pumpWidget(host(
+      onSubmit: (_, __) async {},
+      initialCategoryId: categoryId,
+    ));
+    await tester.pumpAndSettle();
+
+    // 尚未聚焦名稱欄位:建議條不出現。
+    expect(find.text('午餐'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('nameField')));
+    await tester.pumpAndSettle();
+
+    // 聚焦後,鍵盤上方直接跳出建議 chip(比照 moze),不需要另外點時鐘圖示。
+    expect(find.text('午餐'), findsOneWidget);
+
+    await tester.tap(find.text('午餐'));
+    await tester.pumpAndSettle();
+
+    final nameField =
+        tester.widget<TextField>(find.byKey(const Key('nameField')));
+    expect(nameField.controller!.text, '午餐');
+    // 選完後鍵盤保留(焦點沒被收起),建議條應該還在。
+    expect(find.byKey(const Key('nameField')), findsOneWidget);
+    expect(nameField.focusNode!.hasFocus, isTrue);
+  });
 }

@@ -2211,9 +2211,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appearanceNoteHistory => '历史备注';
 
   @override
-  String get appearanceMerchantHistory => 'Merchant history';
-
-  @override
   String get appearanceNoteHistoryScope => '展示范围';
 
   @override
@@ -11106,9 +11103,6 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get appearanceNoteHistory => '歷史備註';
-
-  @override
-  String get appearanceMerchantHistory => '歷史商家';
 
   @override
   String get appearanceNoteHistoryScope => '顯示範圍';

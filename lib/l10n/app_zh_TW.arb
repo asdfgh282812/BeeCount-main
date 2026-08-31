@@ -415,7 +415,6 @@
   "appearanceNoteDisplayNote": "備註優先",
   "appearanceNoteDisplayNoteDesc": "有備註時顯示備註,無備註時顯示分類名",
   "appearanceNoteHistory": "歷史備註",
-  "appearanceMerchantHistory": "歷史商家",
   "appearanceNoteHistoryScope": "顯示範圍",
   "appearanceNoteHistoryScopeAllCategories": "全部分類",
   "appearanceNoteHistoryScopeCurrentCategory": "目前分類",

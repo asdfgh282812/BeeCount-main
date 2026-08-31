@@ -2222,9 +2222,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get appearanceNoteHistory => '메모 기록';
 
   @override
-  String get appearanceMerchantHistory => 'Merchant history';
-
-  @override
   String get appearanceNoteHistoryScope => '표시 범위';
 
   @override
