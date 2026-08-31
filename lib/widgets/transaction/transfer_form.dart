@@ -105,6 +105,9 @@ class TransferFormState extends ConsumerState<TransferForm>
   double _acc = 0;
   String? _op;
   late DateTime _date;
+  // 底部小算盤只在使用者點金額欄位時才顯示,不再預設開啟——見
+  // `_onTextFieldFocusChange` 旁的說明。
+  bool _amountFocused = false;
 
   final TextEditingController _nameCtrl = TextEditingController();
   final TextEditingController _merchantCtrl = TextEditingController();
@@ -201,13 +204,19 @@ class TransferFormState extends ConsumerState<TransferForm>
     super.dispose();
   }
 
-  /// 名稱/商家/轉入金額欄位聚焦時收起底部小算盤(改用系統原生鍵盤);全部
-  /// 失焦時小算盤才重新出現,跟 `transaction_entry_form.dart` 同款寫法。
+  /// 名稱/商家/轉入金額欄位聚焦時收起底部小算盤(改用系統原生鍵盤),並清掉
+  /// `_amountFocused`——小算盤只能靠點金額欄位重新叫出來,不會因為文字欄位
+  /// 失焦就自己跳回來,跟 `transaction_entry_form.dart` 同款寫法。
   /// v45 修正:轉入金額欄位原本沒掛這個 FocusNode,聚焦後系統鍵盤不會頂掉
   /// 底部小算盤,使用者點進欄位卻只看得到跟轉出金額共用的計算機鍵盤,數字鍵
   /// 打進去的是轉出金額而不是這裡,等於完全無法輸入轉入金額。
   void _onTextFieldFocusChange() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    if (_textFieldFocused) {
+      setState(() => _amountFocused = false);
+    } else {
+      setState(() {});
+    }
   }
 
   bool get _textFieldFocused =>
@@ -812,15 +821,19 @@ class TransferFormState extends ConsumerState<TransferForm>
               children: [
                 _buildAccountCardsRow(context),
                 const SizedBox(height: 14),
-                // 金额表达式行——外面包 GestureDetector,点一下主动收起
-                // 名稱/商家欄位的系統鍵盤,讓底部小算盤重新出現。
+                // 金额表达式行——点一下叫出底部小算盤,同时收起名稱/商家
+                // 欄位的系統鍵盤。
                 GestureDetector(
                   behavior: HitTestBehavior.translucent,
-                  onTap: () => FocusScope.of(context).unfocus(),
+                  onTap: () {
+                    FocusScope.of(context).unfocus();
+                    setState(() => _amountFocused = true);
+                  },
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Row(
+                        key: const Key('amountDisplayTap'),
                         children: [
                           _buildCurrencyBadge(context),
                           const SizedBox(width: 4),
@@ -968,9 +981,9 @@ class TransferFormState extends ConsumerState<TransferForm>
             ),
           ),
         ),
-        // 小算盤固定貼底,名稱/商家欄位聚焦時讓位給系統鍵盤,道理跟
-        // `transaction_entry_form.dart` 一致。
-        if (!_textFieldFocused)
+        // 小算盤只在使用者點過金額欄位後才顯示,名稱/商家欄位聚焦時讓位給
+        // 系統鍵盤,道理跟 `transaction_entry_form.dart` 一致。
+        if (_amountFocused && !_textFieldFocused)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: AmountCalculatorKeypad(

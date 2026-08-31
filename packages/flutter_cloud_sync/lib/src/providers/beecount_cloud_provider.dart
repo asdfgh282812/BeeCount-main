@@ -2912,7 +2912,7 @@ class BeeCountCloudStorageService implements CloudStorageService {
   }) async {
     final response = await _authedRequest(
       method: 'GET',
-      path: '/ledgers/$ledgerId/card-recommendation',
+      path: '/read/ledgers/$ledgerId/card-recommendation',
       query: {
         'amount': amount.toString(),
         if (merchant.isNotEmpty) 'merchant': merchant,

@@ -202,6 +202,10 @@ void main() {
     FocusManager.instance.primaryFocus?.unfocus();
     await tester.pumpAndSettle();
 
+    final amountDisplay = find.byKey(const Key('amountDisplayTap'));
+    await tester.ensureVisible(amountDisplay);
+    await tester.tap(amountDisplay);
+    await tester.pumpAndSettle();
     final submitButton = find.byIcon(Icons.check);
     await tester.ensureVisible(submitButton);
     await tester.tap(submitButton);
@@ -245,6 +249,10 @@ void main() {
     FocusManager.instance.primaryFocus?.unfocus();
     await tester.pumpAndSettle();
 
+    final amountDisplay = find.byKey(const Key('amountDisplayTap'));
+    await tester.ensureVisible(amountDisplay);
+    await tester.tap(amountDisplay);
+    await tester.pumpAndSettle();
     final submitButton = find.byIcon(Icons.check);
     await tester.ensureVisible(submitButton);
     await tester.tap(submitButton);

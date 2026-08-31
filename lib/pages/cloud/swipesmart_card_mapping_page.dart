@@ -117,30 +117,67 @@ class _SwipeSmartCardMappingPageState
                             itemBuilder: (context, index) {
                               final account = _creditCardAccounts[index];
                               return SectionCard(
-                                child: ListTile(
-                                  title: Text(account.name),
-                                  subtitle: Text(
-                                    account.bankName ?? account.note ?? '',
-                                  ),
-                                  trailing: DropdownButton<String?>(
-                                    value: account.swipesmartCardId,
-                                    hint: Text(l10n.swipesmartMappingUnmapped),
-                                    items: [
-                                      DropdownMenuItem<String?>(
-                                        value: null,
-                                        child:
-                                            Text(l10n.swipesmartMappingUnmapped),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 8),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              account.name,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            Text(
+                                              account.bankName ??
+                                                  account.note ??
+                                                  '',
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: BeeTokens.textSecondary(
+                                                    context),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                      ..._cardOptions.map(
-                                        (o) => DropdownMenuItem<String?>(
-                                          value: o.cardId,
-                                          child: Text(o.label,
-                                              overflow: TextOverflow.ellipsis),
+                                      const SizedBox(width: 12),
+                                      SizedBox(
+                                        width: 140,
+                                        child: DropdownButton<String?>(
+                                          value: account.swipesmartCardId,
+                                          isExpanded: true,
+                                          hint: Text(
+                                            l10n.swipesmartMappingUnmapped,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          items: [
+                                            DropdownMenuItem<String?>(
+                                              value: null,
+                                              child: Text(
+                                                l10n.swipesmartMappingUnmapped,
+                                                overflow:
+                                                    TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            ..._cardOptions.map(
+                                              (o) => DropdownMenuItem<String?>(
+                                                value: o.cardId,
+                                                child: Text(o.label,
+                                                    overflow:
+                                                        TextOverflow.ellipsis),
+                                              ),
+                                            ),
+                                          ],
+                                          onChanged: (cardId) =>
+                                              _onCardSelected(account, cardId),
                                         ),
                                       ),
                                     ],
-                                    onChanged: (cardId) =>
-                                        _onCardSelected(account, cardId),
                                   ),
                                 ),
                               );

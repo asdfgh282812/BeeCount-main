@@ -146,7 +146,7 @@ void main() {
     // 修復前:這裡選完後畫面停在原地(選擇彈窗消失,既沒有例外訊息也沒有
     // 編輯頁),下面兩個 expect 都會落空。
     expect(tester.takeException(), isNull);
-    expect(find.text('支出分類'), findsOneWidget); // 編輯頁的 tab 之一
+    expect(find.text('支出'), findsOneWidget); // 編輯頁的 tab 之一
     expect(find.text('轉帳'), findsOneWidget);
 
     // 主動在測試本體結束前 dispose 整棵 widget tree(含 ProviderScope 底下

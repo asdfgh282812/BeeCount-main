@@ -9203,8 +9203,4 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get swipesmartMappingNoAccounts => 'No credit card accounts yet.';
-
-  @override
-  String get swipesmartRecommendationUnmappedHint =>
-      'This card isn\'t mapped yet — set it up in SwipeSmart card mapping to auto-fill the account next time.';
 }

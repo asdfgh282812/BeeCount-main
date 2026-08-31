@@ -99,11 +99,26 @@ typedef AmountEditorResult = ({
 typedef TransactionSubmitCallback = Future<void> Function(
     Category category, AmountEditorResult result);
 
-/// 未對照卡片點擊後要附加進備註的文字("銀行名 卡名")。抽成純函式方便單元
-/// 測試,不用整個 widget tree(design doc 2026-08-30 §4 的未對照 fallback)。
-String swipesmartUnmappedNoteAppend(String bankName, String cardName) {
-  final label = '$bankName $cardName'.trim();
-  return label;
+/// 依 design doc §4 判斷商家欄位文字變動後是否該排入(debounce 後觸發)一次
+/// 刷卡建議查詢。抽成純函式方便單元測試,不用整個 widget tree/網路
+/// mock——刻意不接收任何 focus 狀態,避免重蹈舊版用兩個 FocusNode 的
+/// `hasFocus` OR 起來判斷「都失焦了」的覆轍(商家→名稱連續輸入時,商家欄
+/// 失焦的同一個 focus transaction 內名稱欄已經拿到焦點,兩邊 `hasFocus`
+/// 都讀到變更後的狀態,判斷式恆為 true,永遠不會真正觸發)。
+bool shouldQueueSwipesmartRecommendation({
+  required bool hasKey,
+  required String kind,
+  required double amount,
+  required String merchant,
+  required ({double amount, String merchant})? lastQuery,
+}) {
+  if (!hasKey) return false;
+  if (kind != 'expense') return false;
+  if (amount <= 0 || merchant.isEmpty) return false;
+  if (lastQuery?.amount == amount && lastQuery?.merchant == merchant) {
+    return false; // 同一組合已經查過,不重打
+  }
+  return true;
 }
 
 /// 支出/收入新增交易的單頁式表單(比照 Moze 參考圖):類別、金額、名稱、
@@ -219,6 +234,9 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   final FocusNode _merchantFocus = FocusNode();
   double _acc = 0;
   String? _op;
+  // 底部小算盤只在使用者點金額欄位時才顯示,不再預設開啟——見
+  // `_textFieldFocused` getter旁的說明。
+  bool _amountFocused = false;
 
   // v44:選定的專案(design doc §6)。跟 _selectedCategory 一樣持有完整
   // Project 物件供 UI 顯示名稱/icon,存檔時只送出 syncId。
@@ -263,8 +281,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     _nameFocus.addListener(_onTextFieldFocusChange);
     _merchantFocus.addListener(_onTextFieldFocusChange);
     _checkSwipesmartKey();
-    _nameFocus.addListener(_maybeQueueRecommendation);
-    _merchantFocus.addListener(_maybeQueueRecommendation);
+    _merchantCtrl.addListener(_maybeQueueRecommendation);
     _date = widget.initialDate;
     _excludeFromStats = widget.initialExcludeFromStats;
     _excludeFromBudget = widget.initialExcludeFromBudget;
@@ -303,8 +320,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   @override
   void dispose() {
     _recommendationDebounce?.cancel();
-    _nameFocus.removeListener(_maybeQueueRecommendation);
-    _merchantFocus.removeListener(_maybeQueueRecommendation);
+    _merchantCtrl.removeListener(_maybeQueueRecommendation);
     _nameCtrl.dispose();
     _merchantCtrl.dispose();
     _nameFocus.dispose();
@@ -324,18 +340,28 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     }
   }
 
-  /// 商家/名稱欄位失焦時檢查是否該打一次推薦請求。只在支出交易、有 Key、
-  /// 金額 > 0、商家非空時才打;同一組(金額,商家)不重複打(design doc §4)。
+  /// 商家欄位文字變動時(debounce 500ms)檢查是否該打一次推薦請求。只在
+  /// 支出交易、有 Key、金額 > 0、商家非空時才打;同一組(金額,商家)不
+  /// 重複打(design doc §4)。
+  ///
+  /// 原本用 `_nameFocus`/`_merchantFocus` 的失焦事件觸發(`_textFieldFocused`
+  /// 兩欄 OR 起來判斷「都失焦了」),但商家→名稱這種常見的連續輸入流程裡,
+  /// 商家欄失焦的同一個 focus transaction 內名稱欄已經拿到焦點,兩個
+  /// FocusNode 的 listener 觸發時讀到的 `hasFocus` 已經是變更後的狀態,
+  /// `_textFieldFocused` 恆為 true,永遠不會真正觸發——改成直接監聽商家
+  /// controller 的文字變動,用 debounce 取代「失焦」語意,不受欄位切換順序
+  /// 影響。
   void _maybeQueueRecommendation() {
-    if (_textFieldFocused) return; // 還在輸入,等失焦
-    if (!_swipesmartHasKey) return;
-    if (widget.kind != 'expense') return;
     final amount = double.tryParse(_amountStr) ?? 0;
     final merchant = _merchantCtrl.text.trim();
-    if (amount <= 0 || merchant.isEmpty) return;
-    if (_lastRecommendationQuery?.amount == amount &&
-        _lastRecommendationQuery?.merchant == merchant) {
-      return; // 同一組合已經查過,不重打
+    if (!shouldQueueSwipesmartRecommendation(
+      hasKey: _swipesmartHasKey,
+      kind: widget.kind,
+      amount: amount,
+      merchant: merchant,
+      lastQuery: _lastRecommendationQuery,
+    )) {
+      return;
     }
 
     _recommendationDebounce?.cancel();
@@ -361,8 +387,12 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
         merchant: merchant,
       );
       if (!mounted) return;
+      // 未對照的建議帳戶不動,直接跳過——沒有本地帳戶可代入,顯示了使用者也
+      // 點不出結果,不如乾脆不列出來(2026-08-30 §8 後續回報的體驗調整)。
+      final mapped =
+          results.where((r) => r.accountId != null).toList(growable: true);
       setState(() {
-        _recommendations = results;
+        _recommendations = mapped;
         _lastRecommendationQuery = (amount: amount, merchant: merchant);
       });
     } catch (_) {
@@ -371,34 +401,42 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     }
   }
 
-  Future<void> _onRecommendationTapped(
-      SwipeSmartCardRecommendation rec) async {
-    if (rec.accountId != null) {
-      final db = ref.read(databaseProvider);
-      final account = await (db.select(db.accounts)
-            ..where((a) => a.syncId.equals(rec.accountId!)))
-          .getSingleOrNull();
-      if (account != null) {
-        setState(() => _selectedAccountId = account.id);
-        return;
-      }
-    }
-    // 未對照:帳戶不動,備註附加銀行名+卡名,提示使用者去完成對照。
-    final append = swipesmartUnmappedNoteAppend(rec.bankName, rec.cardName);
+  /// 點一張(必為已對照)建議卡片:代入帳戶,並把它挪到列表最前面,讓「剛選
+  /// 的那張」永遠是使用者下次瞄一眼就能看到的第一張。
+  Future<void> _onRecommendationTapped(SwipeSmartCardRecommendation rec) async {
+    final db = ref.read(databaseProvider);
+    final account = await (db.select(db.accounts)
+          ..where((a) => a.syncId.equals(rec.accountId!)))
+        .getSingleOrNull();
+    if (account == null || !mounted) return;
+    // 比照 [_openAccountPicker]/[_loadSelectedAccount] 同步帳戶名稱/幣別/
+    // 類型——少了這步帳戶列會顯示空白,且信用卡回饋選單靠
+    // `_selectedAccountType == 'credit_card'`(_rewardRuleSelectionEnabled)
+    // 判斷是否顯示,沒填就永遠不會出現。
+    final accountChanged = _selectedAccountId != account.id;
     setState(() {
-      _nameCtrl.text =
-          _nameCtrl.text.isEmpty ? append : '${_nameCtrl.text} $append';
+      _selectedAccountId = account.id;
+      _selectedAccountName = account.name;
+      _selectedAccountType = account.type;
+      _selectedAccountCurrency =
+          account.currency.isNotEmpty ? account.currency.toUpperCase() : null;
+      if (accountChanged) _selectedRewardRuleIds = [];
+      _recommendations
+        ..remove(rec)
+        ..insert(0, rec);
     });
-    if (mounted) {
-      showToast(context,
-          AppLocalizations.of(context).swipesmartRecommendationUnmappedHint);
-    }
   }
 
-  /// 名稱/商家欄位聚焦時收起底部小算盤(改用 iOS 原生鍵盤,可輸入中文);
-  /// 兩者都失焦時小算盤才重新出現。點金額顯示區會主動 unfocus 觸發這裡。
+  /// 名稱/商家欄位聚焦時收起底部小算盤(改用 iOS 原生鍵盤,可輸入中文),
+  /// 並清掉 `_amountFocused`——小算盤只能靠點金額欄位重新叫出來,不會因為
+  /// 文字欄位失焦就自己跳回來(避免「很容易自己跳出來」的體驗問題)。
   void _onTextFieldFocusChange() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    if (_textFieldFocused) {
+      setState(() => _amountFocused = false);
+    } else {
+      setState(() {});
+    }
   }
 
   bool get _textFieldFocused => _nameFocus.hasFocus || _merchantFocus.hasFocus;
@@ -1343,12 +1381,15 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
               children: [
                 _buildCategorySection(context),
                 const SizedBox(height: 10),
-                // 金额表达式行——外面包 GestureDetector,点一下主动收起
-                // 名稱/商家欄位的系統鍵盤,讓底部小算盤重新出現(「只有輸入
-                // 金額才叫用數字小算盤」)。
+                // 金额表达式行——点一下叫出底部小算盤,同时收起名稱/商家
+                // 欄位的系統鍵盤(「只有點金額欄位才叫用數字小算盤」)。
                 GestureDetector(
+                  key: const Key('amountDisplayTap'),
                   behavior: HitTestBehavior.translucent,
-                  onTap: () => FocusScope.of(context).unfocus(),
+                  onTap: () {
+                    FocusScope.of(context).unfocus();
+                    setState(() => _amountFocused = true);
+                  },
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -1511,10 +1552,8 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
                             decoration: BoxDecoration(
                               color: BeeTokens.surfaceInput(context),
                               borderRadius: BorderRadius.circular(12),
-                              border: rec.accountId != null
-                                  ? Border.all(
-                                      color: BeeTokens.iconPrimary(context))
-                                  : null,
+                              border:
+                                  Border.all(color: BeeTokens.iconPrimary(context)),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1567,9 +1606,9 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
             ),
           ),
         ),
-        // 小算盤固定貼底,不隨內容捲動;名稱/商家欄位聚焦時讓位給系統鍵盤,
-        // 避免兩層鍵盤搶版面、還要往下滑才看得到送出鍵。
-        if (!_textFieldFocused)
+        // 小算盤只在使用者點過金額欄位後才顯示,不再預設開啟;名稱/商家欄位
+        // 聚焦時讓位給系統鍵盤,避免兩層鍵盤搶版面、還要往下滑才看得到送出鍵。
+        if (_amountFocused && !_textFieldFocused)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: AmountCalculatorKeypad(

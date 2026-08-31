@@ -662,7 +662,7 @@
   "categoryDetailTotalCount": "總筆數",
   "categoryEditTitle": "編輯分類",
   "categoryEmpty": "暫無分類",
-  "categoryExpense": "支出分類",
+  "categoryExpense": "支出",
   "categoryExpenseBeauty": "美容-護膚品-化妝品-美容美髮-美甲",
   "categoryExpenseBeverage": "飲品-奶茶-咖啡-果汁-汽水-礦泉水",
   "categoryExpenseCar": "汽車-汽車保養-汽車維修-汽車保險-洗車-違章罰款",
@@ -717,7 +717,7 @@
       }
     }
   },
-  "categoryIncome": "收入分類",
+  "categoryIncome": "收入",
   "categoryIncomeBonus": "獎金-年度獎金-季度獎-項目獎金-其他獎金",
   "categoryIncomeGift": "禮金-結婚禮金-生日禮金-其他禮金",
   "categoryIncomeInterest": "利息-銀行利息-其他利息",
@@ -3503,6 +3503,5 @@
   "swipesmartMappingSubtitle": "名稱相近或相同的卡片會自動幫你對應好,其餘的手動選一下,才能在建議上直接點擊代入帳戶。",
   "swipesmartMappingUnmapped": "未對照",
   "swipesmartMappingNoCards": "無法取得卡片目錄,請檢查網路或 API Key 設定。",
-  "swipesmartMappingNoAccounts": "尚無信用卡帳戶。",
-  "swipesmartRecommendationUnmappedHint": "這張卡尚未完成對照,可到 SwipeSmart 卡片對照設定,下次就能直接代入帳戶。"
+  "swipesmartMappingNoAccounts": "尚無信用卡帳戶。"
 }

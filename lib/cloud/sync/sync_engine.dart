@@ -1309,10 +1309,19 @@ class SyncEngine implements app.SyncService {
   /// 顶部注释)。导致老设备第一次 pull 到这些 change 时被当成"账本本地未就
   /// 绪"直接跳过且 cursor 照常前进——不是"不认识这个 entityType"那种能被
   /// card_reward_rule_v35 机制复用的场景，所以单独打两个 tag。
+  /// account_swipesmart_card_id_v47:同款根因,换了个壳——`account` entity
+  /// type 本身老设备早就认识,但 `swipesmartCardId` 是 v47 才新增的字段。
+  /// BeeCount-Cloud 端的 SwipeSmart 比对/手动對照上线时间早于这次 App 整
+  /// 合,大量账户在 App 装上这个字段之前就已经在 server 端比对好了——那些
+  /// 历史 SyncChange 的 change_id 早就被老版本 App(读到不认识的 key 直接
+  /// 忽略,cursor 照常前进)越过，永远拉不回来；且 server 端自动比对
+  /// (swipesmart_matching.py)只处理"目前未對照"的账户，重新调用一次
+  /// `GET /profile/swipesmart/cards` 也不会替已對照账户重发变更。
   static const List<String> _entityTypeBackfillTags = [
     'card_reward_rule_v35',
     'debt_ledger_sync_id_fix',
     'project_ledger_sync_id_fix',
+    'account_swipesmart_card_id_v47',
   ];
 
   /// [replayAllChanges] 从 change_id=0 全量重放,一次就能把所有待补齐的

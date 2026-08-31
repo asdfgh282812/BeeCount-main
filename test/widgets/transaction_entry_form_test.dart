@@ -108,6 +108,10 @@ void main() {
     // 未選類別:grid 可見,「餐饮」類別項在列表中。
     expect(find.text('餐饮'), findsOneWidget);
 
+    // 小算盤現在只在點金額欄位後才顯示(見 amountDisplayTap),先叫出來。
+    await tester.tap(find.byKey(const Key('amountDisplayTap')));
+    await tester.pumpAndSettle();
+
     // ✓ 鍵此时不可点(没有类别 + 金额为 0)。
     await tester.ensureVisible(find.byIcon(Icons.check));
     await tester.tap(find.byIcon(Icons.check));
@@ -152,9 +156,12 @@ void main() {
     await tester.pumpAndSettle();
 
     // 已回显选中类别(chip 形式仍会显示分类名),不会再看到整个 grid 里其它
-    // 未选类别项;这里只断言选中类别名称可见即可(grid 收合的直接证据是
-    // 金额键盘已经可见)。
+    // 未选类别项;这里只断言选中类别名称可见即可。
     expect(find.text('餐饮'), findsOneWidget);
+
+    // 小算盤只在點金額欄位後才顯示,點一下確認鍵盤(含 ✓ 鍵)正確渲染。
+    await tester.tap(find.byKey(const Key('amountDisplayTap')));
+    await tester.pumpAndSettle();
     expect(find.byIcon(Icons.check), findsOneWidget); // 键盘的 ✓ 键已渲染
   });
 
@@ -167,6 +174,9 @@ void main() {
 
     await tester.ensureVisible(find.text('餐饮'));
     await tester.tap(find.text('餐饮'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('amountDisplayTap')));
     await tester.pumpAndSettle();
 
     await tester.ensureVisible(find.text('1'));
@@ -209,6 +219,9 @@ void main() {
 
     await tester.ensureVisible(find.text('餐饮'));
     await tester.tap(find.text('餐饮'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('amountDisplayTap')));
     await tester.pumpAndSettle();
 
     // 輸入金額 123(避開 0,keypad 的 "0" 鍵在還沒 pump 前跟初始顯示的 "0"
@@ -285,6 +298,9 @@ void main() {
 
     await tester.ensureVisible(find.text('餐饮'));
     await tester.tap(find.text('餐饮'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('amountDisplayTap')));
     await tester.pumpAndSettle();
 
     await tester.ensureVisible(find.text('1'));

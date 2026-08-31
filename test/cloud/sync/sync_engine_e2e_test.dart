@@ -467,6 +467,63 @@ void main() {
     });
   });
 
+  group('entity-type 一次性 backfill(v47 account.swipesmartCardId)', () {
+    test('装了这版 App 前就在 server 端對照好的账户,首次 sync 补齐',
+        () async {
+      final ledgerId = await db.into(db.ledgers).insert(LedgersCompanion.insert(
+          name: 'L', syncId: const Value('L1')));
+      final accId = await db.into(db.accounts).insert(AccountsCompanion.insert(
+            name: '大戶信用卡',
+            ledgerId: ledgerId,
+            type: const Value('credit_card'),
+            syncId: const Value('acc-1'),
+          ));
+      provider.pushFakeLedgerSnapshot(ledgerId: 'L1');
+
+      // 模拟:web 端(或 server 自動比對)在这版 App 装上 swipesmartCardId
+      // 字段**之前**就已经写好了對照 —— 老版本 App 读到这个 change 时不认识
+      // 这个 key,其它字段照常 apply,cursor 照常前进。这里不走
+      // engine.pull(直接调用会用**当前**代码 apply,已经认得这个字段,没法
+      // 复现"老版本不认得"),改成直接把 cursor commit 到 1,模拟老设备已经
+      // 越过这条 change 而完全没落地 swipesmartCardId 的历史状态。
+      provider.pushFakeChange(
+        entityType: 'account',
+        entitySyncId: 'acc-1',
+        ledgerId: 'L1',
+        payload: {
+          'syncId': 'acc-1',
+          'name': '大戶信用卡',
+          'type': 'credit_card',
+          'currency': 'CNY',
+          'initialBalance': 0.0,
+          'sortOrder': 0,
+          'swipesmartCardId': 'sw-dawho',
+        },
+      );
+      await engine.appCursor.commit(1);
+      var a = await (db.select(db.accounts)..where((t) => t.id.equals(accId)))
+          .getSingle();
+      expect(a.swipesmartCardId, isNull,
+          reason: '模拟老版本 App 不认识这个字段,读不到值(cursor 已越过)');
+
+      // 升级到这版 App 后,第一次 sync 应该侦测到待补齐 tag,从 0 重放一次。
+      provider.pullCalls.clear();
+      final result = await engine.sync(ledgerId: ledgerId.toString());
+      expect(result.hasError, isFalse);
+      expect(provider.pullCalls.first.since, 0,
+          reason: '一次性 backfill 应从 change_id=0 重放');
+      expect(
+          await engine.appCursor
+              .hasBackfilled('account_swipesmart_card_id_v47'),
+          isTrue);
+
+      a = await (db.select(db.accounts)..where((t) => t.id.equals(accId)))
+          .getSingle();
+      expect(a.swipesmartCardId, 'sw-dawho',
+          reason: 'replay 后应该補齊历史對照');
+    });
+  });
+
   group('push 路径', () {
     test('本地有 unpushed change → engine.push 推到 server', () async {
       // 本地通过 repo 写一条 tx(会触发 changeTracker.recordLedgerChange)

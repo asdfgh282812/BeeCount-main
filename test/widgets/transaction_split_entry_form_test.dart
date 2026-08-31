@@ -113,6 +113,10 @@ void main() {
     await tester.tap(find.text('餐饮'));
     await tester.pumpAndSettle();
 
+    // 小算盤現在只在點金額欄位後才顯示,先叫出來。
+    await tester.tap(find.byKey(const Key('amountDisplayTap')));
+    await tester.pumpAndSettle();
+
     // 輸入 100
     await tapDigits(tester, '100');
     expect(find.text('100'), findsOneWidget);

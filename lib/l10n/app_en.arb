@@ -3937,6 +3937,5 @@
   "swipesmartMappingSubtitle": "Cards with similar or identical names are matched automatically; pick the rest manually so recommendations can fill in the account directly.",
   "swipesmartMappingUnmapped": "Not mapped",
   "swipesmartMappingNoCards": "Could not load the card catalog. Check your connection or API key.",
-  "swipesmartMappingNoAccounts": "No credit card accounts yet.",
-  "swipesmartRecommendationUnmappedHint": "This card isn't mapped yet — set it up in SwipeSmart card mapping to auto-fill the account next time."
+  "swipesmartMappingNoAccounts": "No credit card accounts yet."
 }

@@ -153,6 +153,8 @@ void main() {
     await tester.pumpWidget(host());
     await tester.pumpAndSettle();
 
+    await tester.tap(find.byKey(const Key('amountDisplayTap')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.check));
     await pumpSettleBounded(tester);
 
@@ -170,6 +172,8 @@ void main() {
     await tester.pumpWidget(host());
     await tester.pumpAndSettle();
 
+    await tester.tap(find.byKey(const Key('amountDisplayTap')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.check));
     await pumpSettleBounded(tester);
 
@@ -187,6 +191,8 @@ void main() {
     await tester.pumpWidget(host());
     await tester.pumpAndSettle();
 
+    await tester.tap(find.byKey(const Key('amountDisplayTap')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.check));
     await pumpSettleBounded(tester);
 

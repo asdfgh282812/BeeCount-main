@@ -52,6 +52,9 @@ class DebtEntryFormState extends ConsumerState<DebtEntryForm> {
   String _amountStr = '0';
   double _acc = 0;
   String? _op;
+  // 底部小算盤只在使用者點金額欄位時才顯示,不再預設開啟——見
+  // `_onTextFieldFocusChange` 旁的說明。
+  bool _amountFocused = false;
 
   /// 起點交易的 type 跟隨 direction(payable → income,receivable →
   /// expense),分類選擇要用同一個 type 才能對得上實際入帳方向。
@@ -79,10 +82,16 @@ class DebtEntryFormState extends ConsumerState<DebtEntryForm> {
     super.dispose();
   }
 
-  /// 對象/備註欄位聚焦時收起底部小算盤(改用系統鍵盤,可輸入中文);兩者
-  /// 都失焦時小算盤才重新出現。
+  /// 對象/備註欄位聚焦時收起底部小算盤(改用系統鍵盤,可輸入中文),並清掉
+  /// `_amountFocused`——小算盤只能靠點金額欄位重新叫出來,不會因為文字欄位
+  /// 失焦就自己跳回來。
   void _onTextFieldFocusChange() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    if (_textFieldFocused) {
+      setState(() => _amountFocused = false);
+    } else {
+      setState(() {});
+    }
   }
 
   /// 供 `transaction_editor_page.dart` 切 tab 時讀出目前已輸入的共用欄位。
@@ -407,8 +416,12 @@ class DebtEntryFormState extends ConsumerState<DebtEntryForm> {
                 const SizedBox(height: 12),
                 SectionCard(
                   child: GestureDetector(
+                    key: const Key('amountDisplayTap'),
                     behavior: HitTestBehavior.translucent,
-                    onTap: () => FocusScope.of(context).unfocus(),
+                    onTap: () {
+                      FocusScope.of(context).unfocus();
+                      setState(() => _amountFocused = true);
+                    },
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -637,9 +650,9 @@ class DebtEntryFormState extends ConsumerState<DebtEntryForm> {
             ),
           ),
         ),
-        // 小算盤固定貼底,不隨內容捲動;對象/備註欄位聚焦時讓位給系統鍵盤,
-        // 跟支出/收入分頁同一套規則(見 TransactionEntryFormState)。
-        if (!_textFieldFocused)
+        // 小算盤只在使用者點過金額欄位後才顯示;對象/備註欄位聚焦時讓位給
+        // 系統鍵盤,跟支出/收入分頁同一套規則(見 TransactionEntryFormState)。
+        if (_amountFocused && !_textFieldFocused)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: AmountCalculatorKeypad(

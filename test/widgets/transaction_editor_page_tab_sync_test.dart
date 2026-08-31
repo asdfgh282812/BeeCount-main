@@ -101,9 +101,9 @@ void main() {
     await tester.pump();
     expect(expenseState.exportSharedFields().amountStr, '600');
 
-    // 切到「收入分類」tab——真的透過 TabBar 點擊觸發 `_tab.index` 改變,
+    // 切到「收入」tab——真的透過 TabBar 點擊觸發 `_tab.index` 改變,
     // 走跟使用者操作一致的路徑(而不是直接呼叫 `_tab.animateTo`)。
-    await tester.tap(find.text('收入分類'));
+    await tester.tap(find.text('收入'));
     // `_syncSharedFieldsOnTabChange` 在這一次 tap 造成的 setState 之後、
     // TabBarView 真的把收入分頁 build 出來之前就已經同步執行完;修法把
     // 套用動作丟進 postFrameCallback,所以要多 pump 幾次讓那一幀跟

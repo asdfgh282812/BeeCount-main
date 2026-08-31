@@ -131,6 +131,8 @@ void main() {
         .toList();
     expect(rateText, isNotEmpty);
 
+    await tester.tap(find.byKey(const Key('amountDisplayTap')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.check));
     await pumpSettleBounded(tester);
 
@@ -162,6 +164,8 @@ void main() {
     final field = tester.widget<TextField>(toAmountField);
     expect(field.controller?.text, '120.00');
 
+    await tester.tap(find.byKey(const Key('amountDisplayTap')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.check));
     await pumpSettleBounded(tester);
 
@@ -178,6 +182,8 @@ void main() {
     // 同幣別 → 沒有轉入金額欄位。
     expect(find.byKey(const Key('transferToAmountField')), findsNothing);
 
+    await tester.tap(find.byKey(const Key('amountDisplayTap')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.check));
     await pumpSettleBounded(tester);
 

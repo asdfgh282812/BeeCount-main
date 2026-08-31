@@ -8884,10 +8884,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get swipesmartMappingNoAccounts => 'No credit card accounts yet.';
-
-  @override
-  String get swipesmartRecommendationUnmappedHint =>
-      'This card isn\'t mapped yet — set it up in SwipeSmart card mapping to auto-fill the account next time.';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -9637,10 +9633,10 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get categoryNew => '新建分類';
 
   @override
-  String get categoryExpense => '支出分類';
+  String get categoryExpense => '支出';
 
   @override
-  String get categoryIncome => '收入分類';
+  String get categoryIncome => '收入';
 
   @override
   String get categoryEmpty => '暫無分類';
@@ -17741,8 +17737,4 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get swipesmartMappingNoAccounts => '尚無信用卡帳戶。';
-
-  @override
-  String get swipesmartRecommendationUnmappedHint =>
-      '這張卡尚未完成對照,可到 SwipeSmart 卡片對照設定,下次就能直接代入帳戶。';
 }
