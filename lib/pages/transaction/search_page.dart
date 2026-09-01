@@ -110,11 +110,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       if (_searchText.isNotEmpty) {
         final searchLower = _searchText.toLowerCase();
         final note = transaction.note?.toLowerCase() ?? '';
+        final merchant = transaction.merchant?.toLowerCase() ?? '';
         final categoryName =
             CategoryUtils.getDisplayName(category?.name, context).toLowerCase();
         final amountStr = transaction.amount.toString();
 
         textMatch = note.contains(searchLower) ||
+            merchant.contains(searchLower) ||
             categoryName.contains(searchLower) ||
             amountStr.contains(searchLower);
       }

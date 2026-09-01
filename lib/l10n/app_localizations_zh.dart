@@ -9291,7 +9291,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get searchTitle => '搜尋';
 
   @override
-  String get searchHint => '搜尋備註、分類或金額...';
+  String get searchHint => '搜尋備註、商家、分類或金額...';
 
   @override
   String get searchCategoryHint => '搜尋分類名稱...';

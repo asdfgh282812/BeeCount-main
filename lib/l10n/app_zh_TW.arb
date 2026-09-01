@@ -1822,7 +1822,7 @@
   "searchEndDate": "結束日期",
   "searchExitBatchMode": "退出批次操作",
   "searchFilterTitle": "篩選",
-  "searchHint": "搜尋備註、分類或金額...",
+  "searchHint": "搜尋備註、商家、分類或金額...",
   "searchMaxAmount": "最大金額",
   "searchMinAmount": "最小金額",
   "searchNoInput": "輸入關鍵詞開始搜尋",

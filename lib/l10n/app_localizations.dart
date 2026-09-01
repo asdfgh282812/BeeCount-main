@@ -806,7 +806,7 @@ abstract class AppLocalizations {
   /// No description provided for @searchHint.
   ///
   /// In en, this message translates to:
-  /// **'Search notes, categories or amounts...'**
+  /// **'Search notes, merchants, categories or amounts...'**
   String get searchHint;
 
   /// No description provided for @searchCategoryHint.

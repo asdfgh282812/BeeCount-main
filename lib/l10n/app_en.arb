@@ -183,7 +183,7 @@
   "widgetRecentTransactions": "Recent Transactions",
   "widgetNoAccounts": "No Accounts",
   "searchTitle": "Search",
-  "searchHint": "Search notes, categories or amounts...",
+  "searchHint": "Search notes, merchants, categories or amounts...",
   "searchCategoryHint": "Search category name...",
   "searchCategoryFilter": "Category Filter",
   "searchMinAmount": "Min amount",

@@ -387,7 +387,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get searchTitle => 'Search';
 
   @override
-  String get searchHint => 'Search notes, categories or amounts...';
+  String get searchHint => 'Search notes, merchants, categories or amounts...';
 
   @override
   String get searchCategoryHint => 'Search category name...';
