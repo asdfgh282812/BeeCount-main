@@ -35,6 +35,7 @@ import 'providers/security_providers.dart';
 import 'styles/tokens.dart';
 import 'styles/header_skins.dart';
 import 'providers/avatar_providers.dart';
+import 'widgets/cloud/cloud_login_reminder_dialog.dart';
 
 class BeeApp extends ConsumerStatefulWidget {
   const BeeApp({super.key});
@@ -87,6 +88,9 @@ class _BeeAppState extends ConsumerState<BeeApp>
   // 重复跑浪费 HTTP。
   DateTime? _lastInitialCloudSyncTriggeredAt;
 
+  // 「雲端同步未登入」提醒防重叠彈窗:對話框顯示中就不重複觸發檢查。
+  bool _loginReminderCheckInProgress = false;
+
   // 记账按钮相关状态
   late AnimationController _expandController;
   late Animation<double> _expandAnimation;
@@ -115,6 +119,26 @@ class _BeeAppState extends ConsumerState<BeeApp>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _setupAppLinkListener();
       _setupQuickActions();
+      _checkCloudLoginReminder();
+    });
+  }
+
+  /// 檢查「曾設定雲端同步但目前未登入」的提醒是否該顯示,冷啟動(此處呼叫)
+  /// 與回到前景([didChangeAppLifecycleState] 的 resumed 分支)共用同一入口。
+  /// 具體判斷邏輯(是否已設定雲端同步 / 是否已勾選不再提示 / 是否已登入)在
+  /// [maybeShowCloudLoginReminder] 裡集中處理。
+  void _checkCloudLoginReminder() {
+    if (_loginReminderCheckInProgress) return;
+    _loginReminderCheckInProgress = true;
+    Future.microtask(() async {
+      try {
+        if (!mounted) return;
+        await maybeShowCloudLoginReminder(context, ref);
+      } catch (e) {
+        // 静默失败,不影响 App 使用
+      } finally {
+        _loginReminderCheckInProgress = false;
+      }
     });
   }
 
@@ -777,6 +801,8 @@ class _BeeAppState extends ConsumerState<BeeApp>
       _updateWidget();
       // 前台稳定后认领待处理深链(冷启动/主题变更重建后,在最终页面树上打开)
       _drainPendingDeepLink(trigger: 'resumed');
+      // 回到前景時重新檢查雲端同步登入狀態,未登入且未勾選「不再提示」則提醒
+      _checkCloudLoginReminder();
     }
   }
 

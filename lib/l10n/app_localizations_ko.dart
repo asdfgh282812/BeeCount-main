@@ -19,6 +19,22 @@ class AppLocalizationsKo extends AppLocalizations {
   String get aiConsentAgree => '동의하고 켜기';
 
   @override
+  String get cloudLoginReminderTitle => 'Not signed in to cloud sync';
+
+  @override
+  String get cloudLoginReminderBody =>
+      'You\'ve set up cloud sync, but you\'re currently signed out, so your data on this device won\'t sync. Sign in again to keep syncing.';
+
+  @override
+  String get cloudLoginReminderDontShowAgain => 'Don\'t show this again';
+
+  @override
+  String get cloudLoginReminderDismiss => 'Close';
+
+  @override
+  String get cloudLoginReminderGoLogin => 'Sign in';
+
+  @override
   String get aboutPrivacyPolicy => '개인정보 처리방침';
 
   @override

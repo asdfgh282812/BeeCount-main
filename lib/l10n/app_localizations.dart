@@ -119,6 +119,36 @@ abstract class AppLocalizations {
   /// **'Agree & enable'**
   String get aiConsentAgree;
 
+  /// No description provided for @cloudLoginReminderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Not signed in to cloud sync'**
+  String get cloudLoginReminderTitle;
+
+  /// No description provided for @cloudLoginReminderBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve set up cloud sync, but you\'re currently signed out, so your data on this device won\'t sync. Sign in again to keep syncing.'**
+  String get cloudLoginReminderBody;
+
+  /// No description provided for @cloudLoginReminderDontShowAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t show this again'**
+  String get cloudLoginReminderDontShowAgain;
+
+  /// No description provided for @cloudLoginReminderDismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get cloudLoginReminderDismiss;
+
+  /// No description provided for @cloudLoginReminderGoLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get cloudLoginReminderGoLogin;
+
   /// No description provided for @aboutPrivacyPolicy.
   ///
   /// In en, this message translates to:

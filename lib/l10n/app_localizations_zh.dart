@@ -19,6 +19,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiConsentAgree => '同意并开启';
 
   @override
+  String get cloudLoginReminderTitle => 'Not signed in to cloud sync';
+
+  @override
+  String get cloudLoginReminderBody =>
+      'You\'ve set up cloud sync, but you\'re currently signed out, so your data on this device won\'t sync. Sign in again to keep syncing.';
+
+  @override
+  String get cloudLoginReminderDontShowAgain => 'Don\'t show this again';
+
+  @override
+  String get cloudLoginReminderDismiss => 'Close';
+
+  @override
+  String get cloudLoginReminderGoLogin => 'Sign in';
+
+  @override
   String get aboutPrivacyPolicy => '隐私政策';
 
   @override
@@ -8911,6 +8927,22 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get aiConsentAgree => '同意並開啟';
+
+  @override
+  String get cloudLoginReminderTitle => '尚未登入雲端同步';
+
+  @override
+  String get cloudLoginReminderBody =>
+      '你已設定雲端同步,但目前處於未登入狀態,這台裝置上的資料不會被同步。請重新登入以繼續同步。';
+
+  @override
+  String get cloudLoginReminderDontShowAgain => '不再提示';
+
+  @override
+  String get cloudLoginReminderDismiss => '關閉';
+
+  @override
+  String get cloudLoginReminderGoLogin => '去登入';
 
   @override
   String get aboutPrivacyPolicy => '隱私政策';

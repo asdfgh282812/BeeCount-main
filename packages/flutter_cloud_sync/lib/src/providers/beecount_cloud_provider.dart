@@ -1450,8 +1450,14 @@ class BeeCountCloudAuthService implements CloudAuthService {
     try {
       await _refreshSession();
       return true;
-    } catch (_) {
+    } on CloudAuthException catch (_) {
+      // server 明确拒绝 refresh token(401/403,已被 revoke/过期)才是真正需要
+      // 用户重新登录的情况,清掉本地 session。
       await _clearSession();
+      return false;
+    } catch (_) {
+      // 网络错误、超时、server 5xx 等瞬时故障 —— 不能证明 refresh token 真的失效,
+      // 保留本地登录状态,让下一次同步/刷新再重试,避免把用户静默登出。
       return false;
     }
   }
@@ -1933,9 +1939,15 @@ class BeeCountCloudAuthService implements CloudAuthService {
       path: '/auth/refresh',
       body: {'refresh_token': session.refreshToken},
     );
-    if (response.statusCode < 200 || response.statusCode >= 300) {
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      // refresh token 被 server 明确拒绝(过期/已 revoke)——真正的登出信号。
       throw CloudAuthException(
-          'Refresh token failed: ${_extractErrorMessage(response)}');
+          'Refresh token rejected: ${_extractErrorMessage(response)}');
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      // 其它非 2xx(5xx、限流等)是瞬时故障,不代表 refresh token 失效。
+      throw CloudStorageException(
+          'Refresh token request failed: ${_extractErrorMessage(response)}');
     }
 
     final payload = _decodeJsonObject(response.body);
