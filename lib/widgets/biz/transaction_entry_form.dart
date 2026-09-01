@@ -1466,244 +1466,237 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
         : (_selectedCategory != null &&
             (isInCalcMode ? true : total.abs() > 0));
 
-    return Column(
-      children: [
-        Expanded(
-          child: PullToSubmitScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-            canSubmit: canSubmit,
-            isSubmitting: _isSubmitting,
-            onSubmit: _submit,
+    return PullToSubmitScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      canSubmit: canSubmit,
+      isSubmitting: _isSubmitting,
+      onSubmit: _submit,
+      bottomBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 小算盤只在使用者點過金額欄位後才顯示,不再預設開啟;名稱/商家欄位
+          // 聚焦時讓位給系統鍵盤,避免兩層鍵盤搶版面、還要往下滑才看得到送出鍵。
+          if (_amountFocused && !_textFieldFocused)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: AmountCalculatorKeypad(
+                onDigit: _appendDigit,
+                onOp: _applyOp,
+                onBackspace: _backspace,
+                onClear: _clearAll,
+                onEquals: _applyEquals,
+                onSave: _submit,
+                isInCalcMode: isInCalcMode,
+                canSubmit: canSubmit,
+                isSubmitting: _isSubmitting,
+              ),
+            ),
+          // 名稱/商家欄位聚焦時,貼著系統鍵盤上緣跳出歷史建議(比照 moze),
+          // 取代舊版「點時鐘圖示彈出視窗」的做法——不需要另外點,聚焦就看得到。
+          if (_nameFocus.hasFocus && _frequentNotes.isNotEmpty)
+            KeyboardSuggestionBar(
+              suggestions: _frequentNotes.map((e) => e.note).toList(),
+              onSelected: _applyNoteSuggestion,
+            )
+          else if (_merchantFocus.hasFocus && _frequentMerchants.isNotEmpty)
+            KeyboardSuggestionBar(
+              suggestions: _frequentMerchants.map((e) => e.merchant).toList(),
+              onSelected: _applyMerchantSuggestion,
+            ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildCategorySection(context),
+          const SizedBox(height: 10),
+          // 金额表达式行——点一下叫出底部小算盤,同时收起名稱/商家
+          // 欄位的系統鍵盤(「只有點金額欄位才叫用數字小算盤」)。
+          GestureDetector(
+            key: const Key('amountDisplayTap'),
+            behavior: HitTestBehavior.translucent,
+            onTap: () {
+              FocusScope.of(context).unfocus();
+              setState(() => _amountFocused = true);
+            },
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                _buildCategorySection(context),
-                const SizedBox(height: 10),
-                // 金额表达式行——点一下叫出底部小算盤,同时收起名稱/商家
-                // 欄位的系統鍵盤(「只有點金額欄位才叫用數字小算盤」)。
-                GestureDetector(
-                  key: const Key('amountDisplayTap'),
-                  behavior: HitTestBehavior.translucent,
-                  onTap: () {
-                    FocusScope.of(context).unfocus();
-                    setState(() => _amountFocused = true);
-                  },
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                Row(
+                  children: [
+                    if (widget.editingTransactionId != null)
+                      _TxAuthorAvatars(
+                          editingTransactionId: widget.editingTransactionId!),
+                    const Spacer(),
+                    _buildCurrencyChip(context),
+                    const SizedBox(width: 6),
+                    if (_op != null) ...[
+                      Text(
+                        _fmtAbs(_acc),
+                        style: text.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w500,
+                          color: BeeTokens.textSecondary(context),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Text(
+                          amountOpGlyph(_op!),
+                          style: text.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600, color: primary),
+                        ),
+                      ),
+                    ],
+                    Text(
+                      _amountStr,
+                      style: text.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.0,
+                        color: BeeTokens.textPrimary(context),
+                      ),
+                    ),
+                  ],
+                ),
+                if (_op != null) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      Row(
+                      Text(
+                        '= ',
+                        style: text.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w500,
+                          color: BeeTokens.textTertiary(context),
+                        ),
+                      ),
+                      Text(
+                        _fmtAbs(total),
+                        style: text.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600, color: primary),
+                      ),
+                    ],
+                  ),
+                ],
+                _buildCurrencySection(context),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          // 名稱欄(=備註,合併掉原本分開的名稱/備註兩個欄位)
+          TextField(
+            key: const Key('nameField'),
+            controller: _nameCtrl,
+            focusNode: _nameFocus,
+            style: TextStyle(color: BeeTokens.textPrimary(context)),
+            decoration: InputDecoration(
+              hintText: AppLocalizations.of(context).transactionNameHint,
+              hintStyle: TextStyle(color: BeeTokens.textTertiary(context)),
+              isDense: true,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              filled: true,
+              fillColor: BeeTokens.surfaceInput(context),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // 商家欄(v33 新增,獨立於名稱/備註的自由文本欄位)
+          TextField(
+            key: const Key('merchantField'),
+            controller: _merchantCtrl,
+            focusNode: _merchantFocus,
+            style: TextStyle(color: BeeTokens.textPrimary(context)),
+            decoration: InputDecoration(
+              hintText: AppLocalizations.of(context).transactionMerchantHint,
+              hintStyle: TextStyle(color: BeeTokens.textTertiary(context)),
+              isDense: true,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              filled: true,
+              fillColor: BeeTokens.surfaceInput(context),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              prefixIcon: Icon(Icons.storefront_outlined,
+                  color: BeeTokens.iconSecondary(context), size: 18),
+              prefixIconConstraints:
+                  const BoxConstraints(minWidth: 40, minHeight: 20),
+            ),
+          ),
+          if (_recommendations.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 72,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _recommendations.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final rec = _recommendations[index];
+                  return GestureDetector(
+                    onTap: () => _onRecommendationTapped(rec),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: BeeTokens.surfaceInput(context),
+                        borderRadius: BorderRadius.circular(12),
+                        border:
+                            Border.all(color: BeeTokens.iconPrimary(context)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          if (widget.editingTransactionId != null)
-                            _TxAuthorAvatars(
-                                editingTransactionId:
-                                    widget.editingTransactionId!),
-                          const Spacer(),
-                          _buildCurrencyChip(context),
-                          const SizedBox(width: 6),
-                          if (_op != null) ...[
-                            Text(
-                              _fmtAbs(_acc),
-                              style: text.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w500,
-                                color: BeeTokens.textSecondary(context),
-                              ),
-                            ),
-                            Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 8),
-                              child: Text(
-                                amountOpGlyph(_op!),
-                                style: text.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: primary),
-                              ),
-                            ),
-                          ],
                           Text(
-                            _amountStr,
-                            style: text.headlineSmall?.copyWith(
+                            '${rec.bankName} ${rec.cardName}',
+                            style: TextStyle(
+                              fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              letterSpacing: 0.0,
                               color: BeeTokens.textPrimary(context),
+                            ),
+                          ),
+                          Text(
+                            '+${rec.estimatedReward.toStringAsFixed(0)} (${(rec.effectiveRate * 100).toStringAsFixed(1)}%)',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: BeeTokens.textSecondary(context),
                             ),
                           ),
                         ],
                       ),
-                      if (_op != null) ...[
-                        const SizedBox(height: 4),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Text(
-                              '= ',
-                              style: text.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w500,
-                                color: BeeTokens.textTertiary(context),
-                              ),
-                            ),
-                            Text(
-                              _fmtAbs(total),
-                              style: text.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600, color: primary),
-                            ),
-                          ],
-                        ),
-                      ],
-                      _buildCurrencySection(context),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 10),
-                // 名稱欄(=備註,合併掉原本分開的名稱/備註兩個欄位)
-                TextField(
-                  key: const Key('nameField'),
-                  controller: _nameCtrl,
-                  focusNode: _nameFocus,
-                  style: TextStyle(color: BeeTokens.textPrimary(context)),
-                  decoration: InputDecoration(
-                    hintText: AppLocalizations.of(context).transactionNameHint,
-                    hintStyle:
-                        TextStyle(color: BeeTokens.textTertiary(context)),
-                    isDense: true,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
                     ),
-                    filled: true,
-                    fillColor: BeeTokens.surfaceInput(context),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                // 商家欄(v33 新增,獨立於名稱/備註的自由文本欄位)
-                TextField(
-                  key: const Key('merchantField'),
-                  controller: _merchantCtrl,
-                  focusNode: _merchantFocus,
-                  style: TextStyle(color: BeeTokens.textPrimary(context)),
-                  decoration: InputDecoration(
-                    hintText:
-                        AppLocalizations.of(context).transactionMerchantHint,
-                    hintStyle:
-                        TextStyle(color: BeeTokens.textTertiary(context)),
-                    isDense: true,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    filled: true,
-                    fillColor: BeeTokens.surfaceInput(context),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
-                    prefixIcon: Icon(Icons.storefront_outlined,
-                        color: BeeTokens.iconSecondary(context), size: 18),
-                    prefixIconConstraints:
-                        const BoxConstraints(minWidth: 40, minHeight: 20),
-                  ),
-                ),
-                if (_recommendations.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 72,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _recommendations.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 8),
-                      itemBuilder: (context, index) {
-                        final rec = _recommendations[index];
-                        return GestureDetector(
-                          onTap: () => _onRecommendationTapped(rec),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: BeeTokens.surfaceInput(context),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color: BeeTokens.iconPrimary(context)),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  '${rec.bankName} ${rec.cardName}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: BeeTokens.textPrimary(context),
-                                  ),
-                                ),
-                                Text(
-                                  '+${rec.estimatedReward.toStringAsFixed(0)} (${(rec.effectiveRate * 100).toStringAsFixed(1)}%)',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: BeeTokens.textSecondary(context),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 8),
-                _buildAccountRow(context),
-                const SizedBox(height: 8),
-                _buildProjectRow(context),
-                const SizedBox(height: 8),
-                _buildTagAndAttachmentRow(),
-                _buildEstimatedRewardRow(),
-                const SizedBox(height: 8),
-                _buildDateRow(context),
-                // v38:拆帳交易不提供「週期」入口(兩者互斥,見
-                // _startSplitMode 對稱的檢查)。
-                if (widget.editingTransactionId == null && _splits.isEmpty) ...[
-                  const SizedBox(height: 8),
-                  _buildRecurringRow(context),
-                ],
-                const SizedBox(height: 10),
-                if (_recentAmounts.isNotEmpty) ...[
-                  _buildRecentAmountsRow(context),
-                  const SizedBox(height: 6),
-                ],
-              ],
+                  );
+                },
+              ),
             ),
-          ),
-        ),
-        // 小算盤只在使用者點過金額欄位後才顯示,不再預設開啟;名稱/商家欄位
-        // 聚焦時讓位給系統鍵盤,避免兩層鍵盤搶版面、還要往下滑才看得到送出鍵。
-        if (_amountFocused && !_textFieldFocused)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: AmountCalculatorKeypad(
-              onDigit: _appendDigit,
-              onOp: _applyOp,
-              onBackspace: _backspace,
-              onClear: _clearAll,
-              onEquals: _applyEquals,
-              onSave: _submit,
-              isInCalcMode: isInCalcMode,
-              canSubmit: canSubmit,
-              isSubmitting: _isSubmitting,
-            ),
-          ),
-        // 名稱/商家欄位聚焦時,貼著系統鍵盤上緣跳出歷史建議(比照 moze),
-        // 取代舊版「點時鐘圖示彈出視窗」的做法——不需要另外點,聚焦就看得到。
-        if (_nameFocus.hasFocus && _frequentNotes.isNotEmpty)
-          KeyboardSuggestionBar(
-            suggestions: _frequentNotes.map((e) => e.note).toList(),
-            onSelected: _applyNoteSuggestion,
-          )
-        else if (_merchantFocus.hasFocus && _frequentMerchants.isNotEmpty)
-          KeyboardSuggestionBar(
-            suggestions: _frequentMerchants.map((e) => e.merchant).toList(),
-            onSelected: _applyMerchantSuggestion,
-          ),
-      ],
+          ],
+          const SizedBox(height: 8),
+          _buildAccountRow(context),
+          const SizedBox(height: 8),
+          _buildProjectRow(context),
+          const SizedBox(height: 8),
+          _buildTagAndAttachmentRow(),
+          _buildEstimatedRewardRow(),
+          const SizedBox(height: 8),
+          _buildDateRow(context),
+          // v38:拆帳交易不提供「週期」入口(兩者互斥,見
+          // _startSplitMode 對稱的檢查)。
+          if (widget.editingTransactionId == null && _splits.isEmpty) ...[
+            const SizedBox(height: 8),
+            _buildRecurringRow(context),
+          ],
+          const SizedBox(height: 10),
+          if (_recentAmounts.isNotEmpty) ...[
+            _buildRecentAmountsRow(context),
+            const SizedBox(height: 6),
+          ],
+        ],
+      ),
     );
   }
 

@@ -246,3 +246,87 @@ no-op,因為 state 是 null)→ 再 `_tab.animateTo(1)`」,所以使用者看到
 兩條路徑都驗)。全專案 `flutter test`(959 個測試)、`flutter analyze`
 均通過。第 2 點的時序修正無法用 widget test 直接重現 `PageView` 的
 lazy-build 行為,依賴使用者真機回報驗證。
+
+## 第三輪修正(2026-09-01,真機再回報 2 個問題)
+
+**1. 表單往下拉,完全沒有反應,拉不出送出手勢。**
+
+原本 [pull_to_submit_scroll_view.dart](lib/widgets/biz/pull_to_submit_scroll_view.dart)
+靠 `NotificationListener<ScrollNotification>` 監聽 `SingleChildScrollView`
+本身冒出的 `OverscrollNotification`——這只在手指壓在該 `SingleChildScrollView`
+的實際渲染範圍內才收得到事件。但 [transaction_entry_form.dart](lib/widgets/biz/transaction_entry_form.dart)
+的版面是「可滾動內容(`Expanded`)+ 下方固定不滾動的金額小算盤
+(`AmountCalculatorKeypad`,點過金額欄位後顯示)/ 名稱商家歷史建議列
+(`KeyboardSuggestionBar`)」——輸入金額是最常見的操作,小算盤幾乎必然是
+使用者手指所在位置,而它是滾動區域外的**獨立 sibling widget**,手指壓在
+上面拖曳,滾動事件根本傳不到 `PullToSubmitScrollView` 身上,自然「完全
+沒反應」。另外 `BouncingScrollPhysics` 的 overscroll 本身有非線性摩擦阻尼
+(越拖越「重」),就算手指壓對地方,也會讓實際觸發門檻所需的物理拖曳距離
+遠比看起來的 72px 門檻長。
+
+修法是整個重寫手勢偵測機制(v2,見檔案內 class 說明的詳細記錄):
+
+- 改用 `Listener` 直接監聽原始指標事件(`onPointerDown/Move/Up/Cancel`),
+  這類事件不受 Flutter 手勢競技場(gesture arena)影響、不會被
+  `Scrollable` 自己的手勢辨識器攔截或屏蔽,可以包住整個表單(含小算盤跟
+  建議列)一起偵測。
+- `PullToSubmitScrollView` 新增 `bottomBar` 參數,專門承接這些「固定在
+  底部、不隨內容滾動」的區塊,由 widget 內部統一包進同一個手勢偵測範圍,
+  呼叫端(`transaction_entry_form.dart`)把原本另外放在外層 `Column` 的
+  小算盤/建議列搬進這個參數,不再是滾動區域外的獨立 sibling。
+- 判斷邏輯從「physics 產生的 overscroll 像素」改成「內部自管
+  `ScrollController` 已到底 + 手指持續往上移動的原始距離」,不再依賴
+  `BouncingScrollPhysics` 的摩擦阻尼,72px 門檻現在是精確的物理拖曳距離。
+  副作用(而且是好的副作用):不用再強制 Android 使用 iOS 式回彈手感,
+  `SingleChildScrollView` 用回平台預設 physics,先前文件裡提到的
+  Android 手感取捨已經不存在。
+- [debt_entry_form.dart](lib/widgets/transaction/debt_entry_form.dart)、
+  [transfer_form.dart](lib/widgets/transaction/transfer_form.dart)沿用同一顆
+  widget、沒有 `bottomBar` 需求,API 向下相容,不用改動。
+
+新增 `test/widgets/pull_to_submit_scroll_view_test.dart`,直接用
+`TestGesture` 模擬原始指標事件覆蓋:內容不足撐滿版面時任意位置往上拉過
+門檻送出、**`bottomBar` 區域拖曳一樣觸發送出(對應這次的 bug 場景)**、
+拉不夠門檻不送出、拉過門檻又收手取消、`canSubmit:false` 時不送出。
+
+（測試小插曲:widget 邏輯本身沒問題,但同一份測試在 `content` 佔位文字用
+`Text('content')` 時,會在跟本功能完全無關的膠囊提示 `Row` 冒出
+`RenderFlex overflowed` 的假錯誤,換成 `Text('x')` 就穩定——目前判斷是這個
+Flutter SDK 版本 `flutter_test` 環境下的文字量測時序偽影,不是本次改動或
+production 程式碼的問題,只在測試檔案裡繞開,沒有動 widget 本體邏輯。）
+
+**2. 選帳戶時,如果已經選過帳戶,再次打開選擇器不應該從頭開始,已選的
+那個應該直接出現在看得到、且標示「已選中」的地方。**
+
+[account_card_picker.dart](lib/widgets/biz/account_card_picker.dart)裡
+`_AccountTypeSectionState._sorted()` 原本就有把選中帳戶排到「所屬分組內
+第一個」的邏輯,選中的那一列也已經有打勾圖示——但整個清單先按帳戶
+`type` 分組,分組出現的先後順序是 `_groupByType`(依帳戶查詢結果第一次
+出現的順序)決定的,如果已選帳戶所屬的分組不是排第一個的那組(例如已選
+的是信用卡帳戶,但銀行卡分組先出現),重開選擇器一樣要先從最上面的
+「銀行卡」分組開始往下滑,才滑得到已選帳戶那組——這就是「感覺從頭開始」
+的根因。
+
+修法:
+
+- 新增 `_AccountCardPickerSheetState._orderedGroups`,把已選帳戶所屬的
+  分組整組搬到最前面(其餘分組相對順序不變),跟既有的「分組內選中帳戶
+  排最前」疊加起來,重開選擇器時已選帳戶會直接出現在整個清單最上面
+  第一項,完全不用滑動。
+- `_AccountRow` 補上選中狀態的底色(`primaryColor` 8% 透明度),不再只靠
+  尾端一個小勾勾——「已選擇的會出現已選擇的樣子」更明顯。
+
+`test/widgets/account_card_picker_test.dart` 既有 4 個測試(過濾/分組、
+跨幣別、`account_group` 排除、取消回傳 `null`)都沒斷言分組順序,重跑
+全過,不用額外補測試（分組重排是純排序邏輯,行為已經被同一份測試間接
+覆蓋:選中帳戶所屬分組必然含有該帳戶,測試裡點擊帳戶名稱文字來選取,
+跟分組先後順序無關)。
+
+### 驗證
+
+`flutter analyze`、全專案 `flutter test`(968 個測試,新增 5 個)均通過。
+本機沒有配置 Xcode(`xcode-select` 指到錯誤路徑),这次同样无法用 iOS
+Simulator 實機驗證這兩個手勢/UI 細節,修法是基於程式碼閱讀 + 上面的
+widget test 覆蓋,建議使用者下次真機測試時特別注意:(a) 金額鍵盤打開時
+直接在鍵盤區域上方拉到底送出是否生效,(b) 選過帳戶後再次打開選擇器是否
+直接看到已選帳戶在最上面並有底色高亮。

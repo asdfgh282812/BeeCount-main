@@ -18,7 +18,7 @@ import '../../widgets/ui/ui.dart';
 /// 紅利回饋明細頁:單一規則在某個週期內套用的所有交易,含每筆的估算回饋金
 /// 與入帳時程標籤。從帳戶頁「交易明細」tab 的紅利回饋分組卡片點入。
 ///
-/// 週期可前後翻頁(獨立於帳戶頁帳單彙總卡片的週期導覽),資料來源見
+/// 週期可前後翻頁(初始週期沿用帳戶頁帳單彙總卡片當下瀏覽的週期,之後可獨立翻頁),資料來源見
 /// [cardRewardRulePeriodSummaryProvider]——同一份估算公式跟記帳表單/交易
 /// 詳情卡共用([lib/utils/card_reward_calc.dart]),實際入帳金額仍以 Server
 /// 端排程結果為準。
@@ -27,6 +27,7 @@ class CardRewardDetailPage extends ConsumerStatefulWidget {
   final List<db.Account> children;
   final int ruleId;
   final String currencyCode;
+  final int initialOffset;
 
   const CardRewardDetailPage({
     super.key,
@@ -34,6 +35,7 @@ class CardRewardDetailPage extends ConsumerStatefulWidget {
     required this.children,
     required this.ruleId,
     required this.currencyCode,
+    this.initialOffset = 0,
   });
 
   @override
@@ -42,7 +44,7 @@ class CardRewardDetailPage extends ConsumerStatefulWidget {
 }
 
 class _CardRewardDetailPageState extends ConsumerState<CardRewardDetailPage> {
-  int _offset = 0;
+  late int _offset = widget.initialOffset;
 
   String get _extraIdsKey {
     final ids = widget.children.map((a) => a.id).toList()..sort();

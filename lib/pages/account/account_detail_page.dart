@@ -1656,6 +1656,7 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
                           children: children,
                           ruleId: rule.id,
                           currencyCode: currencyCode,
+                          initialOffset: _billingPeriodOffset,
                         ),
                       ),
                     ),

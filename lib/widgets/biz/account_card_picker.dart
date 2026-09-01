@@ -146,6 +146,22 @@ class _AccountCardPickerSheetState
     return grouped;
   }
 
+  /// 已經選過帳戶時,把該帳戶所在的分組排到最前面——比照下面
+  /// `_AccountTypeSectionState._sorted` 把選中帳戶排到分組內第一個,兩者疊加
+  /// 起來,重新打開選擇器時已選帳戶會直接出現在整個清單最上面第一項,不用
+  /// 使用者從頭滑到它所在的分組(#見真機回報:重開選擇器不應該從頭開始)。
+  List<MapEntry<String, List<Account>>> _orderedGroups(List<Account> accounts) {
+    final entries = _groupByType(accounts).entries.toList();
+    final selectedId = widget.selectedAccountId;
+    if (selectedId == null) return entries;
+    final idx =
+        entries.indexWhere((e) => e.value.any((a) => a.id == selectedId));
+    if (idx > 0) {
+      entries.insert(0, entries.removeAt(idx));
+    }
+    return entries;
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -193,7 +209,7 @@ class _AccountCardPickerSheetState
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          for (final entry in _groupByType(_accounts).entries)
+                          for (final entry in _orderedGroups(_accounts))
                             _AccountTypeSection(
                               type: entry.key,
                               accounts: entry.value,
@@ -382,7 +398,8 @@ class _AccountRow extends ConsumerWidget {
 
     return InkWell(
       onTap: onTap,
-      child: Padding(
+      child: Container(
+        color: isSelected ? primaryColor.withValues(alpha: 0.08) : null,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
