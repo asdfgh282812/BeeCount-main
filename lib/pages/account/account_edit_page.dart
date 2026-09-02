@@ -1229,6 +1229,24 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         }
       }
 
+      // 新增/改成的帳戶幣種若還沒有匯率,立刻強制拉一次(對齊
+      // transaction_entry_form/_maybeAutoFetchRate 同款模式)。不這樣做的話
+      // 只能等 accounts_page 進頁的 24h 節流刷新自然過期,期間該幣種帳戶會
+      // 因「缺匯率」被淨資產/群組小計靜默排除(D5),且 accounts_page 的背景
+      // 刷新只在頁面 initState 觸發一次,若帳戶是在那之後才新增/改幣種,
+      // 整個 session 都不會再重試,只能重啟 app 才會修正——這裡在儲存當下
+      // (widget 一定還掛載)強制拉取並 await,確保 effectiveRatesProvider
+      // 在使用者回到帳戶列表前就已經是最新的,不必重啟。
+      final baseForRate = ref.read(baseCurrencyProvider).toUpperCase();
+      final newAccountCurrency = _selectedCurrency.toUpperCase();
+      if (newAccountCurrency != baseForRate) {
+        final knownRates = ref.read(effectiveRatesProvider).valueOrNull;
+        if (knownRates == null || !knownRates.containsKey(newAccountCurrency)) {
+          await refreshExchangeRatesFromUi(ref,
+              force: true, extraQuotes: {newAccountCurrency});
+        }
+      }
+
       // 触发账本同步(后台异步,不阻塞页面关闭)
       if (mounted) {
         PostProcessor.sync(ref, ledgerId: widget.ledgerId);
