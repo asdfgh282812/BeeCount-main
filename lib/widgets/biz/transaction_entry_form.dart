@@ -40,6 +40,7 @@ import 'tag_chip.dart';
 import '../../pages/attachment/attachment_preview_page.dart';
 import 'recurring_rule_advanced_sheet.dart';
 import 'shared_entry_fields.dart';
+import 'installment_draft_sheet.dart';
 
 /// 表單提交結果——原本定義在 `amount_editor_sheet.dart`(該檔案已刪除,
 /// `AmountEditorSheet` modal 的唯一呼叫方 `transfer_form.dart` 已改成單頁式
@@ -91,6 +92,11 @@ typedef AmountEditorResult = ({
   // v44:選定的專案 syncId(design doc §6)。null=不指定專案。跟其他 syncId
   // 關聯(debtSyncId 等)同款慣例——只存字串,不走本地 int FK。
   String? projectSyncId,
+  // v49 分期付款——非 null 時上層改呼叫 createInstallmentPlan 而不是
+  // addTransaction(同 recurringDraft 的角色)。只在新增模式
+  // (editingTransactionId == null)且 kind == 'expense' 才可能非 null,見
+  // 表單內 `_openRecurringSheet` 的 installmentAvailable 判斷。
+  InstallmentDraft? installmentDraft,
 });
 
 /// v36:`onSubmit` 回傳 `Future<void>`(原本是 `void`)——編輯「週期規則
@@ -260,8 +266,15 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   List<File> _pendingAttachments = [];
   // v36:週期性收支——只在新增模式提供入口(見 _buildRecurringRow),編輯既有
   // 交易一律走原本的單筆更新流程,不支援回填/再次調整規則(範圍決策,詳見
-  // docs/changes)。
+  // docs/changes)。v49 起跟 _installmentDraft 共用同一個「進階設定」彈窗
+  // (單次/週期/分期三選一,見 recurring_rule_advanced_sheet.dart),兩者
+  // 互斥(_openRecurringSheet 每次只回填其中一個,另一個設回 null)。
   RecurringRuleDraft? _recurringDraft;
+
+  // v49 分期付款——同 _recurringDraft 的角色,只在新增模式的 expense tab
+  // 可能非 null(見 _openRecurringSheet 傳給彈窗的 installmentAvailable),
+  // 跟拆帳互斥(見 _startSplitMode 對稱的檢查)。
+  InstallmentDraft? _installmentDraft;
 
   bool _excludeFromStats = false;
   bool _excludeFromBudget = false;
@@ -1143,6 +1156,10 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
       showToast(context, AppLocalizations.of(context).txSplitRecurringConflict);
       return;
     }
+    if (_installmentDraft != null) {
+      showToast(context, AppLocalizations.of(context).txInstallmentSplitConflict);
+      return;
+    }
     final picked = await showCategorySelector(
       context,
       type: widget.kind,
@@ -1442,6 +1459,8 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
                 .toList()
             : (_wasInitiallySplit ? const <SplitLineResult>[] : null),
         projectSyncId: _selectedProject?.syncId,
+        installmentDraft:
+            widget.editingTransactionId == null ? _installmentDraft : null,
       ),
     ).whenComplete(() {
       // 正常存檔成功:上層已經 pop 頁面,這裡 mounted 已是 false,no-op。
@@ -1684,8 +1703,10 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
           _buildEstimatedRewardRow(),
           const SizedBox(height: 8),
           _buildDateRow(context),
-          // v38:拆帳交易不提供「週期」入口(兩者互斥,見
-          // _startSplitMode 對稱的檢查)。
+          // v38:拆帳交易不提供「進階設定(單次/週期/分期)」入口(兩者互斥,
+          // 見 _startSplitMode 對稱的檢查)。v49 起分期併進同一個「進階設定」
+          // 彈窗(見 recurring_rule_advanced_sheet.dart 的
+          // RecurringRuleAdvancedSheet),不再是獨立入口。
           if (widget.editingTransactionId == null && _splits.isEmpty) ...[
             const SizedBox(height: 8),
             _buildRecurringRow(context),
@@ -2027,23 +2048,43 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     );
   }
 
+  /// 開啟「進階設定」彈窗(單次/週期/分期三選一,見
+  /// `recurring_rule_advanced_sheet.dart` 的 `RecurringRuleAdvancedSheet`)。
+  /// 分期只在新增模式的 expense tab 開放。拆帳互斥的檢查放在
+  /// `_startSplitMode`(對稱)。
   Future<void> _openRecurringSheet() async {
+    final l10n = AppLocalizations.of(context);
+    if (_splits.isNotEmpty) {
+      showToast(context, l10n.txInstallmentSplitConflict);
+      return;
+    }
     final result = await RecurringRuleAdvancedSheet.show(
       context,
       anchorDate: _date,
       initialDraft: _recurringDraft,
+      installmentAvailable:
+          widget.editingTransactionId == null && widget.kind == 'expense',
+      initialInstallmentDraft: _installmentDraft,
     );
     // showModalBottomSheet 滑動關閉(未 pop 值)時 result 也是 null,跟「使用
-    // 者主動選單次」無法區分——两种情况下都应该关掉週期,行为一致,不用像
-    // AccountCardPicker 那样額外包一層區分。
+    // 者主動選單次」無法區分——两种情况下都应该把週期/分期都关掉,行为一致,
+    // 不用像 AccountCardPicker 那样額外包一層區分。
     if (!mounted) return;
-    setState(() => _recurringDraft = result);
+    setState(() {
+      _recurringDraft = result?.recurring;
+      _installmentDraft = result?.installment;
+    });
   }
 
   Widget _buildRecurringRow(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final draft = _recurringDraft;
-    final label = draft == null ? l10n.txDetailOnce : draft.summary(l10n);
+    final recurring = _recurringDraft;
+    final installment = _installmentDraft;
+    final label = installment != null
+        ? installment.summary(l10n)
+        : recurring == null
+            ? l10n.txDetailOnce
+            : recurring.summary(l10n);
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: _openRecurringSheet,
@@ -2056,7 +2097,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
         ),
         child: Row(
           children: [
-            Icon(Icons.repeat,
+            Icon(installment != null ? Icons.calendar_view_month : Icons.repeat,
                 size: 16, color: BeeTokens.iconSecondary(context)),
             const SizedBox(width: 8),
             Expanded(

@@ -20,6 +20,7 @@ import '../../pages/attachment/attachment_preview_page.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/attachment_service.dart';
 import '../../utils/month_range.dart';
+import '../../utils/transaction_edit_utils.dart';
 
 /// 可复用的交易列表组件
 /// 支持显示分组的交易列表，包含日期头部和交易项
@@ -88,6 +89,15 @@ class TransactionListState extends ConsumerState<TransactionList> {
 
   // 标记是否应使用预加载数据（当 Stream 数据与预加载数据不同时切换）
   bool _usePreloadedData = true;
+
+  /// 問題 A 修正(2026-09-03,見
+  /// docs/changes/2026-09-03-installment-tracking-delete-sync-fixes.md):
+  /// 分期交易的刪除流程(orphan 直接放行 / plan 還在時彈二選一)本質上是
+  /// 「使用者互動 + 可能的破壞性操作二次確認」,沒辦法只靠 `confirmDismiss`
+  /// 回傳的 bool 表達完整語意,所以整個 `deleteTransactionGuarded` 呼叫搬到
+  /// `confirmDismiss` 階段做完;`onDismissed` 用這個集合判斷「這筆是不是已經
+  /// 在 confirmDismiss 階段刪過了」,避免重複呼叫。
+  final Set<int> _installmentDeletedInConfirmDismiss = <int>{};
 
   /// 获取统一格式的交易列表（用于内部处理）
   /// 始终使用 transactions 作为列表数据源，预加载数据只用于详情（标签、附件、账户）
@@ -496,6 +506,24 @@ class TransactionListState extends ConsumerState<TransactionList> {
                 child: const Icon(Icons.delete, color: Colors.white),
               ),
               confirmDismiss: (direction) async {
+                // 問題 A 修正(2026-09-03,見
+                // docs/changes/2026-09-03-installment-tracking-delete-sync-
+                // fixes.md):分期計畫生成的交易改成跟其他入口一致的邏輯——
+                // 呼叫 `deleteTransactionGuarded`(它自己會查 plan 是否還
+                // 存在:孤兒直接放行;plan 還在則彈「只刪這一筆 / 刪除整個
+                // 計畫」二選一,「整個計畫」選項內部有自己的二次確認)。這整
+                // 段互動 + 實際刪除動作在 confirmDismiss 階段就做完,回傳
+                // 結果決定要不要把這個 tile 滑掉;`onDismissed` 用
+                // `_installmentDeletedInConfirmDismiss` 判斷不要重複刪除。
+                if (it.t.installmentPlanSyncId != null) {
+                  final deleted =
+                      await TransactionEditUtils.deleteTransactionGuarded(
+                          context, ref, it.t);
+                  if (deleted) {
+                    _installmentDeletedInConfirmDismiss.add(it.t.id);
+                  }
+                  return deleted;
+                }
                 return await AppDialog.confirm<bool>(
                       context,
                       title: AppLocalizations.of(context).deleteConfirmTitle,
@@ -505,10 +533,12 @@ class TransactionListState extends ConsumerState<TransactionList> {
                     false;
               },
               onDismissed: (direction) async {
-                final repo = ref.read(repositoryProvider);
-                await repo.deleteTransaction(it.t.id);
-
-                if (!context.mounted) return;
+                if (!_installmentDeletedInConfirmDismiss.remove(it.t.id)) {
+                  final deleted =
+                      await TransactionEditUtils.deleteTransactionGuarded(
+                          context, ref, it.t);
+                  if (!deleted || !context.mounted) return;
+                }
                 final curLedger = ref.read(currentLedgerIdProvider);
                 ref.invalidate(countsForLedgerProvider(curLedger));
                 ref.read(statsRefreshProvider.notifier).state++;

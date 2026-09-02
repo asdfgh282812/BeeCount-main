@@ -11,6 +11,7 @@ import '../../styles/tokens.dart';
 import '../../services/billing/post_processor.dart';
 import '../../utils/category_utils.dart';
 import '../../utils/shared_ledger_picker_filter.dart';
+import '../../utils/transaction_edit_utils.dart';
 import '../../l10n/app_localizations.dart';
 import 'tag_edit_page.dart';
 
@@ -364,12 +365,13 @@ class _TagDetailPageState extends ConsumerState<TagDetailPage> {
 
   Future<void> _deleteTransaction(
       db.Transaction transaction, AppLocalizations l10n) async {
-    final repo = ref.read(repositoryProvider);
     final ledgerId = ref.read(currentLedgerIdProvider);
 
-    try {
-      await repo.deleteTransaction(transaction.id);
+    final deleted = await TransactionEditUtils.deleteTransactionGuarded(
+        context, ref, transaction);
+    if (!deleted) return;
 
+    try {
       await PostProcessor.sync(ref, ledgerId: ledgerId);
 
       ref.invalidate(countsForLedgerProvider(ledgerId));

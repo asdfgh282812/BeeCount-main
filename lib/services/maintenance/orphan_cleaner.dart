@@ -10,6 +10,12 @@
 ///   置 null(交易本体有用户数据,保留)
 /// - **A6(tx 失主 category)**:**不删** tx,只把 `category_id` 置 null
 /// - **A9(共享二级分类失父)**:删 SharedLedgerCategories 行(复合主键)
+/// - **A11(交易失主分期计画,2026-09-03)**:跟 A5/A6 同一个哲学——**不删**
+///   交易本体(有真实财务数据),只把 `installment_plan_sync_id` 置 null,让
+///   它变回一笔普通交易,使用者可以自行决定是否透过一般刪除入口刪掉。
+/// - **A12/A13(分期期数失主计画/失主交易,2026-09-03)**:直接删
+///   `installment_periods` 行(纯排程/元数据列,无下游引用,同 A2/A3/A4/A10
+///   的「link/metadata 行直接删」哲学)。
 /// - **B1/B2/B3**:删磁盘文件
 /// - **C1**:删 local_changes 行
 library;
@@ -126,6 +132,11 @@ class OrphanCleaner {
         await _deleteSharedCategory(r);
       case OrphanType.txTagOverrideMissingTx:
         await _deleteTxTagOverride(r);
+      case OrphanType.txMissingInstallmentPlan:
+        await _clearTxInstallmentPlan(r);
+      case OrphanType.installmentPeriodMissingPlan:
+      case OrphanType.installmentPeriodMissingTx:
+        await _deleteInstallmentPeriod(r);
       case OrphanType.fileOrphanAttachment:
       case OrphanType.fileOrphanCustomIcon:
       case OrphanType.fileOrphanSharedIcon:
@@ -210,6 +221,29 @@ class OrphanCleaner {
           ..where((t) =>
               t.transactionSyncId.equals(txSyncId) &
               t.tagSyncId.equals(tagSyncId)))
+        .go();
+  }
+
+  /// A11(2026-09-03):把 tx.installment_plan_sync_id 置 null,保留交易本体
+  /// ——同 [_clearTxAccount]/[_clearTxCategory] 的「不删有真实数据的交易」
+  /// 哲学。清掉之后这筆交易变回一笔普通交易,使用者可以自行决定要不要透过
+  /// 一般刪除入口刪掉。
+  Future<void> _clearTxInstallmentPlan(OrphanRecord r) async {
+    final id = r.localId;
+    if (id == null) throw StateError('tx record 缺 localId');
+    await (db.update(db.transactions)..where((t) => t.id.equals(id))).write(
+      const TransactionsCompanion(
+        installmentPlanSyncId: d.Value<String?>(null),
+      ),
+    );
+  }
+
+  /// A12/A13(2026-09-03):直接删 installment_periods 行——纯排程/元数据列,
+  /// 无下游引用。
+  Future<void> _deleteInstallmentPeriod(OrphanRecord r) async {
+    final id = r.localId;
+    if (id == null) throw StateError('installment_period record 缺 localId');
+    await (db.delete(db.installmentPeriods)..where((t) => t.id.equals(id)))
         .go();
   }
 

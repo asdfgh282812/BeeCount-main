@@ -20,6 +20,27 @@ extension SyncEngineApplyExt on SyncEngine {
       return false;
     }
 
+    // 2026-09-03 新增(见 docs/changes/2026-09-03-installment-tracking-
+    // delete-sync-fixes.md 对「分期计画删除后单笔交易删不掉」问题的根因调
+    // 查):本地若还有一条尚未推送成功的 delete change 对应这个实体,跳过这
+    // 次 upsert——避免本地刚删除、还没来得及推送时跑了一次 pull,把
+    // server 上（还不知道这条删除）的旧版数据复活回本地。等本地这条
+    // delete 之后正常推送成功，两端会自然收敛为一致（已删除）。这是一个
+    // 通用修法，对所有 entity type 的 upsert 都生效，不是 installment 专属。
+    if (change.action != 'delete') {
+      final hasPendingDelete = await changeTracker.hasPendingLocalDelete(
+        entityType: change.entityType,
+        entitySyncId: change.entitySyncId,
+      );
+      if (hasPendingDelete) {
+        logger.debug(
+            'SyncEngine',
+            'pull: 跳过 ${change.entityType}/${change.entitySyncId} 的 '
+                'upsert——本地有尚未推送的 delete pending');
+        return false;
+      }
+    }
+
     switch (change.entityType) {
       case 'transaction':
         await _applyTransactionChange(change);
@@ -53,6 +74,12 @@ extension SyncEngineApplyExt on SyncEngine {
         return true;
       case 'project':
         await _applyProjectChange(change);
+        return true;
+      case 'installment_plan':
+        await _applyInstallmentPlanChange(change);
+        return true;
+      case 'installment_period':
+        await _applyInstallmentPeriodChange(change);
         return true;
       case 'ledger_snapshot':
         // 全量快照在 fullPull 中处理，这里跳过
@@ -322,6 +349,14 @@ extension SyncEngineApplyExt on SyncEngine {
     final projectSyncId =
         hasProjectIdKey ? payload['projectId'] as String? : null;
 
+    // v49 分期付款:installmentPlanId(存 InstallmentPlan 的 syncId)。跟
+    // debtId/projectId 同款「恒发/缺键不覆盖」——目前沒有清空這個關聯的
+    // 操作,但恒发跟既有慣例一致,避免以後加了清空操作又要回頭補。
+    final hasInstallmentPlanIdKey = payload.containsKey('installmentPlanId');
+    final installmentPlanSyncId = hasInstallmentPlanIdKey
+        ? payload['installmentPlanId'] as String?
+        : null;
+
     // v46 轉帳手續費/折損:跟 debtId/projectId 同款「缺鍵不覆蓋」——這 4 個
     // 欄位是獨立的絕對數值(不像 toAmount 由匯率衍生),不需要比照上面
     // toAmount 的等比例重算(rescale)邏輯。
@@ -426,6 +461,9 @@ extension SyncEngineApplyExt on SyncEngine {
         debtSyncId: hasDebtIdKey ? d.Value(debtSyncId) : const d.Value.absent(),
         projectSyncId:
             hasProjectIdKey ? d.Value(projectSyncId) : const d.Value.absent(),
+        installmentPlanSyncId: hasInstallmentPlanIdKey
+            ? d.Value(installmentPlanSyncId)
+            : const d.Value.absent(),
         toAmount: toAmountValue,
         feeAmount:
             hasFeeAmountKey ? d.Value(feeAmount) : const d.Value.absent(),
@@ -478,6 +516,7 @@ extension SyncEngineApplyExt on SyncEngine {
               hasSplits: d.Value(txHasSplits),
               debtSyncId: d.Value(debtSyncId),
               projectSyncId: d.Value(projectSyncId),
+              installmentPlanSyncId: d.Value(installmentPlanSyncId),
               toAmount: d.Value(payloadToAmount),
               feeAmount: d.Value(feeAmount),
               feeLabel: d.Value(feeLabel),
@@ -1200,6 +1239,220 @@ extension SyncEngineApplyExt on SyncEngine {
             syncId: d.Value(syncId),
           ));
       logger.debug('SyncEngine', 'pull: 新增专案 $syncId');
+    }
+  }
+
+  /// 應用分期計畫(v49,對齐 BeeCount Cloud installment_plan)变更。对齐
+  /// [_applyDebtChange]:按 syncId upsert,delete 走同样的路径。ledger 的
+  /// 外键在 payload 里以 syncId 形式带来,用 _resolveLedgerIdBySyncId 换成
+  /// 本地 int id;account/category 外键同理用各自的 resolver 换成本地 int id
+  /// (换不到就存 null,不建孤兒引用——這兩個欄位本身允许/容许 null)。所有
+  /// 欄位恆發(见 entity_serializer.dart serializeInstallmentPlan 的注释),
+  /// 这里无条件覆盖,不做 containsKey 保護。
+  ///
+  /// 本地未就緒(ledgerSyncId 對不到)時跳過,不建孤兒計畫——同
+  /// [_applyDebtChange]。
+  Future<void> _applyInstallmentPlanChange(
+      BeeCountCloudSyncChange change) async {
+    final syncId = change.entitySyncId;
+
+    if (change.action == 'delete') {
+      final existing = await (db.select(db.installmentPlans)
+            ..where((t) => t.syncId.equals(syncId)))
+          .getSingleOrNull();
+      if (existing != null) {
+        await (db.delete(db.installmentPlans)
+              ..where((t) => t.id.equals(existing.id)))
+            .go();
+        logger.debug('SyncEngine', 'pull: 删除分期计划 $syncId');
+      }
+      return;
+    }
+
+    // upsert
+    final payload = change.payload!;
+    final ledgerSyncId = (payload['ledgerSyncId'] as String?) ??
+        (change.ledgerId.isEmpty ? null : change.ledgerId);
+    final totalAmount = (payload['totalAmount'] as num?)?.toDouble() ?? 0.0;
+    final periods = (payload['periods'] as num?)?.toInt() ?? 1;
+    final firstPeriodAtStr = payload['firstPeriodAt'] as String?;
+    final firstPeriodAt = firstPeriodAtStr != null
+        ? DateTime.tryParse(firstPeriodAtStr) ?? DateTime.now()
+        : DateTime.now();
+    final accountSyncId = payload['accountId'] as String?;
+    final categorySyncId = payload['categoryId'] as String?;
+    final note = payload['note'] as String?;
+    final status = payload['status'] as String? ?? 'active';
+    final repaymentMethod =
+        payload['repaymentMethod'] as String? ?? 'equal_principal';
+    final interestPeriod = payload['interestPeriod'] as String? ?? 'monthly';
+    final interestRate = (payload['interestRate'] as num?)?.toDouble() ?? 0.0;
+    final roundAmounts = payload['roundAmounts'] as bool? ?? true;
+    final remainderPosition = payload['remainderPosition'] as String? ?? 'last';
+    final gracePeriodMonths =
+        (payload['gracePeriodMonths'] as num?)?.toInt() ?? 0;
+    // 子專案 4(帳單分期沖銷):已經是 {accountSyncId: amount} 的 JSON 字串,
+    // 兩端不需要轉換鍵值,原樣存/取即可。
+    final offsetBreakdownJson = payload['offsetBreakdownJson'] as String?;
+
+    final localLedgerId = await _resolveLedgerIdBySyncId(ledgerSyncId);
+    if (localLedgerId == null) {
+      logger.info('SyncEngine',
+          'pull: 分期计划 $syncId 的 ledgerSyncId=$ledgerSyncId 本地未就绪,跳过');
+      return;
+    }
+    final localAccountId = await _resolveAccountIdBySyncId(accountSyncId);
+    final localCategoryId = await _resolveCategoryIdBySyncId(categorySyncId);
+
+    final existing = await (db.select(db.installmentPlans)
+          ..where((t) => t.syncId.equals(syncId)))
+        .getSingleOrNull();
+
+    if (existing != null) {
+      await (db.update(db.installmentPlans)
+            ..where((t) => t.id.equals(existing.id)))
+          .write(InstallmentPlansCompanion(
+        ledgerId: d.Value(localLedgerId),
+        totalAmount: d.Value(totalAmount),
+        periods: d.Value(periods),
+        firstPeriodAt: d.Value(firstPeriodAt),
+        accountId: d.Value(localAccountId),
+        categoryId: localCategoryId != null
+            ? d.Value(localCategoryId)
+            : const d.Value.absent(),
+        note: d.Value(note),
+        status: d.Value(status),
+        repaymentMethod: d.Value(repaymentMethod),
+        interestPeriod: d.Value(interestPeriod),
+        interestRate: d.Value(interestRate),
+        roundAmounts: d.Value(roundAmounts),
+        remainderPosition: d.Value(remainderPosition),
+        gracePeriodMonths: d.Value(gracePeriodMonths),
+        offsetBreakdownJson: d.Value(offsetBreakdownJson),
+        updatedAt: d.Value(DateTime.now()),
+      ));
+      logger.debug('SyncEngine', 'pull: 更新分期计划 $syncId');
+    } else if (localCategoryId != null) {
+      // categoryId 是必填欄位(NOT NULL),本地換不到就先不建這個計畫——
+      // 對端分類還沒同步下來時屬於暫時性狀態,之後分類 change 落地、
+      // 這條計畫 change 重推一次(或下次 fullPull)就能補上,不強行塞一個
+      // 假 categoryId 造成資料錯誤。
+      await db
+          .into(db.installmentPlans)
+          .insert(InstallmentPlansCompanion.insert(
+            ledgerId: localLedgerId,
+            totalAmount: totalAmount,
+            periods: periods,
+            firstPeriodAt: firstPeriodAt,
+            accountId: d.Value(localAccountId),
+            categoryId: localCategoryId,
+            note: d.Value(note),
+            status: d.Value(status),
+            repaymentMethod: d.Value(repaymentMethod),
+            interestPeriod: d.Value(interestPeriod),
+            interestRate: d.Value(interestRate),
+            roundAmounts: d.Value(roundAmounts),
+            remainderPosition: d.Value(remainderPosition),
+            gracePeriodMonths: d.Value(gracePeriodMonths),
+            offsetBreakdownJson: d.Value(offsetBreakdownJson),
+            syncId: d.Value(syncId),
+          ));
+      logger.debug('SyncEngine', 'pull: 新增分期计划 $syncId');
+    } else {
+      logger.info('SyncEngine',
+          'pull: 分期计划 $syncId 的 categoryId=$categorySyncId 本地未就绪,跳过');
+    }
+  }
+
+  /// 應用分期期數明細(v49,對齐 BeeCount Cloud installment_period)变更。
+  /// 對齐 [_applyInstallmentPlanChange]:按 syncId upsert,delete 走同样的
+  /// 路径。`planSyncId` 存字串直连,不解析成本地 int(同 debt 的模式,計畫
+  /// 未必已經同步下來)。`txId` 鍵在 wire 上是對應交易的 syncId,這裡反查
+  /// 本地交易表換成本地 int id(換不到就存 null——交易未必已經同步下來)。
+  Future<void> _applyInstallmentPeriodChange(
+      BeeCountCloudSyncChange change) async {
+    final syncId = change.entitySyncId;
+
+    if (change.action == 'delete') {
+      final existing = await (db.select(db.installmentPeriods)
+            ..where((t) => t.syncId.equals(syncId)))
+          .getSingleOrNull();
+      if (existing != null) {
+        await (db.delete(db.installmentPeriods)
+              ..where((t) => t.id.equals(existing.id)))
+            .go();
+        logger.debug('SyncEngine', 'pull: 删除分期期数 $syncId');
+      }
+      return;
+    }
+
+    // upsert
+    final payload = change.payload!;
+    final ledgerSyncId = change.ledgerId.isEmpty ? null : change.ledgerId;
+    final planSyncId = payload['planId'] as String? ?? '';
+    final periodNo = (payload['periodNo'] as num?)?.toInt() ?? 1;
+    final dueAtStr = payload['dueAt'] as String?;
+    final dueAt = dueAtStr != null
+        ? DateTime.tryParse(dueAtStr) ?? DateTime.now()
+        : DateTime.now();
+    final principalAmount =
+        (payload['principalAmount'] as num?)?.toDouble() ?? 0.0;
+    final interestAmount =
+        (payload['interestAmount'] as num?)?.toDouble() ?? 0.0;
+    final totalAmount = (payload['totalAmount'] as num?)?.toDouble() ?? 0.0;
+    final status = payload['status'] as String? ?? 'generated';
+    final txSyncId = payload['txId'] as String?;
+
+    final localLedgerId = await _resolveLedgerIdBySyncId(ledgerSyncId);
+    if (localLedgerId == null) {
+      logger.info(
+          'SyncEngine', 'pull: 分期期数 $syncId 的 ledgerId=$ledgerSyncId 本地未就绪,跳过');
+      return;
+    }
+    int? localTxId;
+    if (txSyncId != null) {
+      final tx = await (db.select(db.transactions)
+            ..where((t) => t.syncId.equals(txSyncId)))
+          .getSingleOrNull();
+      localTxId = tx?.id;
+    }
+
+    final existing = await (db.select(db.installmentPeriods)
+          ..where((t) => t.syncId.equals(syncId)))
+        .getSingleOrNull();
+
+    if (existing != null) {
+      await (db.update(db.installmentPeriods)
+            ..where((t) => t.id.equals(existing.id)))
+          .write(InstallmentPeriodsCompanion(
+        ledgerId: d.Value(localLedgerId),
+        planSyncId: d.Value(planSyncId),
+        periodNo: d.Value(periodNo),
+        dueAt: d.Value(dueAt),
+        principalAmount: d.Value(principalAmount),
+        interestAmount: d.Value(interestAmount),
+        totalAmount: d.Value(totalAmount),
+        status: d.Value(status),
+        txId: d.Value(localTxId),
+        updatedAt: d.Value(DateTime.now()),
+      ));
+      logger.debug('SyncEngine', 'pull: 更新分期期数 $syncId');
+    } else {
+      await db.into(db.installmentPeriods).insert(
+            InstallmentPeriodsCompanion.insert(
+              ledgerId: localLedgerId,
+              planSyncId: planSyncId,
+              periodNo: periodNo,
+              dueAt: dueAt,
+              principalAmount: principalAmount,
+              interestAmount: interestAmount,
+              totalAmount: totalAmount,
+              status: d.Value(status),
+              txId: d.Value(localTxId),
+              syncId: d.Value(syncId),
+            ),
+          );
+      logger.debug('SyncEngine', 'pull: 新增分期期数 $syncId');
     }
   }
 

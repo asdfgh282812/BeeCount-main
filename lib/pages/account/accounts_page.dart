@@ -26,6 +26,7 @@ import '../../widgets/charts/line_chart.dart';
 import '../../utils/net_worth_trend_utils.dart';
 import '../currency/exchange_rate_page.dart';
 import '../debt/debt_list_page.dart';
+import '../installment/installment_list_page.dart';
 import '../../providers/pending_account_providers.dart';
 import 'account_edit_page.dart';
 import 'account_detail_page.dart';
@@ -94,7 +95,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     return childTypes.contains('credit_card') ? 'credit_card' : 'bank_card';
   }
 
-  void _onReorder(String type, List<db.Account> groupAccounts, int oldIndex, int newIndex) {
+  void _onReorder(
+      String type, List<db.Account> groupAccounts, int oldIndex, int newIndex) {
     if (oldIndex < newIndex) newIndex -= 1;
     if (oldIndex == newIndex) return;
 
@@ -137,7 +139,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     final accountFeatureAsync = ref.watch(accountFeatureEnabledProvider);
     final primaryColor = ref.watch(primaryColorProvider);
     final allStatsAsync = ref.watch(allAccountStatsProvider);
-    final netWorthByCurrencyAsync = ref.watch(netWorthBreakdownByCurrencyProvider);
+    final netWorthByCurrencyAsync =
+        ref.watch(netWorthBreakdownByCurrencyProvider);
 
     // 资产构成数据
     final compositionAsync = ref.watch(assetCompositionProvider);
@@ -164,7 +167,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
               // (iOS 跳商店 / Android 弹窗)。
               _BeeAssetsHeaderEntry(),
               IconButton(
-                onPressed: () => _showSettingsSheet(context, ref, accountFeatureAsync, accountsAsync),
+                onPressed: () => _showSettingsSheet(
+                    context, ref, accountFeatureAsync, accountsAsync),
                 icon: const Icon(Icons.settings_outlined),
                 tooltip: l10n.commonSettings,
               ),
@@ -184,7 +188,10 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                     right: 12.0.scaled(context, ref),
                     top: 8.0.scaled(context, ref),
                     bottom: widget.asTab
-                        ? 8.0.scaled(context, ref) + 56 + MediaQuery.of(context).padding.bottom + 24
+                        ? 8.0.scaled(context, ref) +
+                            56 +
+                            MediaQuery.of(context).padding.bottom +
+                            24
                         : 8.0.scaled(context, ref),
                   ),
                   children: [
@@ -210,7 +217,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                               ),
                               SizedBox(height: 24.0.scaled(context, ref)),
                               ElevatedButton.icon(
-                                onPressed: () => _addAccount(context, ref, ledgerId),
+                                onPressed: () =>
+                                    _addAccount(context, ref, ledgerId),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: primaryColor,
                                   foregroundColor: Colors.white,
@@ -225,13 +233,22 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                     else ...[
                       // 0. 净资产汇总 + 资产构成（合并卡片）
                       _buildNetWorthAndCompositionCard(
-                        context, ref, netWorthByCurrencyAsync, compositionAsync, primaryColor,
+                        context,
+                        ref,
+                        netWorthByCurrencyAsync,
+                        compositionAsync,
+                        primaryColor,
                       ),
 
                       // 1. 借還款虛擬入口(v39,純 UI——不是真帳戶,不走 Accounts
                       // 表的同步流程,對齐 doc.moze.app/record/payables-receivables
                       // 「應收應付款項」彙總帳戶的呈現方式)。
                       const _DebtEntryCard(),
+
+                      // 1.2 分期付款虛擬入口(v49,比照 _DebtEntryCard——純 UI,
+                      // 跨帳本聚合「尚有未繳分期本金」,點擊導到當前帳本的
+                      // InstallmentListPage)。
+                      const _InstallmentEntryCard(),
 
                       // 1.5 待確認帳戶入口(v40)——只有帳本裡存在
                       // needsAccountAssignment 的交易時才顯示,點擊進
@@ -343,7 +360,15 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
   Widget _buildNetWorthAndCompositionCard(
     BuildContext context,
     WidgetRef ref,
-    AsyncValue<Map<String, ({double totalAssets, double totalLiabilities, double netWorth})>> netWorthAsync,
+    AsyncValue<
+            Map<
+                String,
+                ({
+                  double totalAssets,
+                  double totalLiabilities,
+                  double netWorth
+                })>>
+        netWorthAsync,
     AsyncValue<List<({String type, double totalBalance})>> compositionAsync,
     Color primaryColor,
   ) {
@@ -365,10 +390,12 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
           // 净资产部分
           netWorthAsync.when(
             skipLoadingOnReload: true,
-            data: (nwByCurrency) => _buildNetWorthContent(context, ref, nwByCurrency),
+            data: (nwByCurrency) =>
+                _buildNetWorthContent(context, ref, nwByCurrency),
             loading: () => SizedBox(
               height: 80.0.scaled(context, ref),
-              child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              child: const Center(
+                  child: CircularProgressIndicator(strokeWidth: 2)),
             ),
             error: (_, __) => const SizedBox.shrink(),
           ),
@@ -376,7 +403,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
           // - showComposition=true（单币种 或 折算态）：可在「净值走势」「资产构成」间切换，记住偏好；
           // - showComposition=false（多币种非折算，构成无法合并）：只展示走势（净值裸加）。
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: 12.0.scaled(context, ref)),
+            padding:
+                EdgeInsets.symmetric(horizontal: 12.0.scaled(context, ref)),
             child: Divider(height: 1, color: BeeTokens.divider(context)),
           ),
           Builder(builder: (context) {
@@ -388,8 +416,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                 if (showComposition)
                   Padding(
                     padding: EdgeInsets.only(top: 10.0.scaled(context, ref)),
-                    child:
-                        _trendCompositionToggle(context, ref, view, primaryColor),
+                    child: _trendCompositionToggle(
+                        context, ref, view, primaryColor),
                   ),
                 Padding(
                   padding: EdgeInsets.all(12.0.scaled(context, ref)),
@@ -420,7 +448,9 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
   Widget _buildNetWorthContent(
     BuildContext context,
     WidgetRef ref,
-    Map<String, ({double totalAssets, double totalLiabilities, double netWorth})> nwByCurrency,
+    Map<String,
+            ({double totalAssets, double totalLiabilities, double netWorth})>
+        nwByCurrency,
   ) {
     final l10n = AppLocalizations.of(context);
     final useCompact = ref.watch(compactAmountProvider);
@@ -429,7 +459,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     final multiCurrencyActive = ref.watch(multiCurrencyActiveProvider);
     final converted = ref.watch(convertedNetWorthProvider).valueOrNull;
     if (multiCurrencyActive && converted != null) {
-      return _buildConvertedNetWorthContent(context, ref, converted, useCompact);
+      return _buildConvertedNetWorthContent(
+          context, ref, converted, useCompact);
     }
 
     final isSingleCurrency = nwByCurrency.length <= 1;
@@ -469,7 +500,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
             final currency = mapEntry.value.key;
             final nw = mapEntry.value.value;
             return Padding(
-              padding: EdgeInsets.only(top: isFirst ? 0 : 2.0.scaled(context, ref)),
+              padding:
+                  EdgeInsets.only(top: isFirst ? 0 : 2.0.scaled(context, ref)),
               child: AmountText(
                 value: nw.netWorth,
                 signed: false,
@@ -531,10 +563,12 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                       ),
                       SizedBox(height: 2.0.scaled(context, ref)),
                       _buildMultiCurrencyAmountRow(
-                        context, ref,
+                        context,
+                        ref,
                         entries: nwByCurrency.entries
                             .where((e) => e.value.totalAssets != 0)
-                            .map((e) => (currency: e.key, value: e.value.totalAssets))
+                            .map((e) =>
+                                (currency: e.key, value: e.value.totalAssets))
                             .toList(),
                         valueColor: BeeTokens.incomeColor(context, ref),
                         useCompact: useCompact,
@@ -559,10 +593,14 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                       ),
                       SizedBox(height: 2.0.scaled(context, ref)),
                       _buildMultiCurrencyAmountRow(
-                        context, ref,
+                        context,
+                        ref,
                         entries: nwByCurrency.entries
                             .where((e) => e.value.totalLiabilities != 0)
-                            .map((e) => (currency: e.key, value: e.value.totalLiabilities.abs()))
+                            .map((e) => (
+                                  currency: e.key,
+                                  value: e.value.totalLiabilities.abs()
+                                ))
                             .toList(),
                         valueColor: BeeTokens.expenseColor(context, ref),
                         useCompact: useCompact,
@@ -585,8 +623,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
   Widget _buildNetWorthChartInline(BuildContext context, WidgetRef ref) {
     final now = trendTodayAnchor();
     final start = DateTime(now.year, now.month - 11, 1);
-    final seriesAsync = ref.watch(
-        netWorthTrendSeriesProvider((startDate: start, endDate: now)));
+    final seriesAsync = ref
+        .watch(netWorthTrendSeriesProvider((startDate: start, endDate: now)));
     final hide = ref.watch(hideAmountsProvider);
     final primary = ref.watch(primaryColorProvider);
     final l10n = AppLocalizations.of(context);
@@ -650,8 +688,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
       );
 
   /// 走势 / 构成 切换控件（主题色分段胶囊）。
-  Widget _trendCompositionToggle(BuildContext context, WidgetRef ref,
-      AssetTrendView view, Color primary) {
+  Widget _trendCompositionToggle(
+      BuildContext context, WidgetRef ref, AssetTrendView view, Color primary) {
     final l10n = AppLocalizations.of(context);
     Widget seg(AssetTrendView v, String label) {
       final on = view == v;
@@ -698,7 +736,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
   ) {
     final l10n = AppLocalizations.of(context);
     final base = ref.watch(baseCurrencyProvider).toUpperCase();
-    final nwByCurrency = ref.watch(netWorthBreakdownByCurrencyProvider).valueOrNull ?? const {};
+    final nwByCurrency =
+        ref.watch(netWorthBreakdownByCurrencyProvider).valueOrNull ?? const {};
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -719,7 +758,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                 alignment: Alignment.centerRight,
                 child: InkWell(
                   onTap: () => _showNetWorthConversionDetail(
-                    context, ref, converted, nwByCurrency, base, useCompact),
+                      context, ref, converted, nwByCurrency, base, useCompact),
                   borderRadius: BorderRadius.circular(4.0.scaled(context, ref)),
                   child: Padding(
                     padding: EdgeInsets.symmetric(
@@ -821,7 +860,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     BuildContext context,
     WidgetRef ref,
     ConvertedNetWorth converted,
-    Map<String, ({double totalAssets, double totalLiabilities, double netWorth})>
+    Map<String,
+            ({double totalAssets, double totalLiabilities, double netWorth})>
         nwByCurrency,
     String base,
     bool useCompact,
@@ -902,7 +942,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
 
     return InkWell(
       onTap: () => _showGroupConversionDetail(
-        context, ref,
+        context,
+        ref,
         groupTitle: groupTitle,
         subtotalByCurrency: subtotalByCurrency,
         result: result,
@@ -961,7 +1002,11 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     WidgetRef ref, {
     required String groupTitle,
     required Map<String, double> subtotalByCurrency,
-    required ({double total, Map<String, double> convertedByCurrency, List<String> missingCurrencies}) result,
+    required ({
+      double total,
+      Map<String, double> convertedByCurrency,
+      List<String> missingCurrencies
+    }) result,
     required String baseSymbol,
     required String base,
     required bool useCompact,
@@ -1013,7 +1058,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
           for (int i = 0; i < entries.length; i++) ...[
             if (i > 0)
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4.0.scaled(context, ref)),
+                padding:
+                    EdgeInsets.symmetric(horizontal: 4.0.scaled(context, ref)),
                 child: Text(
                   '·',
                   style: TextStyle(
@@ -1050,7 +1096,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     required Color iconColor,
     required List<String> typeOrder,
     required Map<String, List<db.Account>> groups,
-    required Map<int, ({double balance, double expense, double income})>? allStats,
+    required Map<int, ({double balance, double expense, double income})>?
+        allStats,
     required Color primaryColor,
     required int ledgerId,
   }) {
@@ -1116,7 +1163,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                 child: Align(
                   alignment: Alignment.centerRight,
                   child: _buildGroupConvertedSubtotal(
-                    context, ref,
+                    context,
+                    ref,
                     groupTitle: title,
                     subtotalByCurrency: subtotalByCurrency,
                     rates: rates,
@@ -1141,7 +1189,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
             else
               Flexible(
                 child: _buildMultiCurrencyAmountRow(
-                  context, ref,
+                  context,
+                  ref,
                   entries: subtotalByCurrency.entries
                       .map((e) => (currency: e.key, value: e.value))
                       .toList(),
@@ -1165,10 +1214,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
           allStats: allStats,
           onReorder: (oldIndex, newIndex) =>
               _onReorder(type, groupList, oldIndex, newIndex),
-          onTap: (account) =>
-              _viewAccountDetail(context, ref, account),
-          onEdit: (account) =>
-              _editAccount(context, ref, account, ledgerId),
+          onTap: (account) => _viewAccountDetail(context, ref, account),
+          onEdit: (account) => _editAccount(context, ref, account, ledgerId),
         );
       }),
     ];
@@ -1186,10 +1233,9 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     // 默认收/支账户选择器排除隐藏账户(账户隐藏 #240 §四):列表本身不出现,
     // 且若当前默认恰好指向隐藏账户,下方 _CompactDefaultAccount 找不到匹配项
     // 会自动显示「不设置」,兜底 E3。
-    final accounts =
-        (accountsAsync.asData?.value ?? const <db.Account>[])
-            .where((a) => !a.hidden)
-            .toList();
+    final accounts = (accountsAsync.asData?.value ?? const <db.Account>[])
+        .where((a) => !a.hidden)
+        .toList();
 
     showModalBottomSheet(
       context: context,
@@ -1213,13 +1259,15 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                     width: 36,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: BeeTokens.textTertiary(context).withValues(alpha: 0.3),
+                      color: BeeTokens.textTertiary(context)
+                          .withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                   // 标题
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Text(
                       l10n.commonSettings,
                       style: TextStyle(
@@ -1256,7 +1304,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                   // (多币种恒折算,与 Web 端对齐),这里只保留汇率管理入口。
                   Consumer(
                     builder: (context, ref, _) {
-                      final used = ref.watch(usedCurrenciesProvider).valueOrNull;
+                      final used =
+                          ref.watch(usedCurrenciesProvider).valueOrNull;
                       if (used == null || used.length < 2) {
                         return const SizedBox.shrink();
                       }
@@ -1330,7 +1379,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     );
   }
 
-  Future<void> _addAccount(BuildContext context, WidgetRef ref, int ledgerId) async {
+  Future<void> _addAccount(
+      BuildContext context, WidgetRef ref, int ledgerId) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => AccountEditPage(ledgerId: ledgerId),
@@ -1548,7 +1598,8 @@ class _ConversionDetailRow extends ConsumerWidget {
           else if (entry.convertedValue != null)
             // abs:与同行原币 AmountText(signed:false) 的绝对值口径一致(负债不带负号)。
             _ApproxConvertedText(
-              text: '≈ $baseSymbol${entry.convertedValue!.abs().toStringAsFixed(2)}',
+              text:
+                  '≈ $baseSymbol${entry.convertedValue!.abs().toStringAsFixed(2)}',
             ),
         ],
       ),
@@ -1584,8 +1635,8 @@ void _showConversionDetailSheet(
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: BeeTokens.textTertiary(sheetContext)
-                    .withValues(alpha: 0.3),
+                color:
+                    BeeTokens.textTertiary(sheetContext).withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -1711,6 +1762,7 @@ class _AccountTypeGroup extends ConsumerStatefulWidget {
 
 class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
   bool _expanded = true;
+
   /// 主帳戶(合併帳單分組)收合狀態:記錄「已收合」的主帳戶 id,預設全部展開。
   final Set<int> _collapsedParentIds = {};
 
@@ -1745,7 +1797,8 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
                   height: 28.0.scaled(context, ref),
                   decoration: BoxDecoration(
                     color: typeColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(7.0.scaled(context, ref)),
+                    borderRadius:
+                        BorderRadius.circular(7.0.scaled(context, ref)),
                   ),
                   child: Center(
                     child: AccountTypeIcon(
@@ -1771,8 +1824,10 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
                     vertical: 1.0.scaled(context, ref),
                   ),
                   decoration: BoxDecoration(
-                    color: BeeTokens.textTertiary(context).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8.0.scaled(context, ref)),
+                    color:
+                        BeeTokens.textTertiary(context).withValues(alpha: 0.12),
+                    borderRadius:
+                        BorderRadius.circular(8.0.scaled(context, ref)),
                   ),
                   child: Text(
                     '${widget.accounts.length}',
@@ -1784,7 +1839,8 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
                 ),
                 const Spacer(),
                 if (subtotal != null) ...[
-                  _buildGroupSubtotal(context, subtotal, typeColor, useCompactAmt),
+                  _buildGroupSubtotal(
+                      context, subtotal, typeColor, useCompactAmt),
                   SizedBox(width: 6.0.scaled(context, ref)),
                 ],
                 AnimatedRotation(
@@ -1808,12 +1864,15 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
             decoration: BoxDecoration(
               color: BeeTokens.surfaceElevated(context),
               borderRadius: BorderRadius.circular(14.0.scaled(context, ref)),
-              border: Border.all(color: BeeTokens.cardOuterBorderColor(context)),
+              border:
+                  Border.all(color: BeeTokens.cardOuterBorderColor(context)),
             ),
             clipBehavior: Clip.antiAlias,
             child: Column(
               children: [
-                for (final entry in _buildAccountBlocks(context, typeColor, rates, base).indexed) ...[
+                for (final entry
+                    in _buildAccountBlocks(context, typeColor, rates, base)
+                        .indexed) ...[
                   if (entry.$1 > 0)
                     Divider(
                       height: 1,
@@ -1838,7 +1897,8 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
       _computeGroupSubtotals(Map<String, EffectiveRate>? rates, String base) {
     final allStats = widget.allStats;
     if (allStats == null) return null;
-    final currencies = widget.accounts.map((a) => a.currency.toUpperCase()).toSet();
+    final currencies =
+        widget.accounts.map((a) => a.currency.toUpperCase()).toSet();
     final singleCurrency = currencies.length <= 1;
     final currencyCode = singleCurrency
         ? (widget.accounts.isEmpty ? base : widget.accounts.first.currency)
@@ -1851,7 +1911,11 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
       final contribution = singleCurrency
           ? balance
           : convertBetweenCurrencies(
-              amount: balance, from: a.currency, to: base, rates: rates, base: base);
+              amount: balance,
+              from: a.currency,
+              to: base,
+              rates: rates,
+              base: base);
       if (contribution == null) {
         hasMissingRate = true;
         continue;
@@ -1869,7 +1933,12 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
 
   Widget _buildGroupSubtotal(
     BuildContext context,
-    ({double included, double all, bool hasMissingRate, String currencyCode}) subtotal,
+    ({
+      double included,
+      double all,
+      bool hasMissingRate,
+      String currencyCode
+    }) subtotal,
     Color typeColor,
     bool useCompact,
   ) {
@@ -1908,10 +1977,12 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
               ),
             ),
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 3.0.scaled(context, ref)),
+              padding:
+                  EdgeInsets.symmetric(horizontal: 3.0.scaled(context, ref)),
               child: Text(
                 '/',
-                style: TextStyle(fontSize: 12, color: BeeTokens.textTertiary(context)),
+                style: TextStyle(
+                    fontSize: 12, color: BeeTokens.textTertiary(context)),
               ),
             ),
             AmountText(
@@ -1920,7 +1991,8 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
               showCurrency: false,
               useCompactFormat: useCompact,
               currencyCode: subtotal.currencyCode,
-              style: TextStyle(fontSize: 12, color: BeeTokens.textTertiary(context)),
+              style: TextStyle(
+                  fontSize: 12, color: BeeTokens.textTertiary(context)),
             ),
           ],
         ),
@@ -1945,9 +2017,11 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
         childrenByParent.putIfAbsent(pid, () => []).add(a);
       }
     }
-    final topLevel =
-        widget.accounts.where((a) => a.parentAccountId == null || a.parentAccountId!.isEmpty).toList();
-    final topLevelSyncIds = topLevel.map((a) => a.syncId).whereType<String>().toSet();
+    final topLevel = widget.accounts
+        .where((a) => a.parentAccountId == null || a.parentAccountId!.isEmpty)
+        .toList();
+    final topLevelSyncIds =
+        topLevel.map((a) => a.syncId).whereType<String>().toSet();
 
     final blocks = <Widget>[];
     for (final account in topLevel) {
@@ -1976,7 +2050,8 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
           primaryColor: widget.primaryColor,
           typeColor: typeColor,
           effectiveType: widget.type,
-          stats: _aggregateParentStats(account, children, widget.allStats, rates, base),
+          stats: _aggregateParentStats(
+              account, children, widget.allStats, rates, base),
           childCount: children.length,
           expanded: !collapsed,
           onToggleExpand: () => setState(() {
@@ -2056,13 +2131,25 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
       }
       if (c.includeInTotal) {
         final convertedBalance = convertBetweenCurrencies(
-            amount: s.balance, from: c.currency, to: parent.currency, rates: rates, base: base);
+            amount: s.balance,
+            from: c.currency,
+            to: parent.currency,
+            rates: rates,
+            base: base);
         if (convertedBalance != null) balance += convertedBalance;
       }
       final convertedExpense = convertBetweenCurrencies(
-          amount: s.expense, from: c.currency, to: parent.currency, rates: rates, base: base);
+          amount: s.expense,
+          from: c.currency,
+          to: parent.currency,
+          rates: rates,
+          base: base);
       final convertedIncome = convertBetweenCurrencies(
-          amount: s.income, from: c.currency, to: parent.currency, rates: rates, base: base);
+          amount: s.income,
+          from: c.currency,
+          to: parent.currency,
+          rates: rates,
+          base: base);
       if (convertedExpense != null) expense += convertedExpense;
       if (convertedIncome != null) income += convertedIncome;
     }
@@ -2136,7 +2223,8 @@ class _ChildAccountRowState extends ConsumerState<_ChildAccountRow> {
     final balance = widget.stats?.balance ?? 0;
     final useCompact = ref.watch(compactAmountProvider);
 
-    final isForeign = account.currency.toUpperCase() != widget.parentCurrency.toUpperCase();
+    final isForeign =
+        account.currency.toUpperCase() != widget.parentCurrency.toUpperCase();
     double? converted;
     if (isForeign) {
       final rates = ref.watch(effectiveRatesProvider).valueOrNull;
@@ -2151,7 +2239,8 @@ class _ChildAccountRowState extends ConsumerState<_ChildAccountRow> {
     }
     final showingConverted = isForeign && _showConverted && converted != null;
     final displayValue = showingConverted ? converted : balance;
-    final displayCurrency = showingConverted ? widget.parentCurrency : account.currency;
+    final displayCurrency =
+        showingConverted ? widget.parentCurrency : account.currency;
 
     return GestureDetector(
       onTap: onTap,
@@ -2436,7 +2525,8 @@ class _HiddenAccountsSectionState
             decoration: BoxDecoration(
               color: BeeTokens.surfaceElevated(context),
               borderRadius: BorderRadius.circular(14.0.scaled(context, ref)),
-              border: Border.all(color: BeeTokens.cardOuterBorderColor(context)),
+              border:
+                  Border.all(color: BeeTokens.cardOuterBorderColor(context)),
             ),
             clipBehavior: Clip.antiAlias,
             child: Column(
@@ -2501,14 +2591,17 @@ class _AccountCard extends ConsumerWidget {
   final ({double balance, double expense, double income})? stats;
   final VoidCallback onTap;
   final VoidCallback onEdit;
+
   /// 「已隐藏」分区卡片的恢复回调(账户隐藏 #240)。非空时才渲染「已隐藏」
   /// 灰标 + 恢复按钮;在用卡片(account.hidden==false)不受影响。
   final VoidCallback? onRestore;
+
   /// 主帳戶(合併帳單分組)子卡數量。非空時在名稱旁渲染數量徽章,配合
   /// [onToggleExpand] 顯示展開/收合箭頭。
   final int? childCount;
   final bool expanded;
   final VoidCallback? onToggleExpand;
+
   /// 資產/負債分類要用的「展示類型」——主帳戶(account_group)自己的
   /// account.type 不在 isLiabilityType 白名單裡,要用它被歸類到的分組
   /// type(呼叫端 [_AccountTypeGroupState.widget.type],已按子帳戶類型
@@ -2589,7 +2682,8 @@ class _AccountCard extends ConsumerWidget {
                           ),
                           decoration: BoxDecoration(
                             color: typeColor.withValues(alpha: 0.16),
-                            borderRadius: BorderRadius.circular(8.0.scaled(context, ref)),
+                            borderRadius:
+                                BorderRadius.circular(8.0.scaled(context, ref)),
                           ),
                           child: Text(
                             '$childCount',
@@ -2609,8 +2703,10 @@ class _AccountCard extends ConsumerWidget {
                             vertical: 1.0.scaled(context, ref),
                           ),
                           decoration: BoxDecoration(
-                            color: BeeTokens.textTertiary(context).withValues(alpha: 0.14),
-                            borderRadius: BorderRadius.circular(4.0.scaled(context, ref)),
+                            color: BeeTokens.textTertiary(context)
+                                .withValues(alpha: 0.14),
+                            borderRadius:
+                                BorderRadius.circular(4.0.scaled(context, ref)),
                           ),
                           child: Text(
                             l10n.accountHiddenTag,
@@ -2636,7 +2732,8 @@ class _AccountCard extends ConsumerWidget {
                 height: 14.0.scaled(context, ref),
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(BeeTokens.iconTertiary(context)),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                      BeeTokens.iconTertiary(context)),
                 ),
               )
             else
@@ -2743,7 +2840,8 @@ class _AccountCard extends ConsumerWidget {
     if (account.billingDay == null || account.paymentDueDay == null) {
       return const SizedBox.shrink();
     }
-    final allAccounts = ref.watch(allAccountsStreamProvider).valueOrNull ?? const [];
+    final allAccounts =
+        ref.watch(allAccountsStreamProvider).valueOrNull ?? const [];
     final syncId = account.syncId;
     final childIds = (syncId == null || syncId.isEmpty)
         ? <int>[]
@@ -2802,7 +2900,8 @@ class _AccountCard extends ConsumerWidget {
     );
 
     if (account.parentAccountId != null) {
-      final allAccounts = ref.watch(allAccountsStreamProvider).valueOrNull ?? [];
+      final allAccounts =
+          ref.watch(allAccountsStreamProvider).valueOrNull ?? [];
       final parentName = allAccounts
           .where((a) => a.syncId == account.parentAccountId)
           .map((a) => a.name)
@@ -2901,7 +3000,8 @@ class _CompactDefaultAccount extends ConsumerWidget {
       data: (defaultAccountId) {
         db.Account? defaultAccount;
         if (defaultAccountId != null) {
-          defaultAccount = accounts.where((a) => a.id == defaultAccountId).firstOrNull;
+          defaultAccount =
+              accounts.where((a) => a.id == defaultAccountId).firstOrNull;
         }
 
         final title = isIncome
@@ -2948,37 +3048,52 @@ class _CompactDefaultAccount extends ConsumerWidget {
     );
   }
 
-  void _showPicker(BuildContext context, WidgetRef ref, List<db.Account> accounts, int? currentDefaultId) {
+  void _showPicker(BuildContext context, WidgetRef ref,
+      List<db.Account> accounts, int? currentDefaultId) {
     final l10n = AppLocalizations.of(context);
     final isIncome = type == 'income';
-    final title = isIncome ? l10n.accountDefaultIncomeTitle : l10n.accountDefaultExpenseTitle;
+    final title = isIncome
+        ? l10n.accountDefaultIncomeTitle
+        : l10n.accountDefaultExpenseTitle;
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: BeeTokens.surfaceElevated(context),
-        title: Text(title, style: TextStyle(color: BeeTokens.textPrimary(context))),
+        title: Text(title,
+            style: TextStyle(color: BeeTokens.textPrimary(context))),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
                 dense: true,
-                leading: Icon(Icons.block, color: BeeTokens.iconSecondary(context)),
+                leading:
+                    Icon(Icons.block, color: BeeTokens.iconSecondary(context)),
                 title: Text(
                   l10n.accountDefaultNone,
                   style: TextStyle(
-                    color: currentDefaultId == null ? primaryColor : BeeTokens.textPrimary(context),
-                    fontWeight: currentDefaultId == null ? FontWeight.w600 : FontWeight.normal,
+                    color: currentDefaultId == null
+                        ? primaryColor
+                        : BeeTokens.textPrimary(context),
+                    fontWeight: currentDefaultId == null
+                        ? FontWeight.w600
+                        : FontWeight.normal,
                   ),
                 ),
-                trailing: currentDefaultId == null ? Icon(Icons.check, color: primaryColor) : null,
+                trailing: currentDefaultId == null
+                    ? Icon(Icons.check, color: primaryColor)
+                    : null,
                 onTap: () async {
                   if (isIncome) {
-                    await ref.read(defaultAccountSetterProvider).setDefaultIncomeAccountId(null);
+                    await ref
+                        .read(defaultAccountSetterProvider)
+                        .setDefaultIncomeAccountId(null);
                     ref.invalidate(defaultIncomeAccountIdProvider);
                   } else {
-                    await ref.read(defaultAccountSetterProvider).setDefaultExpenseAccountId(null);
+                    await ref
+                        .read(defaultAccountSetterProvider)
+                        .setDefaultExpenseAccountId(null);
                     ref.invalidate(defaultExpenseAccountIdProvider);
                   }
                   if (context.mounted) Navigator.pop(context);
@@ -2995,17 +3110,26 @@ class _CompactDefaultAccount extends ConsumerWidget {
                   title: Text(
                     account.name,
                     style: TextStyle(
-                      color: isSelected ? primaryColor : BeeTokens.textPrimary(context),
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      color: isSelected
+                          ? primaryColor
+                          : BeeTokens.textPrimary(context),
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.normal,
                     ),
                   ),
-                  trailing: isSelected ? Icon(Icons.check, color: primaryColor) : null,
+                  trailing: isSelected
+                      ? Icon(Icons.check, color: primaryColor)
+                      : null,
                   onTap: () async {
                     if (isIncome) {
-                      await ref.read(defaultAccountSetterProvider).setDefaultIncomeAccountId(account.id);
+                      await ref
+                          .read(defaultAccountSetterProvider)
+                          .setDefaultIncomeAccountId(account.id);
                       ref.invalidate(defaultIncomeAccountIdProvider);
                     } else {
-                      await ref.read(defaultAccountSetterProvider).setDefaultExpenseAccountId(account.id);
+                      await ref
+                          .read(defaultAccountSetterProvider)
+                          .setDefaultExpenseAccountId(account.id);
                       ref.invalidate(defaultExpenseAccountIdProvider);
                     }
                     if (context.mounted) Navigator.pop(context);
@@ -3073,7 +3197,10 @@ class _DebtEntryCard extends ConsumerWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(Icons.handshake_outlined,
@@ -3118,7 +3245,8 @@ class _DebtEntryCard extends ConsumerWidget {
                             ? l10n.accountsDebtEntryNetReceivable
                             : l10n.accountsDebtEntryNetPayable,
                         style: TextStyle(
-                            fontSize: 11, color: BeeTokens.textTertiary(context)),
+                            fontSize: 11,
+                            color: BeeTokens.textTertiary(context)),
                       ),
                     ],
                   );
@@ -3139,3 +3267,99 @@ class _DebtEntryCard extends ConsumerWidget {
   }
 }
 
+/// 分期付款虛擬入口卡片(v49)。純 UI——不是真的 [db.Account] row,不會出現
+/// 在 Accounts 表、不走帳戶同步流程。餘額用
+/// [installmentOutstandingPrincipalAllLedgersProvider] 即時算(跨所有帳本,
+/// 對齐上面淨資產卡的聚合範圍),點擊導到 [InstallmentListPage](該頁本身是
+/// ledger-scoped,只顯示當前帳本的分期計畫——虛擬入口卡片範圍與導覽目標範圍
+/// 刻意不同,同 [_DebtEntryCard] 的既有決策)。
+class _InstallmentEntryCard extends ConsumerWidget {
+  const _InstallmentEntryCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final outstandingAsync =
+        ref.watch(installmentOutstandingPrincipalAllLedgersProvider);
+    final currencyCode =
+        ref.watch(currentLedgerProvider).asData?.value?.currency ?? 'CNY';
+    final currencySymbol = getCurrencySymbol(currencyCode);
+
+    return Padding(
+      padding: EdgeInsets.only(top: 8.0.scaled(context, ref)),
+      child: SectionCard(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(BeeDimens.radius12),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const InstallmentListPage()),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.calendar_view_month,
+                    size: 20, color: Theme.of(context).colorScheme.primary),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  l10n.accountsInstallmentEntryTitle,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: BeeTokens.textPrimary(context),
+                  ),
+                ),
+              ),
+              outstandingAsync.when(
+                data: (outstanding) {
+                  if (outstanding.abs() < 0.01) {
+                    return Text(
+                      l10n.accountsInstallmentEntryNone,
+                      style: TextStyle(
+                          fontSize: 13, color: BeeTokens.textTertiary(context)),
+                    );
+                  }
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '$currencySymbol${outstanding.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: BeeTokens.expenseColor(context, ref),
+                        ),
+                      ),
+                      Text(
+                        l10n.accountsInstallmentEntryOutstanding,
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: BeeTokens.textTertiary(context)),
+                      ),
+                    ],
+                  );
+                },
+                loading: () => const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2)),
+                error: (_, __) => const SizedBox.shrink(),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.chevron_right, color: BeeTokens.iconTertiary(context)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

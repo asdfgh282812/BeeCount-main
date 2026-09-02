@@ -15,6 +15,7 @@ import '../../widgets/charts/account_category_pie_chart.dart';
 import '../../utils/card_reward_period.dart';
 import '../../utils/credit_card_payment.dart';
 import '../../utils/reconciliation.dart';
+import '../installment/installment_editor_page.dart';
 import '../transaction/transaction_editor_page.dart';
 import 'account_edit_page.dart';
 import 'card_reward_detail_page.dart';
@@ -432,6 +433,7 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
               l10n,
               primaryColor,
               currencyCode),
+          _buildConvertToInstallmentButton(context, account, l10n, primaryColor),
           SizedBox(height: 8.0.scaled(context, ref)),
           AccountReconciliationSection(
             account: account,
@@ -1423,6 +1425,56 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
               error: (_, __) => const SizedBox.shrink(),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// 子專案 4(帳單分期沖銷,設計文件 §5.4):帳單彙總卡片旁的「轉為分期」
+  /// 按鈕,帶入這張卡的 [db.Account.id] 進 [InstallmentEditorPage] 並預填。
+  /// 只在信用卡/合併帳單群組才顯示(呼叫端已經確保這點,見 `account.type ==
+  /// 'credit_card' || account.type == 'account_group'` 那個分支)。
+  ///
+  /// 合併帳單群組(`account_group`)目前**不**預先勾選「沖銷現有欠款」——
+  /// `LocalInstallmentRepository.createInstallmentPlan` 的
+  /// `offsetExistingBalance` 目前只支援單一非群組帳戶(見該方法 docstring 的
+  /// 範圍說明),群組場景下這顆按鈕只是單純的「幫你把 accountId 預填好」捷徑,
+  /// 使用者仍然可以在編輯頁手動選單一子卡再勾選沖銷。
+  Widget _buildConvertToInstallmentButton(
+    BuildContext context,
+    db.Account account,
+    AppLocalizations l10n,
+    Color primaryColor,
+  ) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        12.0.scaled(context, ref),
+        8.0.scaled(context, ref),
+        12.0.scaled(context, ref),
+        0,
+      ),
+      child: SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => InstallmentEditorPage(
+                  initialAccountId: account.id,
+                  initialOffsetExistingBalance:
+                      account.type == 'credit_card',
+                ),
+              ),
+            );
+          },
+          icon: Icon(Icons.calendar_view_month, size: 16, color: primaryColor),
+          label: Text(l10n.installmentConvertToInstallmentButton),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: primaryColor,
+            side: BorderSide(color: primaryColor.withValues(alpha: 0.3)),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+          ),
         ),
       ),
     );

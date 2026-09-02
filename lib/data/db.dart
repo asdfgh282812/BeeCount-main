@@ -247,6 +247,16 @@ class Transactions extends Table {
   /// (同 reconciledAt)——清空欠款關聯是明確動作,null 必須能傳達給 server。
   TextColumn get debtSyncId => text().nullable()();
 
+  /// v49 分期付款(對齐 doc.moze.app/record/installment 與 BeeCount Cloud
+  /// installment_plan sync entity):這筆交易是某個 [InstallmentPlans] 建立時
+  /// 生成的一期時,存該計畫的 syncId。跟 [debtSyncId]/[recurringRuleId] 同款
+  /// 存 syncId 字串(不是本地 int FK)——分期計畫是 ledger-scoped 實體,本地
+  /// int id 跨裝置不保證一致。BeeCount Cloud 端字段是
+  /// read_tx_projection.installment_plan_sync_id,wire 字段名
+  /// installmentPlanId。恆發(同 debtSyncId)——目前沒有清空這個關聯的操作,
+  /// 但恆發跟既有慣例一致,避免以後加了清空操作又要回頭補。
+  TextColumn get installmentPlanSyncId => text().nullable()();
+
   /// v45 跨幣別轉帳(對齐 BeeCount Cloud `to_amount`,alembic
   /// 0044_tx_transfer_to_amount):`type == 'transfer'` 且轉出/轉入帳戶幣別
   /// 不同時,存轉入帳戶自己幣別的金額;同幣別轉帳/非轉帳一律維持 null(不要
@@ -351,6 +361,147 @@ class Debts extends Table {
   /// §5.5 通知中心的未結清清單——那兩者刻意不套用這個過濾。
   BoolColumn get excludedFromTotal =>
       boolean().withDefault(const Constant(false))();
+
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+/// v49 分期付款(§2.12.1 MOZE_FEATURE_GAP_SD.md,對齐 BeeCount Cloud
+/// `installment_plan` sync entity):ledger-scoped 實體,同 [Debts]/[Budgets]
+/// 那組模式。
+///
+/// **不落地存的衍生欄位**:`paidPeriods`/`nextPeriodAt`/`periodAmount`——對齐
+/// Cloud `list_installment_plans` 的即時算邏輯(見
+/// `InstallmentRepository.getInstallmentPlansWithStatus`),讀取時從
+/// [InstallmentPeriods] 掃出來,不寫欄位,理由同 [Debts] 沒有
+/// remainingAmount/status 欄位:避免多寫入路徑各自維護衍生欄位漂移。
+///
+/// **`totalAmount`/`periods`/`firstPeriodAt` 建立後不可改**——分期排程
+/// (期數/金額拆分)在建立當下就已經算好寫入 [InstallmentPeriods] 跟對應的
+/// [Transactions],之後只有子專案 2 的「連同未來重算」操作能改動未到期期的
+/// 金額,不會回頭改這三個計畫級欄位本身。
+///
+/// 沒有幣別欄位:跟 Cloud 一致,分期本金一律以帳本記帳幣別計,不支援分期
+/// 本身跨幣別(對齐借還款的決策)。
+///
+/// 字段/wire key 對照 BeeCount Cloud `sync_applier.py::_LEDGER_MERGE_SPECS
+/// ["installment_plan"]`——改字段前先去那邊核對,一字之差會讓整個字段靜默
+/// 同步失敗。
+class InstallmentPlans extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// 跨设备同步 syncId(UUID)。新建必须填(同 budget/debt 的约定)。
+  TextColumn get syncId => text().nullable()();
+
+  /// 关联账本ID
+  IntColumn get ledgerId => integer()();
+
+  /// 分期總額,建立後不可改。
+  RealColumn get totalAmount => real()();
+
+  /// 總期數,1~600,建立後不可改。
+  IntColumn get periods => integer()();
+
+  /// 第一期到期日,建立後不可改。
+  DateTimeColumn get firstPeriodAt => dateTime()();
+
+  /// 掛靠帳戶(信用卡/現金皆可),可留空。不可為 account_group 的子卡
+  /// (見 [InstallmentRepository.createInstallmentPlan] 的業務規則校驗)。
+  IntColumn get accountId => integer().nullable()();
+
+  /// 分類(必填,expense)——對齐 Cloud
+  /// `_assert_category_required("expense", ...)`,分期屬於「使用者該手動
+  /// 指定分類、系統不該代猜」的情境。
+  IntColumn get categoryId => integer()();
+
+  TextColumn get note => text().nullable()();
+
+  /// 'active' / 'settled'(結清) / 'terminated'(終止未來,無結清交易)。
+  TextColumn get status => text().withDefault(const Constant('active'))();
+
+  /// 還款方式:'equal_installment'(等額本息) / 'equal_principal'(等額本金)
+  /// / 'fixed_interest'(固定利息)。
+  TextColumn get repaymentMethod =>
+      text().withDefault(const Constant('equal_principal'))();
+
+  /// 計息週期:'monthly'(月息) / 'daily'(日息)。跟還款週期(固定按月)是
+  /// 獨立維度,只影響利息怎麼算,見
+  /// `lib/services/installment/installment_amortization.dart` 的說明。
+  TextColumn get interestPeriod =>
+      text().withDefault(const Constant('monthly'))();
+
+  /// 年利率,小數(如 0.06 = 6%)。
+  RealColumn get interestRate => real().withDefault(const Constant(0.0))();
+
+  /// 是否取整到整數元。
+  BoolColumn get roundAmounts => boolean().withDefault(const Constant(true))();
+
+  /// 取整尾差歸屬:'first'(第一個攤還期) / 'last'(最後一期)。
+  TextColumn get remainderPosition =>
+      text().withDefault(const Constant('last'))();
+
+  /// 寬限期月數,`0 <= gracePeriodMonths < periods`。
+  IntColumn get gracePeriodMonths => integer().withDefault(const Constant(0))();
+
+  /// v50 帳單分期沖銷(子專案 4,對齐 Cloud
+  /// `installment_plan.offset_breakdown_json`):建立分期計畫時若
+  /// `offsetExistingBalance=true`,把「這筆分期對應到哪個帳戶的多少既有
+  /// 欠款被沖銷」記在這裡,格式 `{accountSyncId: amount}`(JSON,鍵是帳戶
+  /// [Accounts.syncId] 字串,不是本地 int id——這樣才能在跨裝置同步後仍
+  /// 正確比對到同一張帳戶,同 Cloud 用 `child_account_sync_id` 當鍵的理由)。
+  /// 純虛擬記帳調整,**不**對應任何一筆 [Transactions] 記錄(沖銷部分不產生
+  /// 交易——見 `InstallmentRepository.createInstallmentPlan` 的
+  /// `offsetExistingBalance` 參數說明)。目前 App 端只在單一非
+  /// account_group 帳戶上支援沖銷,所以這個 map 恆為單一鍵值對,但沿用
+  /// Cloud 的 map 形狀(而不是攤平成 accountSyncId/amount 兩個欄位)是為了
+  /// 未來若要支援合併帳單群組的沖銷分攤時不必再改資料結構。
+  ///
+  /// 讀取信用卡帳單「應繳」金額時要扣掉這裡的加總,避免已轉分期的帳單
+  /// 金額被重複計入——見 `credit_card_billing_providers.dart` 的
+  /// `_dueAsOf`。刪除整筆分期計畫時這一欄跟著整列一起刪,沖銷自動失效,
+  /// 不需要額外清理邏輯。
+  TextColumn get offsetBreakdownJson => text().nullable()();
+
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+/// v49 分期付款期數明細(對齐 BeeCount Cloud `installment_period` sync
+/// entity):每期一列,ledger-scoped。
+///
+/// `overridden` 狀態的期數不參與任何後續自動重算(子專案 2),也不能被重算
+/// 隱性挪用其本金份額——見設計文件 §0 的核心不變量。
+///
+/// 字段/wire key 對照 BeeCount Cloud `sync_applier.py::_LEDGER_MERGE_SPECS
+/// ["installment_period"]`——改字段前先去那邊核對。
+class InstallmentPeriods extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  TextColumn get syncId => text().nullable()();
+
+  IntColumn get ledgerId => integer()();
+
+  /// 反查所屬計畫,存 [InstallmentPlans.syncId] 字串——同 debt 的模式
+  /// (對端還沒 pull 到 plan 時仍能正確引用,不用本地 int FK)。
+  TextColumn get planSyncId => text()();
+
+  /// 從 1 開始。
+  IntColumn get periodNo => integer()();
+
+  DateTimeColumn get dueAt => dateTime()();
+
+  RealColumn get principalAmount => real()();
+  RealColumn get interestAmount => real()();
+
+  /// principal + interest。
+  RealColumn get totalAmount => real()();
+
+  /// 'generated'(正常) / 'overridden'(手動改過) / 'refunded'(已退款)。
+  TextColumn get status => text().withDefault(const Constant('generated'))();
+
+  /// 反查生成的交易——**本地 int**(同一裝置內本地資料,不必比照
+  /// planSyncId 走字串反查)。
+  IntColumn get txId => integer().nullable()();
 
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
@@ -914,6 +1065,8 @@ class RewardChoiceCaches extends Table {
   Debts,
   Projects,
   RewardChoiceCaches,
+  InstallmentPlans,
+  InstallmentPeriods,
 ])
 class BeeDatabase extends _$BeeDatabase {
   BeeDatabase() : super(_openConnection());
@@ -924,7 +1077,8 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 48; // v48: 建議分頁回饋學習快取 + transactions 排序索引
+  int get schemaVersion =>
+      50; // v50: 分期付款帳單沖銷(installment_plans.offset_breakdown_json)
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1922,6 +2076,36 @@ class BeeDatabase extends _$BeeDatabase {
                 'ON transactions(ledger_id, type, happened_at);');
             logger.info('DBMigration', 'v48 迁移完成');
           }
+          if (from < 49) {
+            logger.info('DBMigration',
+                '开始迁移到 v49: 分期付款(installment_plans/installment_periods) + transactions.installment_plan_sync_id');
+            await _addColumnIfMissing(
+                'transactions',
+                'installment_plan_sync_id',
+                'ALTER TABLE transactions ADD COLUMN '
+                    'installment_plan_sync_id TEXT;');
+            await _createTableIfMissing(
+                migrator, 'installment_plans', installmentPlans);
+            await _createTableIfMissing(
+                migrator, 'installment_periods', installmentPeriods);
+            await customStatement(
+                'CREATE INDEX IF NOT EXISTS idx_installment_plans_ledger '
+                'ON installment_plans(ledger_id);');
+            await customStatement(
+                'CREATE INDEX IF NOT EXISTS idx_installment_periods_plan '
+                'ON installment_periods(plan_sync_id, period_no);');
+            logger.info('DBMigration', 'v49 迁移完成');
+          }
+          if (from < 50) {
+            logger.info('DBMigration',
+                '开始迁移到 v50: 帳單分期沖銷(installment_plans.offset_breakdown_json)');
+            await _addColumnIfMissing(
+                'installment_plans',
+                'offset_breakdown_json',
+                'ALTER TABLE installment_plans ADD COLUMN '
+                    'offset_breakdown_json TEXT;');
+            logger.info('DBMigration', 'v50 迁移完成');
+          }
         },
         onCreate: (m) async {
           await m.createAll();
@@ -1937,6 +2121,13 @@ class BeeDatabase extends _$BeeDatabase {
           await customStatement(
               'CREATE INDEX IF NOT EXISTS idx_transactions_ledger_type_happened '
               'ON transactions(ledger_id, type, happened_at);');
+          // v49 的兩個索引只在 onUpgrade 建,全新安裝補建(同上面 v48 的理由)。
+          await customStatement(
+              'CREATE INDEX IF NOT EXISTS idx_installment_plans_ledger '
+              'ON installment_plans(ledger_id);');
+          await customStatement(
+              'CREATE INDEX IF NOT EXISTS idx_installment_periods_plan '
+              'ON installment_periods(plan_sync_id, period_no);');
         },
       );
 

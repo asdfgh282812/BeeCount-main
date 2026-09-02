@@ -210,4 +210,38 @@ class ChangeTracker {
         .get();
     return result.length;
   }
+
+  /// 是否存在一条**尚未推送**的本地 `delete` change,对应
+  /// ([entityType], [entitySyncId])。
+  ///
+  /// 2026-09-03 新增(见
+  /// docs/changes/2026-09-03-installment-tracking-delete-sync-fixes.md 对
+  /// 分期计画「删除后单笔交易删不掉」问题的根因调查):pull 路径应用远端
+  /// upsert 前用这个检查——本地刚删除但还没推送成功时,若这时候刚好跑了一次
+  /// pull、拿到这个实体在 server 上的旧版 upsert(server 还不知道这条本地
+  /// delete),不检查的话会把刚删除的东西复活回来,而本地那条 delete change
+  /// 稍后正常推送成功后,server 又会把它删掉——但如果 UI 已经在这个窗口期
+  /// 读到了"复活"的数据,使用者体感就是"删除了又出现"。
+  ///
+  /// 这是一个**通用**修法(不是 installment 专属),`applyRemoteChange` 对
+  /// 所有 entity type 的 upsert 都会先过这一关——不侵入具体某个
+  /// `_apply*Change` handler,风险面小。
+  ///
+  /// 只看 `action == 'delete'`——本地的 update/create pending change 不应该
+  /// 阻挡远端 upsert(那种情况按 push 侧既有的 LWW 决胜即可,不属于这个检查
+  /// 要解决的"删除被复活"场景)。
+  Future<bool> hasPendingLocalDelete({
+    required String entityType,
+    required String entitySyncId,
+  }) async {
+    final row = await (db.select(db.localChanges)
+          ..where((c) =>
+              c.entityType.equals(entityType) &
+              c.entitySyncId.equals(entitySyncId) &
+              c.action.equals('delete') &
+              c.pushedAt.isNull())
+          ..limit(1))
+        .getSingleOrNull();
+    return row != null;
+  }
 }

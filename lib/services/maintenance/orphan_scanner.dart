@@ -1,7 +1,10 @@
 /// 本地孤儿数据扫描器。
 ///
-/// 13 个 `scanXxx()` 方法各自独立,只查不改;`scanAll()` 一次跑完返
-/// [OrphanScanReport]。逻辑严格按 plan A1..A10 / B1..B3 / C1 实现。
+/// 16 个 `scanXxx()` 方法各自独立,只查不改;`scanAll()` 一次跑完返
+/// [OrphanScanReport]。逻辑严格按 plan A1..A10 / B1..B3 / C1 实现,A11..A13
+/// (2026-09-03)是问题 A4 新增的分期付款孤儿检测,作为「刪除分期後單筆交易
+/// 刪不掉」问题(见 docs/changes/2026-09-03-installment-tracking-delete-
+/// sync-fixes.md)的保底自救工具。
 ///
 /// 注意:
 /// - 文件类(B)依赖 `path_provider` 拿 app docs dir,测试时如要替换路径,
@@ -47,6 +50,9 @@ class OrphanScanner {
       ...await scanBudgetMissingCategory(),
       ...await scanSharedCategoryMissingParent(),
       ...await scanTxTagOverrideMissingTx(),
+      ...await scanTxMissingInstallmentPlan(),
+      ...await scanInstallmentPeriodMissingPlan(),
+      ...await scanInstallmentPeriodMissingTx(),
     ];
     final fileOrphans = <OrphanRecord>[
       ...await scanFileOrphanAttachments(),
@@ -338,6 +344,92 @@ class OrphanScanner {
         title: '共享标签 override',
         subtitle: '交易已删 (txSyncId=$txSyncId, tagSyncId=$tagSyncId)',
         extra: {'tagSyncId': tagSyncId},
+      );
+    }).toList();
+  }
+
+  /// A11(2026-09-03,问题 A4——分期付款「删除后单笔交易删不掉」的保底自救
+  /// 工具)——`transactions.installment_plan_sync_id` 非 null,但对应的
+  /// `installment_plans.sync_id` 不存在(计画已被整笔删除,但这笔交易本地
+  /// 残留)。正常流程下 `LocalRepository.deleteTransaction` 遇到这种孤兒会
+  /// 自动放行 + 清掉对应的孤兒 period(见问题 A 的修正),这个扫描项是给使用
+  /// 者一个能主动发现/清理残留孤兒交易的入口(例如那笔交易使用者还没手动去
+  /// 点删除的情况)。
+  Future<List<OrphanRecord>> scanTxMissingInstallmentPlan() async {
+    final rows = await db.customSelect(
+      '''
+      SELECT t.id AS tx_id, t.amount, t.type, t.installment_plan_sync_id
+      FROM transactions t
+      LEFT JOIN installment_plans p ON p.sync_id = t.installment_plan_sync_id
+      WHERE t.installment_plan_sync_id IS NOT NULL AND p.id IS NULL
+      ''',
+      readsFrom: {db.transactions, db.installmentPlans},
+    ).get();
+    return rows.map((row) {
+      final txId = row.read<int>('tx_id');
+      final amount = row.readNullable<double>('amount') ?? 0;
+      final txType = row.readNullable<String>('type') ?? '';
+      final planSyncId =
+          row.readNullable<String>('installment_plan_sync_id') ?? '';
+      return OrphanRecord(
+        type: OrphanType.txMissingInstallmentPlan,
+        localId: txId,
+        title: '交易 #$txId',
+        subtitle:
+            '$txType · ¥${amount.toStringAsFixed(2)} · 分期计画已删 (planSyncId=$planSyncId)',
+      );
+    }).toList();
+  }
+
+  /// A12(2026-09-03,问题 A4)——`installment_periods.plan_sync_id` 对应的
+  /// `installment_plans.sync_id` 不存在(计画已删,期数明细列残留)。
+  Future<List<OrphanRecord>> scanInstallmentPeriodMissingPlan() async {
+    final rows = await db.customSelect(
+      '''
+      SELECT ip.id AS period_id, ip.plan_sync_id, ip.period_no, ip.total_amount
+      FROM installment_periods ip
+      LEFT JOIN installment_plans p ON p.sync_id = ip.plan_sync_id
+      WHERE p.id IS NULL
+      ''',
+      readsFrom: {db.installmentPeriods, db.installmentPlans},
+    ).get();
+    return rows.map((row) {
+      final periodId = row.read<int>('period_id');
+      final planSyncId = row.read<String>('plan_sync_id');
+      final periodNo = row.readNullable<int>('period_no') ?? 0;
+      final totalAmount = row.readNullable<double>('total_amount') ?? 0;
+      return OrphanRecord(
+        type: OrphanType.installmentPeriodMissingPlan,
+        localId: periodId,
+        title: '分期期数 #$periodId(第 $periodNo 期)',
+        subtitle:
+            '¥${totalAmount.toStringAsFixed(2)} · 分期计画已删 (planSyncId=$planSyncId)',
+      );
+    }).toList();
+  }
+
+  /// A13(2026-09-03,问题 A4)——`installment_periods.tx_id` 非 null,但对应
+  /// 的交易不存在(交易已被删,期数明细列残留)。
+  Future<List<OrphanRecord>> scanInstallmentPeriodMissingTx() async {
+    final rows = await db.customSelect(
+      '''
+      SELECT ip.id AS period_id, ip.tx_id, ip.period_no, ip.total_amount
+      FROM installment_periods ip
+      LEFT JOIN transactions t ON t.id = ip.tx_id
+      WHERE ip.tx_id IS NOT NULL AND t.id IS NULL
+      ''',
+      readsFrom: {db.installmentPeriods, db.transactions},
+    ).get();
+    return rows.map((row) {
+      final periodId = row.read<int>('period_id');
+      final txId = row.read<int>('tx_id');
+      final periodNo = row.readNullable<int>('period_no') ?? 0;
+      final totalAmount = row.readNullable<double>('total_amount') ?? 0;
+      return OrphanRecord(
+        type: OrphanType.installmentPeriodMissingTx,
+        localId: periodId,
+        title: '分期期数 #$periodId(第 $periodNo 期)',
+        subtitle: '¥${totalAmount.toStringAsFixed(2)} · 交易已删 (txId=$txId)',
       );
     }).toList();
   }

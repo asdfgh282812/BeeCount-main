@@ -16673,6 +16673,681 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No credit card accounts yet.'**
   String get swipesmartMappingNoAccounts;
+
+  /// No description provided for @installmentsPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Installments'**
+  String get installmentsPageTitle;
+
+  /// No description provided for @installmentsEmptyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'No installment plans yet'**
+  String get installmentsEmptyMessage;
+
+  /// No description provided for @installmentAddTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New Installment Plan'**
+  String get installmentAddTitle;
+
+  /// No description provided for @installmentStatusActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get installmentStatusActive;
+
+  /// No description provided for @installmentStatusSettled.
+  ///
+  /// In en, this message translates to:
+  /// **'Settled'**
+  String get installmentStatusSettled;
+
+  /// No description provided for @installmentStatusTerminated.
+  ///
+  /// In en, this message translates to:
+  /// **'Terminated'**
+  String get installmentStatusTerminated;
+
+  /// No description provided for @installmentPaidProgressLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{paid}/{total} periods paid'**
+  String installmentPaidProgressLabel(int paid, int total);
+
+  /// No description provided for @installmentNextPeriodLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get installmentNextPeriodLabel;
+
+  /// No description provided for @installmentTotalAmountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get installmentTotalAmountLabel;
+
+  /// No description provided for @installmentDeleteConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this installment plan?'**
+  String get installmentDeleteConfirmTitle;
+
+  /// No description provided for @installmentDeleteConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This deletes the plan and all of its transactions, including past periods. This can\'t be undone.'**
+  String get installmentDeleteConfirmMessage;
+
+  /// No description provided for @installmentDeleteSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted'**
+  String get installmentDeleteSuccess;
+
+  /// No description provided for @installmentSaveSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get installmentSaveSuccess;
+
+  /// No description provided for @installmentFirstPeriodAtLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'First Period Date'**
+  String get installmentFirstPeriodAtLabel;
+
+  /// No description provided for @installmentAccountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get installmentAccountLabel;
+
+  /// No description provided for @installmentAccountNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get installmentAccountNone;
+
+  /// No description provided for @installmentCategoryLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get installmentCategoryLabel;
+
+  /// No description provided for @installmentCategoryNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a category'**
+  String get installmentCategoryNone;
+
+  /// No description provided for @installmentCategoryRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a category'**
+  String get installmentCategoryRequired;
+
+  /// No description provided for @installmentNoteLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Note'**
+  String get installmentNoteLabel;
+
+  /// No description provided for @installmentTotalAmountHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter total amount'**
+  String get installmentTotalAmountHint;
+
+  /// No description provided for @installmentPeriodsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Periods'**
+  String get installmentPeriodsLabel;
+
+  /// No description provided for @installmentPeriodsCountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 period} other{{count} periods}}'**
+  String installmentPeriodsCountLabel(int count);
+
+  /// No description provided for @installmentRepaymentMethodLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Repayment Method'**
+  String get installmentRepaymentMethodLabel;
+
+  /// No description provided for @installmentMethodEqualPrincipal.
+  ///
+  /// In en, this message translates to:
+  /// **'Equal Principal'**
+  String get installmentMethodEqualPrincipal;
+
+  /// No description provided for @installmentMethodEqualInstallment.
+  ///
+  /// In en, this message translates to:
+  /// **'Equal Installment'**
+  String get installmentMethodEqualInstallment;
+
+  /// No description provided for @installmentMethodFixedInterest.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed Interest'**
+  String get installmentMethodFixedInterest;
+
+  /// No description provided for @installmentInterestPeriodLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Interest Period'**
+  String get installmentInterestPeriodLabel;
+
+  /// No description provided for @installmentInterestPeriodMonthly.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly'**
+  String get installmentInterestPeriodMonthly;
+
+  /// No description provided for @installmentInterestPeriodDaily.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily'**
+  String get installmentInterestPeriodDaily;
+
+  /// No description provided for @installmentInterestRateLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Annual Interest Rate'**
+  String get installmentInterestRateLabel;
+
+  /// No description provided for @installmentInterestRateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Yearly rate, e.g. 6 for 6%'**
+  String get installmentInterestRateHint;
+
+  /// No description provided for @installmentGracePeriodLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Grace Period (months)'**
+  String get installmentGracePeriodLabel;
+
+  /// No description provided for @installmentGracePeriodRangeError.
+  ///
+  /// In en, this message translates to:
+  /// **'Grace period must be less than the total number of periods'**
+  String get installmentGracePeriodRangeError;
+
+  /// No description provided for @installmentRoundAmountsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Round to whole amounts'**
+  String get installmentRoundAmountsLabel;
+
+  /// No description provided for @installmentRemainderPositionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Remainder Goes To'**
+  String get installmentRemainderPositionLabel;
+
+  /// No description provided for @installmentRemainderPositionFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'First period'**
+  String get installmentRemainderPositionFirst;
+
+  /// No description provided for @installmentRemainderPositionLast.
+  ///
+  /// In en, this message translates to:
+  /// **'Last period'**
+  String get installmentRemainderPositionLast;
+
+  /// No description provided for @installmentPeriodsRangeError.
+  ///
+  /// In en, this message translates to:
+  /// **'Periods must be between 1 and 600'**
+  String get installmentPeriodsRangeError;
+
+  /// No description provided for @installmentAdvancedSectionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced'**
+  String get installmentAdvancedSectionLabel;
+
+  /// No description provided for @installmentDraftSheetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set as Installment'**
+  String get installmentDraftSheetTitle;
+
+  /// No description provided for @installmentSetAsInstallmentLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Set as Installment'**
+  String get installmentSetAsInstallmentLabel;
+
+  /// No description provided for @installmentGoToPlanButton.
+  ///
+  /// In en, this message translates to:
+  /// **'View Plan'**
+  String get installmentGoToPlanButton;
+
+  /// No description provided for @txInstallmentRecurringConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Installment and recurring can\'t be used together'**
+  String get txInstallmentRecurringConflict;
+
+  /// No description provided for @txInstallmentSplitConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Installment and split categories can\'t be used together'**
+  String get txInstallmentSplitConflict;
+
+  /// No description provided for @accountsInstallmentEntryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Installments'**
+  String get accountsInstallmentEntryTitle;
+
+  /// No description provided for @accountsInstallmentEntryOutstanding.
+  ///
+  /// In en, this message translates to:
+  /// **'Outstanding'**
+  String get accountsInstallmentEntryOutstanding;
+
+  /// No description provided for @accountsInstallmentEntryNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None outstanding'**
+  String get accountsInstallmentEntryNone;
+
+  /// No description provided for @transactionInstallmentLockedBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Managed by an installment plan. Edit it from the installment page.'**
+  String get transactionInstallmentLockedBanner;
+
+  /// No description provided for @transactionInstallmentLockedDeleteMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This transaction belongs to an installment plan. Delete or edit the plan instead.'**
+  String get transactionInstallmentLockedDeleteMessage;
+
+  /// No description provided for @installmentExpandDetailsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Periods'**
+  String get installmentExpandDetailsLabel;
+
+  /// No description provided for @installmentCollapseDetailsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide periods'**
+  String get installmentCollapseDetailsLabel;
+
+  /// No description provided for @installmentPeriodNoLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Period {no}'**
+  String installmentPeriodNoLabel(int no);
+
+  /// No description provided for @installmentPeriodStatusOverriddenLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Edited'**
+  String get installmentPeriodStatusOverriddenLabel;
+
+  /// No description provided for @installmentPeriodEditTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit this period'**
+  String get installmentPeriodEditTooltip;
+
+  /// No description provided for @installmentPeriodRebalanceTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Rebalance from here'**
+  String get installmentPeriodRebalanceTooltip;
+
+  /// No description provided for @installmentPeriodEditSheetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Period'**
+  String get installmentPeriodEditSheetTitle;
+
+  /// No description provided for @installmentPeriodAmountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount'**
+  String get installmentPeriodAmountLabel;
+
+  /// No description provided for @installmentPeriodDueAtLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Due Date'**
+  String get installmentPeriodDueAtLabel;
+
+  /// No description provided for @installmentPeriodNoteLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Note'**
+  String get installmentPeriodNoteLabel;
+
+  /// No description provided for @installmentPeriodEditSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Period updated'**
+  String get installmentPeriodEditSuccess;
+
+  /// No description provided for @installmentRebalanceSheetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rebalance From Period {no}'**
+  String installmentRebalanceSheetTitle(int no);
+
+  /// No description provided for @installmentRebalanceSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Rebalanced'**
+  String get installmentRebalanceSuccess;
+
+  /// No description provided for @installmentActionPartialRepay.
+  ///
+  /// In en, this message translates to:
+  /// **'Partial Repayment'**
+  String get installmentActionPartialRepay;
+
+  /// No description provided for @installmentActionPayoff.
+  ///
+  /// In en, this message translates to:
+  /// **'Payoff'**
+  String get installmentActionPayoff;
+
+  /// No description provided for @installmentActionTerminateFuture.
+  ///
+  /// In en, this message translates to:
+  /// **'Terminate Future'**
+  String get installmentActionTerminateFuture;
+
+  /// No description provided for @installmentEarlyRepaySheetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Partial Repayment'**
+  String get installmentEarlyRepaySheetTitle;
+
+  /// No description provided for @installmentEarlyRepayAmountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Repayment Amount'**
+  String get installmentEarlyRepayAmountLabel;
+
+  /// No description provided for @installmentEarlyRepayAmountHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter amount'**
+  String get installmentEarlyRepayAmountHint;
+
+  /// No description provided for @installmentEarlyRepayDateLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Repayment Date'**
+  String get installmentEarlyRepayDateLabel;
+
+  /// No description provided for @installmentEarlyRepaySuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Repayment recorded'**
+  String get installmentEarlyRepaySuccess;
+
+  /// No description provided for @installmentPayoffSheetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Payoff'**
+  String get installmentPayoffSheetTitle;
+
+  /// No description provided for @installmentPayoffDateLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Settlement Date'**
+  String get installmentPayoffDateLabel;
+
+  /// No description provided for @installmentPayoffPreviewLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated settlement amount'**
+  String get installmentPayoffPreviewLabel;
+
+  /// No description provided for @installmentPayoffSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan settled'**
+  String get installmentPayoffSuccess;
+
+  /// No description provided for @installmentTerminateFutureConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Terminate future periods?'**
+  String get installmentTerminateFutureConfirmTitle;
+
+  /// No description provided for @installmentTerminateFutureConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This deletes every period and transaction that hasn\'t happened yet. This can\'t be undone.'**
+  String get installmentTerminateFutureConfirmMessage;
+
+  /// No description provided for @installmentTerminateFutureSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Future periods terminated'**
+  String get installmentTerminateFutureSuccess;
+
+  /// No description provided for @installmentOperationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Operation failed: {error}'**
+  String installmentOperationFailed(String error);
+
+  /// No description provided for @installmentUseDefaultAccountHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave blank to use the plan\'s account'**
+  String get installmentUseDefaultAccountHint;
+
+  /// No description provided for @installmentEditChoiceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This transaction is managed by an installment plan'**
+  String get installmentEditChoiceTitle;
+
+  /// No description provided for @installmentEditChoiceThisRecordOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit this period'**
+  String get installmentEditChoiceThisRecordOnly;
+
+  /// No description provided for @installmentEditChoiceRebalanceFromHere.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit this and future periods'**
+  String get installmentEditChoiceRebalanceFromHere;
+
+  /// No description provided for @installmentEditChoiceEarlyRepay.
+  ///
+  /// In en, this message translates to:
+  /// **'Partial repayment'**
+  String get installmentEditChoiceEarlyRepay;
+
+  /// No description provided for @installmentEditChoicePayoff.
+  ///
+  /// In en, this message translates to:
+  /// **'Payoff'**
+  String get installmentEditChoicePayoff;
+
+  /// No description provided for @installmentRefundChoiceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This transaction is managed by an installment plan'**
+  String get installmentRefundChoiceTitle;
+
+  /// No description provided for @installmentRefundChoicePeriodOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund this period only'**
+  String get installmentRefundChoicePeriodOnly;
+
+  /// No description provided for @installmentRefundChoiceWholePlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund the entire plan'**
+  String get installmentRefundChoiceWholePlan;
+
+  /// No description provided for @installmentRefundWholePlanConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund the entire plan?'**
+  String get installmentRefundWholePlanConfirmTitle;
+
+  /// No description provided for @installmentRefundWholePlanConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This deletes the plan and all of its transactions, including past periods. This can\'t be undone.'**
+  String get installmentRefundWholePlanConfirmMessage;
+
+  /// No description provided for @installmentRefundSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Refunded'**
+  String get installmentRefundSuccess;
+
+  /// No description provided for @installmentPeriodRefundSheetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund This Period'**
+  String get installmentPeriodRefundSheetTitle;
+
+  /// No description provided for @installmentPeriodRefundAmountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund Amount'**
+  String get installmentPeriodRefundAmountLabel;
+
+  /// No description provided for @installmentPeriodRefundAmountHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid amount'**
+  String get installmentPeriodRefundAmountHint;
+
+  /// No description provided for @installmentPeriodRefundDateLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund Date'**
+  String get installmentPeriodRefundDateLabel;
+
+  /// No description provided for @installmentPeriodRefundNoteLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Note'**
+  String get installmentPeriodRefundNoteLabel;
+
+  /// No description provided for @installmentOffsetToggleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Convert existing balance'**
+  String get installmentOffsetToggleLabel;
+
+  /// No description provided for @installmentOffsetToggleSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn what you already owe on this card into this installment plan instead of adding a new charge. No new transaction is created for the converted amount.'**
+  String get installmentOffsetToggleSubtitle;
+
+  /// No description provided for @installmentOffsetDueLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Current balance: {amount}'**
+  String installmentOffsetDueLabel(String amount);
+
+  /// No description provided for @installmentOffsetLoadingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking current balance…'**
+  String get installmentOffsetLoadingLabel;
+
+  /// No description provided for @installmentOffsetNoBalanceError.
+  ///
+  /// In en, this message translates to:
+  /// **'This account has no outstanding balance to convert.'**
+  String get installmentOffsetNoBalanceError;
+
+  /// No description provided for @installmentOffsetExceedsBalanceError.
+  ///
+  /// In en, this message translates to:
+  /// **'Total amount can\'t exceed the current balance ({amount}).'**
+  String installmentOffsetExceedsBalanceError(String amount);
+
+  /// No description provided for @installmentOffsetGroupUnsupportedError.
+  ///
+  /// In en, this message translates to:
+  /// **'Offsetting isn\'t supported for merged billing accounts yet. Choose a single credit card.'**
+  String get installmentOffsetGroupUnsupportedError;
+
+  /// No description provided for @installmentConvertToInstallmentButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Convert to Installment'**
+  String get installmentConvertToInstallmentButton;
+
+  /// No description provided for @installmentDeleteChoiceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This transaction is managed by an installment plan'**
+  String get installmentDeleteChoiceTitle;
+
+  /// No description provided for @installmentDeleteChoiceThisRecordOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this period only'**
+  String get installmentDeleteChoiceThisRecordOnly;
+
+  /// No description provided for @installmentDeleteChoiceWholePlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete the entire plan'**
+  String get installmentDeleteChoiceWholePlan;
+
+  /// No description provided for @installmentDeleteWholePlanConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete the entire plan?'**
+  String get installmentDeleteWholePlanConfirmTitle;
+
+  /// No description provided for @installmentDeleteWholePlanConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This deletes the plan and all of its transactions, including past periods. This can\'t be undone.'**
+  String get installmentDeleteWholePlanConfirmMessage;
+
+  /// No description provided for @installmentPeriodPrincipalInterestLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Principal {principal} · Interest {interest}'**
+  String installmentPeriodPrincipalInterestLabel(
+      String principal, String interest);
+
+  /// No description provided for @installmentPrincipalSummaryLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Principal: {total} total · {paid} paid · {remaining} left'**
+  String installmentPrincipalSummaryLine(
+      String total, String paid, String remaining);
+
+  /// No description provided for @installmentInterestSummaryLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Interest: {total} total · {paid} paid · {remaining} left'**
+  String installmentInterestSummaryLine(
+      String total, String paid, String remaining);
 }
 
 class _AppLocalizationsDelegate

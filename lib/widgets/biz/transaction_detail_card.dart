@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/db.dart';
 import '../../data/repositories/base_repository.dart';
 import '../../data/repositories/debt_repository.dart';
+import '../../data/repositories/installment_repository.dart'
+    show kInstallmentPlanStatusActive;
 import '../../data/repositories/local/local_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers.dart';
@@ -16,6 +18,7 @@ import '../../styles/tokens.dart';
 import '../../utils/account_type_utils.dart';
 import '../../utils/card_reward_calc.dart';
 import '../../utils/category_utils.dart';
+import '../../utils/currencies.dart';
 import '../../utils/transaction_edit_utils.dart';
 import '../../utils/shared_ledger_picker_filter.dart';
 import '../../pages/attachment/attachment_preview_page.dart';
@@ -24,6 +27,8 @@ import '../../pages/debt/debt_repayment_page.dart';
 import '../category_icon.dart';
 import '../ui/ui.dart';
 import 'amount_text.dart';
+import 'installment_action_sheets.dart';
+import 'installment_edit_choice_dialog.dart';
 import 'recurring_occurrence_dialogs.dart';
 
 /// 点击交易时弹出的资讯卡:唯读展示,右上角退款/删除/复制/编辑四个动作,
@@ -234,9 +239,22 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
     final tx = widget.transaction;
     final repo = ref.read(repositoryProvider);
 
-    // v36:週期規則生成的 occurrence 走「此記錄/連同未來週期」二選一彈窗
-    // (對齐 MOZE 截圖語意,§2.2),純本地一次性交易維持原本的單一確認彈窗。
-    if (tx.recurringRuleId != null) {
+    // 問題 A 修正(2026-09-03,見
+    // docs/changes/2026-09-03-installment-tracking-delete-sync-fixes.md):
+    // 原本這裡對 installmentPlanSyncId != null 一律硬擋、提示改到分期管理
+    // 頁操作——但整筆刪除分期計畫後偶爾會殘留孤兒交易,導致使用者卡死
+    // (分期頁找不到計畫可以整筆刪,單筆又刪不掉)。改成完全交給
+    // `TransactionEditUtils.deleteTransactionGuarded` 處理(它會先查 plan
+    // 是否還存在:孤兒直接放行;plan 還在則彈「只刪這一筆 / 刪除整個計畫」
+    // 二選一,「整個計畫」選項內部自己有二次確認),這裡不用再疊一層通用的
+    // 「確定刪除?」彈窗。
+    if (tx.installmentPlanSyncId != null) {
+      final deleted =
+          await TransactionEditUtils.deleteTransactionGuarded(context, ref, tx);
+      if (!deleted || !mounted) return;
+    } else if (tx.recurringRuleId != null) {
+      // v36:週期規則生成的 occurrence 走「此記錄/連同未來週期」二選一彈窗
+      // (對齐 MOZE 截圖語意,§2.2),純本地一次性交易維持原本的單一確認彈窗。
       final scope = await showRecurringDeleteChoiceSheet(context);
       if (scope == null || !mounted) return;
       await repo.deleteOccurrence(tx.id);
@@ -254,8 +272,12 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
           false;
       if (!confirmed || !mounted) return;
 
-      await repo.deleteTransaction(tx.id);
-      if (!mounted) return;
+      // 分期交易已在上面分流、不會走到這裡;透過共用入口刪除是為了跟其他
+      // 頁面(search/category/tag 詳情頁、交易列表)保持同一套邏輯,不各自
+      // 重複判斷(見 TransactionEditUtils.deleteTransactionGuarded)。
+      final deleted =
+          await TransactionEditUtils.deleteTransactionGuarded(context, ref, tx);
+      if (!deleted || !mounted) return;
     }
 
     final curLedger = ref.read(currentLedgerIdProvider);
@@ -282,6 +304,16 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
   Future<void> _handleEdit(DebtWithStatus? relatedDebt) async {
     final hostContext = widget.hostContext;
     final tx = widget.transaction;
+    // v49 分期付款(子專案 3):金額/日期/帳戶由分期計畫管理,不進一般編輯
+    // 表單——改彈出 InstallmentEditChoiceDialog(修改此記錄/連同未來/提前
+    // 還本/提前繳清),取代子專案 1 的唯讀鎖定 banner(見
+    // docs/changes/2026-09-03-installment-tracking-phase3.md)。這裡不
+    // `Navigator.pop()` 關卡片——四個分支都是彈窗+repo呼叫,不需要離開卡片
+    // 導頁,操作完成後才在各自的 _apply* 方法裡收尾關閉。
+    if (tx.installmentPlanSyncId != null) {
+      await _handleInstallmentEdit(tx);
+      return;
+    }
     Navigator.of(context).pop();
     if (!hostContext.mounted) return;
     // 欠款相關交易(起點交易或還款交易)不走一般交易編輯表單——改回原本
@@ -313,11 +345,271 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
   }
 
   Future<void> _handleRefund() async {
+    final tx = widget.transaction;
+    // v49 分期付款(子專案 3):分期交易複用同一個退款入口,但先彈出
+    // InstallmentPeriodRefundChoiceDialog 問「只退這一期」還是「整筆退款」
+    // (見設計文件 §5.3)——不能直接走一般交易的 refundTransaction(那個是
+    // 開一個新建模式的編輯器讓使用者自己選類別,分期退款是 repo 直接建交易,
+    // 不經過編輯表單)。
+    if (tx.installmentPlanSyncId != null) {
+      await _handleInstallmentRefund(tx);
+      return;
+    }
     final hostContext = widget.hostContext;
     Navigator.of(context).pop();
     if (!hostContext.mounted) return;
     await TransactionEditUtils.refundTransaction(
         hostContext, widget.hostRef, widget.transaction, widget.category);
+  }
+
+  /// 分期交易明細頁的「編輯」入口(子專案 3)——彈
+  /// [showInstallmentEditChoiceSheet] 四選一,依選擇打開子專案 2 已經做好的
+  /// 對應 sheet 並呼叫對應 repository 方法。不離開卡片導頁,操作完成/失敗
+  /// 都在卡片自己的 context 上收尾(跟 [_handleDelete] 同款風格)。
+  Future<void> _handleInstallmentEdit(Transaction tx) async {
+    final repo = ref.read(repositoryProvider);
+    final plan =
+        await repo.getInstallmentPlanBySyncId(tx.installmentPlanSyncId!);
+    if (plan == null || !mounted) return;
+    final periods = await repo.getInstallmentPeriods(plan.id);
+    InstallmentPeriod? period;
+    for (final p in periods) {
+      if (p.txId == tx.id) {
+        period = p;
+        break;
+      }
+    }
+    if (period == null || !mounted) return;
+
+    final isActive = plan.status == kInstallmentPlanStatusActive;
+    if (!mounted) return;
+    final choice =
+        await showInstallmentEditChoiceSheet(context, planActive: isActive);
+    if (choice == null || !mounted) return;
+
+    switch (choice) {
+      case InstallmentEditChoice.thisRecordOnly:
+        await _applyPeriodOverride(period);
+        break;
+      case InstallmentEditChoice.rebalanceFromHere:
+        await _applyRebalanceFromHere(plan, period);
+        break;
+      case InstallmentEditChoice.earlyRepayPrincipal:
+        await _applyEarlyRepay(plan);
+        break;
+      case InstallmentEditChoice.payoff:
+        await _applyPayoff(plan, periods);
+        break;
+    }
+  }
+
+  Future<void> _applyPeriodOverride(InstallmentPeriod period) async {
+    final repo = ref.read(repositoryProvider);
+    final currentNote = period.txId != null
+        ? (await repo.getTransactionById(period.txId!))?.note
+        : null;
+    if (!mounted) return;
+    final currencyCode =
+        ref.read(currentLedgerProvider).asData?.value?.currency ?? 'CNY';
+    final input = await PeriodOverrideSheet.show(
+      context,
+      period: period,
+      currentNote: currentNote,
+      currencySymbol: getCurrencySymbol(currencyCode),
+    );
+    if (input == null || !mounted) return;
+    final l10n = AppLocalizations.of(context);
+    try {
+      await repo.updatePeriodOverride(
+        period.id,
+        amount: input.amount,
+        dueAt: input.dueAt,
+        note: input.note,
+      );
+      await _finishInstallmentChange(l10n.installmentPeriodEditSuccess);
+    } catch (e) {
+      if (mounted) {
+        showToast(context, l10n.installmentOperationFailed(e.toString()));
+      }
+    }
+  }
+
+  Future<void> _applyRebalanceFromHere(
+      InstallmentPlan plan, InstallmentPeriod period) async {
+    final input = await RebalanceFromSheet.show(
+      context,
+      periodNo: period.periodNo,
+      currentInterestRate: plan.interestRate,
+      currentRepaymentMethod: plan.repaymentMethod,
+    );
+    if (input == null || !mounted) return;
+    final l10n = AppLocalizations.of(context);
+    try {
+      await ref.read(repositoryProvider).rebalanceFrom(
+            plan.id,
+            period.periodNo,
+            interestRate: input.interestRate,
+            repaymentMethod: input.repaymentMethod,
+          );
+      await _finishInstallmentChange(l10n.installmentRebalanceSuccess);
+    } catch (e) {
+      if (mounted) {
+        showToast(context, l10n.installmentOperationFailed(e.toString()));
+      }
+    }
+  }
+
+  Future<void> _applyEarlyRepay(InstallmentPlan plan) async {
+    final ledgerId = ref.read(currentLedgerIdProvider);
+    final currencyCode =
+        ref.read(currentLedgerProvider).asData?.value?.currency ?? 'CNY';
+    final input = await EarlyRepayPrincipalSheet.show(
+      context,
+      ledgerId: ledgerId,
+      currencySymbol: getCurrencySymbol(currencyCode),
+      initialAccountId: plan.accountId,
+    );
+    if (input == null || !mounted) return;
+    final l10n = AppLocalizations.of(context);
+    try {
+      await ref.read(repositoryProvider).earlyRepayPrincipal(
+            plan.id,
+            paymentAmount: input.paymentAmount,
+            accountId: input.accountId,
+            happenedAt: input.happenedAt,
+          );
+      await _finishInstallmentChange(l10n.installmentEarlyRepaySuccess);
+    } catch (e) {
+      if (mounted) {
+        showToast(context, l10n.installmentOperationFailed(e.toString()));
+      }
+    }
+  }
+
+  Future<void> _applyPayoff(
+      InstallmentPlan plan, List<InstallmentPeriod> periods) async {
+    final ledgerId = ref.read(currentLedgerIdProvider);
+    final currencyCode =
+        ref.read(currentLedgerProvider).asData?.value?.currency ?? 'CNY';
+    // 預覽用的估算結清金額,算法跟 repo 內部 payoff() 一致(已過去期數以外
+    // 的剩餘本金 + 下一個未到期期的原排程利息近似值)——跟
+    // installment_list_page.dart `_openPayoff` 同款重複計算,純粹是 UI 給
+    // 使用者的心理準備,不是權威值(權威計算永遠以 repo 實際執行時為準)。
+    final now = DateTime.now();
+    double happenedPrincipal = 0;
+    for (final p in periods) {
+      if (!p.dueAt.isAfter(now)) happenedPrincipal += p.principalAmount;
+    }
+    final futurePeriods = periods.where((p) => p.dueAt.isAfter(now)).toList();
+    final accruedInterest =
+        futurePeriods.isEmpty ? 0.0 : futurePeriods.first.interestAmount;
+    final previewAmount = double.parse(
+        (plan.totalAmount - happenedPrincipal + accruedInterest)
+            .toStringAsFixed(2));
+
+    if (!mounted) return;
+    final input = await PayoffSheet.show(
+      context,
+      ledgerId: ledgerId,
+      previewSettleAmount: previewAmount,
+      currencySymbol: getCurrencySymbol(currencyCode),
+      initialAccountId: plan.accountId,
+    );
+    if (input == null || !mounted) return;
+    final l10n = AppLocalizations.of(context);
+    try {
+      await ref.read(repositoryProvider).payoff(
+            plan.id,
+            accountId: input.accountId,
+            happenedAt: input.happenedAt,
+          );
+      await _finishInstallmentChange(l10n.installmentPayoffSuccess);
+    } catch (e) {
+      if (mounted) {
+        showToast(context, l10n.installmentOperationFailed(e.toString()));
+      }
+    }
+  }
+
+  /// 分期交易明細頁的「退款」入口(子專案 3)——彈
+  /// [showInstallmentPeriodRefundChoiceSheet] 二選一:「只退這一期」呼叫
+  /// [InstallmentRepository.refundPeriod];「整筆退款」直接呼叫既有的
+  /// [InstallmentRepository.deleteInstallmentPlan](連已發生期交易一起刪),
+  /// 走跟 `installment_list_page.dart` 刪除計畫一致的破壞性操作二次確認
+  /// pattern([AppDialog.confirm])。
+  Future<void> _handleInstallmentRefund(Transaction tx) async {
+    final l10n = AppLocalizations.of(context);
+    final choice = await showInstallmentPeriodRefundChoiceSheet(context);
+    if (choice == null || !mounted) return;
+
+    final repo = ref.read(repositoryProvider);
+    final plan =
+        await repo.getInstallmentPlanBySyncId(tx.installmentPlanSyncId!);
+    if (plan == null || !mounted) return;
+
+    if (choice == InstallmentRefundChoice.wholePlan) {
+      final confirmed = await AppDialog.confirm<bool>(
+            context,
+            title: l10n.installmentRefundWholePlanConfirmTitle,
+            message: l10n.installmentRefundWholePlanConfirmMessage,
+          ) ??
+          false;
+      if (!confirmed || !mounted) return;
+      await repo.deleteInstallmentPlan(plan.id);
+    } else {
+      final periods = await repo.getInstallmentPeriods(plan.id);
+      InstallmentPeriod? period;
+      for (final p in periods) {
+        if (p.txId == tx.id) {
+          period = p;
+          break;
+        }
+      }
+      if (!mounted) return;
+      final currencyCode =
+          ref.read(currentLedgerProvider).asData?.value?.currency ?? 'CNY';
+      final input = await InstallmentPeriodRefundSheet.show(
+        context,
+        defaultAmount: period?.totalAmount ?? tx.amount,
+        currencySymbol: getCurrencySymbol(currencyCode),
+      );
+      if (input == null || !mounted) return;
+      try {
+        await repo.refundPeriod(
+          plan.id,
+          tx.id,
+          amount: input.amount,
+          note: input.note,
+          happenedAt: input.happenedAt,
+        );
+      } catch (e) {
+        if (mounted) {
+          showToast(context, l10n.installmentOperationFailed(e.toString()));
+        }
+        return;
+      }
+    }
+
+    await _finishInstallmentChange(l10n.installmentRefundSuccess);
+  }
+
+  /// 分期狀態變更/退款操作成功後的共用收尾——刷新分期/統計/預算相關
+  /// provider、觸發背景同步、關閉卡片並在 overlay 上顯示成功 toast(卡片
+  /// pop 之後自己的 context 已經不能再用來 show toast,跟 [_handleDelete]
+  /// 收尾時用 [showToastOnOverlay] 同一個理由)。
+  Future<void> _finishInstallmentChange(String successMessage) async {
+    if (!mounted) return;
+    final curLedger = ref.read(currentLedgerIdProvider);
+    ref.read(installmentsRefreshProvider.notifier).state++;
+    ref.invalidate(countsForLedgerProvider(curLedger));
+    ref.read(statsRefreshProvider.notifier).state++;
+    ref.read(budgetRefreshProvider.notifier).state++;
+    PostProcessor.sync(ref, ledgerId: curLedger);
+
+    if (!mounted) return;
+    final overlay = Overlay.of(context);
+    Navigator.of(context).pop();
+    showToastOnOverlay(overlay, successMessage);
   }
 
   Future<void> _handleRepay(DebtWithStatus relatedDebt) async {
@@ -390,8 +682,11 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
     );
   }
 
-  Widget _buildHeader(BuildContext context, AppLocalizations l10n,
-      bool canRefund, String? refundDisabledReason,
+  Widget _buildHeader(
+      BuildContext context,
+      AppLocalizations l10n,
+      bool canRefund,
+      String? refundDisabledReason,
       DebtWithStatus? relatedDebt) {
     final canRepay = relatedDebt != null &&
         relatedDebt.status != kDebtStatusSettled &&
@@ -447,6 +742,11 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
               color: isAdjustment
                   ? BeeTokens.iconTertiary(context)
                   : BeeTokens.iconSecondary(context),
+              // v49 分期付款(子專案 3):分期交易的編輯圖示不再灰掉/鎖定——
+              // _handleEdit 內部偵測到 installmentPlanSyncId != null 時改彈
+              // InstallmentEditChoiceDialog(修改此記錄/連同未來/提前還本/
+              // 提前繳清)四選一,取代子專案 1 的唯讀鎖定,見
+              // docs/changes/2026-09-03-installment-tracking-phase3.md。
               onPressed: isAdjustment ? null : () => _handleEdit(relatedDebt),
             ),
           ),
@@ -560,7 +860,9 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
           ),
         ),
       );
-      return onTap == null ? content : GestureDetector(onTap: onTap, child: content);
+      return onTap == null
+          ? content
+          : GestureDetector(onTap: onTap, child: content);
     }
 
     return Padding(

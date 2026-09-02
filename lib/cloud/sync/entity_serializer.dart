@@ -129,6 +129,11 @@ class EntitySerializer {
       // server。BeeCount Cloud 端字段是 read_tx_projection.project_sync_id,
       // wire 字段名 projectId。
       'projectId': tx.projectSyncId,
+      // v49 分期付款:這筆交易關聯的 InstallmentPlan syncId。恆發(同
+      // debtId/projectId)。BeeCount Cloud 端字段是
+      // read_tx_projection.installment_plan_sync_id,wire 字段名
+      // installmentPlanId。
+      'installmentPlanId': tx.installmentPlanSyncId,
     };
   }
 
@@ -400,6 +405,76 @@ class EntitySerializer {
           debt.originTransactionSyncId!.isNotEmpty)
         'originTxId': debt.originTransactionSyncId,
       'excludedFromTotal': debt.excludedFromTotal,
+    };
+  }
+
+  // ==================== Installment ====================
+
+  /// 分期計畫(v49,對齐 BeeCount Cloud `installment_plan` sync entity)。
+  /// ledger-scope,跟 [serializeBudget]/[serializeDebt] 同款「全量帶上當下值」
+  /// 語意。
+  ///
+  /// **`totalAmount`/`periods`/`firstPeriodAt` 恆發**——雖然這三個欄位建立後
+  /// 不可改,但 App 是唯一算攤還排程的一端,Cloud 端純粹儲存/回顯,push
+  /// 整批快照比對齐「有條件送出」的部分更新語意更簡單且不會有歧義。`note`
+  /// 恆發(可清空,同 debt 的模式)。
+  ///
+  /// 對齐 BeeCount Cloud `sync_applier.py::_LEDGER_MERGE_SPECS
+  /// ["installment_plan"]`——改欄位前先去那邊核對,一字之差會讓整個欄位靜默
+  /// 同步失敗。**刻意不送 `paidPeriods`/`periodAmount`/`nextPeriodAt`**——
+  /// 這三個是即時算出的衍生欄位(見 `InstallmentRepository`
+  /// `getInstallmentPlansWithStatus`),App/Cloud 各自在讀取時推導,不落地存
+  /// 也不需要跨端同步(對齐設計文件 §4.1)。
+  static Map<String, dynamic> serializeInstallmentPlan(
+    InstallmentPlan plan, {
+    String? ledgerSyncId,
+    String? accountSyncId,
+    String? categorySyncId,
+  }) {
+    return {
+      'syncId': plan.syncId,
+      if (ledgerSyncId != null && ledgerSyncId.isNotEmpty)
+        'ledgerSyncId': ledgerSyncId,
+      'totalAmount': plan.totalAmount,
+      'periods': plan.periods,
+      'firstPeriodAt': plan.firstPeriodAt.toUtc().toIso8601String(),
+      'accountId': accountSyncId,
+      'categoryId': categorySyncId,
+      'note': plan.note,
+      'status': plan.status,
+      'repaymentMethod': plan.repaymentMethod,
+      'interestPeriod': plan.interestPeriod,
+      'interestRate': plan.interestRate,
+      'roundAmounts': plan.roundAmounts,
+      'remainderPosition': plan.remainderPosition,
+      'gracePeriodMonths': plan.gracePeriodMonths,
+      // 子專案 4(帳單分期沖銷):{accountSyncId: amount} 的 JSON 字串,恆發
+      // (null 也發,同 note 的模式)——對齐 Cloud `sync_applier.py`
+      // `_LEDGER_MERGE_SPECS["installment_plan"]` 的
+      // `("offsetBreakdownJson", "offset_breakdown_json")`。已經是
+      // syncId-keyed 的內容,兩端都不需要再轉換鍵值。
+      'offsetBreakdownJson': plan.offsetBreakdownJson,
+    };
+  }
+
+  /// 分期期數明細(v49,對齐 BeeCount Cloud `installment_period` sync
+  /// entity)。全量帶上當下值,跟 [serializeInstallmentPlan] 同款語意。
+  /// `planId`/`txId` 兩個外鍵鍵名對齐 Cloud merge spec,值都是 syncId
+  /// (`plan_sync_id`/`tx_sync_id`),不是本地 int id。
+  static Map<String, dynamic> serializeInstallmentPeriod(
+    InstallmentPeriod period, {
+    String? txSyncId,
+  }) {
+    return {
+      'syncId': period.syncId,
+      'planId': period.planSyncId,
+      'periodNo': period.periodNo,
+      'dueAt': period.dueAt.toUtc().toIso8601String(),
+      'principalAmount': period.principalAmount,
+      'interestAmount': period.interestAmount,
+      'totalAmount': period.totalAmount,
+      'status': period.status,
+      'txId': txSyncId,
     };
   }
 

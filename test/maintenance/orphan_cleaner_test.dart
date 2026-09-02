@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:beecount/data/db.dart';
 import 'package:beecount/services/maintenance/orphan_cleaner.dart';
+import 'package:beecount/services/maintenance/orphan_record.dart';
 import 'package:beecount/services/maintenance/orphan_scanner.dart';
 
 void main() {
@@ -121,6 +122,73 @@ void main() {
     // 重扫无孤儿
     final after = await scanner.scanAll();
     expect(after.dbOrphans, isEmpty);
+  });
+
+  test('A11 交易失主分期计画 → 不删 tx,只把 installment_plan_sync_id 置 null', () async {
+    final lid = await db.into(db.ledgers).insert(
+        LedgersCompanion.insert(name: 'L', syncId: const d.Value('l-sync')));
+    final tid = await db.into(db.transactions).insert(
+          TransactionsCompanion.insert(
+            ledgerId: lid,
+            type: 'expense',
+            amount: 5,
+            happenedAt: d.Value(DateTime.now()),
+            syncId: const d.Value('tx-1'),
+            installmentPlanSyncId: const d.Value('ghost-plan'),
+          ),
+        );
+
+    final before = await scanner.scanAll();
+    expect(before.dbOrphans.length, 1);
+
+    await cleaner.clean(before.dbOrphans);
+
+    final tx = await (db.select(db.transactions)
+          ..where((t) => t.id.equals(tid)))
+        .getSingleOrNull();
+    expect(tx, isNotNull, reason: '交易本體不應該被刪除');
+    expect(tx!.installmentPlanSyncId, isNull);
+
+    final after = await scanner.scanAll();
+    expect(after.dbOrphans, isEmpty);
+  });
+
+  test('A12/A13 分期期数孤兒 → 直接删 installment_periods 行', () async {
+    final lid = await db.into(db.ledgers).insert(
+        LedgersCompanion.insert(name: 'L', syncId: const d.Value('l-sync')));
+    final periodId = await db.into(db.installmentPeriods).insert(
+          InstallmentPeriodsCompanion.insert(
+            ledgerId: lid,
+            planSyncId: 'ghost-plan',
+            periodNo: 1,
+            dueAt: DateTime.now(),
+            principalAmount: 100,
+            interestAmount: 0,
+            totalAmount: 100,
+          ),
+        );
+
+    final before = await scanner.scanAll();
+    expect(
+        before.dbOrphans
+            .where((r) => r.type == OrphanType.installmentPeriodMissingPlan)
+            .length,
+        1);
+
+    final result = await cleaner.clean(before.dbOrphans);
+    expect(result.successCount, 1);
+
+    final gone = await (db.select(db.installmentPeriods)
+          ..where((t) => t.id.equals(periodId)))
+        .getSingleOrNull();
+    expect(gone, isNull);
+
+    final after = await scanner.scanAll();
+    expect(
+        after.dbOrphans
+            .where((r) => r.type == OrphanType.installmentPeriodMissingPlan)
+            .length,
+        0);
   });
 
   test('B1 文件孤儿清理 — 删磁盘文件', () async {

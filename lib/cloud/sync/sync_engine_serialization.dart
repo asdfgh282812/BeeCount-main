@@ -418,6 +418,45 @@ extension SyncEngineSerializationExt on SyncEngine {
           ledgerSyncId: parentLedgerSyncId,
         );
 
+      case 'installment_plan':
+        final plan = await (db.select(db.installmentPlans)
+              ..where((t) => t.id.equals(entityId)))
+            .getSingleOrNull();
+        if (plan == null) return <String, dynamic>{};
+        String? planAccountSyncId;
+        if (plan.accountId != null) {
+          final acc = await (db.select(db.accounts)
+                ..where((a) => a.id.equals(plan.accountId!)))
+              .getSingleOrNull();
+          planAccountSyncId = acc?.syncId;
+        }
+        final planCat = await (db.select(db.categories)
+              ..where((c) => c.id.equals(plan.categoryId)))
+            .getSingleOrNull();
+        return EntitySerializer.serializeInstallmentPlan(
+          plan,
+          ledgerSyncId: parentLedgerSyncId,
+          accountSyncId: planAccountSyncId,
+          categorySyncId: planCat?.syncId,
+        );
+
+      case 'installment_period':
+        final period = await (db.select(db.installmentPeriods)
+              ..where((t) => t.id.equals(entityId)))
+            .getSingleOrNull();
+        if (period == null) return <String, dynamic>{};
+        String? periodTxSyncId;
+        if (period.txId != null) {
+          final tx = await (db.select(db.transactions)
+                ..where((t) => t.id.equals(period.txId!)))
+              .getSingleOrNull();
+          periodTxSyncId = tx?.syncId;
+        }
+        return EntitySerializer.serializeInstallmentPeriod(
+          period,
+          txSyncId: periodTxSyncId,
+        );
+
       default:
         return <String, dynamic>{};
     }
@@ -750,6 +789,73 @@ extension SyncEngineSerializationExt on SyncEngine {
         ),
         'updated_at': now,
       });
+    }
+
+    // 分期付款(v49):按账本过滤推,不跨账本,同 budget/debt/project 同一套模式。
+    final installmentPlans = await (db.select(db.installmentPlans)
+          ..where((t) => t.ledgerId.equals(ledger.id)))
+        .get();
+    for (final plan in installmentPlans) {
+      final syncId = plan.syncId ?? _uuid.v4();
+      if (plan.syncId == null) {
+        await (db.update(db.installmentPlans)
+              ..where((t) => t.id.equals(plan.id)))
+            .write(InstallmentPlansCompanion(syncId: d.Value(syncId)));
+      }
+      String? planAccountSyncId;
+      if (plan.accountId != null) {
+        final acc = accounts
+            .cast<Account?>()
+            .firstWhere((a) => a?.id == plan.accountId, orElse: () => null);
+        planAccountSyncId = acc?.syncId;
+      }
+      final planCat = categories
+          .cast<Category?>()
+          .firstWhere((c) => c?.id == plan.categoryId, orElse: () => null);
+      syncChanges.add({
+        'ledger_id': ledgerId,
+        'entity_type': 'installment_plan',
+        'entity_sync_id': syncId,
+        'action': 'upsert',
+        'payload': EntitySerializer.serializeInstallmentPlan(
+          plan,
+          ledgerSyncId: ledger.syncId,
+          accountSyncId: planAccountSyncId,
+          categorySyncId: planCat?.syncId,
+        ),
+        'updated_at': now,
+      });
+
+      final planPeriods = await (db.select(db.installmentPeriods)
+            ..where((t) => t.planSyncId.equals(syncId)))
+          .get();
+      for (final period in planPeriods) {
+        final periodSyncId = period.syncId ?? _uuid.v4();
+        if (period.syncId == null) {
+          await (db.update(db.installmentPeriods)
+                ..where((t) => t.id.equals(period.id)))
+              .write(
+                  InstallmentPeriodsCompanion(syncId: d.Value(periodSyncId)));
+        }
+        String? periodTxSyncId;
+        if (period.txId != null) {
+          final tx = await (db.select(db.transactions)
+                ..where((t) => t.id.equals(period.txId!)))
+              .getSingleOrNull();
+          periodTxSyncId = tx?.syncId;
+        }
+        syncChanges.add({
+          'ledger_id': ledgerId,
+          'entity_type': 'installment_period',
+          'entity_sync_id': periodSyncId,
+          'action': 'upsert',
+          'payload': EntitySerializer.serializeInstallmentPeriod(
+            period,
+            txSyncId: periodTxSyncId,
+          ),
+          'updated_at': now,
+        });
+      }
     }
 
     // 交易

@@ -38,6 +38,8 @@ import 'local_debt_repository.dart';
 import '../project_repository.dart' show ProjectUsage, ProjectWithUsage;
 import 'local_project_repository.dart';
 import 'local_reward_choice_cache_repository.dart';
+import '../installment_repository.dart';
+import 'local_installment_repository.dart';
 
 /// LocalRepository 本地数据库实现
 /// 基于 Drift 本地数据库实现所有 Repository 接口
@@ -69,6 +71,7 @@ class LocalRepository extends BaseRepository {
   late final LocalDebtRepository _debtRepo;
   late final LocalProjectRepository _projectRepo;
   late final LocalRewardChoiceCacheRepository _rewardChoiceCacheRepo;
+  late final LocalInstallmentRepository _installmentRepo;
 
   LocalRepository(this.db, {this.changeTracker}) {
     _ledgerRepo = LocalLedgerRepository(db);
@@ -87,6 +90,7 @@ class LocalRepository extends BaseRepository {
     _debtRepo = LocalDebtRepository(db);
     _projectRepo = LocalProjectRepository(db);
     _rewardChoiceCacheRepo = LocalRewardChoiceCacheRepository(db);
+    _installmentRepo = LocalInstallmentRepository(db);
   }
 
   // ============================================
@@ -635,6 +639,55 @@ class LocalRepository extends BaseRepository {
   @override
   Future<void> deleteTransaction(int id) async {
     final tx = await _transactionRepo.getTransactionById(id);
+
+    // v49 分期付款(子專案 2):集中攔截「這筆交易屬於分期計畫,一般刪除
+    // 入口不能直接刪」——子專案 1 只在 transaction_detail_card.dart 一處做
+    // 了這個檢查(見 docs/changes/2026-09-03-installment-tracking-phase1.md
+    // 「已知缺口」),search_page.dart/category_detail_page.dart/
+    // tag_detail_page.dart/transaction_list.dart 都沒攔到,會產生孤兒
+    // InstallmentPeriods.txId。這次下沉到這裡(全部 UI 入口最終都會走到
+    // 的唯一 deleteTransaction 實作),不用每個頁面各自複製檢查。
+    //
+    // LocalInstallmentRepository 自己的狀態變更操作(earlyRepayPrincipal/
+    // payoff/terminateFutureInstallments)刪除期數對應交易時直接對 db.transactions
+    // 操作(見該檔案的 _deletePeriodAndTx),不經過這個方法,不受這個攔截
+    // 影響——這正是設計上要的:repo 內部合法操作可以刪,一般 UI 入口不行。
+    //
+    // 問題 A 修正(2026-09-03,見
+    // docs/changes/2026-09-03-installment-tracking-delete-sync-fixes.md):
+    // 原本這裡只要 installmentPlanSyncId 非 null 就無條件攔截,但實機發現
+    // 有時候整筆刪除分期計畫(deleteInstallmentPlan)之後,本地仍殘留指向
+    // 已刪計畫的孤兒 transaction/InstallmentPeriods 列(見該文件對根因的
+    // 調查)——這時候硬攔反而讓使用者卡死:分期頁找不到計畫可以整筆刪,單筆
+    // 交易又被攔住刪不掉。改成先確認 plan 是否還存在,只有「plan 還在」時
+    // 才攔;plan 已經不存在（孤兒）時放行,順便清掉指向這筆交易的孤兒
+    // period 列(如果有的話)。
+    if (tx?.installmentPlanSyncId != null) {
+      final plan = await _installmentRepo
+          .getInstallmentPlanBySyncId(tx!.installmentPlanSyncId!);
+      if (plan != null) {
+        throw InstallmentManagedTransactionException(
+            id, tx.installmentPlanSyncId!);
+      }
+      final orphanPeriod = await (db.select(db.installmentPeriods)
+            ..where((p) => p.txId.equals(id)))
+          .getSingleOrNull();
+      if (orphanPeriod != null) {
+        await (db.delete(db.installmentPeriods)
+              ..where((p) => p.id.equals(orphanPeriod.id)))
+            .go();
+        if (changeTracker != null && orphanPeriod.syncId != null) {
+          await changeTracker!.recordLedgerChange(
+            entityType: 'installment_period',
+            entityId: orphanPeriod.id,
+            entitySyncId: orphanPeriod.syncId!,
+            ledgerId: orphanPeriod.ledgerId,
+            action: 'delete',
+          );
+        }
+      }
+    }
+
     if (changeTracker != null && tx?.syncId != null) {
       await changeTracker!.recordLedgerChange(
         entityType: 'transaction',
@@ -4438,4 +4491,303 @@ class LocalRepository extends BaseRepository {
         categoryId: categoryId,
         accountId: accountId,
       );
+
+  // ============================================
+  // InstallmentRepository 接口实现 - 委托给 LocalInstallmentRepository
+  // ============================================
+
+  @override
+  Future<int> createInstallmentPlan({
+    required int ledgerId,
+    required double totalAmount,
+    required int periods,
+    required DateTime firstPeriodAt,
+    int? accountId,
+    required int categoryId,
+    String? note,
+    String repaymentMethod = 'equal_principal',
+    String interestPeriod = 'monthly',
+    double interestRate = 0.0,
+    bool roundAmounts = true,
+    String remainderPosition = 'last',
+    int gracePeriodMonths = 0,
+    bool offsetExistingBalance = false,
+  }) async {
+    final planId = await _installmentRepo.createInstallmentPlan(
+      ledgerId: ledgerId,
+      totalAmount: totalAmount,
+      periods: periods,
+      firstPeriodAt: firstPeriodAt,
+      accountId: accountId,
+      categoryId: categoryId,
+      note: note,
+      repaymentMethod: repaymentMethod,
+      interestPeriod: interestPeriod,
+      interestRate: interestRate,
+      roundAmounts: roundAmounts,
+      remainderPosition: remainderPosition,
+      gracePeriodMonths: gracePeriodMonths,
+      offsetExistingBalance: offsetExistingBalance,
+    );
+
+    if (changeTracker != null) {
+      final plan = await _installmentRepo.getInstallmentPlan(planId);
+      if (plan?.syncId != null) {
+        await changeTracker!.recordLedgerChange(
+          entityType: 'installment_plan',
+          entityId: plan!.id,
+          entitySyncId: plan.syncId!,
+          ledgerId: ledgerId,
+          action: 'create',
+        );
+        final periodsRows =
+            await _installmentRepo.getInstallmentPeriods(planId);
+        for (final p in periodsRows) {
+          if (p.syncId == null) continue;
+          await changeTracker!.recordLedgerChange(
+            entityType: 'installment_period',
+            entityId: p.id,
+            entitySyncId: p.syncId!,
+            ledgerId: ledgerId,
+            action: 'create',
+          );
+        }
+        // 逐期生成的交易全部帶 installmentPlanSyncId=plan.syncId,一次查回
+        // 全部,不用逐 period 反查(period.txId 是本地 int,直接查交易表按
+        // installmentPlanSyncId 過濾等價,且省掉 N 次單筆查詢)。
+        final txs = await (db.select(db.transactions)
+              ..where((t) => t.installmentPlanSyncId.equals(plan.syncId!)))
+            .get();
+        for (final tx in txs) {
+          if (tx.syncId == null) continue;
+          await changeTracker!.recordLedgerChange(
+            entityType: 'transaction',
+            entityId: tx.id,
+            entitySyncId: tx.syncId!,
+            ledgerId: ledgerId,
+            action: 'create',
+          );
+        }
+      }
+    }
+
+    return planId;
+  }
+
+  @override
+  Future<InstallmentPlan?> getInstallmentPlan(int id) =>
+      _installmentRepo.getInstallmentPlan(id);
+
+  @override
+  Future<InstallmentPlan?> getInstallmentPlanBySyncId(String syncId) =>
+      _installmentRepo.getInstallmentPlanBySyncId(syncId);
+
+  @override
+  Future<List<InstallmentPeriod>> getInstallmentPeriods(int planId) =>
+      _installmentRepo.getInstallmentPeriods(planId);
+
+  @override
+  Future<List<InstallmentPlanWithStatus>> getInstallmentPlansWithStatus(
+          int ledgerId) =>
+      _installmentRepo.getInstallmentPlansWithStatus(ledgerId);
+
+  @override
+  Future<InstallmentPlanWithStatus?> getInstallmentPlanWithStatus(int id) =>
+      _installmentRepo.getInstallmentPlanWithStatus(id);
+
+  @override
+  Future<void> deleteInstallmentPlan(int id) async {
+    final plan = await _installmentRepo.getInstallmentPlan(id);
+    if (plan == null) return;
+
+    // 刪除前先把要被連帶刪掉的 period/transaction 記下來(entityId/syncId),
+    // 因為 _installmentRepo.deleteInstallmentPlan 執行完這些行就查不到了。
+    List<InstallmentPeriod> periodsRows = const [];
+    List<Transaction> txs = const [];
+    if (changeTracker != null && plan.syncId != null) {
+      periodsRows = await _installmentRepo.getInstallmentPeriods(id);
+      txs = await (db.select(db.transactions)
+            ..where((t) => t.installmentPlanSyncId.equals(plan.syncId!)))
+          .get();
+    }
+
+    await _installmentRepo.deleteInstallmentPlan(id);
+
+    if (changeTracker != null && plan.syncId != null) {
+      for (final tx in txs) {
+        if (tx.syncId == null) continue;
+        await changeTracker!.recordLedgerChange(
+          entityType: 'transaction',
+          entityId: tx.id,
+          entitySyncId: tx.syncId!,
+          ledgerId: plan.ledgerId,
+          action: 'delete',
+        );
+      }
+      for (final p in periodsRows) {
+        if (p.syncId == null) continue;
+        await changeTracker!.recordLedgerChange(
+          entityType: 'installment_period',
+          entityId: p.id,
+          entitySyncId: p.syncId!,
+          ledgerId: plan.ledgerId,
+          action: 'delete',
+        );
+      }
+      await changeTracker!.recordLedgerChange(
+        entityType: 'installment_plan',
+        entityId: plan.id,
+        entitySyncId: plan.syncId!,
+        ledgerId: plan.ledgerId,
+        action: 'delete',
+      );
+    }
+  }
+
+  @override
+  Stream<List<InstallmentPlan>> watchInstallmentPlans(int ledgerId) =>
+      _installmentRepo.watchInstallmentPlans(ledgerId);
+
+  @override
+  Future<double> getOutstandingPrincipalAllLedgers() =>
+      _installmentRepo.getOutstandingPrincipalAllLedgers();
+
+  // ============================================
+  // 子專案 4:信用卡帳單分期沖銷 - 委托给 LocalInstallmentRepository(純查詢,
+  // 不涉及 ChangeTracker)。
+  // ============================================
+
+  @override
+  Future<double> getOffsetTotalForAccount(int accountId) =>
+      _installmentRepo.getOffsetTotalForAccount(accountId);
+
+  @override
+  Future<double> getCreditCardOffsetableBalance(int accountId) =>
+      _installmentRepo.getCreditCardOffsetableBalance(accountId);
+
+  // ============================================
+  // 子專案 2:狀態變更操作 - 委托给 LocalInstallmentRepository,操作完成後
+  // 統一把回傳的 InstallmentChange 清單記錄進 ChangeTracker。
+  // ============================================
+
+  @override
+  Future<void> updatePeriodOverride(
+    int periodId, {
+    double? amount,
+    DateTime? dueAt,
+    String? note,
+  }) async {
+    final changes = await _installmentRepo.updatePeriodOverride(
+      periodId,
+      amount: amount,
+      dueAt: dueAt,
+      note: note,
+    );
+    await _recordInstallmentChanges(changes);
+  }
+
+  @override
+  Future<void> rebalanceFrom(
+    int planId,
+    int periodNo, {
+    required double interestRate,
+    String? repaymentMethod,
+  }) async {
+    final changes = await _installmentRepo.rebalanceFrom(
+      planId,
+      periodNo,
+      interestRate: interestRate,
+      repaymentMethod: repaymentMethod,
+    );
+    await _recordInstallmentChanges(changes);
+  }
+
+  @override
+  Future<void> earlyRepayPrincipal(
+    int planId, {
+    required double paymentAmount,
+    int? accountId,
+    DateTime? happenedAt,
+  }) async {
+    final changes = await _installmentRepo.earlyRepayPrincipal(
+      planId,
+      paymentAmount: paymentAmount,
+      accountId: accountId,
+      happenedAt: happenedAt,
+    );
+    await _recordInstallmentChanges(changes);
+  }
+
+  @override
+  Future<void> payoff(
+    int planId, {
+    int? accountId,
+    DateTime? happenedAt,
+  }) async {
+    final changes = await _installmentRepo.payoff(
+      planId,
+      accountId: accountId,
+      happenedAt: happenedAt,
+    );
+    await _recordInstallmentChanges(changes);
+  }
+
+  @override
+  Future<void> terminateFutureInstallments(int planId) async {
+    final changes = await _installmentRepo.terminateFutureInstallments(planId);
+    await _recordInstallmentChanges(changes);
+  }
+
+  // ============================================
+  // 子專案 3:退款 - 委托给 LocalInstallmentRepository,同款「回傳
+  // InstallmentChange 清單、統一記 ChangeTracker」分工。
+  // ============================================
+
+  @override
+  Future<void> refundPeriod(
+    int planId,
+    int txId, {
+    double? amount,
+    String? note,
+    DateTime? happenedAt,
+  }) async {
+    final changes = await _installmentRepo.refundPeriod(
+      planId,
+      txId,
+      amount: amount,
+      note: note,
+      happenedAt: happenedAt,
+    );
+    await _recordInstallmentChanges(changes);
+  }
+
+  // ============================================
+  // 問題 A 修正(2026-09-03)- 委托给 LocalInstallmentRepository,同款
+  // 「回傳 InstallmentChange 清單、統一記 ChangeTracker」分工。
+  // ============================================
+
+  @override
+  Future<void> deletePeriod(int planId, int periodId) async {
+    final changes = await _installmentRepo.deletePeriod(planId, periodId);
+    await _recordInstallmentChanges(changes);
+  }
+
+  /// 統一把 [InstallmentChange] 清單寫進 ChangeTracker——子專案 2 的 5 個
+  /// 狀態變更操作共用這個收尾步驟。這是純粹的「把已經算好的異動清單逐一
+  /// 呼叫 recordLedgerChange」,不涉及任何本金池/清零閾值等業務判斷,不
+  /// 違反介面 docstring「不要合併成共用函式」的警告——那條警告針對的是
+  /// 各操作內部的重算/隔離邏輯本身。
+  Future<void> _recordInstallmentChanges(
+      List<InstallmentChange> changes) async {
+    if (changeTracker == null) return;
+    for (final c in changes) {
+      await changeTracker!.recordLedgerChange(
+        entityType: c.entityType,
+        entityId: c.entityId,
+        entitySyncId: c.entitySyncId,
+        ledgerId: c.ledgerId,
+        action: c.action,
+      );
+    }
+  }
 }

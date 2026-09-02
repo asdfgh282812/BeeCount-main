@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../services/data/recurring_rule_schedule.dart' as recurring_schedule;
 import '../../styles/tokens.dart';
 import '../ui/entry_date_time_picker.dart';
+import '../ui/ui.dart' show showToast;
+import 'installment_action_sheets.dart' show sheetSegmentedRow;
+import 'installment_draft_sheet.dart' show InstallmentDraft;
 
 /// 「進階設定」彈窗的結果——單次(null)或一組週期規則草稿。
 ///
@@ -93,20 +97,35 @@ class RecurringRuleDraft {
   }
 }
 
-/// MOZE 對標「進階設定」彈窗:單次/週期/分期(佔位,不可點) tab,週期 tab
-/// 內含區間 picker、星期/日期選擇、次數(無限期/指定次數)、入帳方式(v1 只有
-/// 「立即入帳」一種,純展示)。
+/// 「進階設定」彈窗的統一回傳結果——單次/週期/分期三選一,呼叫端用哪個
+/// 欄位非 null 判斷使用者選了什麼(兩個欄位不會同時非 null)。
+/// `null`(整個 record 本身)代表「單次」或使用者取消,呼叫端應把週期/分期
+/// 都關掉,兩種情況行為一致(同 [RecurringRuleDraft] 舊版註解的既有決策)。
+typedef AdvancedScheduleResult = ({
+  RecurringRuleDraft? recurring,
+  InstallmentDraft? installment,
+});
+
+/// MOZE 對標「進階設定」彈窗:單次/週期/分期 tab,週期 tab 內含區間
+/// picker、星期/日期選擇、次數(無限期/指定次數)、入帳方式(v1 只有「立即
+/// 入帳」一種,純展示);分期 tab 內含期數/還款方式/年利率等攤還參數
+/// (2026-09-03 起改成這裡的第三個 tab,原本 `transaction_entry_form.dart`
+/// 另外開一個獨立「設為分期」欄位/彈窗是誤讀設計文件——這個 tab bar 本身
+/// 就是設計文件 §5.1 對標 Moze「單次/週期/分期」三選一的位置,不應該疊加
+/// 一個平行入口,見 `docs/changes/2026-09-03-installment-tracking-ux-fixes.md`)。
+/// [installmentAvailable]=false 時(非 expense 交易)分期 tab 不顯示,只剩
+/// 單次/週期二選一。
 ///
-/// [show] 回傳:
-/// - `null`:使用者選「單次」或取消 —— 呼叫端應把週期關掉。
-/// - [RecurringRuleDraft]:使用者選「週期」並確認。
+/// [show] 回傳 [AdvancedScheduleResult]。
 class RecurringRuleAdvancedSheet {
-  static Future<RecurringRuleDraft?> show(
+  static Future<AdvancedScheduleResult?> show(
     BuildContext context, {
     required DateTime anchorDate,
     RecurringRuleDraft? initialDraft,
+    bool installmentAvailable = false,
+    InstallmentDraft? initialInstallmentDraft,
   }) {
-    return showModalBottomSheet<RecurringRuleDraft?>(
+    return showModalBottomSheet<AdvancedScheduleResult?>(
       context: context,
       isScrollControlled: true,
       backgroundColor: BeeTokens.surfaceSheet(context),
@@ -116,6 +135,8 @@ class RecurringRuleAdvancedSheet {
       builder: (_) => _RecurringRuleAdvancedSheetBody(
         anchorDate: anchorDate,
         initialDraft: initialDraft,
+        installmentAvailable: installmentAvailable,
+        initialInstallmentDraft: initialInstallmentDraft,
       ),
     );
   }
@@ -124,10 +145,14 @@ class RecurringRuleAdvancedSheet {
 class _RecurringRuleAdvancedSheetBody extends StatefulWidget {
   final DateTime anchorDate;
   final RecurringRuleDraft? initialDraft;
+  final bool installmentAvailable;
+  final InstallmentDraft? initialInstallmentDraft;
 
   const _RecurringRuleAdvancedSheetBody({
     required this.anchorDate,
     this.initialDraft,
+    this.installmentAvailable = false,
+    this.initialInstallmentDraft,
   });
 
   @override
@@ -135,7 +160,7 @@ class _RecurringRuleAdvancedSheetBody extends StatefulWidget {
       _RecurringRuleAdvancedSheetBodyState();
 }
 
-enum _Mode { once, recurring }
+enum _Mode { once, recurring, installment }
 
 // 「截止日期」是新增的第三種結束方式,跟「指定次數」互斥——擇一決定
 // _endAt 怎麼算。RecurringRuleDraft 只存最終算出的 endAt,不記錄是哪種
@@ -155,11 +180,28 @@ class _RecurringRuleAdvancedSheetBodyState
   late int _fixedCount;
   late DateTime _specificEndDate;
 
+  // 分期(installment)欄位——2026-09-03 從 `installment_draft_sheet.dart`
+  // 的 `_InstallmentDraftSheetBody` 併過來,同一組欄位/校驗規則,只是掛在
+  // 這個 tab bar 的第三個 tab 底下,不再是獨立彈窗。
+  late final TextEditingController _installmentPeriodsCtrl;
+  late final TextEditingController _installmentRateCtrl;
+  late final TextEditingController _installmentGraceCtrl;
+  late String _installmentRepaymentMethod;
+  late String _installmentInterestPeriod;
+  late bool _installmentRoundAmounts;
+  late String _installmentRemainderPosition;
+  bool _installmentAdvancedExpanded = false;
+
   @override
   void initState() {
     super.initState();
     final draft = widget.initialDraft;
-    _mode = draft == null ? _Mode.once : _Mode.recurring;
+    final installmentDraft = widget.initialInstallmentDraft;
+    _mode = draft != null
+        ? _Mode.recurring
+        : installmentDraft != null
+            ? _Mode.installment
+            : _Mode.once;
     _frequency = draft?.frequency ?? 'monthly';
     _interval = draft?.interval ?? 1;
     final rule = draft?.advancedRule;
@@ -172,6 +214,30 @@ class _RecurringRuleAdvancedSheetBodyState
     _endMode = draft?.endAt == null ? _EndMode.unlimited : _EndMode.date;
     _fixedCount = 12;
     _specificEndDate = draft?.endAt ?? widget.anchorDate;
+
+    _installmentPeriodsCtrl = TextEditingController(
+        text: (installmentDraft?.periods ?? 12).toString());
+    final ratePercent = (installmentDraft?.interestRate ?? 0.0) * 100;
+    _installmentRateCtrl = TextEditingController(
+        text: ratePercent == ratePercent.roundToDouble()
+            ? ratePercent.toStringAsFixed(0)
+            : ratePercent.toString());
+    _installmentGraceCtrl = TextEditingController(
+        text: (installmentDraft?.gracePeriodMonths ?? 0).toString());
+    _installmentRepaymentMethod =
+        installmentDraft?.repaymentMethod ?? 'equal_principal';
+    _installmentInterestPeriod = installmentDraft?.interestPeriod ?? 'monthly';
+    _installmentRoundAmounts = installmentDraft?.roundAmounts ?? true;
+    _installmentRemainderPosition =
+        installmentDraft?.remainderPosition ?? 'last';
+  }
+
+  @override
+  void dispose() {
+    _installmentPeriodsCtrl.dispose();
+    _installmentRateCtrl.dispose();
+    _installmentGraceCtrl.dispose();
+    super.dispose();
   }
 
   Map<String, dynamic>? get _advancedRule {
@@ -204,17 +270,61 @@ class _RecurringRuleAdvancedSheetBodyState
   }
 
   void _confirm() {
-    if (_mode == _Mode.once) {
-      Navigator.pop(context, null);
+    switch (_mode) {
+      case _Mode.once:
+        Navigator.pop(context, null);
+        return;
+      case _Mode.recurring:
+        Navigator.pop<AdvancedScheduleResult?>(
+          context,
+          (
+            recurring: RecurringRuleDraft(
+              frequency: _frequency,
+              interval: _interval,
+              advancedRule: _advancedRule,
+              endAt: _endAt,
+            ),
+            installment: null,
+          ),
+        );
+        return;
+      case _Mode.installment:
+        _confirmInstallment();
+        return;
+    }
+  }
+
+  void _confirmInstallment() {
+    final l10n = AppLocalizations.of(context);
+    final periods = int.tryParse(_installmentPeriodsCtrl.text.trim()) ?? 0;
+    if (periods < 1 || periods > 600) {
+      showToast(context, l10n.installmentPeriodsRangeError);
       return;
     }
-    Navigator.pop(
+    final ratePercent =
+        double.tryParse(_installmentRateCtrl.text.trim()) ?? 0.0;
+    final grace = int.tryParse(_installmentGraceCtrl.text.trim()) ?? 0;
+    if (grace >= periods || grace < 0) {
+      showToast(context, l10n.installmentGracePeriodRangeError);
+      return;
+    }
+    Navigator.pop<AdvancedScheduleResult?>(
       context,
-      RecurringRuleDraft(
-        frequency: _frequency,
-        interval: _interval,
-        advancedRule: _advancedRule,
-        endAt: _endAt,
+      (
+        recurring: null,
+        installment: InstallmentDraft(
+          periods: periods,
+          repaymentMethod: _installmentRepaymentMethod,
+          interestPeriod: _installmentInterestPeriod,
+          // 內部存小數,對齐 Cloud interestRateToPercentDisplay/
+          // percentDisplayToInterestRate 換算慣例。除以 100 後用
+          // toStringAsFixed 再轉回 double 避免二進位浮點誤差殘留(如
+          // 6.1/100 產生 0.06099999999999999 而不是 0.061)。
+          interestRate: double.parse((ratePercent / 100).toStringAsFixed(6)),
+          roundAmounts: _installmentRoundAmounts,
+          remainderPosition: _installmentRemainderPosition,
+          gracePeriodMonths: grace,
+        ),
       ),
     );
   }
@@ -271,6 +381,10 @@ class _RecurringRuleAdvancedSheetBodyState
                   _buildPostingModeRow(context, l10n),
                   const SizedBox(height: 10),
                 ],
+                if (_mode == _Mode.installment) ...[
+                  _buildInstallmentFields(context, l10n),
+                  const SizedBox(height: 10),
+                ],
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -298,13 +412,11 @@ class _RecurringRuleAdvancedSheetBodyState
   }
 
   Widget _buildModeTabs(BuildContext context, AppLocalizations l10n) {
-    Widget tab(String label, _Mode? mode, {bool disabled = false}) {
-      final selected = mode != null && mode == _mode;
+    Widget tab(String label, _Mode mode) {
+      final selected = mode == _mode;
       return Expanded(
         child: GestureDetector(
-          onTap: disabled || mode == null
-              ? null
-              : () => setState(() => _mode = mode),
+          onTap: () => setState(() => _mode = mode),
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 10),
             decoration: BoxDecoration(
@@ -316,30 +428,16 @@ class _RecurringRuleAdvancedSheetBodyState
                   : BeeTokens.surfaceInput(context),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Column(
-              children: [
-                Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                    color: disabled
-                        ? BeeTokens.textTertiary(context)
-                        : selected
-                            ? Theme.of(context).colorScheme.primary
-                            : BeeTokens.textSecondary(context),
-                  ),
-                ),
-                if (disabled)
-                  Text(
-                    l10n.recurringTabInstallmentComingSoon,
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: BeeTokens.textTertiary(context),
-                    ),
-                  ),
-              ],
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                color: selected
+                    ? Theme.of(context).colorScheme.primary
+                    : BeeTokens.textSecondary(context),
+              ),
             ),
           ),
         ),
@@ -351,11 +449,138 @@ class _RecurringRuleAdvancedSheetBodyState
         tab(l10n.recurringTabOnce, _Mode.once),
         const SizedBox(width: 8),
         tab(l10n.recurringTabRecurring, _Mode.recurring),
-        const SizedBox(width: 8),
-        tab(l10n.recurringTabInstallment, null, disabled: true),
+        // 分期只對 expense 交易開放(對齐設計文件 §1.4「所有 expense 交易都
+        // 可選」),非 expense 時這個 tab 直接不出現,不是灰掉——沒有任何
+        // 「以後會支援」的語意,收入/轉帳本來就不適用分期。
+        if (widget.installmentAvailable) ...[
+          const SizedBox(width: 8),
+          tab(l10n.recurringTabInstallment, _Mode.installment),
+        ],
       ],
     );
   }
+
+  Widget _buildInstallmentFields(BuildContext context, AppLocalizations l10n) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _label(context, l10n.installmentPeriodsLabel),
+        TextField(
+          controller: _installmentPeriodsCtrl,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: const InputDecoration(border: OutlineInputBorder()),
+        ),
+        const SizedBox(height: 12),
+        _label(context, l10n.installmentRepaymentMethodLabel),
+        sheetSegmentedRow(
+          context,
+          options: {
+            'equal_principal': l10n.installmentMethodEqualPrincipal,
+            'equal_installment': l10n.installmentMethodEqualInstallment,
+            'fixed_interest': l10n.installmentMethodFixedInterest,
+          },
+          value: _installmentRepaymentMethod,
+          onChanged: (v) => setState(() => _installmentRepaymentMethod = v),
+        ),
+        const SizedBox(height: 12),
+        _label(context, l10n.installmentInterestRateLabel),
+        TextField(
+          controller: _installmentRateCtrl,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+          ],
+          decoration: InputDecoration(
+            border: const OutlineInputBorder(),
+            suffixText: '%',
+            helperText: l10n.installmentInterestRateHint,
+          ),
+        ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: () => setState(
+              () => _installmentAdvancedExpanded = !_installmentAdvancedExpanded),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                Icon(
+                  _installmentAdvancedExpanded
+                      ? Icons.expand_less
+                      : Icons.expand_more,
+                  color: BeeTokens.iconSecondary(context),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  l10n.installmentAdvancedSectionLabel,
+                  style: TextStyle(
+                      fontSize: 14, color: BeeTokens.textSecondary(context)),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_installmentAdvancedExpanded) ...[
+          _label(context, l10n.installmentInterestPeriodLabel),
+          sheetSegmentedRow(
+            context,
+            options: {
+              'monthly': l10n.installmentInterestPeriodMonthly,
+              'daily': l10n.installmentInterestPeriodDaily,
+            },
+            value: _installmentInterestPeriod,
+            onChanged: (v) => setState(() => _installmentInterestPeriod = v),
+          ),
+          const SizedBox(height: 12),
+          _label(context, l10n.installmentGracePeriodLabel),
+          TextField(
+            controller: _installmentGraceCtrl,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: const InputDecoration(border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(l10n.installmentRoundAmountsLabel,
+                  style: TextStyle(color: BeeTokens.textPrimary(context))),
+              Switch(
+                value: _installmentRoundAmounts,
+                onChanged: (v) =>
+                    setState(() => _installmentRoundAmounts = v),
+              ),
+            ],
+          ),
+          if (_installmentRoundAmounts) ...[
+            _label(context, l10n.installmentRemainderPositionLabel),
+            sheetSegmentedRow(
+              context,
+              options: {
+                'first': l10n.installmentRemainderPositionFirst,
+                'last': l10n.installmentRemainderPositionLast,
+              },
+              value: _installmentRemainderPosition,
+              onChanged: (v) =>
+                  setState(() => _installmentRemainderPosition = v),
+            ),
+          ],
+        ],
+      ],
+    );
+  }
+
+  Widget _label(BuildContext context, String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Text(
+          text,
+          style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: BeeTokens.textSecondary(context)),
+        ),
+      );
 
   Widget _buildIntervalRow(BuildContext context, AppLocalizations l10n) {
     final units = <(String, String)>[

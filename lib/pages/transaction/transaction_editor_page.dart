@@ -475,6 +475,15 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
       // (recurringRuleId == null)這個值本來就是 null,不受影響。
       final original =
           await repo.getTransactionById(widget.editingTransactionId!);
+      // v49 分期付款(子專案 1 暫時方案)安全網:正常路徑下
+      // `transaction_detail_card.dart._handleEdit` 已經攔在進入這個編輯頁
+      // 之前,這裡是防呆——萬一有別的入口直接構造這個 page 略過那層攔截。
+      if (original?.installmentPlanSyncId != null) {
+        if (!mounted) return;
+        showToast(context,
+            AppLocalizations.of(context).transactionInstallmentLockedBanner);
+        return;
+      }
       RecurringEditScope? recurringScope = widget.initialRecurringEditScope;
       if (original?.recurringRuleId != null && recurringScope == null) {
         if (!mounted) return;
@@ -578,6 +587,55 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
         firstOccurrenceId = first?.id;
       }
       transactionId = firstOccurrenceId ?? -1;
+      if (transactionId != -1) {
+        await TxAuthorService.markCreated(ref, transactionId);
+      }
+    } else if (res.installmentDraft != null) {
+      // v49 分期付款:新增時開啟了「設為分期」——建計畫(內部單一 db
+      // transaction 直接寫入 N 筆交易 + N 筆 period,不再另外呼叫
+      // addTransaction),同 recurringDraft 分支的角色。
+      if (categoryIdForWrite == null) {
+        // 分期計畫的 categoryId 是必填欄位,共享帳本 synthetic 分類(本地
+        // 沒有真實 int id)目前不支援設為分期——直接擋掉,避免傳一個假 id。
+        if (!mounted) return;
+        showToast(
+            context, AppLocalizations.of(context).installmentCategoryRequired);
+        return;
+      }
+      final draft = res.installmentDraft!;
+      final planId = await repo.createInstallmentPlan(
+        ledgerId: ledgerId,
+        totalAmount: res.amount,
+        periods: draft.periods,
+        firstPeriodAt: res.date,
+        accountId: accountIdForAdd,
+        categoryId: categoryIdForWrite,
+        note: res.note,
+        repaymentMethod: draft.repaymentMethod,
+        interestPeriod: draft.interestPeriod,
+        interestRate: draft.interestRate,
+        roundAmounts: draft.roundAmounts,
+        remainderPosition: draft.remainderPosition,
+        gracePeriodMonths: draft.gracePeriodMonths,
+      );
+      // 這條路徑(交易表單的「設為分期」,跟 installment_editor_page.dart/
+      // installment_list_page.dart/transaction_detail_card.dart 的其他三個
+      // 建立/狀態變更入口不同)原本漏了 bump installmentsRefreshProvider,
+      // 導致帳戶頁 `_InstallmentEntryCard` 的「未繳分期本金」聚合跟分期列表
+      // 頁都還在讀建立前的快取值,一直顯示「無未繳分期」——見
+      // docs/changes/2026-09-03-installment-tracking-refresh-fixes.md。
+      ref.read(installmentsRefreshProvider.notifier).state++;
+      // 取第一期的交易 id 代表這次操作(比照 recurringDraft 分支用第一個
+      // occurrence),供下面附件/標籤流程掛靠。
+      int? firstPeriodTxId;
+      if (repo is LocalRepository) {
+        final plan = await repo.getInstallmentPlan(planId);
+        if (plan?.syncId != null) {
+          final periods = await repo.getInstallmentPeriods(planId);
+          if (periods.isNotEmpty) firstPeriodTxId = periods.first.txId;
+        }
+      }
+      transactionId = firstPeriodTxId ?? -1;
       if (transactionId != -1) {
         await TxAuthorService.markCreated(ref, transactionId);
       }

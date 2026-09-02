@@ -13,6 +13,7 @@ import '../category/category_migration_page.dart';
 import '../../services/billing/post_processor.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/category_utils.dart';
+import '../../utils/transaction_edit_utils.dart';
 
 enum SortType { timeAsc, timeDesc, amountAsc, amountDesc }
 
@@ -456,12 +457,14 @@ class _CategoryDetailPageState extends ConsumerState<CategoryDetailPage> {
                 );
               },
               onDelete: () async {
-                final repo = ref.read(repositoryProvider);
                 final ledgerId = ref.read(currentLedgerIdProvider);
 
-                try {
-                  await repo.deleteTransaction(transaction.id);
+                final deleted =
+                    await TransactionEditUtils.deleteTransactionGuarded(
+                        context, ref, transaction);
+                if (!deleted) return;
 
+                try {
                   // 统一处理：自动/手动同步与状态刷新（后台静默）
                   await PostProcessor.sync(ref, ledgerId: ledgerId);
 
@@ -547,12 +550,14 @@ class _CategoryDetailPageState extends ConsumerState<CategoryDetailPage> {
                   // 数据库变化会自动通过Stream推送到UI
                 },
                 onDelete: () async {
-                  final repo = ref.read(repositoryProvider);
                   final ledgerId = ref.read(currentLedgerIdProvider);
 
-                  try {
-                    await repo.deleteTransaction(transaction.id);
+                  final deleted =
+                      await TransactionEditUtils.deleteTransactionGuarded(
+                          context, ref, transaction);
+                  if (!deleted) return;
 
+                  try {
                     // 统一处理：自动/手动同步与状态刷新（后台静默）
                     await PostProcessor.sync(ref, ledgerId: ledgerId);
 

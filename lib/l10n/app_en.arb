@@ -3946,5 +3946,175 @@
   "swipesmartMappingSubtitle": "Cards with similar or identical names are matched automatically; pick the rest manually so recommendations can fill in the account directly.",
   "swipesmartMappingUnmapped": "Not mapped",
   "swipesmartMappingNoCards": "Could not load the card catalog. Check your connection or API key.",
-  "swipesmartMappingNoAccounts": "No credit card accounts yet."
+  "swipesmartMappingNoAccounts": "No credit card accounts yet.",
+
+  "installmentsPageTitle": "Installments",
+  "installmentsEmptyMessage": "No installment plans yet",
+  "installmentAddTitle": "New Installment Plan",
+  "installmentStatusActive": "Active",
+  "installmentStatusSettled": "Settled",
+  "installmentStatusTerminated": "Terminated",
+  "installmentPaidProgressLabel": "{paid}/{total} periods paid",
+  "@installmentPaidProgressLabel": {
+    "placeholders": {
+      "paid": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "installmentNextPeriodLabel": "Next",
+  "installmentTotalAmountLabel": "Total",
+  "installmentDeleteConfirmTitle": "Delete this installment plan?",
+  "installmentDeleteConfirmMessage": "This deletes the plan and all of its transactions, including past periods. This can't be undone.",
+  "installmentDeleteSuccess": "Deleted",
+  "installmentSaveSuccess": "Saved",
+  "installmentFirstPeriodAtLabel": "First Period Date",
+  "installmentAccountLabel": "Account",
+  "installmentAccountNone": "None",
+  "installmentCategoryLabel": "Category",
+  "installmentCategoryNone": "Select a category",
+  "installmentCategoryRequired": "Please select a category",
+  "installmentNoteLabel": "Note",
+  "installmentTotalAmountHint": "Enter total amount",
+  "installmentPeriodsLabel": "Periods",
+  "installmentPeriodsCountLabel": "{count, plural, one{1 period} other{{count} periods}}",
+  "@installmentPeriodsCountLabel": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "installmentRepaymentMethodLabel": "Repayment Method",
+  "installmentMethodEqualPrincipal": "Equal Principal",
+  "installmentMethodEqualInstallment": "Equal Installment",
+  "installmentMethodFixedInterest": "Fixed Interest",
+  "installmentInterestPeriodLabel": "Interest Period",
+  "installmentInterestPeriodMonthly": "Monthly",
+  "installmentInterestPeriodDaily": "Daily",
+  "installmentInterestRateLabel": "Annual Interest Rate",
+  "installmentInterestRateHint": "Yearly rate, e.g. 6 for 6%",
+  "installmentGracePeriodLabel": "Grace Period (months)",
+  "installmentGracePeriodRangeError": "Grace period must be less than the total number of periods",
+  "installmentRoundAmountsLabel": "Round to whole amounts",
+  "installmentRemainderPositionLabel": "Remainder Goes To",
+  "installmentRemainderPositionFirst": "First period",
+  "installmentRemainderPositionLast": "Last period",
+  "installmentPeriodsRangeError": "Periods must be between 1 and 600",
+  "installmentAdvancedSectionLabel": "Advanced",
+  "installmentDraftSheetTitle": "Set as Installment",
+  "installmentSetAsInstallmentLabel": "Set as Installment",
+  "installmentGoToPlanButton": "View Plan",
+  "txInstallmentRecurringConflict": "Installment and recurring can't be used together",
+  "txInstallmentSplitConflict": "Installment and split categories can't be used together",
+  "accountsInstallmentEntryTitle": "Installments",
+  "accountsInstallmentEntryOutstanding": "Outstanding",
+  "accountsInstallmentEntryNone": "None outstanding",
+  "transactionInstallmentLockedBanner": "Managed by an installment plan. Edit it from the installment page.",
+  "transactionInstallmentLockedDeleteMessage": "This transaction belongs to an installment plan. Delete or edit the plan instead.",
+
+  "installmentExpandDetailsLabel": "Periods",
+  "installmentCollapseDetailsLabel": "Hide periods",
+  "installmentPeriodNoLabel": "Period {no}",
+  "@installmentPeriodNoLabel": {
+    "placeholders": {
+      "no": { "type": "int" }
+    }
+  },
+  "installmentPeriodStatusOverriddenLabel": "Edited",
+  "installmentPeriodEditTooltip": "Edit this period",
+  "installmentPeriodRebalanceTooltip": "Rebalance from here",
+  "installmentPeriodEditSheetTitle": "Edit Period",
+  "installmentPeriodAmountLabel": "Amount",
+  "installmentPeriodDueAtLabel": "Due Date",
+  "installmentPeriodNoteLabel": "Note",
+  "installmentPeriodEditSuccess": "Period updated",
+  "installmentRebalanceSheetTitle": "Rebalance From Period {no}",
+  "@installmentRebalanceSheetTitle": {
+    "placeholders": {
+      "no": { "type": "int" }
+    }
+  },
+  "installmentRebalanceSuccess": "Rebalanced",
+  "installmentActionPartialRepay": "Partial Repayment",
+  "installmentActionPayoff": "Payoff",
+  "installmentActionTerminateFuture": "Terminate Future",
+  "installmentEarlyRepaySheetTitle": "Partial Repayment",
+  "installmentEarlyRepayAmountLabel": "Repayment Amount",
+  "installmentEarlyRepayAmountHint": "Enter amount",
+  "installmentEarlyRepayDateLabel": "Repayment Date",
+  "installmentEarlyRepaySuccess": "Repayment recorded",
+  "installmentPayoffSheetTitle": "Payoff",
+  "installmentPayoffDateLabel": "Settlement Date",
+  "installmentPayoffPreviewLabel": "Estimated settlement amount",
+  "installmentPayoffSuccess": "Plan settled",
+  "installmentTerminateFutureConfirmTitle": "Terminate future periods?",
+  "installmentTerminateFutureConfirmMessage": "This deletes every period and transaction that hasn't happened yet. This can't be undone.",
+  "installmentTerminateFutureSuccess": "Future periods terminated",
+  "installmentOperationFailed": "Operation failed: {error}",
+  "@installmentOperationFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "installmentUseDefaultAccountHint": "Leave blank to use the plan's account",
+  "installmentEditChoiceTitle": "This transaction is managed by an installment plan",
+  "installmentEditChoiceThisRecordOnly": "Edit this period",
+  "installmentEditChoiceRebalanceFromHere": "Edit this and future periods",
+  "installmentEditChoiceEarlyRepay": "Partial repayment",
+  "installmentEditChoicePayoff": "Payoff",
+  "installmentRefundChoiceTitle": "This transaction is managed by an installment plan",
+  "installmentRefundChoicePeriodOnly": "Refund this period only",
+  "installmentRefundChoiceWholePlan": "Refund the entire plan",
+  "installmentRefundWholePlanConfirmTitle": "Refund the entire plan?",
+  "installmentRefundWholePlanConfirmMessage": "This deletes the plan and all of its transactions, including past periods. This can't be undone.",
+  "installmentRefundSuccess": "Refunded",
+  "installmentPeriodRefundSheetTitle": "Refund This Period",
+  "installmentPeriodRefundAmountLabel": "Refund Amount",
+  "installmentPeriodRefundAmountHint": "Enter a valid amount",
+  "installmentPeriodRefundDateLabel": "Refund Date",
+  "installmentPeriodRefundNoteLabel": "Note",
+  "installmentOffsetToggleLabel": "Convert existing balance",
+  "installmentOffsetToggleSubtitle": "Turn what you already owe on this card into this installment plan instead of adding a new charge. No new transaction is created for the converted amount.",
+  "installmentOffsetDueLabel": "Current balance: {amount}",
+  "@installmentOffsetDueLabel": {
+    "placeholders": {
+      "amount": { "type": "String" }
+    }
+  },
+  "installmentOffsetLoadingLabel": "Checking current balance…",
+  "installmentOffsetNoBalanceError": "This account has no outstanding balance to convert.",
+  "installmentOffsetExceedsBalanceError": "Total amount can't exceed the current balance ({amount}).",
+  "@installmentOffsetExceedsBalanceError": {
+    "placeholders": {
+      "amount": { "type": "String" }
+    }
+  },
+  "installmentOffsetGroupUnsupportedError": "Offsetting isn't supported for merged billing accounts yet. Choose a single credit card.",
+  "installmentConvertToInstallmentButton": "Convert to Installment",
+  "installmentDeleteChoiceTitle": "This transaction is managed by an installment plan",
+  "installmentDeleteChoiceThisRecordOnly": "Delete this period only",
+  "installmentDeleteChoiceWholePlan": "Delete the entire plan",
+  "installmentDeleteWholePlanConfirmTitle": "Delete the entire plan?",
+  "installmentDeleteWholePlanConfirmMessage": "This deletes the plan and all of its transactions, including past periods. This can't be undone.",
+  "installmentPeriodPrincipalInterestLabel": "Principal {principal} · Interest {interest}",
+  "@installmentPeriodPrincipalInterestLabel": {
+    "placeholders": {
+      "principal": { "type": "String" },
+      "interest": { "type": "String" }
+    }
+  },
+  "installmentPrincipalSummaryLine": "Principal: {total} total · {paid} paid · {remaining} left",
+  "@installmentPrincipalSummaryLine": {
+    "placeholders": {
+      "total": { "type": "String" },
+      "paid": { "type": "String" },
+      "remaining": { "type": "String" }
+    }
+  },
+  "installmentInterestSummaryLine": "Interest: {total} total · {paid} paid · {remaining} left",
+  "@installmentInterestSummaryLine": {
+    "placeholders": {
+      "total": { "type": "String" },
+      "paid": { "type": "String" },
+      "remaining": { "type": "String" }
+    }
+  }
 }

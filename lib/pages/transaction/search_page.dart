@@ -8,6 +8,7 @@ import '../../widgets/ui/ui.dart';
 import '../../styles/tokens.dart';
 import '../../utils/category_utils.dart';
 import '../../l10n/app_localizations.dart';
+import '../../utils/transaction_edit_utils.dart';
 import '../../utils/ui_scale_extensions.dart';
 import '../../widgets/category_icon.dart';
 import 'category_detail_page.dart';
@@ -503,19 +504,41 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   /// 执行批量删除
   Future<void> _executeBatchDelete() async {
-    final count = _selectedIds.length;
     final l10n = AppLocalizations.of(context);
 
+    // 分期計畫生成的交易不能透過批量刪除入口刪掉(見
+    // TransactionEditUtils.deleteTransactionGuarded)——逐筆檢查、跳過被攔的,
+    // 其餘正常刪除,最後彙總提示,而不是遇到第一筆分期交易就整批中止
+    // (原本 for 迴圈裡任何一筆拋錯都會讓後面選中的交易沒機會刪)。
+    final selectedTransactions = _searchResults
+        .where((item) => _selectedIds.contains(item.t.id))
+        .map((item) => item.t)
+        .toList();
+
     try {
-      final repo = ref.read(repositoryProvider);
-      // 批量删除交易
-      for (final id in _selectedIds) {
-        await repo.deleteTransaction(id);
+      var deletedCount = 0;
+      var skippedCount = 0;
+      for (final tx in selectedTransactions) {
+        final deleted = await TransactionEditUtils.deleteTransactionGuarded(
+          context,
+          ref,
+          tx,
+          showFeedback: false,
+        );
+        if (deleted) {
+          deletedCount++;
+        } else {
+          skippedCount++;
+        }
       }
       ref.read(budgetRefreshProvider.notifier).state++;
       ref.read(debtsRefreshProvider.notifier).state++;
-      await _refreshAfterBatchOperation(
-          count, l10n.searchBatchDeleteSuccess(count));
+      final message = skippedCount > 0
+          ? '${l10n.searchBatchDeleteSuccess(deletedCount)}'
+              '${deletedCount > 0 ? ' · ' : ''}'
+              '${l10n.transactionInstallmentLockedDeleteMessage}'
+          : l10n.searchBatchDeleteSuccess(deletedCount);
+      await _refreshAfterBatchOperation(deletedCount, message);
     } catch (e) {
       if (mounted) {
         showToast(context, l10n.searchBatchDeleteFailed(e.toString()));

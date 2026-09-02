@@ -27,6 +27,14 @@ List<int> _parseExtraIds(String extraIdsKey) => extraIdsKey.isEmpty
 /// 算 [ids] 加總後在 [cutoff] 這個時間點的「仍欠款」金額(正值=欠款,對齊
 /// Cloud `remaining_due`/`carryover_due` 的正負號),[cutoff] 為 null 時退化成
 /// 只看 `paidTotal`(不太會發生,呼叫端一律會傳 cutoff)。
+///
+/// 子專案 4(帳單分期沖銷):`charged` 要先扣掉
+/// [InstallmentRepository.getOffsetTotalForAccount]——已經被某個分期計畫
+/// `offsetExistingBalance` 沖銷掉的既有欠款,不管 [cutoff] 是哪個時間點都要
+/// 扣(對齐 Cloud `compute_offset_totals` docstring:「沖銷代表從此以後這筆
+/// 帳從卡片上移除,對建立分期計畫之後的任何 cutoff 都成立」),否則這筆錢
+/// 會同時算在「這張卡的原始消費」跟「新分期計畫產生的各期交易」兩邊,重複
+/// 計入應繳金額。
 Future<double> _dueAsOf(
   BaseRepository repo,
   List<int> ids,
@@ -36,6 +44,7 @@ Future<double> _dueAsOf(
   var paidTotal = 0.0;
   for (final id in ids) {
     charged += await repo.getCreditCardChargedAsOf(id, asOf: cutoff);
+    charged -= await repo.getOffsetTotalForAccount(id);
     paidTotal += await repo.getCreditCardPaidTotal(id);
   }
   return creditCardDueAsOf(charged: charged, paidTotal: paidTotal);
@@ -47,6 +56,15 @@ final defaultBillingPeriodOffsetProvider = FutureProvider.family
     .autoDispose<int, ({int accountId, String extraIdsKey, int? billingDay})>(
   (ref, params) async {
     ref.watch(syncGenerationProvider);
+    // 問題 B 修正(2026-09-03,見
+    // docs/changes/2026-09-03-installment-tracking-delete-sync-fixes.md):
+    // `_dueAsOf` 讀 `getOffsetTotalForAccount`(分期帳單沖銷),但建立/刪除
+    // 分期計畫這種**本地寫入**只 bump `installmentsRefreshProvider`,不會
+    // bump `syncGenerationProvider`(那個只在遠端 pull 真的 apply 到東西時
+    // 才 bump,見 sync_providers.dart 的 PullCompleted 分支)。純 watch
+    // syncGenerationProvider 涵蓋不到「本機建立/刪除一筆帶沖銷的分期計畫」
+    // 這個情境,這裡補上。
+    ref.watch(installmentsRefreshProvider);
     final repo = ref.watch(repositoryProvider);
     final ids = [params.accountId, ..._parseExtraIds(params.extraIdsKey)];
 
@@ -68,6 +86,10 @@ final accountBalanceAsOfProvider = FutureProvider.family
     .autoDispose<double, ({int accountId, String extraIdsKey, DateTime asOf})>(
   (ref, params) async {
     ref.watch(syncGenerationProvider);
+    // 問題 B 修正(2026-09-03)——理由同 [defaultBillingPeriodOffsetProvider]
+    // 上方的說明:本地建立/刪除帶沖銷的分期計畫不會 bump
+    // syncGenerationProvider,這裡補上 installmentsRefreshProvider。
+    ref.watch(installmentsRefreshProvider);
     final repo = ref.watch(repositoryProvider);
     final ids = [params.accountId, ..._parseExtraIds(params.extraIdsKey)];
     final due = await _dueAsOf(repo, ids, params.asOf);
@@ -196,6 +218,8 @@ final creditCardBillingBadgeProvider = FutureProvider.family.autoDispose<
       return null;
     }
     ref.watch(syncGenerationProvider);
+    // 問題 B 修正(2026-09-03)——理由同上。
+    ref.watch(installmentsRefreshProvider);
     final repo = ref.watch(repositoryProvider);
     final ids = [params.accountId, ..._parseExtraIds(params.extraIdsKey)];
     final offset = mostRecentlyClosedBillingOffset(params.billingDay);

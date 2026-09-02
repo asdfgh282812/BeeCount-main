@@ -51,6 +51,16 @@ enum OrphanType {
 
   /// C1 local_changes 失主实体
   localChangeMissingEntity,
+
+  /// A11(2026-09-03,问题 A4)交易的 installment_plan_sync_id 指向已删的
+  /// 分期计画
+  txMissingInstallmentPlan,
+
+  /// A12(2026-09-03,问题 A4)分期期数的 plan_sync_id 指向已删的分期计画
+  installmentPeriodMissingPlan,
+
+  /// A13(2026-09-03,问题 A4)分期期数的 tx_id 指向已删的交易
+  installmentPeriodMissingTx,
 }
 
 /// 单条孤儿数据。

@@ -8912,6 +8912,392 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get swipesmartMappingNoAccounts => 'No credit card accounts yet.';
+
+  @override
+  String get installmentsPageTitle => 'Installments';
+
+  @override
+  String get installmentsEmptyMessage => 'No installment plans yet';
+
+  @override
+  String get installmentAddTitle => 'New Installment Plan';
+
+  @override
+  String get installmentStatusActive => 'Active';
+
+  @override
+  String get installmentStatusSettled => 'Settled';
+
+  @override
+  String get installmentStatusTerminated => 'Terminated';
+
+  @override
+  String installmentPaidProgressLabel(int paid, int total) {
+    return '$paid/$total periods paid';
+  }
+
+  @override
+  String get installmentNextPeriodLabel => 'Next';
+
+  @override
+  String get installmentTotalAmountLabel => 'Total';
+
+  @override
+  String get installmentDeleteConfirmTitle => 'Delete this installment plan?';
+
+  @override
+  String get installmentDeleteConfirmMessage =>
+      'This deletes the plan and all of its transactions, including past periods. This can\'t be undone.';
+
+  @override
+  String get installmentDeleteSuccess => 'Deleted';
+
+  @override
+  String get installmentSaveSuccess => 'Saved';
+
+  @override
+  String get installmentFirstPeriodAtLabel => 'First Period Date';
+
+  @override
+  String get installmentAccountLabel => 'Account';
+
+  @override
+  String get installmentAccountNone => 'None';
+
+  @override
+  String get installmentCategoryLabel => 'Category';
+
+  @override
+  String get installmentCategoryNone => 'Select a category';
+
+  @override
+  String get installmentCategoryRequired => 'Please select a category';
+
+  @override
+  String get installmentNoteLabel => 'Note';
+
+  @override
+  String get installmentTotalAmountHint => 'Enter total amount';
+
+  @override
+  String get installmentPeriodsLabel => 'Periods';
+
+  @override
+  String installmentPeriodsCountLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count periods',
+      one: '1 period',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get installmentRepaymentMethodLabel => 'Repayment Method';
+
+  @override
+  String get installmentMethodEqualPrincipal => 'Equal Principal';
+
+  @override
+  String get installmentMethodEqualInstallment => 'Equal Installment';
+
+  @override
+  String get installmentMethodFixedInterest => 'Fixed Interest';
+
+  @override
+  String get installmentInterestPeriodLabel => 'Interest Period';
+
+  @override
+  String get installmentInterestPeriodMonthly => 'Monthly';
+
+  @override
+  String get installmentInterestPeriodDaily => 'Daily';
+
+  @override
+  String get installmentInterestRateLabel => 'Annual Interest Rate';
+
+  @override
+  String get installmentInterestRateHint => 'Yearly rate, e.g. 6 for 6%';
+
+  @override
+  String get installmentGracePeriodLabel => 'Grace Period (months)';
+
+  @override
+  String get installmentGracePeriodRangeError =>
+      'Grace period must be less than the total number of periods';
+
+  @override
+  String get installmentRoundAmountsLabel => 'Round to whole amounts';
+
+  @override
+  String get installmentRemainderPositionLabel => 'Remainder Goes To';
+
+  @override
+  String get installmentRemainderPositionFirst => 'First period';
+
+  @override
+  String get installmentRemainderPositionLast => 'Last period';
+
+  @override
+  String get installmentPeriodsRangeError =>
+      'Periods must be between 1 and 600';
+
+  @override
+  String get installmentAdvancedSectionLabel => 'Advanced';
+
+  @override
+  String get installmentDraftSheetTitle => 'Set as Installment';
+
+  @override
+  String get installmentSetAsInstallmentLabel => 'Set as Installment';
+
+  @override
+  String get installmentGoToPlanButton => 'View Plan';
+
+  @override
+  String get txInstallmentRecurringConflict =>
+      'Installment and recurring can\'t be used together';
+
+  @override
+  String get txInstallmentSplitConflict =>
+      'Installment and split categories can\'t be used together';
+
+  @override
+  String get accountsInstallmentEntryTitle => 'Installments';
+
+  @override
+  String get accountsInstallmentEntryOutstanding => 'Outstanding';
+
+  @override
+  String get accountsInstallmentEntryNone => 'None outstanding';
+
+  @override
+  String get transactionInstallmentLockedBanner =>
+      'Managed by an installment plan. Edit it from the installment page.';
+
+  @override
+  String get transactionInstallmentLockedDeleteMessage =>
+      'This transaction belongs to an installment plan. Delete or edit the plan instead.';
+
+  @override
+  String get installmentExpandDetailsLabel => 'Periods';
+
+  @override
+  String get installmentCollapseDetailsLabel => 'Hide periods';
+
+  @override
+  String installmentPeriodNoLabel(int no) {
+    return 'Period $no';
+  }
+
+  @override
+  String get installmentPeriodStatusOverriddenLabel => 'Edited';
+
+  @override
+  String get installmentPeriodEditTooltip => 'Edit this period';
+
+  @override
+  String get installmentPeriodRebalanceTooltip => 'Rebalance from here';
+
+  @override
+  String get installmentPeriodEditSheetTitle => 'Edit Period';
+
+  @override
+  String get installmentPeriodAmountLabel => 'Amount';
+
+  @override
+  String get installmentPeriodDueAtLabel => 'Due Date';
+
+  @override
+  String get installmentPeriodNoteLabel => 'Note';
+
+  @override
+  String get installmentPeriodEditSuccess => 'Period updated';
+
+  @override
+  String installmentRebalanceSheetTitle(int no) {
+    return 'Rebalance From Period $no';
+  }
+
+  @override
+  String get installmentRebalanceSuccess => 'Rebalanced';
+
+  @override
+  String get installmentActionPartialRepay => 'Partial Repayment';
+
+  @override
+  String get installmentActionPayoff => 'Payoff';
+
+  @override
+  String get installmentActionTerminateFuture => 'Terminate Future';
+
+  @override
+  String get installmentEarlyRepaySheetTitle => 'Partial Repayment';
+
+  @override
+  String get installmentEarlyRepayAmountLabel => 'Repayment Amount';
+
+  @override
+  String get installmentEarlyRepayAmountHint => 'Enter amount';
+
+  @override
+  String get installmentEarlyRepayDateLabel => 'Repayment Date';
+
+  @override
+  String get installmentEarlyRepaySuccess => 'Repayment recorded';
+
+  @override
+  String get installmentPayoffSheetTitle => 'Payoff';
+
+  @override
+  String get installmentPayoffDateLabel => 'Settlement Date';
+
+  @override
+  String get installmentPayoffPreviewLabel => 'Estimated settlement amount';
+
+  @override
+  String get installmentPayoffSuccess => 'Plan settled';
+
+  @override
+  String get installmentTerminateFutureConfirmTitle =>
+      'Terminate future periods?';
+
+  @override
+  String get installmentTerminateFutureConfirmMessage =>
+      'This deletes every period and transaction that hasn\'t happened yet. This can\'t be undone.';
+
+  @override
+  String get installmentTerminateFutureSuccess => 'Future periods terminated';
+
+  @override
+  String installmentOperationFailed(String error) {
+    return 'Operation failed: $error';
+  }
+
+  @override
+  String get installmentUseDefaultAccountHint =>
+      'Leave blank to use the plan\'s account';
+
+  @override
+  String get installmentEditChoiceTitle =>
+      'This transaction is managed by an installment plan';
+
+  @override
+  String get installmentEditChoiceThisRecordOnly => 'Edit this period';
+
+  @override
+  String get installmentEditChoiceRebalanceFromHere =>
+      'Edit this and future periods';
+
+  @override
+  String get installmentEditChoiceEarlyRepay => 'Partial repayment';
+
+  @override
+  String get installmentEditChoicePayoff => 'Payoff';
+
+  @override
+  String get installmentRefundChoiceTitle =>
+      'This transaction is managed by an installment plan';
+
+  @override
+  String get installmentRefundChoicePeriodOnly => 'Refund this period only';
+
+  @override
+  String get installmentRefundChoiceWholePlan => 'Refund the entire plan';
+
+  @override
+  String get installmentRefundWholePlanConfirmTitle =>
+      'Refund the entire plan?';
+
+  @override
+  String get installmentRefundWholePlanConfirmMessage =>
+      'This deletes the plan and all of its transactions, including past periods. This can\'t be undone.';
+
+  @override
+  String get installmentRefundSuccess => 'Refunded';
+
+  @override
+  String get installmentPeriodRefundSheetTitle => 'Refund This Period';
+
+  @override
+  String get installmentPeriodRefundAmountLabel => 'Refund Amount';
+
+  @override
+  String get installmentPeriodRefundAmountHint => 'Enter a valid amount';
+
+  @override
+  String get installmentPeriodRefundDateLabel => 'Refund Date';
+
+  @override
+  String get installmentPeriodRefundNoteLabel => 'Note';
+
+  @override
+  String get installmentOffsetToggleLabel => 'Convert existing balance';
+
+  @override
+  String get installmentOffsetToggleSubtitle =>
+      'Turn what you already owe on this card into this installment plan instead of adding a new charge. No new transaction is created for the converted amount.';
+
+  @override
+  String installmentOffsetDueLabel(String amount) {
+    return 'Current balance: $amount';
+  }
+
+  @override
+  String get installmentOffsetLoadingLabel => 'Checking current balance…';
+
+  @override
+  String get installmentOffsetNoBalanceError =>
+      'This account has no outstanding balance to convert.';
+
+  @override
+  String installmentOffsetExceedsBalanceError(String amount) {
+    return 'Total amount can\'t exceed the current balance ($amount).';
+  }
+
+  @override
+  String get installmentOffsetGroupUnsupportedError =>
+      'Offsetting isn\'t supported for merged billing accounts yet. Choose a single credit card.';
+
+  @override
+  String get installmentConvertToInstallmentButton => 'Convert to Installment';
+
+  @override
+  String get installmentDeleteChoiceTitle =>
+      'This transaction is managed by an installment plan';
+
+  @override
+  String get installmentDeleteChoiceThisRecordOnly => 'Delete this period only';
+
+  @override
+  String get installmentDeleteChoiceWholePlan => 'Delete the entire plan';
+
+  @override
+  String get installmentDeleteWholePlanConfirmTitle =>
+      'Delete the entire plan?';
+
+  @override
+  String get installmentDeleteWholePlanConfirmMessage =>
+      'This deletes the plan and all of its transactions, including past periods. This can\'t be undone.';
+
+  @override
+  String installmentPeriodPrincipalInterestLabel(
+      String principal, String interest) {
+    return 'Principal $principal · Interest $interest';
+  }
+
+  @override
+  String installmentPrincipalSummaryLine(
+      String total, String paid, String remaining) {
+    return 'Principal: $total total · $paid paid · $remaining left';
+  }
+
+  @override
+  String installmentInterestSummaryLine(
+      String total, String paid, String remaining) {
+    return 'Interest: $total total · $paid paid · $remaining left';
+  }
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -17793,4 +18179,369 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get swipesmartMappingNoAccounts => '尚無信用卡帳戶。';
+
+  @override
+  String get installmentsPageTitle => '分期付款';
+
+  @override
+  String get installmentsEmptyMessage => '尚無分期計畫';
+
+  @override
+  String get installmentAddTitle => '新增分期計畫';
+
+  @override
+  String get installmentStatusActive => '進行中';
+
+  @override
+  String get installmentStatusSettled => '已結清';
+
+  @override
+  String get installmentStatusTerminated => '已終止';
+
+  @override
+  String installmentPaidProgressLabel(int paid, int total) {
+    return '已繳 $paid/$total 期';
+  }
+
+  @override
+  String get installmentNextPeriodLabel => '下一期';
+
+  @override
+  String get installmentTotalAmountLabel => '總額';
+
+  @override
+  String get installmentDeleteConfirmTitle => '刪除這筆分期計畫?';
+
+  @override
+  String get installmentDeleteConfirmMessage => '這會刪除整個計畫與所有相關交易(含已發生期),無法復原。';
+
+  @override
+  String get installmentDeleteSuccess => '已刪除';
+
+  @override
+  String get installmentSaveSuccess => '已儲存';
+
+  @override
+  String get installmentFirstPeriodAtLabel => '首期日期';
+
+  @override
+  String get installmentAccountLabel => '帳戶';
+
+  @override
+  String get installmentAccountNone => '未選擇';
+
+  @override
+  String get installmentCategoryLabel => '分類';
+
+  @override
+  String get installmentCategoryNone => '請選擇分類';
+
+  @override
+  String get installmentCategoryRequired => '請選擇分類';
+
+  @override
+  String get installmentNoteLabel => '備註';
+
+  @override
+  String get installmentTotalAmountHint => '輸入分期總額';
+
+  @override
+  String get installmentPeriodsLabel => '期數';
+
+  @override
+  String installmentPeriodsCountLabel(int count) {
+    return '$count 期';
+  }
+
+  @override
+  String get installmentRepaymentMethodLabel => '還款方式';
+
+  @override
+  String get installmentMethodEqualPrincipal => '等額本金';
+
+  @override
+  String get installmentMethodEqualInstallment => '等額本息';
+
+  @override
+  String get installmentMethodFixedInterest => '固定利息';
+
+  @override
+  String get installmentInterestPeriodLabel => '計息週期';
+
+  @override
+  String get installmentInterestPeriodMonthly => '月息';
+
+  @override
+  String get installmentInterestPeriodDaily => '日息';
+
+  @override
+  String get installmentInterestRateLabel => '年利率';
+
+  @override
+  String get installmentInterestRateHint => '年利率,例如輸入 6 代表 6%';
+
+  @override
+  String get installmentGracePeriodLabel => '寬限期(月)';
+
+  @override
+  String get installmentGracePeriodRangeError => '寬限期月數必須小於總期數';
+
+  @override
+  String get installmentRoundAmountsLabel => '金額取整';
+
+  @override
+  String get installmentRemainderPositionLabel => '尾差歸屬';
+
+  @override
+  String get installmentRemainderPositionFirst => '第一期';
+
+  @override
+  String get installmentRemainderPositionLast => '最後一期';
+
+  @override
+  String get installmentPeriodsRangeError => '期數需介於 1 到 600 之間';
+
+  @override
+  String get installmentAdvancedSectionLabel => '進階設定';
+
+  @override
+  String get installmentDraftSheetTitle => '設為分期';
+
+  @override
+  String get installmentSetAsInstallmentLabel => '設為分期';
+
+  @override
+  String get installmentGoToPlanButton => '查看分期計畫';
+
+  @override
+  String get txInstallmentRecurringConflict => '分期和週期性收支不能同時使用';
+
+  @override
+  String get txInstallmentSplitConflict => '分期和拆分類別不能同時使用';
+
+  @override
+  String get accountsInstallmentEntryTitle => '分期付款';
+
+  @override
+  String get accountsInstallmentEntryOutstanding => '尚有應繳';
+
+  @override
+  String get accountsInstallmentEntryNone => '無未繳分期';
+
+  @override
+  String get transactionInstallmentLockedBanner => '由分期計畫管理,請至分期管理頁面操作';
+
+  @override
+  String get transactionInstallmentLockedDeleteMessage =>
+      '這筆交易屬於分期計畫,請至分期管理頁面刪除或編輯整個計畫';
+
+  @override
+  String get installmentExpandDetailsLabel => '各期明細';
+
+  @override
+  String get installmentCollapseDetailsLabel => '收合各期明細';
+
+  @override
+  String installmentPeriodNoLabel(int no) {
+    return '第 $no 期';
+  }
+
+  @override
+  String get installmentPeriodStatusOverriddenLabel => '已改過';
+
+  @override
+  String get installmentPeriodEditTooltip => '編輯這一期';
+
+  @override
+  String get installmentPeriodRebalanceTooltip => '連同未來重算';
+
+  @override
+  String get installmentPeriodEditSheetTitle => '編輯期數';
+
+  @override
+  String get installmentPeriodAmountLabel => '金額';
+
+  @override
+  String get installmentPeriodDueAtLabel => '到期日';
+
+  @override
+  String get installmentPeriodNoteLabel => '備註';
+
+  @override
+  String get installmentPeriodEditSuccess => '已更新這一期';
+
+  @override
+  String installmentRebalanceSheetTitle(int no) {
+    return '從第 $no 期起連同未來重算';
+  }
+
+  @override
+  String get installmentRebalanceSuccess => '已重新攤還';
+
+  @override
+  String get installmentActionPartialRepay => '部分還本';
+
+  @override
+  String get installmentActionPayoff => '提前結清';
+
+  @override
+  String get installmentActionTerminateFuture => '終止未來分期';
+
+  @override
+  String get installmentEarlyRepaySheetTitle => '部分還本';
+
+  @override
+  String get installmentEarlyRepayAmountLabel => '還款金額';
+
+  @override
+  String get installmentEarlyRepayAmountHint => '輸入金額';
+
+  @override
+  String get installmentEarlyRepayDateLabel => '還款日期';
+
+  @override
+  String get installmentEarlyRepaySuccess => '已記錄還本';
+
+  @override
+  String get installmentPayoffSheetTitle => '提前結清';
+
+  @override
+  String get installmentPayoffDateLabel => '結清日期';
+
+  @override
+  String get installmentPayoffPreviewLabel => '預估結清金額';
+
+  @override
+  String get installmentPayoffSuccess => '計畫已結清';
+
+  @override
+  String get installmentTerminateFutureConfirmTitle => '終止未來分期?';
+
+  @override
+  String get installmentTerminateFutureConfirmMessage =>
+      '這會刪除所有尚未到期的期數與交易,無法復原。';
+
+  @override
+  String get installmentTerminateFutureSuccess => '已終止未來分期';
+
+  @override
+  String installmentOperationFailed(String error) {
+    return '操作失敗:$error';
+  }
+
+  @override
+  String get installmentUseDefaultAccountHint => '留空則使用計畫預設帳戶';
+
+  @override
+  String get installmentEditChoiceTitle => '這筆交易由分期計畫管理';
+
+  @override
+  String get installmentEditChoiceThisRecordOnly => '修改此記錄';
+
+  @override
+  String get installmentEditChoiceRebalanceFromHere => '修改連同未來';
+
+  @override
+  String get installmentEditChoiceEarlyRepay => '提前還本';
+
+  @override
+  String get installmentEditChoicePayoff => '提前繳清';
+
+  @override
+  String get installmentRefundChoiceTitle => '這筆交易由分期計畫管理';
+
+  @override
+  String get installmentRefundChoicePeriodOnly => '只退這一期';
+
+  @override
+  String get installmentRefundChoiceWholePlan => '整筆退款';
+
+  @override
+  String get installmentRefundWholePlanConfirmTitle => '整筆退款?';
+
+  @override
+  String get installmentRefundWholePlanConfirmMessage =>
+      '這會刪除整個分期計畫與其所有交易,包含已發生的期數,無法復原。';
+
+  @override
+  String get installmentRefundSuccess => '已退款';
+
+  @override
+  String get installmentPeriodRefundSheetTitle => '退款這一期';
+
+  @override
+  String get installmentPeriodRefundAmountLabel => '退款金額';
+
+  @override
+  String get installmentPeriodRefundAmountHint => '請輸入有效金額';
+
+  @override
+  String get installmentPeriodRefundDateLabel => '退款日期';
+
+  @override
+  String get installmentPeriodRefundNoteLabel => '備註';
+
+  @override
+  String get installmentOffsetToggleLabel => '沖銷現有欠款';
+
+  @override
+  String get installmentOffsetToggleSubtitle =>
+      '把這張卡目前已經欠下的帳款轉成這筆分期計畫,不會另外產生一筆新的消費交易。';
+
+  @override
+  String installmentOffsetDueLabel(String amount) {
+    return '目前應繳餘額:$amount';
+  }
+
+  @override
+  String get installmentOffsetLoadingLabel => '正在查詢目前應繳餘額…';
+
+  @override
+  String get installmentOffsetNoBalanceError => '這個帳戶目前沒有可沖銷的欠款。';
+
+  @override
+  String installmentOffsetExceedsBalanceError(String amount) {
+    return '分期總額不能超過目前應繳餘額($amount)。';
+  }
+
+  @override
+  String get installmentOffsetGroupUnsupportedError =>
+      '合併帳單群組目前還不支援沖銷,請改選單一信用卡。';
+
+  @override
+  String get installmentConvertToInstallmentButton => '轉為分期';
+
+  @override
+  String get installmentDeleteChoiceTitle => '這筆交易由分期計畫管理';
+
+  @override
+  String get installmentDeleteChoiceThisRecordOnly => '只刪除這一筆';
+
+  @override
+  String get installmentDeleteChoiceWholePlan => '刪除整個分期計畫';
+
+  @override
+  String get installmentDeleteWholePlanConfirmTitle => '刪除整個分期計畫?';
+
+  @override
+  String get installmentDeleteWholePlanConfirmMessage =>
+      '這會刪除整個分期計畫與其所有交易,包含已發生的期數,無法復原。';
+
+  @override
+  String installmentPeriodPrincipalInterestLabel(
+      String principal, String interest) {
+    return '本金 $principal・利息 $interest';
+  }
+
+  @override
+  String installmentPrincipalSummaryLine(
+      String total, String paid, String remaining) {
+    return '本金:總計 $total・已還 $paid・剩餘 $remaining';
+  }
+
+  @override
+  String installmentInterestSummaryLine(
+      String total, String paid, String remaining) {
+    return '利息:總計 $total・已還 $paid・剩餘 $remaining';
+  }
 }

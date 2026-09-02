@@ -1,10 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/db.dart';
 import '../pages/transaction/transaction_editor_page.dart';
+import '../data/repositories/installment_repository.dart'
+    show InstallmentManagedTransactionException;
 import '../data/repositories/local/local_repository.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/database_providers.dart';
+import '../providers/installment_providers.dart' show installmentsRefreshProvider;
+import '../services/billing/post_processor.dart';
+import '../widgets/biz/installment_edit_choice_dialog.dart';
 import '../widgets/biz/recurring_occurrence_dialogs.dart';
+import '../widgets/ui/ui.dart' show showToast, AppDialog;
 import 'shared_ledger_picker_filter.dart' show syntheticIdForSyncId;
 
 /// 解析交易的标签/类别/账户(含 §7 共享账本 override → synthetic id)三元组,
@@ -201,5 +210,163 @@ class TransactionEditUtils {
         ),
       ),
     );
+  }
+
+  /// 刪除交易的共用入口——集中處理「這筆交易屬於分期計畫」的分流,取代子
+  /// 專案 1 只在 `transaction_detail_card.dart` 一個入口做檢查的暫時方案
+  /// (已知缺口見 `docs/changes/2026-09-03-installment-tracking-phase1.md`)。
+  /// `search_page.dart`/`category_detail_page.dart`/`tag_detail_page.dart`/
+  /// `transaction_list.dart`/`transaction_detail_card.dart` 都改呼叫這個
+  /// 方法,不用各自複製 `installmentPlanSyncId` 檢查。
+  ///
+  /// 問題 A 修正(2026-09-03,見
+  /// docs/changes/2026-09-03-installment-tracking-delete-sync-fixes.md):
+  /// 原本 `installmentPlanSyncId != null` 一律攔下、提示改到分期管理頁操作
+  /// ——但實機發現整筆刪除分期計畫後,本地有時會殘留指向已刪計畫的孤兒
+  /// transaction/period(見上述文件對根因的調查),這種情況下硬攔會讓使用者
+  /// 卡死(分期頁找不到計畫可以整筆刪,單筆交易又刪不掉)。改成:
+  /// 1. 先查一次 `getInstallmentPlanBySyncId`——查不到(孤兒,plan 已經不
+  ///    存在)就直接放行走一般刪除流程,不再顯示任何「去別的頁面」的提示。
+  ///    `LocalRepository.deleteTransaction` 本身也做了同樣的 plan-存在性
+  ///    檢查(第二層防線,見 [InstallmentManagedTransactionException] 的
+  ///    doc)。
+  /// 2. plan 還存在時,彈出 [showInstallmentTransactionDeleteChoiceSheet]
+  ///    問使用者要「只刪這一筆」(`InstallmentRepository.deletePeriod`)還是
+  ///    「刪除整個分期計畫」(既有的 `deleteInstallmentPlan`,帶二次確認)。
+  ///    這個互動式選擇只在 [showFeedback] 為 `true`(單筆刪除場景)時進行;
+  ///    [showFeedback] 為 `false` 的靜默/批量場景(如 `search_page.dart` 的
+  ///    批量刪除)維持舊行為——遇到 plan 還存在的分期交易直接跳過,不彈窗
+  ///    打斷批量操作。
+  ///
+  /// 回傳 `true` = 已刪除(含「刪除整個計畫」導致這筆交易被連帶刪除的情況);
+  /// `false` = 使用者取消 / 被攔截。呼叫端在 `false` 時應直接 return,不要
+  /// 跑後續的刷新/同步邏輯(installment 分支內部已經自己做了對應的刷新)。
+  static Future<bool> deleteTransactionGuarded(
+    BuildContext context,
+    WidgetRef ref,
+    Transaction transaction, {
+    bool showFeedback = true,
+  }) async {
+    if (transaction.installmentPlanSyncId != null) {
+      final repo = ref.read(repositoryProvider);
+      final plan = await repo
+          .getInstallmentPlanBySyncId(transaction.installmentPlanSyncId!);
+      if (!context.mounted) return false;
+
+      if (plan == null) {
+        // 孤兒:plan 已經不存在(整筆刪除計畫時偶發的同步 race,見上方
+        // doc),直接放行走一般刪除,不再顯示任何提示。
+        return _deleteOrphanInstallmentTransaction(context, ref, transaction,
+            showFeedback: showFeedback);
+      }
+
+      if (!showFeedback) {
+        // 靜默/批量場景不彈選擇對話框,維持舊行為——攔下、跳過。
+        return false;
+      }
+      return _deleteManagedInstallmentTransaction(
+          context, ref, transaction, plan);
+    }
+    final repo = ref.read(repositoryProvider);
+    try {
+      await repo.deleteTransaction(transaction.id);
+      return true;
+    } on InstallmentManagedTransactionException {
+      if (showFeedback && context.mounted) {
+        showToast(
+          context,
+          AppLocalizations.of(context)
+              .transactionInstallmentLockedDeleteMessage,
+        );
+      }
+      return false;
+    }
+  }
+
+  /// `installmentPlanSyncId != null` 但對應計畫已經不存在(孤兒交易)——
+  /// 直接刪這筆交易。`LocalRepository.deleteTransaction` 已經確認過
+  /// plan 不存在時會放行(並順便清掉指向這筆交易的孤兒 period),這裡的
+  /// try/catch 只是防禦性兜底(理論上不會走到 catch 分支)。
+  static Future<bool> _deleteOrphanInstallmentTransaction(
+    BuildContext context,
+    WidgetRef ref,
+    Transaction transaction, {
+    required bool showFeedback,
+  }) async {
+    final repo = ref.read(repositoryProvider);
+    try {
+      await repo.deleteTransaction(transaction.id);
+      ref.read(installmentsRefreshProvider.notifier).state++;
+      unawaited(PostProcessor.sync(ref, ledgerId: transaction.ledgerId));
+      return true;
+    } on InstallmentManagedTransactionException {
+      if (showFeedback && context.mounted) {
+        showToast(
+          context,
+          AppLocalizations.of(context)
+              .transactionInstallmentLockedDeleteMessage,
+        );
+      }
+      return false;
+    }
+  }
+
+  /// `installmentPlanSyncId != null` 且對應計畫仍存在——彈二選一對話框,
+  /// 依選擇呼叫 `deletePeriod`(只刪這一筆)或 `deleteInstallmentPlan`
+  /// (整個計畫,帶二次確認)。
+  static Future<bool> _deleteManagedInstallmentTransaction(
+    BuildContext context,
+    WidgetRef ref,
+    Transaction transaction,
+    InstallmentPlan plan,
+  ) async {
+    final l10n = AppLocalizations.of(context);
+    final choice = await showInstallmentTransactionDeleteChoiceSheet(context);
+    if (choice == null || !context.mounted) return false;
+
+    final repo = ref.read(repositoryProvider);
+
+    if (choice == InstallmentTransactionDeleteChoice.wholePlan) {
+      final confirmed = await AppDialog.confirm<bool>(
+            context,
+            title: l10n.installmentDeleteWholePlanConfirmTitle,
+            message: l10n.installmentDeleteWholePlanConfirmMessage,
+          ) ??
+          false;
+      if (!confirmed || !context.mounted) return false;
+      await repo.deleteInstallmentPlan(plan.id);
+      ref.read(installmentsRefreshProvider.notifier).state++;
+      unawaited(PostProcessor.sync(ref, ledgerId: plan.ledgerId));
+      return true;
+    }
+
+    // thisRecordOnly:反查這筆交易對應的 period(用 txId,同
+    // transaction_detail_card.dart 既有的找法)。
+    final periods = await repo.getInstallmentPeriods(plan.id);
+    InstallmentPeriod? period;
+    for (final p in periods) {
+      if (p.txId == transaction.id) {
+        period = p;
+        break;
+      }
+    }
+    if (period == null) {
+      // 理論上不會發生(period.txId 一定指回這筆交易)——防禦性兜底。
+      if (context.mounted) {
+        showToast(context, l10n.transactionInstallmentLockedDeleteMessage);
+      }
+      return false;
+    }
+    try {
+      await repo.deletePeriod(plan.id, period.id);
+      ref.read(installmentsRefreshProvider.notifier).state++;
+      unawaited(PostProcessor.sync(ref, ledgerId: plan.ledgerId));
+      return true;
+    } catch (e) {
+      if (context.mounted) {
+        showToast(context, l10n.installmentOperationFailed(e.toString()));
+      }
+      return false;
+    }
   }
 }

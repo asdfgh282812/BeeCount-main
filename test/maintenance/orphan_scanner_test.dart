@@ -165,6 +165,113 @@ void main() {
     });
   });
 
+  group('D 类 — 分期付款孤儿(問題 A4,2026-09-03)', () {
+    test('A11 交易失主分期计画', () async {
+      final lid = await _insertLedger();
+      await _insertTransaction(ledgerId: lid, syncId: 'tx-installment-orphan');
+      // 直接改这笔交易的 installment_plan_sync_id 指向一个不存在的计画
+      // (模拟整笔刪除计画后本地残留孤兒交易的情境)。
+      await (db.update(db.transactions)
+            ..where((t) => t.syncId.equals('tx-installment-orphan')))
+          .write(const TransactionsCompanion(
+        installmentPlanSyncId: d.Value('ghost-plan'),
+      ));
+
+      final report = await scanner.scanAll();
+      expect(
+          report.dbOrphans
+              .where((r) => r.type == OrphanType.txMissingInstallmentPlan)
+              .length,
+          1);
+    });
+
+    test('A11 有对应 plan 时不算孤儿', () async {
+      final lid = await _insertLedger();
+      await db.into(db.installmentPlans).insert(InstallmentPlansCompanion.insert(
+            ledgerId: lid,
+            totalAmount: 100,
+            periods: 1,
+            firstPeriodAt: DateTime.now(),
+            categoryId: await _insertCategory(),
+            syncId: const d.Value('plan-ok'),
+          ));
+      await _insertTransaction(ledgerId: lid, syncId: 'tx-installment-ok');
+      await (db.update(db.transactions)
+            ..where((t) => t.syncId.equals('tx-installment-ok')))
+          .write(const TransactionsCompanion(
+        installmentPlanSyncId: d.Value('plan-ok'),
+      ));
+
+      final report = await scanner.scanAll();
+      expect(
+          report.dbOrphans
+              .where((r) => r.type == OrphanType.txMissingInstallmentPlan)
+              .length,
+          0);
+    });
+
+    test('A12 分期期数失主计画', () async {
+      final lid = await _insertLedger();
+      await db.into(db.installmentPeriods).insert(
+            InstallmentPeriodsCompanion.insert(
+              ledgerId: lid,
+              planSyncId: 'ghost-plan-2',
+              periodNo: 1,
+              dueAt: DateTime.now(),
+              principalAmount: 100,
+              interestAmount: 0,
+              totalAmount: 100,
+            ),
+          );
+
+      final report = await scanner.scanAll();
+      expect(
+          report.dbOrphans
+              .where((r) => r.type == OrphanType.installmentPeriodMissingPlan)
+              .length,
+          1);
+    });
+
+    test('A13 分期期数失主交易', () async {
+      final lid = await _insertLedger();
+      final categoryId = await _insertCategory();
+      final planId =
+          await db.into(db.installmentPlans).insert(InstallmentPlansCompanion.insert(
+                ledgerId: lid,
+                totalAmount: 100,
+                periods: 1,
+                firstPeriodAt: DateTime.now(),
+                categoryId: categoryId,
+                syncId: const d.Value('plan-3'),
+              ));
+      final tid = await _insertTransaction(ledgerId: lid);
+      await db.into(db.installmentPeriods).insert(
+            InstallmentPeriodsCompanion.insert(
+              ledgerId: lid,
+              planSyncId: 'plan-3',
+              periodNo: 1,
+              dueAt: DateTime.now(),
+              principalAmount: 100,
+              interestAmount: 0,
+              totalAmount: 100,
+              txId: d.Value(tid),
+            ),
+          );
+      await (db.delete(db.transactions)..where((t) => t.id.equals(tid))).go();
+
+      final report = await scanner.scanAll();
+      expect(
+          report.dbOrphans
+              .where((r) => r.type == OrphanType.installmentPeriodMissingTx)
+              .length,
+          1);
+      // plan 本身还在,不受影响(用 planId 变量避免 unused_local_variable)。
+      expect(await (db.select(db.installmentPlans)
+            ..where((t) => t.id.equals(planId)))
+          .getSingleOrNull(), isNotNull);
+    });
+  });
+
   group('B 类 — 文件孤儿', () {
     test('B1 附件原图无引用', () async {
       final dir = Directory('${tmp.path}/attachments');
