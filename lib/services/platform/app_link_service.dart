@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../data/db.dart';
 import '../../data/repositories/base_repository.dart';
 import '../../providers/database_providers.dart';
 import '../automation/auto_billing_service.dart';
@@ -41,6 +42,12 @@ enum AppLinkAction {
   /// `beecount://open?page=assets|budget|detail`
   open,
 
+  /// SwipeSmart「一键记账」快速记账：`beecount://quick-add?merchant=..&
+  /// amount=..&category=..&cardId=..&bankName=..&cardName=..&reward=..&
+  /// rate=..`。只反查账户/分类、打开预填好的新增交易表单，不落地写入
+  /// 交易——与 [add] 唯一的本质差异，见 [_handleQuickAdd] 文档。
+  quickAdd,
+
   /// SSO 登录回调：`beecount://auth-callback#access_token=...`（或失败时
   /// `?sso_error=...`）。由 main.dart 在 isAppReady 判断之前提前拦截，
   /// 不会真的走到 handleUrl 的这个 case（见 AppLinkService 顶部文档）。
@@ -57,7 +64,10 @@ enum AppLinkAction {
 /// 只取用其中与自己相关的字段（前者用 [type]/[categoryId]，后者用 [page]），
 /// 不为它们各开一个专门的参数类。
 class AddTransactionParams {
-  final double amount;
+  /// [AppLinkAction.add]/[AppLinkAction.quickAdd] 才可能为 null——前者构造前
+  /// 已校验非空正数（见 [_handleAddTransaction]）,后者(quick-add)允许金额
+  /// 解析失败/缺失时留空,由用户在表单里自己输入,不挡流程。
+  final double? amount;
   final String type; // expense, income, transfer
   final String? category;
   final String? note;
@@ -80,8 +90,15 @@ class AddTransactionParams {
   /// 仅该 action 使用。
   final String? page;
 
+  /// SwipeSmart「一键记账」带来的商家名（仅 [AppLinkAction.quickAdd] 使用）。
+  final String? merchant;
+
+  /// [AppLinkAction.quickAdd] 用 `swipesmartCardId` 反查到的信用卡账户 id
+  /// （仅该 action 使用；反查不到则为 null，由用户自己在表单里选账户）。
+  final int? accountId;
+
   const AddTransactionParams({
-    required this.amount,
+    this.amount,
     this.type = 'expense',
     this.category,
     this.note,
@@ -92,6 +109,8 @@ class AddTransactionParams {
     this.silent = false,
     this.categoryId,
     this.page,
+    this.merchant,
+    this.accountId,
   });
 
   factory AddTransactionParams.fromQueryParams(Map<String, String> params) {
@@ -167,6 +186,9 @@ class AppLinkResult {
 /// - beecount://add?amount=100&type=expense&category=餐饮 - 自动记账
 /// - beecount://open?page=assets|budget|detail - 打开指定页面（小组件点击
 ///   净资产/预算/最近交易卡片用）
+/// - beecount://quick-add?merchant=..&amount=..&category=..&cardId=..&
+///   bankName=..&cardName=..&reward=..&rate=.. - SwipeSmart「一键记账」，
+///   反查信用卡账户/分类后打开预填新增交易表单（不自动存档）
 /// - beecount://auto-billing?text=... - 文本自动记账（兼容旧版）
 /// - beecount://quick-billing - 快速记账（兼容旧版）
 ///
@@ -287,6 +309,8 @@ class AppLinkService {
         return AppLinkAction.newTransaction;
       case 'open':
         return AppLinkAction.open;
+      case 'quick-add':
+        return AppLinkAction.quickAdd;
       case 'auth-callback':
         return AppLinkAction.ssoCallback;
       case 'auto-billing':
@@ -353,6 +377,10 @@ class AppLinkService {
         }
         onNavigate?.call(AppLinkAction.open, params: AddTransactionParams(amount: 0, page: page));
         return AppLinkResult.success(message: '打开页面: $page');
+
+      case AppLinkAction.quickAdd:
+        logger.info('AppLink', 'SwipeSmart 一键记账: $queryParams');
+        return await _handleQuickAdd(queryParams);
 
       case AppLinkAction.ssoCallback:
         // 正常流程下 main.dart 的 dispatch() 会在 isAppReady 判断之前就
@@ -449,7 +477,7 @@ class AppLinkService {
       final transactionId = await repo.addTransaction(
         ledgerId: ledgerId,
         type: txParams.type,
-        amount: txParams.amount.abs(),
+        amount: txParams.amount!.abs(),
         categoryId: categoryId,
         accountId: accountId,
         toAccountId: toAccountId,
@@ -486,7 +514,7 @@ class AppLinkService {
 
       if (!txParams.silent) {
         final typeText = txParams.type == 'income' ? '收入' : (txParams.type == 'transfer' ? '转账' : '支出');
-        onShowToast?.call('已记录 $typeText ${txParams.amount.toStringAsFixed(2)} 元');
+        onShowToast?.call('已记录 $typeText ${txParams.amount!.toStringAsFixed(2)} 元');
       }
 
       return AppLinkResult.success(
@@ -518,6 +546,125 @@ class AppLinkService {
     } catch (_) {
       // 恢复失败不致命,退回当前(可能为默认)账本。
     }
+  }
+
+  /// 处理 SwipeSmart「一键记账」深链（quick-add）
+  ///
+  /// 与 [_handleAddTransaction] 唯一的本质差异：只反查信用卡账户/分类、打开
+  /// 预填好的新增交易表单（通过 [onNavigate] 回调），**不**调用
+  /// `repo.addTransaction`——quick-add 只开表单不落地写入，由用户确认后自己
+  /// 按存。详见设计文档
+  /// `docs/superpowers/specs/2026-09-02-swipesmart-quickadd-deeplink-design.md`。
+  Future<AppLinkResult> _handleQuickAdd(Map<String, String> params) async {
+    // 冷启动早期账本可能还没从 SharedPreferences 恢复,比照 _handleAddTransaction
+    // 先显式校准一次。
+    await _restoreCurrentLedgerId();
+    final currentLedger = await _container.read(currentLedgerProvider.future);
+    if (currentLedger == null) {
+      logger.warning('AppLink', 'quick-add 失败: 未找到当前账本');
+      return AppLinkResult.failure('请先选择账本');
+    }
+
+    final repo = _container.read(repositoryProvider);
+
+    final merchant = params['merchant'];
+    final categoryRaw = params['category'];
+    final cardId = params['cardId'] ?? '';
+    final bankName = params['bankName'] ?? '';
+    final cardName = params['cardName'] ?? '';
+
+    // 金额:能解析且 > 0 才带入,否则留空由用户自己输入,不挡流程(比照网页版
+    // Number.isFinite(amountNum) && amountNum > 0 的宽容处理)。
+    double? amount;
+    final parsedAmount = double.tryParse(params['amount'] ?? '');
+    if (parsedAmount != null && parsedAmount > 0) {
+      amount = parsedAmount;
+    }
+
+    // 账户反查(比照网页版 findAccountBySwipesmartCardId):swipesmartCardId
+    // 精确比对,只在信用卡、未隐藏账户里找。cardId 为空字符串时直接视为没对到。
+    Account? account;
+    if (cardId.isNotEmpty) {
+      final accounts = await repo.getAllAccounts();
+      for (final acc in accounts) {
+        if (acc.type == 'credit_card' &&
+            !acc.hidden &&
+            acc.swipesmartCardId == cardId) {
+          account = acc;
+          break;
+        }
+      }
+    }
+
+    // 分类反查(比照网页版 matchCategoryByName,不沿用 _findCategoryId 的精确
+    // 比对):只在支出分类里模糊比对,刚好一笔命中才采用。
+    int? categoryId;
+    if (categoryRaw != null && categoryRaw.isNotEmpty) {
+      categoryId = await _findCategoryIdFuzzy(repo, categoryRaw);
+    }
+
+    // note:只在账户没对到时才组,依序拼接分类提示/预估回馈/回馈率/绑定引导。
+    String? note;
+    if (account == null) {
+      final clauses = <String>[];
+      if (categoryId == null && categoryRaw != null && categoryRaw.isNotEmpty) {
+        clauses.add('分类:$categoryRaw');
+      }
+      final rewardNum = double.tryParse(params['reward'] ?? '');
+      if (rewardNum != null && rewardNum > 0) {
+        clauses.add('预估回馈 ${rewardNum.toStringAsFixed(0)}');
+      }
+      final rateNum = double.tryParse(params['rate'] ?? '');
+      if (rateNum != null && rateNum > 0) {
+        clauses.add('回馈率 ${(rateNum * 100).toStringAsFixed(1)}%');
+      }
+      clauses.add('尚未绑定 BeeCount 账户，可至设置 → SwipeSmart 卡片对照手动绑定');
+      note = 'SwipeSmart 建议刷:$bankName $cardName（${clauses.join('，')}）';
+    }
+
+    logger.info('AppLink',
+        'quick-add: merchant=$merchant amount=$amount categoryId=$categoryId accountId=${account?.id}');
+
+    onNavigate?.call(
+      AppLinkAction.quickAdd,
+      params: AddTransactionParams(
+        amount: amount,
+        merchant: merchant,
+        categoryId: categoryId,
+        accountId: account?.id,
+        note: note,
+      ),
+    );
+    return AppLinkResult.success(message: '打开预填记账表单');
+  }
+
+  /// 分类模糊比对(比照 SwipeSmart 网页版 matchCategoryByName):只在**支出**
+  /// 分类里找(顶层 + 两层遍历子分类),名称正规化(trim + 小写 + 去空白)后用
+  /// 「互相包含」比对,收集所有命中分类,刚好一笔才采用,0 笔或多笔都当没对到。
+  Future<int?> _findCategoryIdFuzzy(BaseRepository repo, String rawName) async {
+    String normalize(String s) =>
+        s.trim().toLowerCase().replaceAll(RegExp(r'\s+'), '');
+
+    final target = normalize(rawName);
+    if (target.isEmpty) return null;
+
+    final matches = <int>[];
+    final topCats = await repo.getTopLevelCategories('expense');
+    for (final cat in topCats) {
+      final name = normalize(cat.name);
+      if (name.isNotEmpty && (name.contains(target) || target.contains(name))) {
+        matches.add(cat.id);
+      }
+      final subCats = await repo.getSubCategories(cat.id);
+      for (final sub in subCats) {
+        final subName = normalize(sub.name);
+        if (subName.isNotEmpty &&
+            (subName.contains(target) || target.contains(subName))) {
+          matches.add(sub.id);
+        }
+      }
+    }
+    return matches.length == 1 ? matches.first : null;
   }
 
   /// 处理旧版文本自动记账

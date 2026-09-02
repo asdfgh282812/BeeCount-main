@@ -38,6 +38,13 @@ final pendingNewTransactionCategoryIdProvider = StateProvider<int?>((ref) => nul
 // 配合 AppLinkAction.open 使用
 final pendingOpenPageProvider = StateProvider<String?>((ref) => null);
 
+// SwipeSmart「一键记账」深链（beecount://quick-add?...）的待处理参数，配合
+// AppLinkAction.quickAdd 使用。字段较多（amount/merchant/categoryId/
+// accountId/note），直接存整个 AddTransactionParams 对象比拆多个独立 provider
+// 更不容易漏字段，与其他 action 拆分字段 provider 的既有做法不同。
+final pendingQuickAddParamsProvider =
+    StateProvider<AddTransactionParams?>((ref) => null);
+
 // beecount://auth-callback 深链的待处理 URI（SSO 登录回调）。这个不走
 // AppLinkService.handleUrl 的一般派发流程 —— 冷启动/欢迎页登录阶段
 // appInitState 还没到 ready，等 ready 会卡住登录，所以在 main.dart 里

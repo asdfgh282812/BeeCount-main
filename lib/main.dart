@@ -345,6 +345,7 @@ void _setupImageShareHandler(ProviderContainer container) {
 /// - beecount://camera - 拍照记账
 /// - beecount://ai-chat - AI 小助手
 /// - beecount://add?amount=100&type=expense - 自动记账
+/// - beecount://quick-add?merchant=..&amount=..&... - SwipeSmart「一键记账」
 /// - beecount://auto-billing?text=... - 文本自动记账（兼容旧版）
 /// - beecount://quick-billing - 快速记账（兼容旧版）
 void _setupUrlListener(ProviderContainer container) {
@@ -365,6 +366,9 @@ void _setupUrlListener(ProviderContainer container) {
       }
       if (action == AppLinkAction.open && params != null) {
         container.read(pendingOpenPageProvider.notifier).state = params.page;
+      }
+      if (action == AppLinkAction.quickAdd && params != null) {
+        container.read(pendingQuickAddParamsProvider.notifier).state = params;
       }
       container.read(pendingAppLinkActionProvider.notifier).state = action;
     };

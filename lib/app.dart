@@ -174,6 +174,9 @@ class _BeeAppState extends ConsumerState<BeeApp>
             ref.read(pendingNewTransactionTypeProvider),
             categoryId: ref.read(pendingNewTransactionCategoryIdProvider),
             page: ref.read(pendingOpenPageProvider),
+            quickAdd: next == AppLinkAction.quickAdd
+                ? ref.read(pendingQuickAddParamsProvider)
+                : null,
           );
           ref.read(pendingAppLinkActionProvider.notifier).state = null;
           _drainPendingDeepLink(trigger: 'listener');
@@ -460,6 +463,7 @@ class _BeeAppState extends ConsumerState<BeeApp>
     String? type, {
     int? categoryId,
     String? page,
+    AddTransactionParams? quickAdd,
   }) {
     SharedPreferences.getInstance().then((p) {
       p.setString(
@@ -469,6 +473,18 @@ class _BeeAppState extends ConsumerState<BeeApp>
             'type': type,
             if (categoryId != null) 'categoryId': categoryId,
             if (page != null) 'page': page,
+            // quick-add 字段较多，嵌套成一个子对象，避免跟 categoryId 等其他
+            // action 复用的顶层键混在一起。
+            if (action == AppLinkAction.quickAdd && quickAdd != null)
+              'quickAdd': {
+                if (quickAdd.amount != null) 'amount': quickAdd.amount,
+                if (quickAdd.merchant != null) 'merchant': quickAdd.merchant,
+                if (quickAdd.categoryId != null)
+                  'categoryId': quickAdd.categoryId,
+                if (quickAdd.accountId != null)
+                  'accountId': quickAdd.accountId,
+                if (quickAdd.note != null) 'note': quickAdd.note,
+              },
             'ts': DateTime.now().millisecondsSinceEpoch,
           }));
     }).catchError((_) {});
@@ -541,9 +557,24 @@ class _BeeAppState extends ConsumerState<BeeApp>
     final type = data['type'] as String?;
     final categoryId = (data['categoryId'] as num?)?.toInt();
     final page = data['page'] as String?;
+    final quickAddMap = data['quickAdd'] as Map<String, dynamic>?;
+    final quickAmount = (quickAddMap?['amount'] as num?)?.toDouble();
+    final quickMerchant = quickAddMap?['merchant'] as String?;
+    final quickCategoryId = (quickAddMap?['categoryId'] as num?)?.toInt();
+    final quickAccountId = (quickAddMap?['accountId'] as num?)?.toInt();
+    final quickNote = quickAddMap?['note'] as String?;
     logger.info('AppLink',
-        'BeeApp: drain($trigger) 打开深链 $action type=$type categoryId=$categoryId page=$page');
-    _openDeepLink(action, type, categoryId: categoryId, page: page);
+        'BeeApp: drain($trigger) 打开深链 $action type=$type categoryId=$categoryId page=$page quickAdd=$quickAddMap');
+    _openDeepLink(
+      action,
+      type,
+      categoryId: action == AppLinkAction.quickAdd ? quickCategoryId : categoryId,
+      page: page,
+      amount: quickAmount,
+      merchant: quickMerchant,
+      accountId: quickAccountId,
+      note: quickNote,
+    );
   }
 
   /// AppLink 动作的唯一派发出口:快捷项([_handleAppLinkAction])与
@@ -557,6 +588,10 @@ class _BeeAppState extends ConsumerState<BeeApp>
     String? type, {
     int? categoryId,
     String? page,
+    double? amount,
+    String? merchant,
+    int? accountId,
+    String? note,
   }) {
     final nav = Navigator.of(context, rootNavigator: true);
     switch (action) {
@@ -584,6 +619,21 @@ class _BeeAppState extends ConsumerState<BeeApp>
         break;
       case AppLinkAction.open:
         _openPageForDeepLink(nav, page);
+        break;
+      case AppLinkAction.quickAdd:
+        // SwipeSmart「一键记账」:反查到的账户/分类才有值,金额可能因未解析
+        // 成功而是 null,均由 TransactionEditorPage 自身的既有字段承接,不需
+        // 要改编辑页;不自动存档,交给用户确认后自己按存。
+        nav.push(MaterialPageRoute(
+          builder: (_) => TransactionEditorPage(
+            initialKind: 'expense',
+            initialAmount: amount,
+            initialMerchant: merchant,
+            initialCategoryId: categoryId,
+            initialAccountId: accountId,
+            initialNote: note,
+          ),
+        ));
         break;
       default:
         break;
