@@ -30,6 +30,7 @@ import '../category_icon.dart';
 import 'account_card_picker.dart';
 import 'project_picker.dart';
 import '../../services/data/category_service.dart';
+import 'amount_adjustment_panel.dart';
 import 'amount_calculator_keypad.dart';
 import 'keyboard_suggestion_bar.dart';
 import 'pull_to_submit_scroll_view.dart';
@@ -97,6 +98,18 @@ typedef AmountEditorResult = ({
   // (editingTransactionId == null)且 kind == 'expense' 才可能非 null,見
   // 表單內 `_openRecurringSheet` 的 installmentAvailable 判斷。
   InstallmentDraft? installmentDraft,
+  // v51 支出/收入手續費/折扣(對齐 BeeCount Cloud `read_tx_projection.
+  // base_amount`/`fee_amount`/`fee_label`/`discount_amount`/
+  // `discount_label`):`baseAmount` 非 null 時代表使用者開了手續費/折扣
+  // 面板,[amount] 已經是套用公式後的淨額(見
+  // `computeFeeDiscountNetAmount`),`baseAmount` 才是使用者輸入的原始金額。
+  // 皆為 null = 沒有使用這個功能,行為退化回既有邏輯。拆帳模式不支援,恆為
+  // null(見表單內 `_buildFeeDiscountToggle` 的 `_splits.isEmpty` 判斷)。
+  double? baseAmount,
+  double? feeAmount,
+  String? feeLabel,
+  double? discountAmount,
+  String? discountLabel,
 });
 
 /// v36:`onSubmit` 回傳 `Future<void>`(原本是 `void`)——編輯「週期規則
@@ -164,6 +177,14 @@ class TransactionEntryForm extends ConsumerStatefulWidget {
   // transaction_editor_page.dart 的 initialRefundOfSyncId)。
   final bool allowSplit;
   final TransactionSubmitCallback onSubmit;
+  // v51 支出/收入手續費/折扣:編輯既有交易時回填(比照 TransferForm 的
+  // initialFeeAmount 等——命名刻意保持一致,方便 transaction_editor_page.dart
+  // 直接透傳同一組 widget 參數給支出/收入表單跟轉帳表單)。
+  final double? initialBaseAmount;
+  final double? initialFeeAmount;
+  final String? initialFeeLabel;
+  final double? initialDiscountAmount;
+  final String? initialDiscountLabel;
 
   const TransactionEntryForm({
     super.key,
@@ -185,6 +206,11 @@ class TransactionEntryForm extends ConsumerStatefulWidget {
     this.initialRewardRuleIds,
     this.allowSplit = true,
     required this.onSubmit,
+    this.initialBaseAmount,
+    this.initialFeeAmount,
+    this.initialFeeLabel,
+    this.initialDiscountAmount,
+    this.initialDiscountLabel,
   });
 
   @override
@@ -296,11 +322,28 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   Timer? _recommendationDebounce;
   ({double amount, String merchant})? _lastRecommendationQuery;
 
+  // v51 支出/收入手續費/折扣:金額旁「+」展開單一面板(手續費列 + 折扣列
+  // 同時顯示),寫法比照 transfer_form.dart 的轉出/轉入面板,但只有一個
+  // enabled 旗標——支出/收入只有一個方向,不像轉帳有兩側各自獨立開關。
+  bool _feeDiscountEnabled = false;
+  final TextEditingController _feeLabelCtrl = TextEditingController();
+  final TextEditingController _feeAmountCtrl = TextEditingController();
+  final TextEditingController _discountLabelCtrl = TextEditingController();
+  final TextEditingController _discountAmountCtrl = TextEditingController();
+  final FocusNode _feeLabelFocus = FocusNode();
+  final FocusNode _feeAmountFocus = FocusNode();
+  final FocusNode _discountLabelFocus = FocusNode();
+  final FocusNode _discountAmountFocus = FocusNode();
+
   @override
   void initState() {
     super.initState();
     _nameFocus.addListener(_onTextFieldFocusChange);
     _merchantFocus.addListener(_onTextFieldFocusChange);
+    _feeLabelFocus.addListener(_onTextFieldFocusChange);
+    _feeAmountFocus.addListener(_onTextFieldFocusChange);
+    _discountLabelFocus.addListener(_onTextFieldFocusChange);
+    _discountAmountFocus.addListener(_onTextFieldFocusChange);
     _checkSwipesmartKey();
     _merchantCtrl.addListener(_maybeQueueRecommendation);
     _date = widget.initialDate;
@@ -311,7 +354,9 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     _selectedRewardRuleIds = List.from(widget.initialRewardRuleIds ?? []);
     _pickedCurrency = widget.initialCurrencyCode?.toUpperCase();
 
-    final initAmount = widget.initialAmount ?? 0;
+    // v51 支出/收入手續費/折扣:編輯模式若有 baseAmount,小算盤要顯示使用者
+    // 當初輸入的原始金額,不是套用公式後的淨額(initialAmount)。
+    final initAmount = widget.initialBaseAmount ?? widget.initialAmount ?? 0;
     final initNative = widget.initialNativeAmount;
     if (initNative != null && initAmount > 0 && initNative != initAmount) {
       _rateStr = (initNative / initAmount).toStringAsPrecision(6);
@@ -328,6 +373,20 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     _amountStr = trimmed.isEmpty ? '0' : trimmed;
     _nameCtrl.text = widget.initialNote ?? '';
     _merchantCtrl.text = widget.initialMerchant ?? '';
+
+    // v51 支出/收入手續費/折扣:編輯既有交易回填,比照 transfer_form.dart
+    // initState 的 initialFeeAmount 處理。
+    if (widget.initialBaseAmount != null) {
+      _feeDiscountEnabled = true;
+      if (widget.initialFeeAmount != null) {
+        _feeAmountCtrl.text = _fmtAbs(widget.initialFeeAmount!);
+        _feeLabelCtrl.text = widget.initialFeeLabel ?? '';
+      }
+      if (widget.initialDiscountAmount != null) {
+        _discountAmountCtrl.text = _fmtAbs(widget.initialDiscountAmount!);
+        _discountLabelCtrl.text = widget.initialDiscountLabel ?? '';
+      }
+    }
 
     _resolveInitialCategory();
     _resolveInitialSplits();
@@ -346,6 +405,14 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     _merchantCtrl.dispose();
     _nameFocus.dispose();
     _merchantFocus.dispose();
+    _feeLabelCtrl.dispose();
+    _feeAmountCtrl.dispose();
+    _discountLabelCtrl.dispose();
+    _discountAmountCtrl.dispose();
+    _feeLabelFocus.dispose();
+    _feeAmountFocus.dispose();
+    _discountLabelFocus.dispose();
+    _discountAmountFocus.dispose();
     super.dispose();
   }
 
@@ -464,7 +531,13 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     }
   }
 
-  bool get _textFieldFocused => _nameFocus.hasFocus || _merchantFocus.hasFocus;
+  bool get _textFieldFocused =>
+      _nameFocus.hasFocus ||
+      _merchantFocus.hasFocus ||
+      _feeLabelFocus.hasFocus ||
+      _feeAmountFocus.hasFocus ||
+      _discountLabelFocus.hasFocus ||
+      _discountAmountFocus.hasFocus;
 
   /// 鍵盤上方建議 chip 列點選後套用——保留鍵盤開啟(比照 moze,選完可能還要
   /// 微調文字),游標移到文字結尾方便接著打字。
@@ -1157,7 +1230,8 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
       return;
     }
     if (_installmentDraft != null) {
-      showToast(context, AppLocalizations.of(context).txInstallmentSplitConflict);
+      showToast(
+          context, AppLocalizations.of(context).txInstallmentSplitConflict);
       return;
     }
     final picked = await showCategorySelector(
@@ -1409,6 +1483,40 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
       return;
     }
 
+    // v51 支出/收入手續費/折扣:面板開啟時(拆帳模式下面板不會開啟,見
+    // _buildFeeDiscountToggle 的 _splits.isEmpty 判斷)驗證兩個金額皆須 ≥0
+    // (比照 Cloud `_normalize_fee_discount_amount`),通過後用
+    // computeFeeDiscountNetAmount 重算淨額覆蓋 total——這個 total 之後會
+    // 驅動下面的 nativeAmount 折算跟 onSubmit 的 amount 欄位,兩邊自然對齊。
+    double? resolvedBaseAmount;
+    double? resolvedFeeAmount;
+    String? resolvedFeeLabel;
+    double? resolvedDiscountAmount;
+    String? resolvedDiscountLabel;
+    if (_feeDiscountEnabled && _splits.isEmpty) {
+      resolvedFeeAmount = double.tryParse(_feeAmountCtrl.text) ?? 0;
+      resolvedDiscountAmount = double.tryParse(_discountAmountCtrl.text) ?? 0;
+      if (resolvedFeeAmount < 0 || resolvedDiscountAmount < 0) {
+        showToast(context,
+            AppLocalizations.of(context).transferAdjustmentNegativeError);
+        return;
+      }
+      final l10n = AppLocalizations.of(context);
+      resolvedFeeLabel = _feeLabelCtrl.text.isEmpty
+          ? l10n.transactionFeeLabelHint
+          : _feeLabelCtrl.text;
+      resolvedDiscountLabel = _discountLabelCtrl.text.isEmpty
+          ? l10n.transactionDiscountLabelHint
+          : _discountLabelCtrl.text;
+      resolvedBaseAmount = total.abs();
+      total = computeFeeDiscountNetAmount(
+        type: widget.kind,
+        baseAmount: resolvedBaseAmount,
+        feeAmount: resolvedFeeAmount,
+        discountAmount: resolvedDiscountAmount,
+      );
+    }
+
     setState(() => _isSubmitting = true);
 
     final txCurrency = _txCurrency();
@@ -1461,6 +1569,11 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
         projectSyncId: _selectedProject?.syncId,
         installmentDraft:
             widget.editingTransactionId == null ? _installmentDraft : null,
+        baseAmount: resolvedBaseAmount,
+        feeAmount: resolvedFeeAmount,
+        feeLabel: resolvedFeeLabel,
+        discountAmount: resolvedDiscountAmount,
+        discountLabel: resolvedDiscountLabel,
       ),
     ).whenComplete(() {
       // 正常存檔成功:上層已經 pop 頁面,這裡 mounted 已是 false,no-op。
@@ -1548,6 +1661,24 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
                           editingTransactionId: widget.editingTransactionId!),
                     const Spacer(),
                     _buildCurrencyChip(context),
+                    // v51 支出/收入手續費/折扣:拆帳模式下不提供(比照拆帳跟
+                    // 「進階設定」互斥的既有規則)。
+                    if (_splits.isEmpty)
+                      AdjustmentToggleButton(
+                        key: const Key('feeDiscountToggle'),
+                        enabled: _feeDiscountEnabled,
+                        tooltip: AppLocalizations.of(context)
+                            .transactionAddFeeDiscountButton,
+                        onPressed: () => setState(() {
+                          _feeDiscountEnabled = !_feeDiscountEnabled;
+                          if (!_feeDiscountEnabled) {
+                            _feeLabelCtrl.clear();
+                            _feeAmountCtrl.clear();
+                            _discountLabelCtrl.clear();
+                            _discountAmountCtrl.clear();
+                          }
+                        }),
+                      ),
                     const SizedBox(width: 6),
                     if (_op != null) ...[
                       Text(
@@ -1597,6 +1728,13 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
                   ),
                 ],
                 _buildCurrencySection(context),
+                if (_feeDiscountEnabled && _splits.isEmpty) ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: _buildFeeDiscountPanel(context, total),
+                  ),
+                ],
               ],
             ),
           ),
@@ -1725,6 +1863,90 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     final s = v.abs().toStringAsFixed(2);
     final r1 = s.contains('.') ? s.replaceFirst(RegExp(r'0+$'), '') : s;
     return r1.endsWith('.') ? r1.substring(0, r1.length - 1) : r1;
+  }
+
+  /// v51 支出/收入手續費/折扣:「+」展開後的單一面板,手續費列 + 折扣列 +
+  /// 淨額預覽同時顯示(比照 BeeCount Cloud 網頁版 `TransactionsPanel.tsx`,
+  /// 跟轉帳的「轉出/轉入兩側各自獨立面板」不同形狀——支出/收入只有一個方向,
+  /// 一個「移除」就清空兩列)。[baseAmount] 是目前小算盤代表的金額(可能含
+  /// +/- 連續運算後的結果),用來即時預覽套用公式後的淨額。
+  Widget _buildFeeDiscountPanel(BuildContext context, double baseAmount) {
+    final l10n = AppLocalizations.of(context);
+    final text = Theme.of(context).textTheme;
+    final currency = _txCurrency();
+    final fee = double.tryParse(_feeAmountCtrl.text) ?? 0;
+    final discount = double.tryParse(_discountAmountCtrl.text) ?? 0;
+    final net = computeFeeDiscountNetAmount(
+      type: widget.kind,
+      baseAmount: baseAmount.abs(),
+      feeAmount: fee < 0 ? 0 : fee,
+      discountAmount: discount < 0 ? 0 : discount,
+    );
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: BeeTokens.surfaceElevated(context),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AdjustmentFieldRow(
+            labelFieldKey: const Key('feeLabelField'),
+            amountFieldKey: const Key('feeAmountField'),
+            labelCtrl: _feeLabelCtrl,
+            labelFocus: _feeLabelFocus,
+            amountCtrl: _feeAmountCtrl,
+            amountFocus: _feeAmountFocus,
+            currency: currency,
+            labelHint: l10n.transactionFeeLabelHint,
+            amountHint: l10n.transferAmountLabel,
+            onAmountChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 10),
+          AdjustmentFieldRow(
+            labelFieldKey: const Key('discountLabelField'),
+            amountFieldKey: const Key('discountAmountField'),
+            labelCtrl: _discountLabelCtrl,
+            labelFocus: _discountLabelFocus,
+            amountCtrl: _discountAmountCtrl,
+            amountFocus: _discountAmountFocus,
+            currency: currency,
+            labelHint: l10n.transactionDiscountLabelHint,
+            amountHint: l10n.transferAmountLabel,
+            onAmountChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${l10n.transactionFeeDiscountTotalLabel} ${_fmtAbs(net)}',
+                style: text.bodySmall?.copyWith(
+                  color: BeeTokens.textSecondary(context),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              InkWell(
+                key: const Key('feeDiscountRemove'),
+                onTap: () => setState(() {
+                  _feeDiscountEnabled = false;
+                  _feeLabelCtrl.clear();
+                  _feeAmountCtrl.clear();
+                  _discountLabelCtrl.clear();
+                  _discountAmountCtrl.clear();
+                }),
+                child: Text(
+                  l10n.transferRemoveAdjustmentButton,
+                  style: text.bodySmall
+                      ?.copyWith(color: BeeTokens.textTertiary(context)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildCategorySection(BuildContext context) {

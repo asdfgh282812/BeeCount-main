@@ -65,6 +65,10 @@ class EntitySerializer {
       if (tx.feeLabel != null) 'feeLabel': tx.feeLabel,
       if (tx.discountAmount != null) 'discountAmount': tx.discountAmount,
       if (tx.discountLabel != null) 'discountLabel': tx.discountLabel,
+      // v51 支出/收入手續費/折扣:同款「有值才發」,wire key 對齊 Cloud 既有
+      // ("baseAmount","base_amount") merge spec(0039_tx_fee_discount.py 原本
+      // 就有這欄,只是 App 這次才補上本地儲存)。
+      if (tx.baseAmount != null) 'baseAmount': tx.baseAmount,
       // v34:退款关联。有值才发(省略等价"不更新"),wire key 必须是
       // refundOfId —— BeeCount Cloud sync_applier.py 既有 merge spec
       // ("refundOfId", "refund_of_sync_id") 已经这样约定,改键名会让退款

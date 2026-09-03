@@ -21,6 +21,7 @@ import '../../utils/account_type_utils.dart';
 import '../../utils/amount_calculator.dart';
 import '../../utils/shared_ledger_picker_filter.dart';
 import '../biz/account_card_picker.dart';
+import '../biz/amount_adjustment_panel.dart';
 import '../biz/amount_calculator_keypad.dart';
 import '../biz/amount_text.dart';
 import '../biz/pull_to_submit_scroll_view.dart';
@@ -696,8 +697,8 @@ class TransferFormState extends ConsumerState<TransferForm>
           toAmount: d.Value<double?>(resolvedToAmount),
           feeAmount: d.Value<double?>(_feeEnabled ? resolvedFeeAmount : null),
           feeLabel: d.Value<String?>(_feeEnabled ? resolvedFeeLabel : null),
-          discountAmount:
-              d.Value<double?>(_discountEnabled ? resolvedDiscountAmount : null),
+          discountAmount: d.Value<double?>(
+              _discountEnabled ? resolvedDiscountAmount : null),
           discountLabel:
               d.Value<String?>(_discountEnabled ? resolvedDiscountLabel : null),
         );
@@ -938,8 +939,7 @@ class TransferFormState extends ConsumerState<TransferForm>
                           child: _buildAdjustmentPanel(
                             context,
                             labelFieldKey: const Key('transferFeeLabelField'),
-                            amountFieldKey:
-                                const Key('transferFeeAmountField'),
+                            amountFieldKey: const Key('transferFeeAmountField'),
                             labelCtrl: _feeLabelCtrl,
                             labelFocus: _feeLabelFocus,
                             amountCtrl: _feeAmountCtrl,
@@ -1271,29 +1271,25 @@ class TransferFormState extends ConsumerState<TransferForm>
   }
 
   /// v46 轉帳手續費/折損:轉出/轉入面板共用的「+」toggle 按鈕(圓形 icon
-  /// button,視覺上比照參考畫面的展開互動)。
+  /// button,視覺上比照參考畫面的展開互動)。v51 抽成共用元件
+  /// [AdjustmentToggleButton](跟支出/收入手續費/折扣共用),這裡只是薄包裝。
   Widget _buildAdjustmentToggleButton({
     Key? key,
     required bool enabled,
     required String tooltip,
     required VoidCallback onPressed,
   }) {
-    return IconButton(
+    return AdjustmentToggleButton(
       key: key,
-      visualDensity: VisualDensity.compact,
+      enabled: enabled,
       tooltip: tooltip,
       onPressed: onPressed,
-      icon: Icon(
-        enabled ? Icons.remove_circle_outline : Icons.add_circle_outline,
-        size: 20,
-        color: enabled
-            ? Theme.of(context).colorScheme.primary
-            : BeeTokens.iconSecondary(context),
-      ),
     );
   }
 
   /// v46 轉帳手續費/折損:展開後的標籤 + 金額輸入面板,轉出/轉入兩側共用。
+  /// v51 內層的「名稱欄 + 金額欄」抽成共用元件 [AdjustmentFieldRow](跟支出/
+  /// 收入手續費/折扣共用),外層 Container/移除連結維持原樣,行為/外觀不變。
   Widget _buildAdjustmentPanel(
     BuildContext context, {
     Key? labelFieldKey,
@@ -1313,81 +1309,24 @@ class TransferFormState extends ConsumerState<TransferForm>
         color: BeeTokens.surfaceElevated(context),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  key: labelFieldKey,
-                  controller: labelCtrl,
-                  focusNode: labelFocus,
-                  style: TextStyle(
-                      color: BeeTokens.textPrimary(context), fontSize: 13),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    hintText: l10n.transferFeeLabelHint,
-                    hintStyle: TextStyle(
-                        color: BeeTokens.textTertiary(context), fontSize: 13),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-              ),
-              InkWell(
-                onTap: onRemove,
-                child: Text(
-                  l10n.transferRemoveAdjustmentButton,
-                  style: text.bodySmall
-                      ?.copyWith(color: BeeTokens.textTertiary(context)),
-                ),
-              ),
-            ],
+      child: AdjustmentFieldRow(
+        labelFieldKey: labelFieldKey,
+        amountFieldKey: amountFieldKey,
+        labelCtrl: labelCtrl,
+        labelFocus: labelFocus,
+        amountCtrl: amountCtrl,
+        amountFocus: amountFocus,
+        currency: currency,
+        labelHint: l10n.transferFeeLabelHint,
+        amountHint: l10n.transferAmountLabel,
+        labelRowTrailing: InkWell(
+          onTap: onRemove,
+          child: Text(
+            l10n.transferRemoveAdjustmentButton,
+            style: text.bodySmall
+                ?.copyWith(color: BeeTokens.textTertiary(context)),
           ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                decoration: BoxDecoration(
-                  color: BeeTokens.surfaceKeySecondary(context),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  currency.toUpperCase(),
-                  style: text.bodySmall?.copyWith(
-                    color: BeeTokens.textSecondary(context),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextField(
-                  key: amountFieldKey,
-                  controller: amountCtrl,
-                  focusNode: amountFocus,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  textAlign: TextAlign.end,
-                  style: TextStyle(
-                    color: BeeTokens.textPrimary(context),
-                    fontWeight: FontWeight.w600,
-                  ),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    hintText: l10n.transferAmountLabel,
-                    hintStyle:
-                        TextStyle(color: BeeTokens.textTertiary(context)),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }

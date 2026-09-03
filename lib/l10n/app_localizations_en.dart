@@ -253,6 +253,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get transactionMerchantHint => 'Merchant...';
 
   @override
+  String get transactionAddFeeDiscountButton => 'Add fee/discount';
+
+  @override
+  String get transactionFeeLabelHint => 'Fee';
+
+  @override
+  String get transactionDiscountLabelHint => 'Discount';
+
+  @override
+  String get transactionFeeDiscountTotalLabel => 'Total';
+
+  @override
   String get commonSettings => 'Settings';
 
   @override

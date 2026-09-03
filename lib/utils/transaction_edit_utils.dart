@@ -9,7 +9,8 @@ import '../data/repositories/installment_repository.dart'
 import '../data/repositories/local/local_repository.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/database_providers.dart';
-import '../providers/installment_providers.dart' show installmentsRefreshProvider;
+import '../providers/installment_providers.dart'
+    show installmentsRefreshProvider;
 import '../services/billing/post_processor.dart';
 import '../widgets/biz/installment_edit_choice_dialog.dart';
 import '../widgets/biz/recurring_occurrence_dialogs.dart';
@@ -130,6 +131,7 @@ class TransactionEditUtils {
           initialFeeLabel: transaction.feeLabel,
           initialDiscountAmount: transaction.discountAmount,
           initialDiscountLabel: transaction.discountLabel,
+          initialBaseAmount: transaction.baseAmount,
           initialRewardRuleIds: transaction.rewardRuleIds,
           initialRecurringEditScope: recurringScope,
         ),
@@ -172,6 +174,7 @@ class TransactionEditUtils {
           initialFeeLabel: transaction.feeLabel,
           initialDiscountAmount: transaction.discountAmount,
           initialDiscountLabel: transaction.discountLabel,
+          initialBaseAmount: transaction.baseAmount,
           initialRewardRuleIds: transaction.rewardRuleIds,
           // 不传 initialRefundOfSyncId:复制出来的是独立新记录
         ),

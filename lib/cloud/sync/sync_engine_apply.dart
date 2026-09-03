@@ -372,6 +372,10 @@ extension SyncEngineApplyExt on SyncEngine {
     final hasDiscountLabelKey = payload.containsKey('discountLabel');
     final discountLabel =
         hasDiscountLabelKey ? payload['discountLabel'] as String? : null;
+    // v51 支出/收入手續費/折扣:同款「缺鍵不覆蓋」。
+    final hasBaseAmountKey = payload.containsKey('baseAmount');
+    final baseAmount =
+        hasBaseAmountKey ? (payload['baseAmount'] as num?)?.toDouble() : null;
 
     if (existingId != null) {
       // 更新 — createdByUserId 走"本地为 null 就回填,否则保持"的策略。
@@ -474,6 +478,8 @@ extension SyncEngineApplyExt on SyncEngine {
         discountLabel: hasDiscountLabelKey
             ? d.Value(discountLabel)
             : const d.Value.absent(),
+        baseAmount:
+            hasBaseAmountKey ? d.Value(baseAmount) : const d.Value.absent(),
       ));
       // 更新标签、附件、拆帳明細(existing 路径)
       await _syncTransactionTags(existingId, syncId, payload);
@@ -522,6 +528,7 @@ extension SyncEngineApplyExt on SyncEngine {
               feeLabel: d.Value(feeLabel),
               discountAmount: d.Value(discountAmount),
               discountLabel: d.Value(discountLabel),
+              baseAmount: d.Value(baseAmount),
             ),
           );
       // 写回 cache,后续同 syncId 的 update change 能命中

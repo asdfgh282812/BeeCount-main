@@ -876,6 +876,7 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
               initialFeeLabel: transaction.feeLabel,
               initialDiscountAmount: transaction.discountAmount,
               initialDiscountLabel: transaction.discountLabel,
+              initialBaseAmount: transaction.baseAmount,
               initialRewardRuleIds: transaction.rewardRuleIds,
               initialRecurringEditScope: recurringScope,
             ),

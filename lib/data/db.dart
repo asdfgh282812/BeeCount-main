@@ -298,6 +298,19 @@ class Transactions extends Table {
   TextColumn get feeLabel => text().nullable()();
   RealColumn get discountAmount => real().nullable()();
   TextColumn get discountLabel => text().nullable()();
+
+  /// v51 支出/收入手續費/折扣(對齐 BeeCount Cloud `read_tx_projection.
+  /// base_amount`,`0039_tx_fee_discount.py`——這是該遷移原本就支援
+  /// expense/income 的部分,App 這次才補上):`type` 是 `expense`/`income`
+  /// 時,`baseAmount` 是使用者輸入的原始金額(信用卡回饋計算的權威基準),
+  /// `amount` 則是套用 [feeAmount]/[discountAmount] 後、實際入帳驅動餘額
+  /// /統計的淨額——`amount = baseAmount + feeAmount - discountAmount`
+  /// (expense)或 `baseAmount - feeAmount + discountAmount`(income),寫入
+  /// 路徑統一重算(見 `LocalTransactionRepository`)。`baseAmount` 為 null
+  /// 代表沒有使用手續費/折扣,`amount` 就是使用者輸入的原始金額,行為退化回
+  /// 既有邏輯。**周期性交易(`RecurringTransactions`)/拆帳不支援**,範圍比照
+  /// 既有 transfer 手續費/折損的排除項。
+  RealColumn get baseAmount => real().nullable()();
 }
 
 /// v39 借還款(§2.5 MOZE_FEATURE_GAP_SD.md,對齊 BeeCount Cloud `debt`
@@ -1077,8 +1090,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion =>
-      50; // v50: 分期付款帳單沖銷(installment_plans.offset_breakdown_json)
+  int get schemaVersion => 51; // v51: 支出/收入手續費/折扣(transactions.base_amount)
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2105,6 +2117,13 @@ class BeeDatabase extends _$BeeDatabase {
                 'ALTER TABLE installment_plans ADD COLUMN '
                     'offset_breakdown_json TEXT;');
             logger.info('DBMigration', 'v50 迁移完成');
+          }
+          if (from < 51) {
+            logger.info('DBMigration',
+                '开始迁移到 v51: 支出/收入手续费/折扣(transactions.base_amount)');
+            await _addColumnIfMissing('transactions', 'base_amount',
+                'ALTER TABLE transactions ADD COLUMN base_amount REAL;');
+            logger.info('DBMigration', 'v51 迁移完成');
           }
         },
         onCreate: (m) async {

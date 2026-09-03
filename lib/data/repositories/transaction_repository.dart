@@ -288,6 +288,12 @@ abstract class TransactionRepository {
     String? feeLabel,
     double? discountAmount,
     String? discountLabel,
+    // v51 支出/收入手續費/折扣:只在 type 為 expense/income 時有意義。
+    // baseAmount 是使用者輸入的原始金額;呼叫方(交易表單)負責用
+    // [computeFeeDiscountNetAmount] 算好淨額傳給上面的 [amount] 參數——
+    // 本層不重算,語意跟轉帳的 feeAmount/discountAmount 一致(表單算好、
+    // repository 只負責存)。為 null 代表沒有使用手續費/折扣。
+    double? baseAmount,
   });
 
   /// 批量新增交易，单事务内插入，返回插入条数。
@@ -365,6 +371,9 @@ abstract class TransactionRepository {
     dynamic feeLabel,
     dynamic discountAmount,
     dynamic discountLabel,
+    // v51 支出/收入手續費/折扣:tri-state 同 [feeAmount]。呼叫方負責用
+    // [computeFeeDiscountNetAmount] 算好淨額傳給上面必填的 [amount] 參數。
+    dynamic baseAmount,
   });
 
   /// 获取一笔交易的拆帳明細(依 sortOrder),非拆帳交易返回空列表。

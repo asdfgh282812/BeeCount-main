@@ -52,11 +52,16 @@ class TransactionEditorPage extends ConsumerStatefulWidget {
   final double? initialNativeAmount;
   // v45 跨幣別轉帳:編輯既有跨幣別轉帳時回填轉入金額(只有 TransferForm 用)。
   final double? initialToAmount;
-  // v46 轉帳手續費/折損:編輯既有轉帳時回填(只有 TransferForm 用)。
+  // v46 轉帳手續費/折損:編輯既有轉帳時回填。v51 起支出/收入手續費/折扣
+  // 也共用這組欄位(見下面 initialBaseAmount 的說明),同時傳給
+  // TransferForm 跟 TransactionEntryForm。
   final double? initialFeeAmount;
   final String? initialFeeLabel;
   final double? initialDiscountAmount;
   final String? initialDiscountLabel;
+  // v51 支出/收入手續費/折扣:編輯既有交易時回填(只有 TransactionEntryForm
+  // 用——transfer 沒有 base_amount 概念,見 `Transactions.baseAmount` 註解)。
+  final double? initialBaseAmount;
   // v34:从「退款」入口打开时,带入原交易 syncId,存档时写进新交易的
   // refundOfSyncId。只有新建模式(editingTransactionId == null)会用到。
   final String? initialRefundOfSyncId;
@@ -89,6 +94,7 @@ class TransactionEditorPage extends ConsumerStatefulWidget {
     this.initialFeeLabel,
     this.initialDiscountAmount,
     this.initialDiscountLabel,
+    this.initialBaseAmount,
     this.initialRefundOfSyncId,
     this.initialRewardRuleIds,
     this.initialRecurringEditScope,
@@ -367,6 +373,11 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
                   // v38:退款新增入口不能同時是拆帳交易(對齊 web 端的互斥規則)。
                   allowSplit: widget.initialRefundOfSyncId == null,
                   onSubmit: (c, r) => _handleSubmit(c, 'expense', r),
+                  initialBaseAmount: widget.initialBaseAmount,
+                  initialFeeAmount: widget.initialFeeAmount,
+                  initialFeeLabel: widget.initialFeeLabel,
+                  initialDiscountAmount: widget.initialDiscountAmount,
+                  initialDiscountLabel: widget.initialDiscountLabel,
                 ),
                 TransactionEntryForm(
                   key: _incomeFormKey,
@@ -388,6 +399,11 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
                   initialRewardRuleIds: widget.initialRewardRuleIds,
                   allowSplit: widget.initialRefundOfSyncId == null,
                   onSubmit: (c, r) => _handleSubmit(c, 'income', r),
+                  initialBaseAmount: widget.initialBaseAmount,
+                  initialFeeAmount: widget.initialFeeAmount,
+                  initialFeeLabel: widget.initialFeeLabel,
+                  initialDiscountAmount: widget.initialDiscountAmount,
+                  initialDiscountLabel: widget.initialDiscountLabel,
                 ),
                 TransferForm(
                   key: _transferFormKey,
@@ -516,6 +532,15 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
         nativeAmount: res.nativeAmount,
         rewardRuleIds: res.rewardRuleIds,
         splits: splitsForWrite,
+        // v51 支出/收入手續費/折扣:res 已經是這次存檔的最終權威狀態(面板
+        // 關閉/沒開過 = 全部 null,直接寫入即代表清空),恆傳 d.Value 不用
+        // tri-state 的「不傳=不動」語意——跟 TransferForm._submit 對
+        // repo.updateTransaction 的寫法一致。
+        baseAmount: d.Value<double?>(res.baseAmount),
+        feeAmount: d.Value<double?>(res.feeAmount),
+        feeLabel: d.Value<String?>(res.feeLabel),
+        discountAmount: d.Value<double?>(res.discountAmount),
+        discountLabel: d.Value<String?>(res.discountLabel),
       );
       // v44:專案連結走專用方法,不塞進 updateTransaction(同 debtSyncId 的
       // 既有分工,見 CLAUDE.md「Sync entity relation pattern」)。
@@ -659,6 +684,13 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
         rewardRuleIds: res.rewardRuleIds,
         splits: splitsForWrite,
         projectSyncId: res.projectSyncId,
+        // v51 支出/收入手續費/折扣:沒開面板時皆為 null,addTransaction 本來
+        // 就是全量寫入,直接透傳即可。
+        baseAmount: res.baseAmount,
+        feeAmount: res.feeAmount,
+        feeLabel: res.feeLabel,
+        discountAmount: res.discountAmount,
+        discountLabel: res.discountLabel,
       );
       // 共享账本:新建本地 tx 也回填创建人 + 编辑人(同一个 user)
       await TxAuthorService.markCreated(ref, transactionId);

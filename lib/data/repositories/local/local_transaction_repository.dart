@@ -448,6 +448,7 @@ class LocalTransactionRepository implements TransactionRepository {
     String? feeLabel,
     double? discountAmount,
     String? discountLabel,
+    double? baseAmount,
   }) async {
     // v30:子仓收「已定值」直写;带折算的兜底(查账户/汇率)在聚合
     // LocalRepository 包装层(子仓拿不到汇率)。
@@ -485,6 +486,7 @@ class LocalTransactionRepository implements TransactionRepository {
                 feeLabel: d.Value(feeLabel),
                 discountAmount: d.Value(discountAmount),
                 discountLabel: d.Value(discountLabel),
+                baseAmount: d.Value(baseAmount),
               ));
       if (hasSplits) {
         await _insertSplits(id, splits);
@@ -668,6 +670,7 @@ class LocalTransactionRepository implements TransactionRepository {
     dynamic feeLabel,
     dynamic discountAmount,
     dynamic discountLabel,
+    dynamic baseAmount,
   }) async {
     // 处理 accountId 参数
     final d.Value<int?> accountIdValue;
@@ -723,6 +726,15 @@ class LocalTransactionRepository implements TransactionRepository {
     } else {
       discountLabelValue = d.Value(discountLabel as String?);
     }
+    // v51 支出/收入手續費/折扣:同款 dynamic tri-state 寫法。
+    final d.Value<double?> baseAmountValue;
+    if (baseAmount == null) {
+      baseAmountValue = const d.Value.absent();
+    } else if (baseAmount is d.Value<double?>) {
+      baseAmountValue = baseAmount;
+    } else {
+      baseAmountValue = d.Value(baseAmount as double?);
+    }
 
     // v38 拆帳:splits 非空时強制清空 categoryId/override(明細才有分類);
     // splits==[] 视为「还原成单一分类」,才让呼叫方传入的 categoryId 生效。
@@ -767,6 +779,7 @@ class LocalTransactionRepository implements TransactionRepository {
           feeLabel: feeLabelValue,
           discountAmount: discountAmountValue,
           discountLabel: discountLabelValue,
+          baseAmount: baseAmountValue,
         ),
       );
       if (splits != null) {

@@ -249,6 +249,18 @@ class AppLocalizationsKo extends AppLocalizations {
   String get transactionMerchantHint => '상점...';
 
   @override
+  String get transactionAddFeeDiscountButton => 'Add fee/discount';
+
+  @override
+  String get transactionFeeLabelHint => 'Fee';
+
+  @override
+  String get transactionDiscountLabelHint => 'Discount';
+
+  @override
+  String get transactionFeeDiscountTotalLabel => 'Total';
+
+  @override
   String get commonSettings => '설정';
 
   @override

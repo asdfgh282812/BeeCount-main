@@ -551,6 +551,30 @@ abstract class AppLocalizations {
   /// **'Merchant...'**
   String get transactionMerchantHint;
 
+  /// No description provided for @transactionAddFeeDiscountButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Add fee/discount'**
+  String get transactionAddFeeDiscountButton;
+
+  /// No description provided for @transactionFeeLabelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee'**
+  String get transactionFeeLabelHint;
+
+  /// No description provided for @transactionDiscountLabelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount'**
+  String get transactionDiscountLabelHint;
+
+  /// No description provided for @transactionFeeDiscountTotalLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get transactionFeeDiscountTotalLabel;
+
   /// No description provided for @commonSettings.
   ///
   /// In en, this message translates to:
