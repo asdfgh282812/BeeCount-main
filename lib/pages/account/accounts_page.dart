@@ -240,16 +240,6 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                         primaryColor,
                       ),
 
-                      // 1. 借還款虛擬入口(v39,純 UI——不是真帳戶,不走 Accounts
-                      // 表的同步流程,對齐 doc.moze.app/record/payables-receivables
-                      // 「應收應付款項」彙總帳戶的呈現方式)。
-                      const _DebtEntryCard(),
-
-                      // 1.2 分期付款虛擬入口(v49,比照 _DebtEntryCard——純 UI,
-                      // 跨帳本聚合「尚有未繳分期本金」,點擊導到當前帳本的
-                      // InstallmentListPage)。
-                      const _InstallmentEntryCard(),
-
                       // 1.5 待確認帳戶入口(v40)——只有帳本裡存在
                       // needsAccountAssignment 的交易時才顯示,點擊進
                       // PendingAccountTransactionsPage 逐筆補選帳戶。
@@ -327,6 +317,40 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                               _editAccount(context, ref, account, ledgerId),
                         );
                       }),
+
+                      // 4.5 借還款/分期付款虛擬入口分组(v39/v49,純 UI——不是
+                      // 真帳戶,不走 Accounts 表的同步流程,對齐
+                      // doc.moze.app/record/payables-receivables「應收應付
+                      // 款項」彙總帳戶的呈現方式)。移到列表最下方並獨立成一個
+                      // 分组標題,對齊參考 App 的「其他」分组呈現。
+                      Padding(
+                        padding: EdgeInsets.only(
+                          top: 16.0.scaled(context, ref),
+                          bottom: 4.0.scaled(context, ref),
+                          left: 4.0.scaled(context, ref),
+                          right: 4.0.scaled(context, ref),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.more_horiz,
+                              size: 18.0.scaled(context, ref),
+                              color: BeeTokens.textSecondary(context),
+                            ),
+                            SizedBox(width: 6.0.scaled(context, ref)),
+                            Text(
+                              l10n.commonOther,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: BeeTokens.textPrimary(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const _DebtEntryCard(),
+                      const _InstallmentEntryCard(),
 
                       // 5. 已隐藏账户分区(账户隐藏 #240,D2:主列表退场,
                       // 分区头小计与净资产卡差额对账)
