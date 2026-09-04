@@ -27,7 +27,8 @@ class LocalInstallmentRepository implements InstallmentRepository {
   /// 是安全的,不會跟 `LocalRepository._accountRepo` 那份打架。
   final LocalAccountRepository _accountRepo;
 
-  LocalInstallmentRepository(this.db) : _accountRepo = LocalAccountRepository(db);
+  LocalInstallmentRepository(this.db)
+      : _accountRepo = LocalAccountRepository(db);
 
   @override
   Future<int> createInstallmentPlan({
@@ -290,9 +291,30 @@ class LocalInstallmentRepository implements InstallmentRepository {
   @override
   Future<double> getOutstandingPrincipalAllLedgers() async {
     final now = DateTime.now();
-    final periods = await db.select(db.installmentPeriods).get();
+    // 兩道防線,兩者都要 join:
+    // 1. inner join ledgers——即便帳本删除路径漏清了某些 installment_periods
+    //    孤儿行(ledgerId 指向已不存在的帳本),这里也不会把它们算进「尚有
+    //    应缴」。
+    // 2. inner join installment_plans(按 planSyncId)——已知的既有 race
+    //    (docs/changes/2026-09-03-installment-tracking-delete-sync-fixes.md
+    //    問題A:刪除分期計畫的 N*2+1 筆 change 推送/拉取之間有窗口期,可能
+    //    留下 plan 已刪、period 還在的孤兒,即 orphan_scanner.dart 的 A12
+    //    installmentPeriodMissingPlan)会让 period 的 ledgerId 仍指向現存
+    //    帳本,單靠第 1 道防線擋不住——用它反查的原因正是使用者實測回報:單
+    //    一帳本、對應 plan 已從列表消失,首頁摘要卻仍把這筆孤兒本金算進
+    //    「尚有應缴」。
+    final query = db.select(db.installmentPeriods).join([
+      d.innerJoin(
+          db.ledgers, db.ledgers.id.equalsExp(db.installmentPeriods.ledgerId)),
+      d.innerJoin(
+          db.installmentPlans,
+          db.installmentPlans.syncId
+              .equalsExp(db.installmentPeriods.planSyncId)),
+    ]);
+    final rows = await query.get();
     var total = 0.0;
-    for (final p in periods) {
+    for (final row in rows) {
+      final p = row.readTable(db.installmentPeriods);
       if (p.dueAt.isAfter(now)) total += p.principalAmount;
     }
     return total;
@@ -891,7 +913,8 @@ class LocalInstallmentRepository implements InstallmentRepository {
       // 純粹是刪除單期的自然收尾。
       final remaining = await getInstallmentPeriods(planId);
       if (remaining.isEmpty) {
-        await (db.delete(db.installmentPlans)..where((t) => t.id.equals(planId)))
+        await (db.delete(db.installmentPlans)
+              ..where((t) => t.id.equals(planId)))
             .go();
         if (plan.syncId != null) {
           changes.add(InstallmentChange(

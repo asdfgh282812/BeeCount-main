@@ -207,6 +207,17 @@ class LocalRepository extends BaseRepository {
       final debtsInLedger = await (db.select(db.debts)
             ..where((t) => t.ledgerId.equals(id)))
           .get();
+      // 分期付款(v49)同样是 ledger-scoped,之前漏掉了(见使用者回报:删掉的
+      // 帳本底下的分期期数留在 installment_periods 里,首页
+      // getOutstandingPrincipalAllLedgers() 不过滤 ledgerId,把这些孤儿本金
+      // 也加总进「尚有应缴」,但分期列表页按当前 ledgerId 过滤看不到——两边对
+      // 不上。这里比照 budgets/debts 一并清掉 + 登记 delete change。
+      final installmentPeriodsInLedger = await (db.select(db.installmentPeriods)
+            ..where((t) => t.ledgerId.equals(id)))
+          .get();
+      final installmentPlansInLedger = await (db.select(db.installmentPlans)
+            ..where((t) => t.ledgerId.equals(id)))
+          .get();
 
       await _ledgerRepo.deleteLedger(id);
       // 顺便把残留的 budgets 一起清,见上面注释。
@@ -215,6 +226,16 @@ class LocalRepository extends BaseRepository {
       }
       if (debtsInLedger.isNotEmpty) {
         await (db.delete(db.debts)..where((t) => t.ledgerId.equals(id))).go();
+      }
+      if (installmentPeriodsInLedger.isNotEmpty) {
+        await (db.delete(db.installmentPeriods)
+              ..where((t) => t.ledgerId.equals(id)))
+            .go();
+      }
+      if (installmentPlansInLedger.isNotEmpty) {
+        await (db.delete(db.installmentPlans)
+              ..where((t) => t.ledgerId.equals(id)))
+            .go();
       }
 
       for (final tx in txs) {
@@ -247,6 +268,26 @@ class LocalRepository extends BaseRepository {
           action: 'delete',
         );
       }
+      for (final period in installmentPeriodsInLedger) {
+        if (period.syncId == null) continue;
+        await changeTracker!.recordLedgerChange(
+          entityType: 'installment_period',
+          entityId: period.id,
+          entitySyncId: period.syncId!,
+          ledgerId: id,
+          action: 'delete',
+        );
+      }
+      for (final plan in installmentPlansInLedger) {
+        if (plan.syncId == null) continue;
+        await changeTracker!.recordLedgerChange(
+          entityType: 'installment_plan',
+          entityId: plan.id,
+          entitySyncId: plan.syncId!,
+          ledgerId: id,
+          action: 'delete',
+        );
+      }
       // ledger_snapshot:delete 用 ledger.syncId 作为 entity_sync_id,server
       // 才能按 external_id 找到对应的 ledger 删掉(server 用 syncId/UUID 做
       // external_id,不是本地 int id)。这点跟 sync_engine._pushAllEntities
@@ -263,7 +304,9 @@ class LocalRepository extends BaseRepository {
           'LocalRepository',
           'deleteLedger($id) 已登记 ${txs.length} 条 transaction:delete + '
               '${budgets.length} 条 budget:delete + ${debtsInLedger.length} 条 '
-              'debt:delete + 1 条 ledger_snapshot:delete '
+              'debt:delete + ${installmentPlansInLedger.length} 条 '
+              'installment_plan:delete + ${installmentPeriodsInLedger.length} 条 '
+              'installment_period:delete + 1 条 ledger_snapshot:delete '
               '(ledgerSyncId=$ledgerSyncId)');
     });
   }

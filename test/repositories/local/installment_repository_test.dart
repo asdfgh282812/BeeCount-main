@@ -99,8 +99,7 @@ void main() {
 
   test(
       'accountId 可以是合併帳單群組的子卡(AccountCardPicker 本來就只能選子卡,'
-      '不能選群組主帳戶,見 2026-09-03-installment-tracking-ux-fixes.md)',
-      () async {
+      '不能選群組主帳戶,見 2026-09-03-installment-tracking-ux-fixes.md)', () async {
     final lid = await seedLedger();
     final categoryId = await seedCategory();
     final parentAccountId = 'parent-sync-id';
@@ -974,8 +973,7 @@ void main() {
   });
 
   group('offsetExistingBalance / 帳單分期沖銷(子專案4)', () {
-    test('offsetExistingBalance=true 但沒有 accountId 時拋 ArgumentError',
-        () async {
+    test('offsetExistingBalance=true 但沒有 accountId 時拋 ArgumentError', () async {
       final lid = await seedLedger();
       final categoryId = await seedCategory();
 
@@ -1044,12 +1042,13 @@ void main() {
     test('account_group 帳戶目前不支援沖銷,拋 ArgumentError', () async {
       final lid = await seedLedger();
       final categoryId = await seedCategory();
-      final groupId = await db.into(db.accounts).insert(AccountsCompanion.insert(
-            ledgerId: lid,
-            name: '主帳戶',
-            type: const d.Value('account_group'),
-            syncId: const d.Value('grp-offset-1'),
-          ));
+      final groupId =
+          await db.into(db.accounts).insert(AccountsCompanion.insert(
+                ledgerId: lid,
+                name: '主帳戶',
+                type: const d.Value('account_group'),
+                syncId: const d.Value('grp-offset-1'),
+              ));
 
       await expectLater(
         repo.createInstallmentPlan(
@@ -1065,8 +1064,7 @@ void main() {
       );
     });
 
-    test('沖銷成功:不產生沖銷交易、寫入offsetBreakdownJson、帳單彙總計算扣掉避免重複計入',
-        () async {
+    test('沖銷成功:不產生沖銷交易、寫入offsetBreakdownJson、帳單彙總計算扣掉避免重複計入', () async {
       final lid = await seedLedger();
       final categoryId = await seedCategory();
       final accountId = await seedAccount(syncId: 'acc-offset-ok');
@@ -1146,8 +1144,7 @@ void main() {
       expect(await repo.getCreditCardOffsetableBalance(accountId), 600);
     });
 
-    test('刪除分期計畫後,沖銷記錄自動失效(offsetBreakdownJson 隨列一起刪)',
-        () async {
+    test('刪除分期計畫後,沖銷記錄自動失效(offsetBreakdownJson 隨列一起刪)', () async {
       final lid = await seedLedger();
       final categoryId = await seedCategory();
       final accountId = await seedAccount(syncId: 'acc-offset-delete');
@@ -1253,8 +1250,7 @@ void main() {
     });
 
     test('找不到 plan 或 period 時拋 StateError', () async {
-      await expectLater(
-          repo.deletePeriod(999999, 1), throwsStateError);
+      await expectLater(repo.deletePeriod(999999, 1), throwsStateError);
 
       final lid = await seedLedger();
       final categoryId = await seedCategory();
@@ -1265,8 +1261,7 @@ void main() {
         firstPeriodAt: DateTime.utc(2026, 1, 1),
         categoryId: categoryId,
       );
-      await expectLater(
-          repo.deletePeriod(planId, 999999), throwsStateError);
+      await expectLater(repo.deletePeriod(planId, 999999), throwsStateError);
     });
   });
 
@@ -1325,6 +1320,45 @@ void main() {
         repo.deleteTransaction(txId),
         throwsA(isA<InstallmentManagedTransactionException>()),
       );
+    });
+  });
+
+  group('getOutstandingPrincipalAllLedgers(首頁「尚有應繳」摘要——問題A的殘留孤兒不該被算進去)', () {
+    test('plan 已刪但 period 還在(見上方問題A的殘留孤兒場景)→ 不計入尚有應繳', () async {
+      final lid = await seedLedger();
+      final categoryId = await seedCategory();
+      final planId = await repo.createInstallmentPlan(
+        ledgerId: lid,
+        totalAmount: 1200,
+        periods: 12,
+        firstPeriodAt: DateTime.now().add(const Duration(days: 1)),
+        categoryId: categoryId,
+      );
+
+      // 直接刪 installment_plans 行,模擬「N*2+1 筆 change 推送/拉取之間的
+      // 窗口期 race」留下的殘留狀態:plan 沒了,但 period(ledgerId 仍指向
+      // 現存帳本)還在,且到期日在未來——這正是使用者實測回報「首頁顯示尚有
+      // 應繳,但分期列表已經找不到這個計畫」的成因。
+      await (db.delete(db.installmentPlans)..where((t) => t.id.equals(planId)))
+          .go();
+
+      final outstanding = await repo.getOutstandingPrincipalAllLedgers();
+      expect(outstanding, 0.0, reason: 'plan 已刪的孤兒 period 不該污染首頁摘要卡片的金額');
+    });
+
+    test('plan 仍存在,未到期期數的本金正確計入尚有應繳', () async {
+      final lid = await seedLedger();
+      final categoryId = await seedCategory();
+      await repo.createInstallmentPlan(
+        ledgerId: lid,
+        totalAmount: 1200,
+        periods: 12,
+        firstPeriodAt: DateTime.now().add(const Duration(days: 1)),
+        categoryId: categoryId,
+      );
+
+      final outstanding = await repo.getOutstandingPrincipalAllLedgers();
+      expect(outstanding, closeTo(1200, 0.01));
     });
   });
 }

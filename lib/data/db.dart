@@ -1090,7 +1090,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 52; // v52: 修补 base_amount 缺失的历史交易(见 v52 迁移注释)
+  int get schemaVersion => 54; // v54: 清理分期計畫已刪但期數/交易引用還在的孤儿(见 v54 迁移注释)
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2152,6 +2152,84 @@ class BeeDatabase extends _$BeeDatabase {
                 AND (COALESCE(fee_amount, 0) != 0 OR COALESCE(discount_amount, 0) != 0);
             ''');
             logger.info('DBMigration', 'v52 迁移完成');
+          }
+          if (from < 53) {
+            // v53:一次性清理「刪帳本时漏清分期付款」留下的孤儿行。根因:
+            // deleteLedger() 一直只 cascade transactions/budgets/debts,v49
+            // 新增 installment_plans/installment_periods 没跟进(见使用者回
+            // 报,docs/changes/2026-09-04-installment-orphan-cleanup.md)——
+            // ledgerId 指向已经从 ledgers 表删掉的帳本,首页
+            // getOutstandingPrincipalAllLedgers() 当时又不过滤 ledgerId,把
+            // 这些孤儿本金也加总进「尚有应缴」,但分期列表页按当前 ledgerId
+            // 过滤看不到,两边对不上。这里直接按「ledger_id 在 ledgers 表里
+            // 找不到」删掉孤儿行,并比照 v36 的做法把已有 syncId 的孤儿行登记
+            // 一条 local_changes delete,让云端(BeeCount Cloud)也同步清掉—
+            // —没开雲端同步的话这几行是 no-op。
+            logger.info('DBMigration', '开始迁移到 v53: 清理分期付款孤儿行');
+            await customStatement('''
+              INSERT INTO local_changes
+                (entity_type, entity_id, entity_sync_id, ledger_id, action)
+              SELECT 'installment_period', id, sync_id, ledger_id, 'delete'
+              FROM installment_periods
+              WHERE sync_id IS NOT NULL
+                AND ledger_id NOT IN (SELECT id FROM ledgers);
+            ''');
+            await customStatement('''
+              INSERT INTO local_changes
+                (entity_type, entity_id, entity_sync_id, ledger_id, action)
+              SELECT 'installment_plan', id, sync_id, ledger_id, 'delete'
+              FROM installment_plans
+              WHERE sync_id IS NOT NULL
+                AND ledger_id NOT IN (SELECT id FROM ledgers);
+            ''');
+            await customStatement('''
+              DELETE FROM installment_periods
+              WHERE ledger_id NOT IN (SELECT id FROM ledgers);
+            ''');
+            await customStatement('''
+              DELETE FROM installment_plans
+              WHERE ledger_id NOT IN (SELECT id FROM ledgers);
+            ''');
+            logger.info('DBMigration', 'v53 迁移完成');
+          }
+          if (from < 54) {
+            // v54:一次性清理「分期計畫刪除的 N*2+1 筆 change 推送/拉取之間
+            // 有窗口期」留下的孤儿(根因見 docs/changes/2026-09-03-
+            // installment-tracking-delete-sync-fixes.md 問題A——這份文件當時
+            // 只做了 A3 的「pull apply 前檢查 pending delete」防護 +
+            // orphan_scanner.dart 的 A11/A12 自救工具,沒有回頭清理當下已經
+            // 卡住的舊資料)。v53 只按「ledger 不存在」清孤兒,這種 plan 已刪
+            // 但 period 還在的孤兒,其 ledgerId 仍指向現存帳本,v53 擋不住—
+            // —使用者實測回報首頁「尚有應缴」跟分期列表對不上,根因就是這個
+            // (見 docs/changes/2026-09-04-installment-orphan-cleanup.md 的
+            // 後續更新)。
+            //
+            // 清理邏輯對齐 orphan_scanner.dart/orphan_cleaner.dart 既有的
+            // A11/A12 語意(這裡只是把使用者需要手動跑一次的「資料維護」頁面
+            // 操作,搬進遷移自動跑一次):
+            // - installment_periods.plan_sync_id 找不到對應 plan → 直接刪
+            //   (純排程/元数据列,不影響其產生的真實交易——A12)。
+            // - transactions.installment_plan_sync_id 找不到對應 plan → 只
+            //   清空這個引用欄位,交易本身(使用者真實的一筆消費紀錄)保留
+            //   (A11)。
+            // 純本地清理,不登記 local_changes——這批資料在 server 端本來就
+            // 已經是「plan 已刪」的正确狀態,不需要再推一次修正。
+            logger.info('DBMigration', '开始迁移到 v54: 清理分期計畫已刪但期數/交易引用還在的孤儿');
+            await customStatement('''
+              UPDATE transactions
+              SET installment_plan_sync_id = NULL
+              WHERE installment_plan_sync_id IS NOT NULL
+                AND installment_plan_sync_id NOT IN (
+                  SELECT sync_id FROM installment_plans WHERE sync_id IS NOT NULL
+                );
+            ''');
+            await customStatement('''
+              DELETE FROM installment_periods
+              WHERE plan_sync_id NOT IN (
+                SELECT sync_id FROM installment_plans WHERE sync_id IS NOT NULL
+              );
+            ''');
+            logger.info('DBMigration', 'v54 迁移完成');
           }
         },
         onCreate: (m) async {
