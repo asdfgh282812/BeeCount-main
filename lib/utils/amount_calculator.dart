@@ -50,6 +50,29 @@ double computeFeeDiscountNetAmount({
   return r.round(scale: 2).toDouble();
 }
 
+/// [computeFeeDiscountNetAmount] 的反函数:已知淨額 `amount`(必然正確,
+/// 任何時候都會被寫入/同步)跟 `feeAmount`/`discountAmount`,反推
+/// `baseAmount`。
+///
+/// 用途:sync pull 自愈(见 `lib/cloud/sync/sync_engine_apply.dart`
+/// `_applyTransactionChange` 的 v51 段落)——某些歷史 SyncChange 的 payload
+/// 只帶了 feeAmount/discountAmount 卻漏了 baseAmount 鍵,「缺鍵不覆蓋」語意
+/// 下 baseAmount 會永遠停留在 null,使用者只能一筆一筆手動觸發重新同步才
+/// 能補回來。改用這裡反推,不依賴對端把 baseAmount 鍵送齊。
+double computeBaseAmountFromNet({
+  required String type,
+  required double amount,
+  required double feeAmount,
+  required double discountAmount,
+}) {
+  assert(type == 'expense' || type == 'income');
+  final a = Decimal.parse(amount.toStringAsFixed(2));
+  final fee = Decimal.parse(feeAmount.toStringAsFixed(2));
+  final discount = Decimal.parse(discountAmount.toStringAsFixed(2));
+  final r = type == 'expense' ? a - fee + discount : a + fee - discount;
+  return r.round(scale: 2).toDouble();
+}
+
 /// 运算符显示字形(减号用真减号 −,而非连字符 -)。
 String amountOpGlyph(String op) {
   switch (op) {

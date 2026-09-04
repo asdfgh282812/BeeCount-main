@@ -2894,6 +2894,8 @@
   "txDetailRewardSectionTitle": "紅利回饋：",
   "txDetailRewardCapped": "已達上限",
   "txCurrencyLabel": "幣種",
+  "txDetailFeeDiscountPrefix": "內含",
+  "txDetailFeeDiscountSeparator": "、",
   "txRateLabel": "匯率",
   "txConvertedPreview": "≈ {amount} {currency}",
   "@txConvertedPreview": { "placeholders": { "amount": {}, "currency": {} } },

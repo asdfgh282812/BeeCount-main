@@ -903,28 +903,99 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
               ],
             ),
           ),
-          AmountText(
-            value: isAdjustment
-                ? tx.amount
-                : isExpense
-                    ? -tx.amount
-                    : tx.amount,
-            signed: !isTransfer,
-            currencyCode: tx.currencyCode,
-            showCurrency: tx.currencyCode != null,
-            decimals: 2,
-            style: BeeTextTokens.title(context).copyWith(
-              color: isAdjustment
-                  ? (tx.amount >= 0
-                      ? BeeTokens.incomeColor(context, ref)
-                      : BeeTokens.expenseColor(context, ref))
-                  : isTransfer
-                      ? BeeTokens.textPrimary(context)
-                      : isExpense
-                          ? BeeTokens.expenseColor(context, ref)
-                          : BeeTokens.incomeColor(context, ref),
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AmountText(
+                value: isAdjustment
+                    ? tx.amount
+                    : isExpense
+                        ? -tx.amount
+                        : tx.amount,
+                signed: !isTransfer,
+                currencyCode: tx.currencyCode,
+                showCurrency: tx.currencyCode != null,
+                decimals: 2,
+                style: BeeTextTokens.title(context).copyWith(
+                  color: isAdjustment
+                      ? (tx.amount >= 0
+                          ? BeeTokens.incomeColor(context, ref)
+                          : BeeTokens.expenseColor(context, ref))
+                      : isTransfer
+                          ? BeeTokens.textPrimary(context)
+                          : isExpense
+                              ? BeeTokens.expenseColor(context, ref)
+                              : BeeTokens.incomeColor(context, ref),
+                ),
+              ),
+              if (!isTransfer && !isAdjustment)
+                _buildFeeDiscountSubtitle(context, l10n),
+            ],
           ),
+        ],
+      ),
+    );
+  }
+
+  /// 手續費/折扣淨額分量提示——單看總額看不出來裡面含了多少手續費/折扣,
+  /// 使用者反馈网页端「更新交易」對話框有標(內含手續費 $40)這種小字提示,
+  /// App 這裡沒有,只能自己心算。跟金額本身一样走 [AmountText],既能繼承
+  /// 隐藏金额(隱私模式)開關,也不用自己重做币种符号/千分位格式化。
+  Widget _buildFeeDiscountSubtitle(
+      BuildContext context, AppLocalizations l10n) {
+    final tx = widget.transaction;
+    final feeAmount = tx.feeAmount ?? 0;
+    final discountAmount = tx.discountAmount ?? 0;
+    if (feeAmount == 0 && discountAmount == 0) return const SizedBox.shrink();
+
+    final subtitleStyle = TextStyle(
+      fontSize: 12,
+      color: BeeTokens.textTertiary(context),
+    );
+
+    final segments = <Widget>[];
+    void addSegment(String label, double amount) {
+      if (segments.isNotEmpty) {
+        segments
+            .add(Text(l10n.txDetailFeeDiscountSeparator, style: subtitleStyle));
+      }
+      segments.add(Text('$label ', style: subtitleStyle));
+      segments.add(AmountText(
+        value: amount,
+        signed: false,
+        currencyCode: tx.currencyCode,
+        showCurrency: tx.currencyCode != null,
+        decimals: 2,
+        style: subtitleStyle,
+      ));
+    }
+
+    if (feeAmount != 0) {
+      addSegment(
+        (tx.feeLabel != null && tx.feeLabel!.isNotEmpty)
+            ? tx.feeLabel!
+            : l10n.transactionFeeLabelHint,
+        feeAmount,
+      );
+    }
+    if (discountAmount != 0) {
+      addSegment(
+        (tx.discountLabel != null && tx.discountLabel!.isNotEmpty)
+            ? tx.discountLabel!
+            : l10n.transactionDiscountLabelHint,
+        discountAmount,
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('(${l10n.txDetailFeeDiscountPrefix} ', style: subtitleStyle),
+          ...segments,
+          Text(')', style: subtitleStyle),
         ],
       ),
     );

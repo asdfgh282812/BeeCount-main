@@ -17,6 +17,7 @@ import '../../data/repositories/debt_repository.dart'
 import '../../services/custom_icon_service.dart';
 import '../../services/system/logger_service.dart';
 import '../../services/ui/avatar_service.dart';
+import '../../utils/amount_calculator.dart';
 import '../sync_service.dart' as app;
 import '../transactions_json.dart';
 import 'change_tracker.dart';

@@ -7442,6 +7442,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get txCurrencyLabel => '币种';
 
   @override
+  String get txDetailFeeDiscountPrefix => 'Includes';
+
+  @override
+  String get txDetailFeeDiscountSeparator => ', ';
+
+  @override
   String get txRateLabel => '汇率';
 
   @override
@@ -16742,6 +16748,12 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get txCurrencyLabel => '幣種';
+
+  @override
+  String get txDetailFeeDiscountPrefix => '內含';
+
+  @override
+  String get txDetailFeeDiscountSeparator => '、';
 
   @override
   String get txRateLabel => '匯率';

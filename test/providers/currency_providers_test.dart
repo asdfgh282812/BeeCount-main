@@ -25,7 +25,8 @@ void main() {
       final container = ProviderContainer(overrides: [
         // baseCurrencyInitProvider 在 selected_currency 命中时不会读 ledger,
         // 但 currentLedgerProvider 依赖真实 db,这里 stub 掉防止实例化。
-        currentLedgerProvider.overrideWith((ref) => Stream<Ledger?>.value(null)),
+        currentLedgerProvider
+            .overrideWith((ref) => Stream<Ledger?>.value(null)),
       ]);
       addTearDown(container.dispose);
 
@@ -45,7 +46,8 @@ void main() {
         'selected_currency': 'USD', // 应被忽略
       });
       final container = ProviderContainer(overrides: [
-        currentLedgerProvider.overrideWith((ref) => Stream<Ledger?>.value(null)),
+        currentLedgerProvider
+            .overrideWith((ref) => Stream<Ledger?>.value(null)),
       ]);
       addTearDown(container.dispose);
 
@@ -76,6 +78,47 @@ void main() {
 
     test('三币种 → true', () async {
       expect(await evaluate(used: {'CNY', 'USD', 'JPY'}), isTrue);
+    });
+  });
+
+  group('shouldSkipThrottledRefresh(24h 节流窗口内是否仍跳过拉取)', () {
+    test('未登入 server 端 → 维持节流(跳过)', () {
+      expect(
+        shouldSkipThrottledRefresh(cloudLoggedIn: false, cachedSource: null),
+        isTrue,
+      );
+      expect(
+        shouldSkipThrottledRefresh(
+            cloudLoggedIn: false, cachedSource: 'frankfurter'),
+        isTrue,
+      );
+    });
+
+    test('已登入 server 端且缓存已是 server 源 → 跳过', () {
+      expect(
+        shouldSkipThrottledRefresh(cloudLoggedIn: true, cachedSource: 'server'),
+        isTrue,
+      );
+    });
+
+    test('已登入 server 端但缓存是公网源 → 放行改拉 server', () {
+      expect(
+        shouldSkipThrottledRefresh(
+            cloudLoggedIn: true, cachedSource: 'frankfurter'),
+        isFalse,
+      );
+      expect(
+        shouldSkipThrottledRefresh(
+            cloudLoggedIn: true, cachedSource: 'fawazahmed0'),
+        isFalse,
+      );
+    });
+
+    test('已登入 server 端但本地无任何缓存 → 放行拉取', () {
+      expect(
+        shouldSkipThrottledRefresh(cloudLoggedIn: true, cachedSource: null),
+        isFalse,
+      );
     });
   });
 }

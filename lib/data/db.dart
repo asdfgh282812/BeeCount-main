@@ -1090,7 +1090,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 51; // v51: 支出/收入手續費/折扣(transactions.base_amount)
+  int get schemaVersion => 52; // v52: 修补 base_amount 缺失的历史交易(见 v52 迁移注释)
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2124,6 +2124,34 @@ class BeeDatabase extends _$BeeDatabase {
             await _addColumnIfMissing('transactions', 'base_amount',
                 'ALTER TABLE transactions ADD COLUMN base_amount REAL;');
             logger.info('DBMigration', 'v51 迁移完成');
+          }
+          if (from < 52) {
+            // v52:一次性修补「fee/discount 已啟用卻 base_amount 缺失」的
+            // 歷史交易。根因:v51 上線前(甚至上線後某些 BeeCount Cloud
+            // 歷史寫入路徑)產生的 SyncChange 只帶了 feeAmount/discountAmount
+            // 卻漏了 baseAmount 鍵——pull apply 端「缺鍵不覆蓋」語意下
+            // base_amount 永遠停在 NULL,使用者只能一筆一筆手動在 web 端重新
+            // 觸發「更新交易」才能補回來(見使用者回報,docs/changes/
+            // 2026-09-04-sync-base-amount-backfill.md)。這裡直接用必然正確
+            // 的 amount 反推(公式對齐 lib/utils/amount_calculator.dart
+            // computeBaseAmountFromNet,兩邊不能各自發明),不依賴任何後續同
+            // 步事件——sync_engine_apply.dart 的 _applyTransactionChange 已
+            // 另外補上同款自愈邏輯擋住未來新進的 pull,這裡只处理遷移當下已
+            // 經卡在本地的舊資料。
+            logger.info('DBMigration', '开始迁移到 v52: 修补 base_amount 缺失的历史交易');
+            await customStatement('''
+              UPDATE transactions
+              SET base_amount = CASE
+                WHEN type = 'expense' THEN
+                  ROUND(amount - COALESCE(fee_amount, 0) + COALESCE(discount_amount, 0), 2)
+                ELSE
+                  ROUND(amount + COALESCE(fee_amount, 0) - COALESCE(discount_amount, 0), 2)
+              END
+              WHERE base_amount IS NULL
+                AND type IN ('expense', 'income')
+                AND (COALESCE(fee_amount, 0) != 0 OR COALESCE(discount_amount, 0) != 0);
+            ''');
+            logger.info('DBMigration', 'v52 迁移完成');
           }
         },
         onCreate: (m) async {

@@ -381,9 +381,10 @@ extension SyncEngineApplyExt on SyncEngine {
       // 更新 — createdByUserId 走"本地为 null 就回填,否则保持"的策略。
       final shouldBackfillCreator =
           existingCreatedByUserId == null && createdByUserId != null;
-      // 快照保护:缺 nativeAmount / toAmount 键时都要查本地旧行,合并成一次
-      // SELECT 避免重复查询。
-      final needOldTx = !hasNativeKey || !hasToAmountKey;
+      // 快照保护:缺 nativeAmount / toAmount / baseAmount 键时都要查本地旧
+      // 行,合并成一次 SELECT 避免重复查询(baseAmount 缺鍵下面要做自愈判斷,
+      // 見下方 baseAmountValue 注釋)。
+      final needOldTx = !hasNativeKey || !hasToAmountKey || !hasBaseAmountKey;
       final oldTx = needOldTx
           ? await (db.select(db.transactions)
                 ..where((t) => t.id.equals(existingId!)))
@@ -416,6 +417,33 @@ extension SyncEngineApplyExt on SyncEngine {
               d.Value(_rescaleAmount(oldTx.amount, oldToAmount, amount));
         } else {
           toAmountValue = const d.Value.absent();
+        }
+      }
+      // v51 自愈:缺 baseAmount 鍵時,若這筆交易的手續費/折扣明顯已啟用
+      // (fee/discount 非 0,不論是這次 payload 帶來的還是本地既有的)卻查出
+      // 本地舊行也沒有 baseAmount,代表某段歷史 SyncChange 只帶了
+      // feeAmount/discountAmount 卻漏了 baseAmount 鍵(見 BeeCount Cloud
+      // 端 `_normalize_fee_discount_amount`/`snapshot_mutator.update_transaction`
+      // 對這個鍵的處理)——「缺鍵不覆蓋」語意下 baseAmount 會永遠停在 null,
+      // 使用者只能一筆一筆手動在 web 端重新按「更新交易」觸發同步。改用
+      // 必然正確的 amount 反推(computeBaseAmountFromNet,
+      // computeFeeDiscountNetAmount 的反函數),不依賴對端把 baseAmount 鍵
+      // 補齊。轉帳(type=='transfer')不套用這條公式。
+      d.Value<double?> baseAmountValue =
+          hasBaseAmountKey ? d.Value(baseAmount) : const d.Value.absent();
+      if (!hasBaseAmountKey && (type == 'expense' || type == 'income')) {
+        final effectiveFee = hasFeeAmountKey ? feeAmount : oldTx?.feeAmount;
+        final effectiveDiscount =
+            hasDiscountAmountKey ? discountAmount : oldTx?.discountAmount;
+        final feeDiscountActive = (effectiveFee != null && effectiveFee != 0) ||
+            (effectiveDiscount != null && effectiveDiscount != 0);
+        if (oldTx?.baseAmount == null && feeDiscountActive) {
+          baseAmountValue = d.Value(computeBaseAmountFromNet(
+            type: type,
+            amount: amount,
+            feeAmount: effectiveFee ?? 0,
+            discountAmount: effectiveDiscount ?? 0,
+          ));
         }
       }
       await (db.update(db.transactions)..where((t) => t.id.equals(existingId!)))
@@ -478,8 +506,7 @@ extension SyncEngineApplyExt on SyncEngine {
         discountLabel: hasDiscountLabelKey
             ? d.Value(discountLabel)
             : const d.Value.absent(),
-        baseAmount:
-            hasBaseAmountKey ? d.Value(baseAmount) : const d.Value.absent(),
+        baseAmount: baseAmountValue,
       ));
       // 更新标签、附件、拆帳明細(existing 路径)
       await _syncTransactionTags(existingId, syncId, payload);
@@ -488,6 +515,21 @@ extension SyncEngineApplyExt on SyncEngine {
       logger.debug('SyncEngine', 'pull: 更新交易 $syncId');
     } else {
       // 插入
+      // v51 自愈:新插入路径同款(見上面更新路径 baseAmountValue 的完整
+      // 注釋)——缺 baseAmount 鍵但 fee/discount 已啟用時,用 amount 反推。
+      double? insertBaseAmount = baseAmount;
+      if (insertBaseAmount == null && (type == 'expense' || type == 'income')) {
+        final feeDiscountActive = (feeAmount != null && feeAmount != 0) ||
+            (discountAmount != null && discountAmount != 0);
+        if (feeDiscountActive) {
+          insertBaseAmount = computeBaseAmountFromNet(
+            type: type,
+            amount: amount,
+            feeAmount: feeAmount ?? 0,
+            discountAmount: discountAmount ?? 0,
+          );
+        }
+      }
       final id = await db.into(db.transactions).insert(
             TransactionsCompanion.insert(
               ledgerId: ledgerIdInt,
@@ -528,7 +570,7 @@ extension SyncEngineApplyExt on SyncEngine {
               feeLabel: d.Value(feeLabel),
               discountAmount: d.Value(discountAmount),
               discountLabel: d.Value(discountLabel),
-              baseAmount: d.Value(baseAmount),
+              baseAmount: d.Value(insertBaseAmount),
             ),
           );
       // 写回 cache,后续同 syncId 的 update change 能命中

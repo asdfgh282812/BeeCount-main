@@ -258,6 +258,19 @@ final convertedAssetCompositionProvider =
       .toList();
 });
 
+/// 24h 节流窗口内的「是否仍要跳过拉取」纯逻辑判定(不含 IO,便于单测)。
+/// 未登入 server 端(beecountCloud)维持原节流(跳过);已登入但本地缓存并非
+/// server 源(登入前用公网源拉过,或曾降级过)时放行,改拉一次 server 源,
+/// 避免 app 端长期停留在与 server/web 端不同的汇率数值上——server 一旦可用,
+/// 应作为登入用户的唯一真源。调用处只在「未超 24h」时才会调用本函数。
+bool shouldSkipThrottledRefresh({
+  required bool cloudLoggedIn,
+  required String? cachedSource,
+}) {
+  if (!cloudLoggedIn) return true;
+  return cachedSource == 'server';
+}
+
 /// 拉取协调:server 源(云模式)→ 公网链;倒数后只落「使用中币种」;成功 bump tick。
 /// force=false 时 24h 节流 + 多币种总闸(D6/D7)。失败返回 false(资产页静默、汇率页 Toast)。
 ///
@@ -324,10 +337,25 @@ Future<bool> _refreshExchangeRatesImpl({
       if (quotes.isEmpty) continue;
       if (!force) {
         final last = await repo.getLastFetchedAt(base);
-        if (last != null &&
-            DateTime.now().toUtc().difference(last) <
-                const Duration(hours: 24)) {
-          anySuccess = true; // 未过期视作成功,无需拉取
+        final withinTimeThrottle = last != null &&
+            DateTime.now().toUtc().difference(last) < const Duration(hours: 24);
+        var skip = withinTimeThrottle;
+        if (withinTimeThrottle) {
+          // 只在「本来会被节流跳过」时才多查一次登入态/缓存源,未过节流窗口时
+          // 反正要拉取,不必多做这次判断。
+          final cloudProvider = await readFuture(beecountCloudProviderInstance);
+          String? cachedSource;
+          if (cloudProvider != null) {
+            final cached = await repo.getLatestAutoRates(base);
+            cachedSource = cached.isNotEmpty ? cached.first.source : null;
+          }
+          skip = shouldSkipThrottledRefresh(
+            cloudLoggedIn: cloudProvider != null,
+            cachedSource: cachedSource,
+          );
+        }
+        if (skip) {
+          anySuccess = true; // 未过期(或已是 server 源)视作成功,无需拉取
           continue;
         }
       }

@@ -229,6 +229,75 @@ class _SplitLine {
   _SplitLine({required this.category, required this.amount, this.note});
 }
 
+/// v51 支出/收入手續費/折扣改用計算機鍵盤輸入(不再跳系統鍵盤,見使用者
+/// 回饋:「即便是手續費也要跳出算數字的小鍵盤」)——手續費/折扣各自要有
+/// 獨立的「連續運算」暫存狀態(金額字串/累加值/運算子),行為對齐主金額的
+/// _appendDigit/_backspace/_applyOp/_applyEquals 那一組,抽成小型可變 class
+/// 避免三份(主金額/手續費/折扣)幾乎一樣的邏輯各自重複一份。純狀態物件,
+/// 不觸發 setState,呼叫端(TransactionEntryFormState)自行包一層 setState。
+class _AmountKeypadState {
+  String amountStr = '0';
+  double acc = 0;
+  String? op;
+
+  double get parsedAmount => double.tryParse(amountStr) ?? 0.0;
+  double get total =>
+      op == null ? parsedAmount : computeAmountOp(acc, op!, parsedAmount);
+
+  void appendDigit(String s) {
+    if (s == '.' && amountStr.contains('.')) return;
+    if (amountStr.contains('.')) {
+      final dot = amountStr.indexOf('.');
+      final decimals = amountStr.length - dot - 1;
+      if (s != '.' && decimals >= 2) return;
+    }
+    amountStr = (amountStr == '0' && s != '.') ? s : amountStr + s;
+  }
+
+  void backspace() {
+    if (amountStr.isEmpty) return;
+    amountStr = amountStr.substring(0, amountStr.length - 1);
+    if (amountStr.isEmpty) amountStr = '0';
+  }
+
+  void clear() {
+    amountStr = '0';
+    acc = 0;
+    op = null;
+  }
+
+  void applyOp(String newOp) {
+    final cur = parsedAmount;
+    acc = op == null ? cur : computeAmountOp(acc, op!, cur);
+    op = newOp;
+    amountStr = '0';
+  }
+
+  void applyEquals() {
+    if (op == null) return;
+    final t = computeAmountOp(acc, op!, parsedAmount);
+    amountStr = _trim(t.abs());
+    acc = 0;
+    op = null;
+  }
+
+  void load(double amount) {
+    amountStr = _trim(amount.abs());
+    acc = 0;
+    op = null;
+  }
+
+  static String _trim(double v) {
+    final s = v.toStringAsFixed(2);
+    final r1 = s.contains('.')
+        ? s.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '')
+        : s;
+    return r1.isEmpty ? '0' : r1;
+  }
+}
+
+enum _AmountKeypadTarget { main, fee, discount }
+
 /// 公開(非底線開頭)是刻意的——`transaction_editor_page.dart` 需要透過
 /// `GlobalKey<TransactionEntryFormState>` 呼叫 [exportSharedFields] /
 /// [applySharedFields] 在切 tab 時同步共用欄位,見該檔案 `_syncSharedFieldsOnTabChange`。
@@ -325,15 +394,19 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   // v51 支出/收入手續費/折扣:金額旁「+」展開單一面板(手續費列 + 折扣列
   // 同時顯示),寫法比照 transfer_form.dart 的轉出/轉入面板,但只有一個
   // enabled 旗標——支出/收入只有一個方向,不像轉帳有兩側各自獨立開關。
+  // 金額欄位改用跟主金額一致的計算機鍵盤(_activeAmountTarget 決定
+  // _appendDigit 等 callback 這次要寫進哪一組狀態),只有名稱欄仍是系統
+  // 鍵盤文字輸入,所以只有名稱欄還留著 TextEditingController/FocusNode。
   bool _feeDiscountEnabled = false;
   final TextEditingController _feeLabelCtrl = TextEditingController();
-  final TextEditingController _feeAmountCtrl = TextEditingController();
   final TextEditingController _discountLabelCtrl = TextEditingController();
-  final TextEditingController _discountAmountCtrl = TextEditingController();
   final FocusNode _feeLabelFocus = FocusNode();
-  final FocusNode _feeAmountFocus = FocusNode();
   final FocusNode _discountLabelFocus = FocusNode();
-  final FocusNode _discountAmountFocus = FocusNode();
+  final _AmountKeypadState _feeKeypad = _AmountKeypadState();
+  final _AmountKeypadState _discountKeypad = _AmountKeypadState();
+  // 目前小算盤的數字/運算子鍵要寫進哪一組狀態——預設主金額,點手續費/折扣
+  // 的金額文字才會切過去(見 _buildKeypadAmountCell)。
+  _AmountKeypadTarget _activeAmountTarget = _AmountKeypadTarget.main;
 
   @override
   void initState() {
@@ -341,9 +414,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     _nameFocus.addListener(_onTextFieldFocusChange);
     _merchantFocus.addListener(_onTextFieldFocusChange);
     _feeLabelFocus.addListener(_onTextFieldFocusChange);
-    _feeAmountFocus.addListener(_onTextFieldFocusChange);
     _discountLabelFocus.addListener(_onTextFieldFocusChange);
-    _discountAmountFocus.addListener(_onTextFieldFocusChange);
     _checkSwipesmartKey();
     _merchantCtrl.addListener(_maybeQueueRecommendation);
     _date = widget.initialDate;
@@ -379,11 +450,11 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     if (widget.initialBaseAmount != null) {
       _feeDiscountEnabled = true;
       if (widget.initialFeeAmount != null) {
-        _feeAmountCtrl.text = _fmtAbs(widget.initialFeeAmount!);
+        _feeKeypad.load(widget.initialFeeAmount!);
         _feeLabelCtrl.text = widget.initialFeeLabel ?? '';
       }
       if (widget.initialDiscountAmount != null) {
-        _discountAmountCtrl.text = _fmtAbs(widget.initialDiscountAmount!);
+        _discountKeypad.load(widget.initialDiscountAmount!);
         _discountLabelCtrl.text = widget.initialDiscountLabel ?? '';
       }
     }
@@ -406,13 +477,9 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     _nameFocus.dispose();
     _merchantFocus.dispose();
     _feeLabelCtrl.dispose();
-    _feeAmountCtrl.dispose();
     _discountLabelCtrl.dispose();
-    _discountAmountCtrl.dispose();
     _feeLabelFocus.dispose();
-    _feeAmountFocus.dispose();
     _discountLabelFocus.dispose();
-    _discountAmountFocus.dispose();
     super.dispose();
   }
 
@@ -535,9 +602,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
       _nameFocus.hasFocus ||
       _merchantFocus.hasFocus ||
       _feeLabelFocus.hasFocus ||
-      _feeAmountFocus.hasFocus ||
-      _discountLabelFocus.hasFocus ||
-      _discountAmountFocus.hasFocus;
+      _discountLabelFocus.hasFocus;
 
   /// 鍵盤上方建議 chip 列點選後套用——保留鍵盤開啟(比照 moze,選完可能還要
   /// 微調文字),游標移到文字結尾方便接著打字。
@@ -1105,8 +1170,21 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     );
   }
 
+  // v51 支出/收入手續費/折扣:以下 5 個小算盤 callback 是傳給唯一一顆
+  // `AmountCalculatorKeypad` 的共用入口——`_activeAmountTarget` 非 main 時
+  // 轉發給 `_feeKeypad`/`_discountKeypad`(見 _buildKeypadAmountCell 設
+  // target),main 分支維持原本邏輯完全不變。
+
   void _appendDigit(String s) {
     setState(() {
+      if (_activeAmountTarget == _AmountKeypadTarget.fee) {
+        _feeKeypad.appendDigit(s);
+        return;
+      }
+      if (_activeAmountTarget == _AmountKeypadTarget.discount) {
+        _discountKeypad.appendDigit(s);
+        return;
+      }
       if (s == '.') {
         if (_amountStr.contains('.')) return;
       }
@@ -1125,6 +1203,14 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
 
   void _backspace() {
     setState(() {
+      if (_activeAmountTarget == _AmountKeypadTarget.fee) {
+        _feeKeypad.backspace();
+        return;
+      }
+      if (_activeAmountTarget == _AmountKeypadTarget.discount) {
+        _discountKeypad.backspace();
+        return;
+      }
       if (_amountStr.isEmpty) return;
       _amountStr = _amountStr.substring(0, _amountStr.length - 1);
       if (_amountStr.isEmpty) _amountStr = '0';
@@ -1133,6 +1219,14 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
 
   void _clearAll() {
     setState(() {
+      if (_activeAmountTarget == _AmountKeypadTarget.fee) {
+        _feeKeypad.clear();
+        return;
+      }
+      if (_activeAmountTarget == _AmountKeypadTarget.discount) {
+        _discountKeypad.clear();
+        return;
+      }
       _amountStr = '0';
       _acc = 0;
       _op = null;
@@ -1142,6 +1236,14 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   double _parsedAmount() => double.tryParse(_amountStr) ?? 0.0;
 
   void _applyOp(String op) {
+    if (_activeAmountTarget == _AmountKeypadTarget.fee) {
+      setState(() => _feeKeypad.applyOp(op));
+      return;
+    }
+    if (_activeAmountTarget == _AmountKeypadTarget.discount) {
+      setState(() => _discountKeypad.applyOp(op));
+      return;
+    }
     final cur = _parsedAmount();
     setState(() {
       if (_op == null) {
@@ -1155,6 +1257,14 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   }
 
   void _applyEquals() {
+    if (_activeAmountTarget == _AmountKeypadTarget.fee) {
+      setState(() => _feeKeypad.applyEquals());
+      return;
+    }
+    if (_activeAmountTarget == _AmountKeypadTarget.discount) {
+      setState(() => _discountKeypad.applyEquals());
+      return;
+    }
     if (_op == null) return;
     final cur = _parsedAmount();
     final total = computeAmountOp(_acc, _op!, cur);
@@ -1494,8 +1604,8 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     double? resolvedDiscountAmount;
     String? resolvedDiscountLabel;
     if (_feeDiscountEnabled && _splits.isEmpty) {
-      resolvedFeeAmount = double.tryParse(_feeAmountCtrl.text) ?? 0;
-      resolvedDiscountAmount = double.tryParse(_discountAmountCtrl.text) ?? 0;
+      resolvedFeeAmount = _feeKeypad.total;
+      resolvedDiscountAmount = _discountKeypad.total;
       if (resolvedFeeAmount < 0 || resolvedDiscountAmount < 0) {
         showToast(context,
             AppLocalizations.of(context).transferAdjustmentNegativeError);
@@ -1597,6 +1707,17 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
             List.generate(_splits.length, _liveAmountFor).every((a) => a > 0))
         : (_selectedCategory != null &&
             (isInCalcMode ? true : total.abs() > 0));
+    // v51 支出/收入手續費/折扣:底部小算盤現在也服務手續費/折扣兩個金額,
+    // 這兩個 target 底下「是否處於連續運算中」跟「✓ 鍵能不能按」要各自看
+    // 對應的 _feeKeypad/_discountKeypad,不能沿用上面主金額專用的
+    // isInCalcMode/canSubmit(那組只影響「能不能存整張表單」的判斷)。
+    final keypadIsInCalcMode = _activeAmountTarget == _AmountKeypadTarget.fee
+        ? _feeKeypad.op != null
+        : _activeAmountTarget == _AmountKeypadTarget.discount
+            ? _discountKeypad.op != null
+            : isInCalcMode;
+    final keypadCanSubmit =
+        _activeAmountTarget == _AmountKeypadTarget.main ? canSubmit : true;
 
     return PullToSubmitScrollView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
@@ -1617,9 +1738,13 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
                 onBackspace: _backspace,
                 onClear: _clearAll,
                 onEquals: _applyEquals,
-                onSave: _submit,
-                isInCalcMode: isInCalcMode,
-                canSubmit: canSubmit,
+                // 手續費/折扣不是「送出整張表單」的動作——不在計算中時按 ✓
+                // 只收起小算盤(比照系統鍵盤的「完成」),不會誤觸存檔。
+                onSave: _activeAmountTarget == _AmountKeypadTarget.main
+                    ? _submit
+                    : () => setState(() => _amountFocused = false),
+                isInCalcMode: keypadIsInCalcMode,
+                canSubmit: keypadCanSubmit,
                 isSubmitting: _isSubmitting,
               ),
             ),
@@ -1644,12 +1769,22 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
           const SizedBox(height: 10),
           // 金额表达式行——点一下叫出底部小算盤,同时收起名稱/商家
           // 欄位的系統鍵盤(「只有點金額欄位才叫用數字小算盤」)。
+          // v51 支出/收入手續費/折扣:這顆 GestureDetector 只包主金額本身
+          // (含幣別/連續運算預覽/匯率換算列),刻意不再往下包住手續費/折扣
+          // 面板——面板展開後那塊區域夠高,若仍在同一顆 GestureDetector 底下,
+          // 點面板裡任何空白處(容器背景、列間距)都會被判成「點了金額」而
+          // 誤叫出主金額的小算盤(使用者回報「點整個額外金額的區域就跳上面
+          // 的數字小鍵盤」的原因)。面板改成這顆的手足節點(見下方),自己的
+          // 金額文字另外用 _buildKeypadAmountCell 掛小算盤,不會再誤觸這裡。
           GestureDetector(
             key: const Key('amountDisplayTap'),
             behavior: HitTestBehavior.translucent,
             onTap: () {
               FocusScope.of(context).unfocus();
-              setState(() => _amountFocused = true);
+              setState(() {
+                _amountFocused = true;
+                _activeAmountTarget = _AmountKeypadTarget.main;
+              });
             },
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -1673,9 +1808,14 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
                           _feeDiscountEnabled = !_feeDiscountEnabled;
                           if (!_feeDiscountEnabled) {
                             _feeLabelCtrl.clear();
-                            _feeAmountCtrl.clear();
+                            _feeKeypad.clear();
                             _discountLabelCtrl.clear();
-                            _discountAmountCtrl.clear();
+                            _discountKeypad.clear();
+                            if (_activeAmountTarget !=
+                                _AmountKeypadTarget.main) {
+                              _amountFocused = false;
+                              _activeAmountTarget = _AmountKeypadTarget.main;
+                            }
                           }
                         }),
                       ),
@@ -1728,16 +1868,16 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
                   ),
                 ],
                 _buildCurrencySection(context),
-                if (_feeDiscountEnabled && _splits.isEmpty) ...[
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    child: _buildFeeDiscountPanel(context, total),
-                  ),
-                ],
               ],
             ),
           ),
+          if (_feeDiscountEnabled && _splits.isEmpty) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: _buildFeeDiscountPanel(context, total),
+            ),
+          ],
           const SizedBox(height: 10),
           // 名稱欄(=備註,合併掉原本分開的名稱/備註兩個欄位)
           TextField(
@@ -1874,8 +2014,8 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     final l10n = AppLocalizations.of(context);
     final text = Theme.of(context).textTheme;
     final currency = _txCurrency();
-    final fee = double.tryParse(_feeAmountCtrl.text) ?? 0;
-    final discount = double.tryParse(_discountAmountCtrl.text) ?? 0;
+    final fee = _feeKeypad.total;
+    final discount = _discountKeypad.total;
     final net = computeFeeDiscountNetAmount(
       type: widget.kind,
       baseAmount: baseAmount.abs(),
@@ -1883,6 +2023,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
       discountAmount: discount < 0 ? 0 : discount,
     );
     return Container(
+      key: const Key('feeDiscountPanel'),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: BeeTokens.surfaceElevated(context),
@@ -1893,28 +2034,30 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
         children: [
           AdjustmentFieldRow(
             labelFieldKey: const Key('feeLabelField'),
-            amountFieldKey: const Key('feeAmountField'),
             labelCtrl: _feeLabelCtrl,
             labelFocus: _feeLabelFocus,
-            amountCtrl: _feeAmountCtrl,
-            amountFocus: _feeAmountFocus,
             currency: currency,
             labelHint: l10n.transactionFeeLabelHint,
-            amountHint: l10n.transferAmountLabel,
-            onAmountChanged: (_) => setState(() {}),
+            amountCellOverride: _buildKeypadAmountCell(
+              context,
+              fieldKey: const Key('feeAmountField'),
+              target: _AmountKeypadTarget.fee,
+              keypad: _feeKeypad,
+            ),
           ),
           const SizedBox(height: 10),
           AdjustmentFieldRow(
             labelFieldKey: const Key('discountLabelField'),
-            amountFieldKey: const Key('discountAmountField'),
             labelCtrl: _discountLabelCtrl,
             labelFocus: _discountLabelFocus,
-            amountCtrl: _discountAmountCtrl,
-            amountFocus: _discountAmountFocus,
             currency: currency,
             labelHint: l10n.transactionDiscountLabelHint,
-            amountHint: l10n.transferAmountLabel,
-            onAmountChanged: (_) => setState(() {}),
+            amountCellOverride: _buildKeypadAmountCell(
+              context,
+              fieldKey: const Key('discountAmountField'),
+              target: _AmountKeypadTarget.discount,
+              keypad: _discountKeypad,
+            ),
           ),
           const SizedBox(height: 10),
           Row(
@@ -1932,9 +2075,13 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
                 onTap: () => setState(() {
                   _feeDiscountEnabled = false;
                   _feeLabelCtrl.clear();
-                  _feeAmountCtrl.clear();
+                  _feeKeypad.clear();
                   _discountLabelCtrl.clear();
-                  _discountAmountCtrl.clear();
+                  _discountKeypad.clear();
+                  if (_activeAmountTarget != _AmountKeypadTarget.main) {
+                    _amountFocused = false;
+                    _activeAmountTarget = _AmountKeypadTarget.main;
+                  }
                 }),
                 child: Text(
                   l10n.transferRemoveAdjustmentButton,
@@ -1943,6 +2090,64 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// v51 支出/收入手續費/折扣:手續費/折扣列的金額顯示——刻意只包住「金額
+  /// 文字本身」這一小塊(不含幣別徽章、不含名稱欄、不含面板其餘空白),點下
+  /// 去才切換 `_activeAmountTarget` 並叫出底部小算盤,對應使用者回饋的
+  /// 「點到金額才跳出來」,不要整個面板區域都算數。跟主金額 Row 一樣,運算
+  /// 進行中時在數字前面帶一小段「累加值 運算子」預覽(見 amountOpGlyph)。
+  Widget _buildKeypadAmountCell(
+    BuildContext context, {
+    required Key fieldKey,
+    required _AmountKeypadTarget target,
+    required _AmountKeypadState keypad,
+  }) {
+    final text = Theme.of(context).textTheme;
+    final primary = Theme.of(context).colorScheme.primary;
+    final active = _amountFocused && _activeAmountTarget == target;
+    return GestureDetector(
+      key: fieldKey,
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        FocusScope.of(context).unfocus();
+        setState(() {
+          _amountFocused = true;
+          _activeAmountTarget = target;
+        });
+      },
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (keypad.op != null) ...[
+            Text(
+              _fmtAbs(keypad.acc),
+              style: text.bodyMedium?.copyWith(
+                color: BeeTokens.textSecondary(context),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                amountOpGlyph(keypad.op!),
+                style: text.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: active ? primary : BeeTokens.textSecondary(context),
+                ),
+              ),
+            ),
+          ],
+          Text(
+            keypad.amountStr,
+            style: text.bodyMedium?.copyWith(
+              color: BeeTokens.textPrimary(context),
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),

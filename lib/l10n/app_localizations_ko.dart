@@ -7526,6 +7526,12 @@ class AppLocalizationsKo extends AppLocalizations {
   String get txCurrencyLabel => 'Currency';
 
   @override
+  String get txDetailFeeDiscountPrefix => 'Includes';
+
+  @override
+  String get txDetailFeeDiscountSeparator => ', ';
+
+  @override
   String get txRateLabel => 'Rate';
 
   @override

@@ -13932,6 +13932,18 @@ abstract class AppLocalizations {
   /// **'Currency'**
   String get txCurrencyLabel;
 
+  /// No description provided for @txDetailFeeDiscountPrefix.
+  ///
+  /// In en, this message translates to:
+  /// **'Includes'**
+  String get txDetailFeeDiscountPrefix;
+
+  /// No description provided for @txDetailFeeDiscountSeparator.
+  ///
+  /// In en, this message translates to:
+  /// **', '**
+  String get txDetailFeeDiscountSeparator;
+
   /// No description provided for @txRateLabel.
   ///
   /// In en, this message translates to:
