@@ -28,10 +28,258 @@ import '../currency/exchange_rate_page.dart';
 import '../debt/debt_list_page.dart';
 import '../installment/installment_list_page.dart';
 import '../../providers/pending_account_providers.dart';
+import '../../utils/account_quick_actions.dart';
+import '../transaction/transaction_editor_page.dart';
 import 'account_edit_page.dart';
 import 'account_detail_page.dart';
 import 'net_worth_trend_page.dart';
 import 'pending_account_transactions_page.dart';
+
+/// 帳戶總覽頁「目前展開的是哪一列」——暫態 UI 狀態,不持久化。每個
+/// [_SwipeActionRow] 讀寫它,展開新列時自動收合舊的一列(帳戶總覽頁滑動
+/// 快捷操作設計文件)。
+final _openSwipedAccountIdProvider = StateProvider<int?>((ref) => null);
+
+/// 帳戶總覽頁滑動快捷操作包裝(帳戶總覽頁滑動快捷操作設計文件)。左滑/右滑
+/// 各自露出一個可設定的整條實心色塊按鈕,點擊執行對應動作後自動收合;展開時
+/// 點主體區域只收合、不觸發 [child] 原本的 onTap,onLongPress 編輯行為不受
+/// 影響(手勢在關閉狀態下不受影響)。兩個方向都設為 [AccountSwipeAction.none],
+/// 或帳戶本身是主帳戶(合併帳單分組,不適用滑動)時,直接回傳原始 [child],
+/// 不包裝任何手勢元件。
+class _SwipeActionRow extends ConsumerStatefulWidget {
+  final db.Account account;
+  final Widget child;
+  final Future<void> Function(db.Account account, AccountSwipeAction action)
+      onSwipeAction;
+
+  const _SwipeActionRow({
+    super.key,
+    required this.account,
+    required this.child,
+    required this.onSwipeAction,
+  });
+
+  @override
+  ConsumerState<_SwipeActionRow> createState() => _SwipeActionRowState();
+}
+
+class _SwipeActionRowState extends ConsumerState<_SwipeActionRow>
+    with SingleTickerProviderStateMixin {
+  static const double _actionWidth = 92;
+  static const double _openThreshold = 0.4;
+  static const double _flingVelocity = 600;
+
+  late final AnimationController _controller;
+
+  /// 目前拖曳/展開鎖定的方向:1=向右滑(露出 rightAction,貼左側),
+  /// -1=向左滑(露出 leftAction,貼右側),0=關閉/尚未決定方向。
+  int _dragSign = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    )..addListener(() {
+        if (mounted) setState(() {});
+      });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _handleDragUpdate(
+      DragUpdateDetails details, AccountSwipeSettings settings) {
+    final dx = details.delta.dx;
+    if (dx == 0) return;
+    final sign = dx > 0 ? 1 : -1;
+    if (_dragSign == 0) {
+      if (sign > 0 && settings.rightAction == AccountSwipeAction.none) return;
+      if (sign < 0 && settings.leftAction == AccountSwipeAction.none) return;
+      _dragSign = sign;
+    }
+    final matchesLockedDirection = sign == _dragSign;
+    final delta =
+        (matchesLockedDirection ? dx.abs() : -dx.abs()) / _actionWidth;
+    _controller.value = (_controller.value + delta).clamp(0.0, 1.0);
+  }
+
+  void _handleDragEnd(DragEndDetails details) {
+    if (_dragSign == 0) return;
+    final vx = details.velocity.pixelsPerSecond.dx;
+    final flingOpen = (_dragSign > 0 && vx > _flingVelocity) ||
+        (_dragSign < 0 && vx < -_flingVelocity);
+    final flingClose = (_dragSign > 0 && vx < -_flingVelocity) ||
+        (_dragSign < 0 && vx > _flingVelocity);
+    final shouldOpen =
+        !flingClose && (flingOpen || _controller.value > _openThreshold);
+    _snapTo(shouldOpen ? 1.0 : 0.0);
+  }
+
+  Future<void> _snapTo(double target) async {
+    final notifier = ref.read(_openSwipedAccountIdProvider.notifier);
+    if (target >= 1.0) {
+      notifier.state = widget.account.id;
+    } else if (notifier.state == widget.account.id) {
+      notifier.state = null;
+    }
+    await _controller.animateTo(target, curve: Curves.easeOut);
+    if (!mounted) return;
+    if (_controller.value == 0) {
+      setState(() => _dragSign = 0);
+    }
+  }
+
+  Future<void> _trigger(AccountSwipeAction action) async {
+    await _snapTo(0.0);
+    if (!mounted) return;
+    await widget.onSwipeAction(widget.account, action);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.account.type == 'account_group') return widget.child;
+
+    final settings = ref.watch(accountSwipeSettingsProvider);
+    if (settings.leftAction == AccountSwipeAction.none &&
+        settings.rightAction == AccountSwipeAction.none) {
+      return widget.child;
+    }
+
+    // 另一列展開時,收合這一列(同時只能展開一列)。
+    ref.listen<int?>(_openSwipedAccountIdProvider, (previous, next) {
+      if (next != widget.account.id && _controller.value > 0) {
+        _snapTo(0.0);
+      }
+    });
+
+    final offset = _controller.value * _actionWidth * _dragSign;
+    final isOpen = _controller.value >= 0.999;
+
+    return Stack(
+      children: [
+        Positioned.fill(child: _buildBackground(context, settings)),
+        Transform.translate(
+          offset: Offset(offset, 0),
+          child: GestureDetector(
+            onHorizontalDragUpdate: (d) => _handleDragUpdate(d, settings),
+            onHorizontalDragEnd: _handleDragEnd,
+            // child(_AccountCard/_ChildAccountRow)本身沒有畫自己的背景色——
+            // 原本直接排在清單的 Container(surfaceElevated)裡,靠外層容器統一
+            // 鋪底色。包上滑動手勢後這裡變成疊在 _buildBackground 那層實心色
+            // 塊上面,沒有這個 ColoredBox 的話關閉狀態下文字/圖示間的透明縫隙
+            // 會直接透出底下的動作色塊,導致兩層同時可見(未滑動也看得到按鈕)。
+            child: ColoredBox(
+              color: BeeTokens.surfaceElevated(context),
+              child: Stack(
+                children: [
+                  widget.child,
+                  // 展開時點主體區域只收合,不觸發 child 原本的 onTap 導航。
+                  if (isOpen)
+                    Positioned.fill(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => _snapTo(0.0),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBackground(BuildContext context, AccountSwipeSettings settings) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (settings.rightAction != AccountSwipeAction.none)
+          SizedBox(
+            width: _actionWidth,
+            child: _SwipeActionButton(
+              action: settings.rightAction,
+              onTap: () => _trigger(settings.rightAction),
+            ),
+          ),
+        const Spacer(),
+        if (settings.leftAction != AccountSwipeAction.none)
+          SizedBox(
+            width: _actionWidth,
+            child: _SwipeActionButton(
+              action: settings.leftAction,
+              onTap: () => _trigger(settings.leftAction),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// 滑動快捷操作露出的整條實心色塊按鈕:調整餘額用 primaryColor,新增交易用
+/// 收入綠,編輯帳戶用中性灰(帳戶總覽頁滑動快捷操作設計文件)。
+class _SwipeActionButton extends ConsumerWidget {
+  final AccountSwipeAction action;
+  final VoidCallback onTap;
+
+  const _SwipeActionButton({required this.action, required this.onTap});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final label = accountSwipeActionLabel(l10n, action);
+    late final IconData icon;
+    late final Color color;
+    switch (action) {
+      case AccountSwipeAction.adjustBalance:
+        icon = Icons.tune;
+        color = ref.watch(primaryColorProvider);
+      case AccountSwipeAction.addTransaction:
+        icon = Icons.add_circle_outline;
+        color = BeeTokens.incomeColor(context, ref);
+      case AccountSwipeAction.editAccount:
+        icon = Icons.edit_outlined;
+        color = BeeTokens.isDark(context)
+            ? const Color(0xFF636366)
+            : Colors.grey.shade500;
+      case AccountSwipeAction.none:
+        icon = Icons.block;
+        color = Colors.transparent;
+    }
+
+    return Material(
+      color: color,
+      child: InkWell(
+        onTap: onTap,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: Colors.white, size: 20),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class AccountsPage extends ConsumerStatefulWidget {
   final bool asTab;
@@ -315,6 +563,9 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                               _viewAccountDetail(context, ref, account),
                           onEdit: (account) =>
                               _editAccount(context, ref, account, ledgerId),
+                          onSwipeAction: (account, action) =>
+                              _handleSwipeAction(
+                                  context, ref, action, account, ledgerId),
                         );
                       }),
 
@@ -364,6 +615,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                             _editAccount(context, ref, account, ledgerId),
                         onRestore: (account) =>
                             _restoreAccount(context, ref, account),
+                        onSwipeAction: (account, action) => _handleSwipeAction(
+                            context, ref, action, account, ledgerId),
                       ),
                     ],
                   ],
@@ -1240,6 +1493,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
               _onReorder(type, groupList, oldIndex, newIndex),
           onTap: (account) => _viewAccountDetail(context, ref, account),
           onEdit: (account) => _editAccount(context, ref, account, ledgerId),
+          onSwipeAction: (account, action) =>
+              _handleSwipeAction(context, ref, action, account, ledgerId),
         );
       }),
     ];
@@ -1439,6 +1694,30 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
         builder: (context) => AccountDetailPage(account: account),
       ),
     );
+  }
+
+  /// 帳戶總覽頁滑動快捷操作的執行入口(帳戶總覽頁滑動快捷操作設計文件)。
+  Future<void> _handleSwipeAction(BuildContext context, WidgetRef ref,
+      AccountSwipeAction action, db.Account account, int ledgerId) async {
+    switch (action) {
+      case AccountSwipeAction.none:
+        return;
+      case AccountSwipeAction.adjustBalance:
+        await showBalanceAdjustmentDialog(
+            context, ref, account, AppLocalizations.of(context));
+      case AccountSwipeAction.addTransaction:
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => TransactionEditorPage(
+              initialKind: 'expense',
+              initialAccountId: account.id,
+            ),
+          ),
+        );
+      case AccountSwipeAction.editAccount:
+        await _editAccount(context, ref, account, ledgerId);
+    }
   }
 
   /// 「已隐藏」分区卡片上的「恢复」快捷入口(账户隐藏 #240)。恢复无需确认
@@ -1769,6 +2048,8 @@ class _AccountTypeGroup extends ConsumerStatefulWidget {
   final void Function(int oldIndex, int newIndex) onReorder;
   final void Function(db.Account account) onTap;
   final void Function(db.Account account) onEdit;
+  final Future<void> Function(db.Account account, AccountSwipeAction action)
+      onSwipeAction;
 
   const _AccountTypeGroup({
     required this.type,
@@ -1778,6 +2059,7 @@ class _AccountTypeGroup extends ConsumerStatefulWidget {
     required this.onReorder,
     required this.onTap,
     required this.onEdit,
+    required this.onSwipeAction,
   });
 
   @override
@@ -2053,15 +2335,20 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
           ? (childrenByParent[account.syncId] ?? const <db.Account>[])
           : const <db.Account>[];
       if (children.isEmpty) {
-        blocks.add(_AccountCard(
-          key: ValueKey(account.id),
+        blocks.add(_SwipeActionRow(
+          key: ValueKey('swipe_${account.id}'),
           account: account,
-          primaryColor: widget.primaryColor,
-          typeColor: typeColor,
-          effectiveType: widget.type,
-          stats: widget.allStats?[account.id],
-          onTap: () => widget.onTap(account),
-          onEdit: () => widget.onEdit(account),
+          onSwipeAction: widget.onSwipeAction,
+          child: _AccountCard(
+            key: ValueKey(account.id),
+            account: account,
+            primaryColor: widget.primaryColor,
+            typeColor: typeColor,
+            effectiveType: widget.type,
+            stats: widget.allStats?[account.id],
+            onTap: () => widget.onTap(account),
+            onEdit: () => widget.onEdit(account),
+          ),
         ));
         continue;
       }
@@ -2092,14 +2379,19 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
       if (!collapsed) {
         for (var i = 0; i < children.length; i++) {
           final child = children[i];
-          rows.add(_ChildAccountRow(
-            key: ValueKey('child_${child.id}'),
+          rows.add(_SwipeActionRow(
+            key: ValueKey('swipe_child_${child.id}'),
             account: child,
-            parentCurrency: account.currency,
-            isLast: i == children.length - 1,
-            stats: widget.allStats?[child.id],
-            onTap: () => widget.onTap(child),
-            onEdit: () => widget.onEdit(child),
+            onSwipeAction: widget.onSwipeAction,
+            child: _ChildAccountRow(
+              key: ValueKey('child_${child.id}'),
+              account: child,
+              parentCurrency: account.currency,
+              isLast: i == children.length - 1,
+              stats: widget.allStats?[child.id],
+              onTap: () => widget.onTap(child),
+              onEdit: () => widget.onEdit(child),
+            ),
           ));
         }
       }
@@ -2110,15 +2402,20 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
     for (final a in widget.accounts) {
       final pid = a.parentAccountId;
       if (pid != null && pid.isNotEmpty && !topLevelSyncIds.contains(pid)) {
-        blocks.add(_AccountCard(
-          key: ValueKey(a.id),
+        blocks.add(_SwipeActionRow(
+          key: ValueKey('swipe_${a.id}'),
           account: a,
-          primaryColor: widget.primaryColor,
-          typeColor: typeColor,
-          effectiveType: widget.type,
-          stats: widget.allStats?[a.id],
-          onTap: () => widget.onTap(a),
-          onEdit: () => widget.onEdit(a),
+          onSwipeAction: widget.onSwipeAction,
+          child: _AccountCard(
+            key: ValueKey(a.id),
+            account: a,
+            primaryColor: widget.primaryColor,
+            typeColor: typeColor,
+            effectiveType: widget.type,
+            stats: widget.allStats?[a.id],
+            onTap: () => widget.onTap(a),
+            onEdit: () => widget.onEdit(a),
+          ),
         ));
       }
     }
@@ -2451,6 +2748,8 @@ class _HiddenAccountsSection extends ConsumerStatefulWidget {
   final void Function(db.Account account) onTap;
   final void Function(db.Account account) onEdit;
   final void Function(db.Account account) onRestore;
+  final Future<void> Function(db.Account account, AccountSwipeAction action)
+      onSwipeAction;
 
   const _HiddenAccountsSection({
     required this.accounts,
@@ -2459,6 +2758,7 @@ class _HiddenAccountsSection extends ConsumerStatefulWidget {
     required this.onTap,
     required this.onEdit,
     required this.onRestore,
+    required this.onSwipeAction,
   });
 
   @override
@@ -2562,15 +2862,20 @@ class _HiddenAccountsSectionState
                       thickness: 1,
                       color: BeeTokens.cardInnerDividerColor(context),
                     ),
-                  _AccountCard(
-                    key: ValueKey('hidden_${entry.$2.id}'),
+                  _SwipeActionRow(
+                    key: ValueKey('swipe_hidden_${entry.$2.id}'),
                     account: entry.$2,
-                    primaryColor: widget.primaryColor,
-                    typeColor: mutedColor,
-                    stats: widget.allStats?[entry.$2.id],
-                    onTap: () => widget.onTap(entry.$2),
-                    onEdit: () => widget.onEdit(entry.$2),
-                    onRestore: () => widget.onRestore(entry.$2),
+                    onSwipeAction: widget.onSwipeAction,
+                    child: _AccountCard(
+                      key: ValueKey('hidden_${entry.$2.id}'),
+                      account: entry.$2,
+                      primaryColor: widget.primaryColor,
+                      typeColor: mutedColor,
+                      stats: widget.allStats?[entry.$2.id],
+                      onTap: () => widget.onTap(entry.$2),
+                      onEdit: () => widget.onEdit(entry.$2),
+                      onRestore: () => widget.onRestore(entry.$2),
+                    ),
                   ),
                 ],
               ],

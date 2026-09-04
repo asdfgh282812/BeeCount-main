@@ -120,7 +120,8 @@ class _AppearanceSettingsPageState
                         subtitle: l10n.personalizeSubtitle,
                         onTap: () async {
                           await Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const PersonalizePage()),
+                            MaterialPageRoute(
+                                builder: (_) => const PersonalizePage()),
                           );
                         },
                       ),
@@ -135,7 +136,8 @@ class _AppearanceSettingsPageState
                         subtitle: skinDisplay,
                         onTap: () async {
                           await Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const HeaderSkinPage()),
+                            MaterialPageRoute(
+                                builder: (_) => const HeaderSkinPage()),
                           );
                         },
                       ),
@@ -148,15 +150,18 @@ class _AppearanceSettingsPageState
                         trailing: Switch.adaptive(
                           value: ref.watch(skinAnimationEnabledProvider),
                           onChanged: (value) {
-                            ref.read(skinAnimationEnabledProvider.notifier).state =
-                                value;
+                            ref
+                                .read(skinAnimationEnabledProvider.notifier)
+                                .state = value;
                           },
                           activeColor: ref.watch(primaryColorProvider),
                         ),
                         onTap: () {
-                          final current = ref.read(skinAnimationEnabledProvider);
-                          ref.read(skinAnimationEnabledProvider.notifier).state =
-                              !current;
+                          final current =
+                              ref.read(skinAnimationEnabledProvider);
+                          ref
+                              .read(skinAnimationEnabledProvider.notifier)
+                              .state = !current;
                         },
                       ),
                       BeeTokens.cardDivider(context),
@@ -167,7 +172,8 @@ class _AppearanceSettingsPageState
                         subtitle: l10n.mineDisplayScaleSubtitle,
                         onTap: () async {
                           await Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const FontSettingsPage()),
+                            MaterialPageRoute(
+                                builder: (_) => const FontSettingsPage()),
                           );
                         },
                       ),
@@ -187,7 +193,8 @@ class _AppearanceSettingsPageState
                         subtitle: ref.watch(compactAmountProvider)
                             ? l10n.appearanceAmountFormatCompact
                             : l10n.appearanceAmountFormatFull,
-                        onTap: () => _showAmountFormatDialog(context, ref, l10n),
+                        onTap: () =>
+                            _showAmountFormatDialog(context, ref, l10n),
                       ),
                       BeeTokens.cardDivider(context),
                       // 显示交易时间
@@ -198,13 +205,16 @@ class _AppearanceSettingsPageState
                         trailing: Switch.adaptive(
                           value: ref.watch(showTransactionTimeProvider),
                           onChanged: (value) {
-                            ref.read(showTransactionTimeProvider.notifier).state = value;
+                            ref
+                                .read(showTransactionTimeProvider.notifier)
+                                .state = value;
                           },
                           activeColor: ref.watch(primaryColorProvider),
                         ),
                         onTap: () {
                           final current = ref.read(showTransactionTimeProvider);
-                          ref.read(showTransactionTimeProvider.notifier).state = !current;
+                          ref.read(showTransactionTimeProvider.notifier).state =
+                              !current;
                         },
                       ),
                       BeeTokens.cardDivider(context),
@@ -234,6 +244,54 @@ class _AppearanceSettingsPageState
                             ? l10n.appearanceColorSchemeOn
                             : l10n.appearanceColorSchemeOff,
                         onTap: () => _showColorSchemeDialog(context, ref, l10n),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // 帳戶總覽頁滑動快捷操作:左滑/右滑露出的動作
+                SectionCard(
+                  margin: EdgeInsets.zero,
+                  child: Column(
+                    children: [
+                      AppListTile(
+                        leading: Icons.swipe_right_alt_outlined,
+                        title: l10n.accountSwipeRightLabel,
+                        subtitle: accountSwipeActionLabel(
+                            l10n,
+                            ref
+                                .watch(accountSwipeSettingsProvider)
+                                .rightAction),
+                        onTap: () => _showSwipeActionDialog(
+                          context,
+                          ref,
+                          l10n,
+                          title: l10n.accountSwipeRightLabel,
+                          current: ref
+                              .read(accountSwipeSettingsProvider)
+                              .rightAction,
+                          onSelected: (action) => ref
+                              .read(accountSwipeSettingsProvider.notifier)
+                              .updateRightAction(action),
+                        ),
+                      ),
+                      BeeTokens.cardDivider(context),
+                      AppListTile(
+                        leading: Icons.swipe_left_alt_outlined,
+                        title: l10n.accountSwipeLeftLabel,
+                        subtitle: accountSwipeActionLabel(l10n,
+                            ref.watch(accountSwipeSettingsProvider).leftAction),
+                        onTap: () => _showSwipeActionDialog(
+                          context,
+                          ref,
+                          l10n,
+                          title: l10n.accountSwipeLeftLabel,
+                          current:
+                              ref.read(accountSwipeSettingsProvider).leftAction,
+                          onSelected: (action) => ref
+                              .read(accountSwipeSettingsProvider.notifier)
+                              .updateLeftAction(action),
+                        ),
                       ),
                     ],
                   ),
@@ -281,7 +339,8 @@ class _AppearanceSettingsPageState
                         subtitle: languageDisplay,
                         onTap: () async {
                           await Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const LanguageSettingsPage()),
+                            MaterialPageRoute(
+                                builder: (_) => const LanguageSettingsPage()),
                           );
                         },
                       ),
@@ -293,7 +352,8 @@ class _AppearanceSettingsPageState
                         subtitle: l10n.widgetManagementDesc,
                         onTap: () async {
                           await Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const WidgetManagementPage()),
+                            MaterialPageRoute(
+                                builder: (_) => const WidgetManagementPage()),
                           );
                         },
                       ),
@@ -305,7 +365,8 @@ class _AppearanceSettingsPageState
                         subtitle: l10n.appLockDesc,
                         onTap: () async {
                           await Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const AppLockSettingsPage()),
+                            MaterialPageRoute(
+                                builder: (_) => const AppLockSettingsPage()),
                           );
                         },
                       ),
@@ -334,7 +395,8 @@ class _AppearanceSettingsPageState
   }
 
   /// 显示主题模式选择对话框
-  void _showThemeModeDialog(BuildContext context, WidgetRef ref, AppLocalizations l10n) {
+  void _showThemeModeDialog(
+      BuildContext context, WidgetRef ref, AppLocalizations l10n) {
     final currentMode = ref.read(themeModeProvider);
 
     showDialog(
@@ -349,21 +411,24 @@ class _AppearanceSettingsPageState
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildModeOption(
-              context, ref,
+              context,
+              ref,
               title: l10n.appearanceThemeModeSystem,
               value: ThemeMode.system,
               currentValue: currentMode,
               icon: Icons.settings_suggest_outlined,
             ),
             _buildModeOption(
-              context, ref,
+              context,
+              ref,
               title: l10n.appearanceThemeModeLight,
               value: ThemeMode.light,
               currentValue: currentMode,
               icon: Icons.light_mode_outlined,
             ),
             _buildModeOption(
-              context, ref,
+              context,
+              ref,
               title: l10n.appearanceThemeModeDark,
               value: ThemeMode.dark,
               currentValue: currentMode,
@@ -398,9 +463,7 @@ class _AppearanceSettingsPageState
           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
         ),
       ),
-      trailing: isSelected
-          ? Icon(Icons.check, color: primaryColor)
-          : null,
+      trailing: isSelected ? Icon(Icons.check, color: primaryColor) : null,
       onTap: () {
         ref.read(themeModeProvider.notifier).state = value;
         Navigator.pop(context);
@@ -409,7 +472,8 @@ class _AppearanceSettingsPageState
   }
 
   /// 显示金额显示格式选择对话框
-  void _showAmountFormatDialog(BuildContext context, WidgetRef ref, AppLocalizations l10n) {
+  void _showAmountFormatDialog(
+      BuildContext context, WidgetRef ref, AppLocalizations l10n) {
     final isCompact = ref.read(compactAmountProvider);
 
     showDialog(
@@ -424,7 +488,8 @@ class _AppearanceSettingsPageState
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildAmountFormatOption(
-              context, ref,
+              context,
+              ref,
               title: l10n.appearanceAmountFormatFull,
               subtitle: l10n.appearanceAmountFormatFullDesc,
               value: false,
@@ -432,7 +497,8 @@ class _AppearanceSettingsPageState
               icon: Icons.format_list_numbered_outlined,
             ),
             _buildAmountFormatOption(
-              context, ref,
+              context,
+              ref,
               title: l10n.appearanceAmountFormatCompact,
               subtitle: l10n.appearanceAmountFormatCompactDesc,
               value: true,
@@ -476,9 +542,7 @@ class _AppearanceSettingsPageState
           fontSize: 12,
         ),
       ),
-      trailing: isSelected
-          ? Icon(Icons.check, color: primaryColor)
-          : null,
+      trailing: isSelected ? Icon(Icons.check, color: primaryColor) : null,
       onTap: () {
         ref.read(compactAmountProvider.notifier).state = value;
         Navigator.pop(context);
@@ -487,7 +551,8 @@ class _AppearanceSettingsPageState
   }
 
   /// 显示备注显示方式选择对话框
-  void _showNoteDisplayDialog(BuildContext context, WidgetRef ref, AppLocalizations l10n) {
+  void _showNoteDisplayDialog(
+      BuildContext context, WidgetRef ref, AppLocalizations l10n) {
     final current = ref.read(noteDisplayModeProvider);
     showDialog(
       context: context,
@@ -501,7 +566,8 @@ class _AppearanceSettingsPageState
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildNoteDisplayOption(
-              context, ref,
+              context,
+              ref,
               title: l10n.appearanceNoteDisplayCategory,
               subtitle: l10n.appearanceNoteDisplayCategoryDesc,
               value: 'category',
@@ -509,7 +575,8 @@ class _AppearanceSettingsPageState
               icon: Icons.label_outline,
             ),
             _buildNoteDisplayOption(
-              context, ref,
+              context,
+              ref,
               title: l10n.appearanceNoteDisplayNote,
               subtitle: l10n.appearanceNoteDisplayNoteDesc,
               value: 'note',
@@ -534,7 +601,8 @@ class _AppearanceSettingsPageState
     final isSelected = value == currentValue;
     final primaryColor = ref.watch(primaryColorProvider);
     return ListTile(
-      leading: Icon(icon, color: isSelected ? primaryColor : BeeTokens.iconSecondary(context)),
+      leading: Icon(icon,
+          color: isSelected ? primaryColor : BeeTokens.iconSecondary(context)),
       title: Text(
         title,
         style: TextStyle(
@@ -706,8 +774,7 @@ class _AppearanceSettingsPageState
                 ),
                 if (limitError)
                   Padding(
-                    padding:
-                        const EdgeInsets.only(top: 4).scaled(context, ref),
+                    padding: const EdgeInsets.only(top: 4).scaled(context, ref),
                     child: Align(
                       alignment: Alignment.centerRight,
                       child: Text(
@@ -734,6 +801,70 @@ class _AppearanceSettingsPageState
     );
   }
 
+  /// 帳戶總覽頁滑動快捷操作:左滑/右滑動作選擇對話框(帳戶總覽頁滑動快捷
+  /// 操作設計文件)。
+  void _showSwipeActionDialog(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l10n, {
+    required String title,
+    required AccountSwipeAction current,
+    required void Function(AccountSwipeAction action) onSelected,
+  }) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: BeeTokens.surfaceElevated(context),
+        title: Text(
+          title,
+          style: TextStyle(color: BeeTokens.textPrimary(context)),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: AccountSwipeAction.values.map((action) {
+              return _buildSwipeActionOption(
+                context,
+                ref,
+                title: accountSwipeActionLabel(l10n, action),
+                value: action,
+                currentValue: current,
+                onSelected: onSelected,
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSwipeActionOption(
+    BuildContext context,
+    WidgetRef ref, {
+    required String title,
+    required AccountSwipeAction value,
+    required AccountSwipeAction currentValue,
+    required void Function(AccountSwipeAction action) onSelected,
+  }) {
+    final isSelected = value == currentValue;
+    final primaryColor = ref.watch(primaryColorProvider);
+
+    return ListTile(
+      title: Text(
+        title,
+        style: TextStyle(
+          color: isSelected ? primaryColor : BeeTokens.textPrimary(context),
+          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+        ),
+      ),
+      trailing: isSelected ? Icon(Icons.check, color: primaryColor) : null,
+      onTap: () {
+        onSelected(value);
+        Navigator.pop(context);
+      },
+    );
+  }
+
   /// 显示收支颜色方案选择对话框
   void _showColorSchemeDialog(
       BuildContext context, WidgetRef ref, AppLocalizations l10n) {
@@ -751,7 +882,8 @@ class _AppearanceSettingsPageState
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildColorSchemeOption(
-              context, ref,
+              context,
+              ref,
               title: l10n.appearanceColorSchemeOn,
               subtitle: l10n.appearanceColorSchemeOnDesc,
               value: true,
@@ -759,7 +891,8 @@ class _AppearanceSettingsPageState
               icon: Icons.trending_up,
             ),
             _buildColorSchemeOption(
-              context, ref,
+              context,
+              ref,
               title: l10n.appearanceColorSchemeOff,
               subtitle: l10n.appearanceColorSchemeOffDesc,
               value: false,
@@ -803,9 +936,7 @@ class _AppearanceSettingsPageState
           fontSize: 12,
         ),
       ),
-      trailing: isSelected
-          ? Icon(Icons.check, color: primaryColor)
-          : null,
+      trailing: isSelected ? Icon(Icons.check, color: primaryColor) : null,
       onTap: () {
         ref.read(incomeExpenseColorSchemeProvider.notifier).state = value;
         Navigator.pop(context);

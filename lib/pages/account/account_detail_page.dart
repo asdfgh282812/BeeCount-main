@@ -15,6 +15,7 @@ import '../../widgets/charts/account_category_pie_chart.dart';
 import '../../utils/card_reward_period.dart';
 import '../../utils/credit_card_payment.dart';
 import '../../utils/reconciliation.dart';
+import '../../utils/account_quick_actions.dart';
 import '../installment/installment_editor_page.dart';
 import '../transaction/transaction_editor_page.dart';
 import 'account_edit_page.dart';
@@ -309,7 +310,7 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
                   ),
                   tooltip: l10n.balanceAdjustmentAction,
                   onPressed: () =>
-                      _showBalanceAdjustmentDialog(context, account, l10n),
+                      showBalanceAdjustmentDialog(context, ref, account, l10n),
                 ),
               IconButton(
                 icon: Icon(
@@ -433,7 +434,8 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
               l10n,
               primaryColor,
               currencyCode),
-          _buildConvertToInstallmentButton(context, account, l10n, primaryColor),
+          _buildConvertToInstallmentButton(
+              context, account, l10n, primaryColor),
           SizedBox(height: 8.0.scaled(context, ref)),
           AccountReconciliationSection(
             account: account,
@@ -793,112 +795,6 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
         // 返回上一页刷新数据
         Navigator.pop(context, true);
       }
-    }
-  }
-
-  /// 調整總額彈窗——比照 BeeCount Cloud 的「餘額調整」(`balance_adjustment_ep`):
-  /// 使用者輸入調整後應該的餘額,系統算出跟目前餘額的差額,自動建一筆
-  /// `type='adjustment'` 交易補上差額。跟估值帳戶的「更新估值」不是同一套
-  /// （那個直接改 initialBalance,不建交易、不同步),這裡走一般交易路徑,
-  /// 會被 ChangeTracker 記錄、正常同步上雲端。
-  Future<void> _showBalanceAdjustmentDialog(
-    BuildContext context,
-    db.Account account,
-    AppLocalizations l10n,
-  ) async {
-    final currentLedger = ref.read(currentLedgerProvider).asData?.value;
-    if (currentLedger == null) return;
-
-    final stats = await ref.read(accountStatsProvider(account.id).future);
-    final currentBalance = stats.balance;
-    if (!context.mounted) return;
-
-    final targetController = TextEditingController(
-      text: currentBalance.toStringAsFixed(2),
-    );
-    final noteController = TextEditingController();
-
-    final result = await showDialog<double>(
-      context: context,
-      builder: (ctx) {
-        final primaryColor = ref.watch(primaryColorProvider);
-        return AlertDialog(
-          title: Text(l10n.balanceAdjustmentDialogTitle),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '${l10n.balanceAdjustmentCurrentBalanceLabel}: '
-                '${getCurrencySymbol(account.currency)}${currentBalance.toStringAsFixed(2)}',
-                style: TextStyle(color: BeeTokens.textSecondary(ctx)),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: targetController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                autofocus: true,
-                decoration: InputDecoration(
-                  prefixText: '${getCurrencySymbol(account.currency)} ',
-                  hintText: l10n.balanceAdjustmentTargetBalanceHint,
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: noteController,
-                decoration: InputDecoration(
-                  hintText: l10n.balanceAdjustmentNoteHint,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(l10n.commonCancel),
-            ),
-            TextButton(
-              onPressed: () {
-                final value = double.tryParse(targetController.text.trim());
-                if (value != null) {
-                  Navigator.pop(ctx, value);
-                }
-              },
-              style: TextButton.styleFrom(foregroundColor: primaryColor),
-              child: Text(l10n.commonOk),
-            ),
-          ],
-        );
-      },
-    );
-
-    final note = noteController.text.trim();
-    targetController.dispose();
-    noteController.dispose();
-
-    if (result == null) return;
-    final diff = double.parse((result - currentBalance).toStringAsFixed(2));
-
-    final repo = ref.read(repositoryProvider);
-    await repo.createAdjustmentTransaction(
-      ledgerId: currentLedger.id,
-      accountId: account.id,
-      amount: diff,
-      happenedAt: DateTime.now(),
-      note: note.isNotEmpty
-          ? note
-          : l10n.balanceAdjustmentDefaultNote(currentBalance, result),
-    );
-
-    if (!mounted) return;
-    ref.invalidate(accountStatsProvider(account.id));
-    ref.invalidate(accountTransactionsPaginatedProvider);
-    if (account.type == 'credit_card' || account.type == 'account_group') {
-      _invalidateBillingProviders();
-    }
-    if (context.mounted) {
-      showToast(context, l10n.commonSave);
     }
   }
 
@@ -1462,8 +1358,7 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
               MaterialPageRoute(
                 builder: (_) => InstallmentEditorPage(
                   initialAccountId: account.id,
-                  initialOffsetExistingBalance:
-                      account.type == 'credit_card',
+                  initialOffsetExistingBalance: account.type == 'credit_card',
                 ),
               ),
             );

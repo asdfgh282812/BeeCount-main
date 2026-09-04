@@ -6793,6 +6793,21 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
+  String get accountSwipeSectionTitle => 'Swipe shortcuts';
+
+  @override
+  String get accountSwipeLeftLabel => 'Swipe left';
+
+  @override
+  String get accountSwipeRightLabel => 'Swipe right';
+
+  @override
+  String get accountSwipeActionNone => 'None';
+
+  @override
+  String get accountSwipeActionAddTransaction => 'Add transaction';
+
+  @override
   String creditCardBillingInfo(int billingDay, int paymentDueDay) {
     return '매월 $billingDay일 결제 · $paymentDueDay일 만기';
   }

@@ -2935,6 +2935,11 @@
       }
     }
   },
+  "accountSwipeSectionTitle": "Swipe shortcuts",
+  "accountSwipeLeftLabel": "Swipe left",
+  "accountSwipeRightLabel": "Swipe right",
+  "accountSwipeActionNone": "None",
+  "accountSwipeActionAddTransaction": "Add transaction",
   "creditCardBillingInfo": "Bills on {billingDay}th · Due on {paymentDueDay}th",
   "@creditCardBillingInfo": {
     "placeholders": {

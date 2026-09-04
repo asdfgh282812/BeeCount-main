@@ -27,6 +27,7 @@ export 'update_providers.dart';
 // 提醒相关
 export 'reminder_providers.dart';
 export 'credit_card_reminder_providers.dart';
+export 'account_swipe_action_providers.dart';
 
 // 通知中心（BeeCount Cloud 服务端生成，App 只拉取/已读标记）
 export 'notification_center_providers.dart';

@@ -104,7 +104,7 @@
   "accountGroupTradable": "日常帳戶",
   "accountGroupValuation": "資產/負債",
   "adjustmentTransaction": "估值調整",
-  "balanceAdjustmentAction": "調整總額",
+  "balanceAdjustmentAction": "調整餘額",
   "balanceAdjustmentDialogTitle": "調整總額",
   "balanceAdjustmentCurrentBalanceLabel": "目前餘額",
   "balanceAdjustmentTargetBalanceHint": "輸入調整後的餘額",
@@ -120,6 +120,11 @@
       }
     }
   },
+  "accountSwipeSectionTitle": "滑動快捷操作",
+  "accountSwipeLeftLabel": "左滑操作",
+  "accountSwipeRightLabel": "右滑操作",
+  "accountSwipeActionNone": "無",
+  "accountSwipeActionAddTransaction": "新增交易",
   "accountsEmptyMessage": "還沒有帳戶，點擊右上角添加",
   "accountsEnableFeature": "啟用帳戶功能",
   "accountHide": "隱藏帳戶",

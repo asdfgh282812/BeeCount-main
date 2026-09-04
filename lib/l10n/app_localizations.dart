@@ -12690,6 +12690,36 @@ abstract class AppLocalizations {
   /// **'Balance adjusted from {current} to {target}'**
   String balanceAdjustmentDefaultNote(double current, double target);
 
+  /// No description provided for @accountSwipeSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe shortcuts'**
+  String get accountSwipeSectionTitle;
+
+  /// No description provided for @accountSwipeLeftLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe left'**
+  String get accountSwipeLeftLabel;
+
+  /// No description provided for @accountSwipeRightLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe right'**
+  String get accountSwipeRightLabel;
+
+  /// No description provided for @accountSwipeActionNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get accountSwipeActionNone;
+
+  /// No description provided for @accountSwipeActionAddTransaction.
+  ///
+  /// In en, this message translates to:
+  /// **'Add transaction'**
+  String get accountSwipeActionAddTransaction;
+
   /// No description provided for @creditCardBillingInfo.
   ///
   /// In en, this message translates to:

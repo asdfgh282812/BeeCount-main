@@ -6715,6 +6715,21 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get accountSwipeSectionTitle => 'Swipe shortcuts';
+
+  @override
+  String get accountSwipeLeftLabel => 'Swipe left';
+
+  @override
+  String get accountSwipeRightLabel => 'Swipe right';
+
+  @override
+  String get accountSwipeActionNone => 'None';
+
+  @override
+  String get accountSwipeActionAddTransaction => 'Add transaction';
+
+  @override
   String creditCardBillingInfo(int billingDay, int paymentDueDay) {
     return '每月$billingDay日出账 · $paymentDueDay日还款';
   }
@@ -16004,7 +16019,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get adjustmentTransaction => '估值調整';
 
   @override
-  String get balanceAdjustmentAction => '調整總額';
+  String get balanceAdjustmentAction => '調整餘額';
 
   @override
   String get balanceAdjustmentDialogTitle => '調整總額';
@@ -16022,6 +16037,21 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String balanceAdjustmentDefaultNote(double current, double target) {
     return '餘額調整（核對後由 $current 調整為 $target）';
   }
+
+  @override
+  String get accountSwipeSectionTitle => '滑動快捷操作';
+
+  @override
+  String get accountSwipeLeftLabel => '左滑操作';
+
+  @override
+  String get accountSwipeRightLabel => '右滑操作';
+
+  @override
+  String get accountSwipeActionNone => '無';
+
+  @override
+  String get accountSwipeActionAddTransaction => '新增交易';
 
   @override
   String creditCardBillingInfo(int billingDay, int paymentDueDay) {
