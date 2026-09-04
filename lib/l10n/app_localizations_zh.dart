@@ -6608,6 +6608,35 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get accountTypeAccountGroup => 'Parent Account (Group)';
+
+  @override
+  String get accountParentAddNew => '+ Add Parent Account';
+
+  @override
+  String get accountGroupCreateTitle => 'New Parent Account';
+
+  @override
+  String get accountGroupSettingsTitle =>
+      'Parent Account Settings (Combined Billing)';
+
+  @override
+  String get accountGroupSettingsHint =>
+      'These settings are shared by the whole group\'s credit limit/billing day/payment due day — child cards (credit cards) don\'t need to set them individually.';
+
+  @override
+  String get accountIndependentCardHint =>
+      'This card isn\'t linked to any parent account, so the settings below are its own billing cycle. If it\'s linked to a parent account later, the parent\'s shared settings will apply instead.';
+
+  @override
+  String accountFieldsMovedToParent(String parentName) {
+    return 'Credit limit/billing day/payment due day are now managed by the parent account \"$parentName\"';
+  }
+
+  @override
+  String get accountGoToParentSettings => 'Go to Settings';
+
+  @override
   String get accountMetaInfo => '账户信息';
 
   @override
@@ -15922,7 +15951,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get accountAvatarCrop => '裁剪頭像';
 
   @override
-  String get accountParentTitle => '主帳戶';
+  String get accountParentTitle => '主帳戶(群組)';
 
   @override
   String get accountParentNone => '無(獨立帳戶)';
@@ -15931,6 +15960,34 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String accountParentBadge(String parentName) {
     return '隸屬於 $parentName';
   }
+
+  @override
+  String get accountTypeAccountGroup => '主帳戶(群組)';
+
+  @override
+  String get accountParentAddNew => '＋新增主帳戶';
+
+  @override
+  String get accountGroupCreateTitle => '新增主帳戶';
+
+  @override
+  String get accountGroupSettingsTitle => '主帳戶設定(合併帳單)';
+
+  @override
+  String get accountGroupSettingsHint =>
+      '這裡設定的是整組共用的信用額度/帳單日/還款日，子帳戶(信用卡)自己不用再各自設定。';
+
+  @override
+  String get accountIndependentCardHint =>
+      '這張卡沒有掛靠任何主帳戶，以下設定就是它自己的帳單週期；之後如果掛靠了主帳戶，會改用主帳戶的共用設定。';
+
+  @override
+  String accountFieldsMovedToParent(String parentName) {
+    return '額度/帳單日/還款日已移至主帳戶「$parentName」管理';
+  }
+
+  @override
+  String get accountGoToParentSettings => '前往設定';
 
   @override
   String get accountMetaInfo => '帳戶資訊';

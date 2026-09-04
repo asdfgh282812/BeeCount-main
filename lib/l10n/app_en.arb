@@ -2876,7 +2876,7 @@
   "accountAvatarTapToSelect": "Tap to select image",
   "accountAvatarTapToChange": "Tap to change image",
   "accountAvatarCrop": "Crop Avatar",
-  "accountParentTitle": "Parent Account",
+  "accountParentTitle": "Parent Account (Group)",
   "accountParentNone": "None (standalone account)",
   "accountParentBadge": "Part of {parentName}",
   "@accountParentBadge": {
@@ -2884,6 +2884,19 @@
       "parentName": {"type": "String"}
     }
   },
+  "accountTypeAccountGroup": "Parent Account (Group)",
+  "accountParentAddNew": "+ Add Parent Account",
+  "accountGroupCreateTitle": "New Parent Account",
+  "accountGroupSettingsTitle": "Parent Account Settings (Combined Billing)",
+  "accountGroupSettingsHint": "These settings are shared by the whole group's credit limit/billing day/payment due day — child cards (credit cards) don't need to set them individually.",
+  "accountIndependentCardHint": "This card isn't linked to any parent account, so the settings below are its own billing cycle. If it's linked to a parent account later, the parent's shared settings will apply instead.",
+  "accountFieldsMovedToParent": "Credit limit/billing day/payment due day are now managed by the parent account \"{parentName}\"",
+  "@accountFieldsMovedToParent": {
+    "placeholders": {
+      "parentName": {"type": "String"}
+    }
+  },
+  "accountGoToParentSettings": "Go to Settings",
   "accountMetaInfo": "Account Info",
   "accountBalanceTrend": "Balance Trend",
   "accountCategoryBreakdown": "Category Breakdown",

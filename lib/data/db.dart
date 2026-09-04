@@ -54,8 +54,10 @@ class Accounts extends Table {
   IntColumn get sortOrder =>
       integer().withDefault(const Constant(0))(); // 排序顺序，数字越小越靠前
   RealColumn get creditLimit => real().nullable()(); // 信用额度
-  IntColumn get billingDay => integer().nullable()(); // 账单日 (1-28)
-  IntColumn get paymentDueDay => integer().nullable()(); // 还款日 (1-28)
+  IntColumn get billingDay =>
+      integer().nullable()(); // 账单日 (1-31,2026-09-05 对齐 server 验证范围)
+  IntColumn get paymentDueDay =>
+      integer().nullable()(); // 还款日 (1-31,2026-09-05 对齐 server 验证范围)
   TextColumn get bankName => text().nullable()(); // 开户行
   TextColumn get cardLastFour => text().nullable()(); // 卡号后四位
   TextColumn get note => text().nullable()(); // 备注

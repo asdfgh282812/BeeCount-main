@@ -9,6 +9,7 @@ import '../../providers.dart';
 import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/section_card.dart';
 import '../../data/db.dart' as db;
+import '../../data/repositories/exceptions.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/billing/post_processor.dart';
 import '../../services/custom_icon_service.dart';
@@ -122,11 +123,17 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     _loadParentCandidates();
   }
 
+  /// 主帳戶候選清單:對齊 BeeCount Cloud server `_assert_valid_account_parent`
+  /// 的限制——候選必須是 `account_group` 類型(不能選一張普通信用卡當主帳戶,
+  /// 否則同步到 server 會被拒絕)、不能選自己、群組禁巢狀(候選本身
+  /// `parentAccountId` 必須是 null)。不做子帳戶類型一致性檢查——server
+  /// 明確允許混合(design doc 2026-09-05 決策3)。
   Future<void> _loadParentCandidates() async {
     final repo = ref.read(repositoryProvider);
     final all = await repo.getAllAccounts();
     final candidates = all.where((a) {
-      if (a.parentAccountId != null) return false; // 只做 2 层,子卡不能再当主卡
+      if (a.type != 'account_group') return false;
+      if (a.parentAccountId != null) return false; // 禁巢狀
       if (widget.account != null && a.id == widget.account!.id) return false;
       return a.syncId != null && a.syncId!.isNotEmpty;
     }).toList();
@@ -244,6 +251,17 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         child: ListView(
           shrinkWrap: true,
           children: [
+            // 入口C:快速新增主帳戶(design doc 2026-09-05 決策2)。跟入口A
+            // (帳戶類型清單選「主帳戶(群組)」)共用同一份群組表單,差別只在
+            // 容器——這裡是彈窗,入口A是全頁。
+            ListTile(
+              leading: const Icon(Icons.add),
+              title: Text(l10n.accountParentAddNew),
+              onTap: () async {
+                Navigator.of(sheetContext).pop();
+                await _openCreateGroupSheet(l10n);
+              },
+            ),
             ListTile(
               title: Text(l10n.accountParentNone),
               trailing:
@@ -266,6 +284,65 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// 入口C:彈窗新增主帳戶(群組),成功後直接把目前這個帳戶掛靠上去。
+  Future<void> _openCreateGroupSheet(AppLocalizations l10n) async {
+    final created = await showModalBottomSheet<db.Account>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _QuickCreateGroupSheet(
+        ledgerId: widget.ledgerId,
+        initialCurrency: _selectedCurrency,
+      ),
+    );
+    if (created == null || !mounted) return;
+    setState(() {
+      _parentAccountId = created.syncId;
+      _parentCandidates = [..._parentCandidates, created];
+    });
+  }
+
+  /// 子卡欄位隱藏提示(design doc 2026-09-05 決策4):額度/帳單日/還款日
+  /// 改由主帳戶管理,這裡只顯示提示文字 + 前往設定連結。
+  Widget _buildFieldsMovedToParentHint(
+      BuildContext context, AppLocalizations l10n) {
+    final parentName = _parentCandidates
+            .where((a) => a.syncId == _parentAccountId)
+            .map((a) => a.name)
+            .firstOrNull ??
+        '';
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(
+            l10n.accountFieldsMovedToParent(parentName),
+            style: TextStyle(
+              fontSize: 12,
+              color: BeeTokens.textTertiary(context),
+            ),
+          ),
+        ),
+        TextButton(
+          onPressed: () => _goToParentAccountSettings(),
+          child: Text(l10n.accountGoToParentSettings),
+        ),
+      ],
+    );
+  }
+
+  void _goToParentAccountSettings() {
+    final parent = _parentCandidates
+        .where((a) => a.syncId == _parentAccountId)
+        .firstOrNull;
+    if (parent == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            AccountEditPage(account: parent, ledgerId: widget.ledgerId),
       ),
     );
   }
@@ -357,7 +434,12 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     setState(() {
       final oldType = _selectedType;
       _selectedType = type;
-      if (oldType == 'credit_card' && type != 'credit_card') {
+      // 信用卡/主帳戶(群組)共用同一組额度/帳單日/還款日欄位,兩者互轉不清空
+      // (資料本來就適用),只有離開這兩種類型才清空。
+      final hadBillingFields =
+          oldType == 'credit_card' || oldType == 'account_group';
+      final hasBillingFields = type == 'credit_card' || type == 'account_group';
+      if (hadBillingFields && !hasBillingFields) {
         _creditLimitController.clear();
         _billingDay = null;
         _paymentDueDay = null;
@@ -423,10 +505,15 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         _filledDecoration(context, primaryColor,
             label: label, hint: hint, prefix: prefix, errorText: errorText);
 
-    final typesForTab =
-        _typeTab == 0 ? tradableAccountTypes : valuationAccountTypes;
+    // 主帳戶(群組)獨立於日常/估值兩份清單之外,放在日常帳戶清單最後
+    // (design doc 2026-09-05 決策2:群組主要用在可交易帳戶的合併帳單)。
+    final typesForTab = _typeTab == 0
+        ? [...tradableAccountTypes, 'account_group']
+        : valuationAccountTypes;
     final isCreditCard = _selectedType == 'credit_card';
     final isBankCard = _selectedType == 'bank_card';
+    final isAccountGroup = _selectedType == 'account_group';
+    final hasParentAccount = _parentAccountId != null;
 
     return Scaffold(
       backgroundColor: BeeTokens.scaffoldBackground(context),
@@ -625,6 +712,84 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                     ),
                   ),
 
+                  // ===== 主帳戶設定（仅 account_group,合併帳單）=====
+                  // 名稱(頁面上方共用欄位) + 額度/帳單日/還款日(全部選填,
+                  // 1-31) + 頭像(共用區塊),對齊 design doc 2026-09-05 決策2
+                  // 「不做群組種類前置選擇,單一表單」。跟信用卡共用同一組
+                  // _creditLimitController/_billingDay/_paymentDueDay,兩者
+                  // 互斥顯示,不會同時出現。
+                  if (isAccountGroup) ...[
+                    SizedBox(height: 8.0.scaled(context, ref)),
+                    SectionCard(
+                      margin: EdgeInsets.zero,
+                      child: Padding(
+                        padding: EdgeInsets.all(16.0.scaled(context, ref)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(l10n.accountGroupSettingsTitle,
+                                style: _sectionTitle(context)),
+                            SizedBox(height: 4.0.scaled(context, ref)),
+                            Text(
+                              l10n.accountGroupSettingsHint,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: BeeTokens.textTertiary(context),
+                              ),
+                            ),
+                            SizedBox(height: 12.0.scaled(context, ref)),
+                            TextFormField(
+                              controller: _creditLimitController,
+                              decoration: filledDec(
+                                label: l10n.creditLimit,
+                                hint: l10n.creditLimitHint,
+                                prefix:
+                                    '${getCurrencySymbol(_selectedCurrency)} ',
+                              ),
+                              style: const TextStyle(fontSize: 16),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                      decimal: true),
+                              validator: (value) {
+                                final t = value?.trim() ?? '';
+                                if (t.isEmpty) return null;
+                                final parsed = double.tryParse(t);
+                                if (parsed == null || parsed <= 0) {
+                                  return l10n.creditLimitHint;
+                                }
+                                return null;
+                              },
+                            ),
+                            SizedBox(height: 12.0.scaled(context, ref)),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _DayPickerTile(
+                                    label: l10n.billingDay,
+                                    value: _billingDay,
+                                    primaryColor: primaryColor,
+                                    onChanged: (day) =>
+                                        setState(() => _billingDay = day),
+                                  ),
+                                ),
+                                SizedBox(width: 12.0.scaled(context, ref)),
+                                Expanded(
+                                  child: _DayPickerTile(
+                                    label: l10n.paymentDueDay,
+                                    value: _paymentDueDay,
+                                    primaryColor: primaryColor,
+                                    onChanged: (day) =>
+                                        setState(() => _paymentDueDay = day),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+
                   // ===== 信用卡信息（仅 credit_card）=====
                   if (isCreditCard) ...[
                     SizedBox(height: 8.0.scaled(context, ref)),
@@ -638,56 +803,73 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                             Text(l10n.creditCardSettings,
                                 style: _sectionTitle(context)),
                             SizedBox(height: 12.0.scaled(context, ref)),
-                            // 信用额度（必填）
-                            TextFormField(
-                              controller: _creditLimitController,
-                              decoration: filledDec(
-                                label: '${l10n.creditLimit} *',
-                                hint: l10n.creditLimitHint,
-                                prefix:
-                                    '${getCurrencySymbol(_selectedCurrency)} ',
+                            // 子卡掛靠主帳戶後,額度/帳單日/還款日改由主帳戶
+                            // 管理——本地欄位不清空(孤兒值,移出群組可還原
+                            // 顯示,跟 server 端行為一致),只是這裡不給編輯
+                            // (design doc 2026-09-05 決策4)。
+                            if (hasParentAccount) ...[
+                              _buildFieldsMovedToParentHint(context, l10n),
+                              SizedBox(height: 12.0.scaled(context, ref)),
+                            ] else ...[
+                              Text(
+                                l10n.accountIndependentCardHint,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: BeeTokens.textTertiary(context),
+                                ),
                               ),
-                              style: const TextStyle(fontSize: 16),
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                      decimal: true),
-                              validator: (value) {
-                                final t = value?.trim() ?? '';
-                                final parsed = double.tryParse(t);
-                                if (t.isEmpty ||
-                                    parsed == null ||
-                                    parsed <= 0) {
-                                  return l10n.creditLimitHint;
-                                }
-                                return null;
-                              },
-                            ),
-                            SizedBox(height: 12.0.scaled(context, ref)),
-                            // 账单日 / 还款日（双列，必填）
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _DayPickerTile(
-                                    label: '${l10n.billingDay} *',
-                                    value: _billingDay,
-                                    primaryColor: primaryColor,
-                                    onChanged: (day) =>
-                                        setState(() => _billingDay = day),
-                                  ),
+                              SizedBox(height: 12.0.scaled(context, ref)),
+                              // 信用额度（必填）
+                              TextFormField(
+                                controller: _creditLimitController,
+                                decoration: filledDec(
+                                  label: '${l10n.creditLimit} *',
+                                  hint: l10n.creditLimitHint,
+                                  prefix:
+                                      '${getCurrencySymbol(_selectedCurrency)} ',
                                 ),
-                                SizedBox(width: 12.0.scaled(context, ref)),
-                                Expanded(
-                                  child: _DayPickerTile(
-                                    label: '${l10n.paymentDueDay} *',
-                                    value: _paymentDueDay,
-                                    primaryColor: primaryColor,
-                                    onChanged: (day) =>
-                                        setState(() => _paymentDueDay = day),
+                                style: const TextStyle(fontSize: 16),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true),
+                                validator: (value) {
+                                  final t = value?.trim() ?? '';
+                                  final parsed = double.tryParse(t);
+                                  if (t.isEmpty ||
+                                      parsed == null ||
+                                      parsed <= 0) {
+                                    return l10n.creditLimitHint;
+                                  }
+                                  return null;
+                                },
+                              ),
+                              SizedBox(height: 12.0.scaled(context, ref)),
+                              // 账单日 / 还款日（双列，必填）
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _DayPickerTile(
+                                      label: '${l10n.billingDay} *',
+                                      value: _billingDay,
+                                      primaryColor: primaryColor,
+                                      onChanged: (day) =>
+                                          setState(() => _billingDay = day),
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            SizedBox(height: 12.0.scaled(context, ref)),
+                                  SizedBox(width: 12.0.scaled(context, ref)),
+                                  Expanded(
+                                    child: _DayPickerTile(
+                                      label: '${l10n.paymentDueDay} *',
+                                      value: _paymentDueDay,
+                                      primaryColor: primaryColor,
+                                      onChanged: (day) =>
+                                          setState(() => _paymentDueDay = day),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 12.0.scaled(context, ref)),
+                            ],
                             // 开户行 / 卡号后四（双列）
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -930,8 +1112,10 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                     ),
                   ),
 
-                  // ===== 主帳戶（合併帳單分組，所有类型）=====
-                  if (_parentCandidates.isNotEmpty) ...[
+                  // ===== 主帳戶（合併帳單分組，除了主帳戶自己——群組禁巢狀）=====
+                  // 一律顯示(不再靠 _parentCandidates.isNotEmpty 判斷)——就算
+                  // 目前還沒有任何群組,選單裡也有「+新增主帳戶」入口(入口C)。
+                  if (!isAccountGroup) ...[
                     SizedBox(height: 8.0.scaled(context, ref)),
                     SectionCard(
                       margin: EdgeInsets.zero,
@@ -1087,8 +1271,10 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // 信用卡：账单日 / 还款日必填（额度由表单 validator 拦截）
+    // 信用卡：账单日 / 还款日必填（额度由表单 validator 拦截）。掛靠主帳戶的
+    // 子卡欄位已隱藏、改由主帳戶管理,不強制要求。
     if (_selectedType == 'credit_card' &&
+        _parentAccountId == null &&
         (_billingDay == null || _paymentDueDay == null)) {
       showToast(context, AppLocalizations.of(context).creditCardDaysRequired);
       return;
@@ -1108,10 +1294,12 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         initialBalance = -initialBalance;
       }
 
-      // 信用卡字段
+      // 信用卡/主帳戶(群組)共用同一組额度/帳單日/還款日欄位
       final isCreditCard = _selectedType == 'credit_card';
+      final isAccountGroup = _selectedType == 'account_group';
+      final hasBillingFields = isCreditCard || isAccountGroup;
       final creditLimitText = _creditLimitController.text.trim();
-      final creditLimit = isCreditCard && creditLimitText.isNotEmpty
+      final creditLimit = hasBillingFields && creditLimitText.isNotEmpty
           ? double.parse(creditLimitText)
           : null;
 
@@ -1137,9 +1325,11 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           currencyToUpdate = _selectedCurrency;
         }
 
-        // 如果从信用卡切换到其他类型，清空信用卡字段
-        final wasCreditCard = widget.account!.type == 'credit_card';
-        final clearCreditCardFields = wasCreditCard && !isCreditCard;
+        // 如果从信用卡/主帳戶(群組)切换到其他类型，清空共用的額度/帳單日/
+        // 還款日字段
+        final hadBillingFields = widget.account!.type == 'credit_card' ||
+            widget.account!.type == 'account_group';
+        final clearCreditCardFields = hadBillingFields && !hasBillingFields;
 
         // 元信息字段
         final isBankOrCredit =
@@ -1159,9 +1349,9 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           type: _selectedType,
           currency: currencyToUpdate,
           initialBalance: initialBalance,
-          creditLimit: isCreditCard ? creditLimit : null,
-          billingDay: isCreditCard ? _billingDay : null,
-          paymentDueDay: isCreditCard ? _paymentDueDay : null,
+          creditLimit: hasBillingFields ? creditLimit : null,
+          billingDay: hasBillingFields ? _billingDay : null,
+          paymentDueDay: hasBillingFields ? _paymentDueDay : null,
           clearCreditCardFields: clearCreditCardFields,
           bankName: bankName != null && bankName.isNotEmpty ? bankName : null,
           cardLastFour: cardLastFour != null && cardLastFour.isNotEmpty
@@ -1198,8 +1388,8 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           currency: _selectedCurrency,
           initialBalance: initialBalance,
           creditLimit: creditLimit,
-          billingDay: isCreditCard ? _billingDay : null,
-          paymentDueDay: isCreditCard ? _paymentDueDay : null,
+          billingDay: hasBillingFields ? _billingDay : null,
+          paymentDueDay: hasBillingFields ? _paymentDueDay : null,
           bankName: bankNameText != null && bankNameText.isNotEmpty
               ? bankNameText
               : null,
@@ -1498,7 +1688,8 @@ InputDecoration _filledDecoration(
   );
 }
 
-/// 日期选择行（1-28）— filled 输入框样式，可双列并排
+/// 日期选择行（1-31，跟 server AccountsPage.tsx 验证范围对齐,2026-09-05）
+/// — filled 输入框样式，可双列并排
 class _DayPickerTile extends ConsumerWidget {
   final String label;
   final int? value;
@@ -1576,7 +1767,7 @@ class _DayPickerTile extends ConsumerWidget {
                     mainAxisSpacing: 8,
                     crossAxisSpacing: 8,
                   ),
-                  itemCount: 28,
+                  itemCount: 31,
                   itemBuilder: (_, index) {
                     final day = index + 1;
                     final isSelected = day == value;
@@ -1689,6 +1880,197 @@ class _AccountTypeCard extends ConsumerWidget {
               textAlign: TextAlign.center,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 入口C(design doc 2026-09-05 決策2)的「快速新增主帳戶」彈窗:跟入口A
+/// (帳戶類型清單選「主帳戶(群組)」)是同一份群組表單的欄位(名稱必填,
+/// 額度/帳單日/還款日全選填、範圍 1-31),差別只在容器是彈窗不是全頁,
+/// 且不含頭像設定(建立後可回到該群組自己的編輯頁再補,避免彈窗裡重複一份
+/// 裁剪/上傳流程)。成功後回傳新建立的 [db.Account] 供呼叫端掛靠。
+class _QuickCreateGroupSheet extends ConsumerStatefulWidget {
+  final int ledgerId;
+  final String initialCurrency;
+
+  const _QuickCreateGroupSheet({
+    required this.ledgerId,
+    required this.initialCurrency,
+  });
+
+  @override
+  ConsumerState<_QuickCreateGroupSheet> createState() =>
+      _QuickCreateGroupSheetState();
+}
+
+class _QuickCreateGroupSheetState
+    extends ConsumerState<_QuickCreateGroupSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _creditLimitController = TextEditingController();
+  int? _billingDay;
+  int? _paymentDueDay;
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _creditLimitController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _saving = true);
+    final l10n = AppLocalizations.of(context);
+    try {
+      final repo = ref.read(repositoryProvider);
+      final name = _nameController.text.trim();
+      final creditLimitText = _creditLimitController.text.trim();
+      final creditLimit =
+          creditLimitText.isEmpty ? null : double.parse(creditLimitText);
+      final id = await repo.createAccount(
+        ledgerId: widget.ledgerId,
+        name: name,
+        type: 'account_group',
+        currency: widget.initialCurrency,
+        creditLimit: creditLimit,
+        billingDay: _billingDay,
+        paymentDueDay: _paymentDueDay,
+      );
+      final created = await repo.getAccount(id);
+      if (mounted && created != null) {
+        Navigator.of(context).pop(created);
+      }
+    } on DuplicateNameException {
+      if (mounted) {
+        showToast(context, l10n.accountNameDuplicate);
+      }
+    } catch (e) {
+      if (mounted) {
+        showToast(context, '${l10n.commonError}: $e');
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final primaryColor = ref.watch(primaryColorProvider);
+    InputDecoration filledDec({String? label, String? hint, String? prefix}) =>
+        _filledDecoration(context, primaryColor,
+            label: label, hint: hint, prefix: prefix);
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 16,
+        bottom: 16 + MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: SafeArea(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l10n.accountGroupCreateTitle,
+                  style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _nameController,
+                autofocus: true,
+                decoration: filledDec(
+                  label: l10n.accountNameLabel,
+                  hint: l10n.accountNameHint,
+                ),
+                validator: (value) => (value == null || value.trim().isEmpty)
+                    ? l10n.accountNameRequired
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              Text(l10n.accountGroupSettingsHint,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: BeeTokens.textTertiary(context),
+                  )),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _creditLimitController,
+                decoration: filledDec(
+                  label: l10n.creditLimit,
+                  hint: l10n.creditLimitHint,
+                  prefix: '${getCurrencySymbol(widget.initialCurrency)} ',
+                ),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                validator: (value) {
+                  final t = value?.trim() ?? '';
+                  if (t.isEmpty) return null;
+                  final parsed = double.tryParse(t);
+                  if (parsed == null || parsed <= 0) {
+                    return l10n.creditLimitHint;
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _DayPickerTile(
+                      label: l10n.billingDay,
+                      value: _billingDay,
+                      primaryColor: primaryColor,
+                      onChanged: (day) => setState(() => _billingDay = day),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _DayPickerTile(
+                      label: l10n.paymentDueDay,
+                      value: _paymentDueDay,
+                      primaryColor: primaryColor,
+                      onChanged: (day) => setState(() => _paymentDueDay = day),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _saving ? null : _save,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: _saving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : Text(
+                          l10n.commonSave,
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w600),
+                        ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

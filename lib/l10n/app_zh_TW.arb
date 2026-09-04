@@ -2600,7 +2600,7 @@
   "accountAvatarTapToSelect": "點擊選擇圖片",
   "accountAvatarTapToChange": "點擊更換圖片",
   "accountAvatarCrop": "裁剪頭像",
-  "accountParentTitle": "主帳戶",
+  "accountParentTitle": "主帳戶(群組)",
   "accountParentNone": "無(獨立帳戶)",
   "accountParentBadge": "隸屬於 {parentName}",
   "@accountParentBadge": {
@@ -2608,6 +2608,19 @@
       "parentName": {"type": "String"}
     }
   },
+  "accountTypeAccountGroup": "主帳戶(群組)",
+  "accountParentAddNew": "＋新增主帳戶",
+  "accountGroupCreateTitle": "新增主帳戶",
+  "accountGroupSettingsTitle": "主帳戶設定(合併帳單)",
+  "accountGroupSettingsHint": "這裡設定的是整組共用的信用額度/帳單日/還款日，子帳戶(信用卡)自己不用再各自設定。",
+  "accountIndependentCardHint": "這張卡沒有掛靠任何主帳戶，以下設定就是它自己的帳單週期；之後如果掛靠了主帳戶，會改用主帳戶的共用設定。",
+  "accountFieldsMovedToParent": "額度/帳單日/還款日已移至主帳戶「{parentName}」管理",
+  "@accountFieldsMovedToParent": {
+    "placeholders": {
+      "parentName": {"type": "String"}
+    }
+  },
+  "accountGoToParentSettings": "前往設定",
   "accountMetaInfo": "帳戶資訊",
   "accountBalanceTrend": "餘額趨勢",
   "accountCategoryBreakdown": "分類統計",

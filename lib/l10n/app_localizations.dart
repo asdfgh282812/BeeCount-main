@@ -12471,7 +12471,7 @@ abstract class AppLocalizations {
   /// No description provided for @accountParentTitle.
   ///
   /// In en, this message translates to:
-  /// **'Parent Account'**
+  /// **'Parent Account (Group)'**
   String get accountParentTitle;
 
   /// No description provided for @accountParentNone.
@@ -12485,6 +12485,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Part of {parentName}'**
   String accountParentBadge(String parentName);
+
+  /// No description provided for @accountTypeAccountGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Parent Account (Group)'**
+  String get accountTypeAccountGroup;
+
+  /// No description provided for @accountParentAddNew.
+  ///
+  /// In en, this message translates to:
+  /// **'+ Add Parent Account'**
+  String get accountParentAddNew;
+
+  /// No description provided for @accountGroupCreateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New Parent Account'**
+  String get accountGroupCreateTitle;
+
+  /// No description provided for @accountGroupSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Parent Account Settings (Combined Billing)'**
+  String get accountGroupSettingsTitle;
+
+  /// No description provided for @accountGroupSettingsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'These settings are shared by the whole group\'s credit limit/billing day/payment due day — child cards (credit cards) don\'t need to set them individually.'**
+  String get accountGroupSettingsHint;
+
+  /// No description provided for @accountIndependentCardHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This card isn\'t linked to any parent account, so the settings below are its own billing cycle. If it\'s linked to a parent account later, the parent\'s shared settings will apply instead.'**
+  String get accountIndependentCardHint;
+
+  /// No description provided for @accountFieldsMovedToParent.
+  ///
+  /// In en, this message translates to:
+  /// **'Credit limit/billing day/payment due day are now managed by the parent account \"{parentName}\"'**
+  String accountFieldsMovedToParent(String parentName);
+
+  /// No description provided for @accountGoToParentSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Settings'**
+  String get accountGoToParentSettings;
 
   /// No description provided for @accountMetaInfo.
   ///

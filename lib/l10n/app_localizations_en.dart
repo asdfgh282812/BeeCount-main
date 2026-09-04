@@ -6880,7 +6880,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountAvatarCrop => 'Crop Avatar';
 
   @override
-  String get accountParentTitle => 'Parent Account';
+  String get accountParentTitle => 'Parent Account (Group)';
 
   @override
   String get accountParentNone => 'None (standalone account)';
@@ -6889,6 +6889,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String accountParentBadge(String parentName) {
     return 'Part of $parentName';
   }
+
+  @override
+  String get accountTypeAccountGroup => 'Parent Account (Group)';
+
+  @override
+  String get accountParentAddNew => '+ Add Parent Account';
+
+  @override
+  String get accountGroupCreateTitle => 'New Parent Account';
+
+  @override
+  String get accountGroupSettingsTitle =>
+      'Parent Account Settings (Combined Billing)';
+
+  @override
+  String get accountGroupSettingsHint =>
+      'These settings are shared by the whole group\'s credit limit/billing day/payment due day — child cards (credit cards) don\'t need to set them individually.';
+
+  @override
+  String get accountIndependentCardHint =>
+      'This card isn\'t linked to any parent account, so the settings below are its own billing cycle. If it\'s linked to a parent account later, the parent\'s shared settings will apply instead.';
+
+  @override
+  String accountFieldsMovedToParent(String parentName) {
+    return 'Credit limit/billing day/payment due day are now managed by the parent account \"$parentName\"';
+  }
+
+  @override
+  String get accountGoToParentSettings => 'Go to Settings';
 
   @override
   String get accountMetaInfo => 'Account Info';

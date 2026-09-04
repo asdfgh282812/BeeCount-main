@@ -93,18 +93,15 @@ int? billingCycleOffsetForDate(int? billingDay, DateTime date,
 }
 
 /// 「最近一次已結帳」的帳期 offset:[billingCyclePeriod] 的 offset=0 定義是
-/// 「涵蓋今天、尚未結束」的本期,`end` 恆 >= 今天,只有今天剛好是結帳日當天
-/// 這一種情況 `end == 今天`(已結帳);其餘日子 offset=0 都還沒結帳,「最近
-/// 一次已結帳」要退回 offset=-1。對齊 Cloud
-/// `services/credit_card.py::most_recently_closed_cycle` 的語意——帳戶列表
-/// 「可繳款」徽章/繳費期限提醒都要用「已結帳」的那一期,不能用還在累積中的
-/// 當期(欠款金額還沒定案)。
-int mostRecentlyClosedBillingOffset(int? billingDay) {
-  final current = billingCyclePeriod(billingDay, 0);
-  final today = DateTime.now();
-  final todayDateOnly = DateTime(today.year, today.month, today.day);
-  return current.end.isAtSameMomentAs(todayDateOnly) ? 0 : -1;
-}
+/// 「涵蓋今天、尚未結束」的本期,結帳日當天也算在本期內(見上面
+/// [billingCyclePeriod] 的 `now.day > day` 判斷——今天等於結帳日時不會進位
+/// 到下個月),所以本期永遠尚未結清,「最近一次已結帳」恆為上一期。
+/// 2026-09-05 修正 off-by-one:改版前結帳日當天會誤判成「本期(offset=0)
+/// 已結清」,提前一天顯示「可繳款」,對齊 Cloud
+/// `services/credit_card.py::most_recently_closed_cycle` 同批修正的語意
+/// (docs/superpowers/specs/2026-09-05-credit-card-billing-group-accounts-design.md
+/// 決策1)。
+int mostRecentlyClosedBillingOffset(int? billingDay) => -1;
 
 /// 繳款期限:帳期結束(結帳日)後的第一個 [paymentDueDay]。跟
 /// `account_detail_page.dart` 「帳戶資訊」tab 原本的私有 `_dueDate` 是同一個
