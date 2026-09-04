@@ -4120,6 +4120,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountsEnableFeature => 'Enable Account Feature';
 
   @override
+  String get accountsEditOrder => 'Edit Order';
+
+  @override
   String get accountHide => 'Hide account';
 
   @override

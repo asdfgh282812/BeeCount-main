@@ -7540,6 +7540,12 @@ abstract class AppLocalizations {
   /// **'Enable Account Feature'**
   String get accountsEnableFeature;
 
+  /// No description provided for @accountsEditOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Order'**
+  String get accountsEditOrder;
+
   /// No description provided for @accountHide.
   ///
   /// In en, this message translates to:

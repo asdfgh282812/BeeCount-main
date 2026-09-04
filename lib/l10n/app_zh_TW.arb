@@ -127,6 +127,7 @@
   "accountSwipeActionAddTransaction": "新增交易",
   "accountsEmptyMessage": "還沒有帳戶，點擊右上角添加",
   "accountsEnableFeature": "啟用帳戶功能",
+  "accountsEditOrder": "編輯排序",
   "accountHide": "隱藏帳戶",
   "accountUnhide": "恢復帳戶",
   "accountRestore": "恢復",

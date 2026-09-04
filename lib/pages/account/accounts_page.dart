@@ -293,6 +293,10 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
   /// 拖拽后临时保持本地排序，防止 stream rebuild 闪烁
   Map<String, List<db.Account>>? _reorderingGroups;
 
+  /// 「編輯排序」模式開關(帳戶清單拖曳排序):從設定選單裡的「編輯排序」
+  /// 進入,頁首右側換成單一「完成」按鈕退出。
+  bool _editingOrder = false;
+
   @override
   void initState() {
     super.initState();
@@ -343,32 +347,87 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     return childTypes.contains('credit_card') ? 'credit_card' : 'bank_card';
   }
 
-  void _onReorder(
-      String type, List<db.Account> groupAccounts, int oldIndex, int newIndex) {
+  /// 拖曳排序:重排某分類裡「頂層帳戶」(獨立帳戶 + 合併帳單主帳戶,含孤兒
+  /// 子帳戶降級的獨立 block)的相對順序。只重新編號這些頂層帳戶自己的
+  /// sortOrder,子帳戶的 sortOrder 完全不動——[_groupAccounts]/
+  /// `_buildAccountBlocks` 的分組邏輯只看「同一批帳戶之間的相對順序」,
+  /// 頂層帳戶跟子帳戶各自是獨立的相對順序空間,互不干擾(見規劃文件)。
+  void _onReorderBlocks(String type, List<db.Account> blockAccounts,
+      int oldIndex, int newIndex) {
     if (oldIndex < newIndex) newIndex -= 1;
     if (oldIndex == newIndex) return;
 
-    // 乐观更新：用本地状态锁住当前排序，防止 stream 刷新导致闪烁
+    final reordered = List<db.Account>.from(blockAccounts);
+    final moved = reordered.removeAt(oldIndex);
+    reordered.insert(newIndex, moved);
+
+    // 乐观更新：用本地状态锁住当前排序，防止 stream 刷新导致闪烁。重建整個
+    // type 的扁平清單:每個頂層帳戶後面接回它原本的子帳戶(子帳戶彼此順序
+    // 不變),讓 _buildAccountBlocks 讀到的順序馬上反映拖曳結果。
+    setState(() {
+      _reorderingGroups ??= _groupAccounts(
+        ref.read(allAccountsStreamProvider).asData?.value ?? [],
+      );
+      final current = _reorderingGroups![type]!;
+      final childrenByParent = <String, List<db.Account>>{};
+      for (final a in current) {
+        final pid = a.parentAccountId;
+        if (pid != null && pid.isNotEmpty) {
+          childrenByParent.putIfAbsent(pid, () => []).add(a);
+        }
+      }
+      final newFlat = <db.Account>[];
+      for (final block in reordered) {
+        newFlat.add(block);
+        final kids =
+            block.syncId != null ? childrenByParent[block.syncId] : null;
+        if (kids != null) newFlat.addAll(kids);
+      }
+      _reorderingGroups![type] = newFlat;
+    });
+
+    final updates = <({int id, int sortOrder})>[
+      for (int i = 0; i < reordered.length; i++)
+        (id: reordered[i].id, sortOrder: i),
+    ];
+    _persistSortOrders(updates);
+  }
+
+  /// 拖曳排序:重排某個合併帳單主帳戶底下子帳戶彼此的順序。只改這一組
+  /// 子帳戶的 sortOrder,不影響其它主帳戶區塊或其它子帳戶。
+  void _onReorderChildren(String type, db.Account parent,
+      List<db.Account> children, int oldIndex, int newIndex) {
+    if (oldIndex < newIndex) newIndex -= 1;
+    if (oldIndex == newIndex) return;
+
+    final reordered = List<db.Account>.from(children);
+    final moved = reordered.removeAt(oldIndex);
+    reordered.insert(newIndex, moved);
+
     setState(() {
       _reorderingGroups ??= _groupAccounts(
         ref.read(allAccountsStreamProvider).asData?.value ?? [],
       );
       final list = _reorderingGroups![type]!;
-      final item = list.removeAt(oldIndex);
-      list.insert(newIndex, item);
+      final indices = <int>[
+        for (var i = 0; i < list.length; i++)
+          if (list[i].parentAccountId == parent.syncId) i,
+      ];
+      for (var i = 0; i < indices.length && i < reordered.length; i++) {
+        list[indices[i]] = reordered[i];
+      }
     });
 
-    // 构建批量更新
-    final list = _reorderingGroups![type]!;
-    final updates = <({int id, int sortOrder})>[];
-    for (int i = 0; i < list.length; i++) {
-      updates.add((id: list[i].id, sortOrder: i));
-    }
+    final updates = <({int id, int sortOrder})>[
+      for (int i = 0; i < reordered.length; i++)
+        (id: reordered[i].id, sortOrder: i),
+    ];
+    _persistSortOrders(updates);
+  }
 
-    // 写入数据库，延迟清除本地状态让 stream 先到位
+  /// 写入数据库，延迟清除本地状态让 stream 先到位，并推播一次同步。
+  void _persistSortOrders(List<({int id, int sortOrder})> updates) {
     ref.read(repositoryProvider).updateAccountSortOrders(updates).then((_) {
-      // 账户拖拽排序也推到服务端。账户的 ChangeTracker 变更用的是 account.ledgerId
-      // （非 0），走常规 push 路径即可。
       final activeLedgerId = ref.read(currentLedgerIdProvider);
       if (activeLedgerId > 0) {
         unawaited(PostProcessor.sync(ref, ledgerId: activeLedgerId));
@@ -405,22 +464,31 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
             // 顺序(左 → 右):加号 / 蜜蜂家当入口 / 设置。
             // 设置放最右边(Material 设计惯例,溢出 / 设置类放最右),
             // 蜜蜂家当放中间,顺手能点到但不抢主操作位。
-            actions: [
-              IconButton(
-                onPressed: () => _addAccount(context, ref, ledgerId),
-                icon: const Icon(Icons.add),
-                tooltip: l10n.accountAddTooltip,
-              ),
-              // 蜜蜂家当 BeeAssets 入口 — 行为走 ProductPromoLauncher
-              // (iOS 跳商店 / Android 弹窗)。
-              _BeeAssetsHeaderEntry(),
-              IconButton(
-                onPressed: () => _showSettingsSheet(
-                    context, ref, accountFeatureAsync, accountsAsync),
-                icon: const Icon(Icons.settings_outlined),
-                tooltip: l10n.commonSettings,
-              ),
-            ],
+            // 編輯排序模式下(帳戶清單拖曳排序):三個圖示暫時換成單一「完成」
+            // 按鈕退出,避免拖曳時誤觸新增/設定。
+            actions: _editingOrder
+                ? [
+                    TextButton(
+                      onPressed: () => setState(() => _editingOrder = false),
+                      child: Text(l10n.commonFinish),
+                    ),
+                  ]
+                : [
+                    IconButton(
+                      onPressed: () => _addAccount(context, ref, ledgerId),
+                      icon: const Icon(Icons.add),
+                      tooltip: l10n.accountAddTooltip,
+                    ),
+                    // 蜜蜂家当 BeeAssets 入口 — 行为走 ProductPromoLauncher
+                    // (iOS 跳商店 / Android 弹窗)。
+                    _BeeAssetsHeaderEntry(),
+                    IconButton(
+                      onPressed: () => _showSettingsSheet(
+                          context, ref, accountFeatureAsync, accountsAsync),
+                      icon: const Icon(Icons.settings_outlined),
+                      tooltip: l10n.commonSettings,
+                    ),
+                  ],
           ),
 
           // ======== 主内容 ========
@@ -557,8 +625,13 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                           accounts: groupList,
                           primaryColor: primaryColor,
                           allStats: allStatsAsync.valueOrNull,
-                          onReorder: (oldIndex, newIndex) =>
-                              _onReorder(type, groupList, oldIndex, newIndex),
+                          editingOrder: _editingOrder,
+                          onReorderBlocks: (blocks, oldIndex, newIndex) =>
+                              _onReorderBlocks(type, blocks, oldIndex, newIndex),
+                          onReorderChildren:
+                              (parent, children, oldIndex, newIndex) =>
+                                  _onReorderChildren(type, parent, children,
+                                      oldIndex, newIndex),
                           onTap: (account) =>
                               _viewAccountDetail(context, ref, account),
                           onEdit: (account) =>
@@ -1489,8 +1562,12 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
           accounts: groupList,
           primaryColor: primaryColor,
           allStats: allStats,
-          onReorder: (oldIndex, newIndex) =>
-              _onReorder(type, groupList, oldIndex, newIndex),
+          editingOrder: _editingOrder,
+          onReorderBlocks: (blocks, oldIndex, newIndex) =>
+              _onReorderBlocks(type, blocks, oldIndex, newIndex),
+          onReorderChildren: (parent, children, oldIndex, newIndex) =>
+              _onReorderChildren(
+                  type, parent, children, oldIndex, newIndex),
           onTap: (account) => _viewAccountDetail(context, ref, account),
           onEdit: (account) => _editAccount(context, ref, account, ledgerId),
           onSwipeAction: (account, action) =>
@@ -1624,6 +1701,36 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                       );
                     },
                   ),
+                  // 編輯排序入口(帳戶清單拖曳排序):點擊後關閉本選單,整頁進入
+                  // 可拖曳排序模式,見 [_editingOrder]。
+                  if (accounts.isNotEmpty) ...[
+                    Divider(
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16,
+                      color: BeeTokens.divider(context),
+                    ),
+                    ListTile(
+                      dense: true,
+                      visualDensity: VisualDensity.compact,
+                      title: Text(
+                        l10n.accountsEditOrder,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: BeeTokens.textPrimary(context),
+                        ),
+                      ),
+                      trailing: Icon(
+                        Icons.chevron_right,
+                        size: 18.0.scaled(context, ref),
+                        color: BeeTokens.iconTertiary(context),
+                      ),
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        setState(() => _editingOrder = true);
+                      },
+                    ),
+                  ],
                   if (enabled && accounts.isNotEmpty) ...[
                     Divider(
                       height: 1,
@@ -1727,7 +1834,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     final l10n = AppLocalizations.of(context);
     await ref.read(repositoryProvider).setAccountHidden(account.id, false);
 
-    // 账户变更推同步,同 _onReorder 的写法。
+    // 账户变更推同步,同 _persistSortOrders 的写法。
     final activeLedgerId = ref.read(currentLedgerIdProvider);
     if (activeLedgerId > 0) {
       unawaited(PostProcessor.sync(ref, ledgerId: activeLedgerId));
@@ -2045,7 +2152,20 @@ class _AccountTypeGroup extends ConsumerStatefulWidget {
   final List<db.Account> accounts;
   final Color primaryColor;
   final Map<int, ({double balance, double expense, double income})>? allStats;
-  final void Function(int oldIndex, int newIndex) onReorder;
+
+  /// 「編輯排序」模式開關(帳戶清單拖曳排序):true 時整組改用可拖曳的兩層
+  /// [ReorderableListView] 渲染,滑動刪除/點擊手勢暫時停用。
+  final bool editingOrder;
+
+  /// 外層拖曳:重排本分類裡「頂層帳戶」(獨立帳戶 + 合併帳單主帳戶)的相對
+  /// 順序,`blockAccounts` 是拖曳當下的頂層帳戶清單快照。
+  final void Function(
+          List<db.Account> blockAccounts, int oldIndex, int newIndex)
+      onReorderBlocks;
+
+  /// 內層拖曳:重排某個合併帳單主帳戶底下子帳戶彼此的順序。
+  final void Function(db.Account parent, List<db.Account> children,
+      int oldIndex, int newIndex) onReorderChildren;
   final void Function(db.Account account) onTap;
   final void Function(db.Account account) onEdit;
   final Future<void> Function(db.Account account, AccountSwipeAction action)
@@ -2056,7 +2176,9 @@ class _AccountTypeGroup extends ConsumerStatefulWidget {
     required this.accounts,
     required this.primaryColor,
     this.allStats,
-    required this.onReorder,
+    required this.editingOrder,
+    required this.onReorderBlocks,
+    required this.onReorderChildren,
     required this.onTap,
     required this.onEdit,
     required this.onSwipeAction,
@@ -2174,21 +2296,23 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
                   Border.all(color: BeeTokens.cardOuterBorderColor(context)),
             ),
             clipBehavior: Clip.antiAlias,
-            child: Column(
-              children: [
-                for (final entry
-                    in _buildAccountBlocks(context, typeColor, rates, base)
-                        .indexed) ...[
-                  if (entry.$1 > 0)
-                    Divider(
-                      height: 1,
-                      thickness: 1,
-                      color: BeeTokens.cardInnerDividerColor(context),
-                    ),
-                  entry.$2,
-                ],
-              ],
-            ),
+            child: widget.editingOrder
+                ? _buildReorderableBlocks(context, typeColor, rates, base)
+                : Column(
+                    children: [
+                      for (final entry in _buildAccountBlocks(
+                              context, typeColor, rates, base)
+                          .indexed) ...[
+                        if (entry.$1 > 0)
+                          Divider(
+                            height: 1,
+                            thickness: 1,
+                            color: BeeTokens.cardInnerDividerColor(context),
+                          ),
+                        entry.$2,
+                      ],
+                    ],
+                  ),
           ),
       ],
     );
@@ -2423,6 +2547,102 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
     return blocks;
   }
 
+  /// 編輯排序模式(帳戶清單拖曳排序):兩層拖曳清單。外層拖曳「頂層帳戶」
+  /// (獨立帳戶 + 合併帳單主帳戶,含孤兒子帳戶降級的獨立 block)彼此順序;
+  /// 有子帳戶的區塊在下方再包一層拖曳清單,只重排該區塊自己的子帳戶。
+  /// 拖曳中不顯示滑動刪除/點擊編輯手勢,靠右側手把圖示啟動拖曳,避免跟其它
+  /// 手勢搶焦點。編輯模式下一律展開(不理會 [_collapsedParentIds]),否則
+  /// 收合的區塊會讓使用者拖不到子帳戶。
+  Widget _buildReorderableBlocks(BuildContext context, Color typeColor,
+      Map<String, EffectiveRate>? rates, String base) {
+    final childrenByParent = <String, List<db.Account>>{};
+    for (final a in widget.accounts) {
+      final pid = a.parentAccountId;
+      if (pid != null && pid.isNotEmpty) {
+        childrenByParent.putIfAbsent(pid, () => []).add(a);
+      }
+    }
+    final topLevel = widget.accounts
+        .where((a) => a.parentAccountId == null || a.parentAccountId!.isEmpty)
+        .toList();
+    final topLevelSyncIds =
+        topLevel.map((a) => a.syncId).whereType<String>().toSet();
+    // 孤儿子卡(主帳戶不在同一類型分組裡):降級成獨立 block,一起放進外層
+    // 可拖曳清單,避免漏掉。
+    final orphans = widget.accounts.where((a) {
+      final pid = a.parentAccountId;
+      return pid != null && pid.isNotEmpty && !topLevelSyncIds.contains(pid);
+    }).toList();
+    final blockAccounts = [...topLevel, ...orphans];
+
+    return ReorderableListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      buildDefaultDragHandles: false,
+      itemCount: blockAccounts.length,
+      onReorder: (oldIndex, newIndex) =>
+          widget.onReorderBlocks(blockAccounts, oldIndex, newIndex),
+      itemBuilder: (context, index) {
+        final account = blockAccounts[index];
+        final children = (index < topLevel.length && account.syncId != null)
+            ? (childrenByParent[account.syncId] ?? const <db.Account>[])
+            : const <db.Account>[];
+        // 注意:三元運算子的分支裡直接寫 `a?[b]`(null-aware 索引)在某些
+        // Dart 版本會觸發解析器誤判(把 `?[` 誤認成另一個三元運算子的開頭),
+        // 這裡额外包一層括號規避。
+        final cardStats = children.isEmpty
+            ? (widget.allStats?[account.id])
+            : _aggregateParentStats(
+                account, children, widget.allStats, rates, base);
+        return Column(
+          key: ValueKey('reorder_block_${account.id}'),
+          children: [
+            _ReorderableAccountRow(
+              index: index,
+              child: _AccountCard(
+                account: account,
+                primaryColor: widget.primaryColor,
+                typeColor: typeColor,
+                effectiveType: widget.type,
+                stats: cardStats,
+                childCount: children.isEmpty ? null : children.length,
+                onTap: () {},
+                onEdit: () {},
+              ),
+            ),
+            if (children.isNotEmpty)
+              Padding(
+                padding: EdgeInsets.only(left: 24.0.scaled(context, ref)),
+                child: ReorderableListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  buildDefaultDragHandles: false,
+                  itemCount: children.length,
+                  onReorder: (oldIndex, newIndex) => widget.onReorderChildren(
+                      account, children, oldIndex, newIndex),
+                  itemBuilder: (context, childIndex) {
+                    final child = children[childIndex];
+                    return _ReorderableAccountRow(
+                      key: ValueKey('reorder_child_${child.id}'),
+                      index: childIndex,
+                      child: _ChildAccountRow(
+                        account: child,
+                        parentCurrency: account.currency,
+                        isLast: childIndex == children.length - 1,
+                        stats: widget.allStats?[child.id],
+                        onTap: () {},
+                        onEdit: () {},
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
   /// 主帳戶表頭聚合餘額:自己的 stats + 全部子帳戶 stats 加總,幣種不同的
   /// 子帳戶按 [rates] 折算成主帳戶幣種再併入(跟 web 端「主帳戶合計＝子帳戶
   /// 折算後加總」對齊);缺有效匯率時該子帳戶跳過不併入合計,不靜默按 1.0
@@ -2475,6 +2695,40 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
       if (convertedIncome != null) income += convertedIncome;
     }
     return (balance: balance, expense: expense, income: income);
+  }
+}
+
+/// 編輯排序模式(帳戶清單拖曳排序)底下一列的外觀:帳戶卡片本身不可點擊
+/// (`onTap`/`onEdit` 由呼叫端傳空實作),右側加一個拖曳手把圖示,只有從
+/// 手把才能觸發 [ReorderableDragStartListener] 開始拖曳——手把以外的區域
+/// 不啟動拖曳,避免跟巢狀的子帳戶清單搶手勢。
+class _ReorderableAccountRow extends StatelessWidget {
+  final int index;
+  final Widget child;
+
+  const _ReorderableAccountRow({
+    super.key,
+    required this.index,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(child: child),
+        ReorderableDragStartListener(
+          index: index,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Icon(
+              Icons.drag_handle,
+              color: BeeTokens.iconTertiary(context),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 

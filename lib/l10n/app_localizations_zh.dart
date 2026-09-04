@@ -3976,6 +3976,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get accountsEnableFeature => '启用账户功能';
 
   @override
+  String get accountsEditOrder => 'Edit Order';
+
+  @override
   String get accountHide => '隐藏账户';
 
   @override
@@ -13332,6 +13335,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get accountsEnableFeature => '啟用帳戶功能';
+
+  @override
+  String get accountsEditOrder => '編輯排序';
 
   @override
   String get accountHide => '隱藏帳戶';

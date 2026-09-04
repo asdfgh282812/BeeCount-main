@@ -8,8 +8,9 @@
 ///   共用的过滤 helper)排除 `hidden` 账户。
 ///
 /// 关键风险(见 CLAUDE.md 数据库访问规则 + 02-tech-design-app.md §三.1):隐藏开关
-/// 必须走会记 change 的 `updateAccount`,不能像 `updateAccountSortOrders` /
-/// `updateAccountValuation` 那样直接委托底层、不记 change、不同步。
+/// 必须走会记 change 的 `updateAccount`,不能像 `updateAccountValuation` 那样直接
+/// 委托底层、不记 change、不同步(`updateAccountSortOrders` 原本也是这个坑,
+/// 2026-09-05 已补上 change 追踪,见 account_sort_order_test.dart)。
 import 'package:flutter_test/flutter_test.dart';
 import 'package:drift/native.dart';
 import 'package:shared_preferences/shared_preferences.dart';

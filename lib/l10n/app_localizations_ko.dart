@@ -3999,6 +3999,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get accountsEnableFeature => '계정 기능 활성화';
 
   @override
+  String get accountsEditOrder => 'Edit Order';
+
+  @override
   String get accountHide => 'Hide account';
 
   @override

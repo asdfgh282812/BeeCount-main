@@ -1681,6 +1681,7 @@
   "accountSelectTitle": "Select Account",
   "accountNone": "No Account",
   "accountsEnableFeature": "Enable Account Feature",
+  "accountsEditOrder": "Edit Order",
   "accountHide": "Hide account",
   "accountUnhide": "Restore account",
   "accountRestore": "Restore",
