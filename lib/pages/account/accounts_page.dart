@@ -78,12 +78,22 @@ class _SwipeActionRowState extends ConsumerState<_SwipeActionRow>
   @override
   void initState() {
     super.initState();
+    // duration 先给一个占位值,实际值在 didChangeDependencies 里依 MediaQuery
+    // 校正——initState 阶段还不能 dependOnInheritedWidgetOfExactType(会触发
+    // "called before initState() completed" 断言),这是 Flutter 框架本身的
+    // 限制,不是这个开关特有的问题。
     _controller = AnimationController(
       vsync: this,
-      duration: BeeMotion.durationOf(context, BeeMotion.fast),
+      duration: BeeMotion.fast,
     )..addListener(() {
         if (mounted) setState(() {});
       });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _controller.duration = BeeMotion.durationOf(context, BeeMotion.fast);
   }
 
   @override
@@ -352,8 +362,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
   /// sortOrder,子帳戶的 sortOrder 完全不動——[_groupAccounts]/
   /// `_buildAccountBlocks` 的分組邏輯只看「同一批帳戶之間的相對順序」,
   /// 頂層帳戶跟子帳戶各自是獨立的相對順序空間,互不干擾(見規劃文件)。
-  void _onReorderBlocks(String type, List<db.Account> blockAccounts,
-      int oldIndex, int newIndex) {
+  void _onReorderBlocks(
+      String type, List<db.Account> blockAccounts, int oldIndex, int newIndex) {
     if (oldIndex < newIndex) newIndex -= 1;
     if (oldIndex == newIndex) return;
 
@@ -627,11 +637,12 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                           allStats: allStatsAsync.valueOrNull,
                           editingOrder: _editingOrder,
                           onReorderBlocks: (blocks, oldIndex, newIndex) =>
-                              _onReorderBlocks(type, blocks, oldIndex, newIndex),
-                          onReorderChildren:
-                              (parent, children, oldIndex, newIndex) =>
-                                  _onReorderChildren(type, parent, children,
-                                      oldIndex, newIndex),
+                              _onReorderBlocks(
+                                  type, blocks, oldIndex, newIndex),
+                          onReorderChildren: (parent, children, oldIndex,
+                                  newIndex) =>
+                              _onReorderChildren(
+                                  type, parent, children, oldIndex, newIndex),
                           onTap: (account) =>
                               _viewAccountDetail(context, ref, account),
                           onEdit: (account) =>
@@ -1566,8 +1577,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
           onReorderBlocks: (blocks, oldIndex, newIndex) =>
               _onReorderBlocks(type, blocks, oldIndex, newIndex),
           onReorderChildren: (parent, children, oldIndex, newIndex) =>
-              _onReorderChildren(
-                  type, parent, children, oldIndex, newIndex),
+              _onReorderChildren(type, parent, children, oldIndex, newIndex),
           onTap: (account) => _viewAccountDetail(context, ref, account),
           onEdit: (account) => _editAccount(context, ref, account, ledgerId),
           onSwipeAction: (account, action) =>

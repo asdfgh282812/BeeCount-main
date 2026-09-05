@@ -668,8 +668,13 @@ class _ProductPromoCardState extends State<ProductPromoCard>
   @override
   void initState() {
     super.initState();
+    // duration 先给一个占位值,实际值在 didChangeDependencies 里依 MediaQuery
+    // 校正——initState 阶段还不能 dependOnInheritedWidgetOfExactType(会触发
+    // "called before initState() completed" 断言),这是 Flutter 框架本身的
+    // 限制,不是这个开关特有的问题。forward() 本来就延迟到下一个事件循环才
+    // 触发,届时 didChangeDependencies 已经跑过,duration 已经是校正后的值。
     _controller = AnimationController(
-      duration: BeeMotion.durationOf(context, BeeMotion.slow),
+      duration: BeeMotion.slow,
       vsync: this,
     );
     _scaleAnimation = Tween<double>(begin: 0.95, end: 1.0).animate(
@@ -681,6 +686,12 @@ class _ProductPromoCardState extends State<ProductPromoCard>
     Future.delayed(const Duration(milliseconds: 200), () {
       if (mounted) _controller.forward();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _controller.duration = BeeMotion.durationOf(context, BeeMotion.slow);
   }
 
   @override

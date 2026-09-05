@@ -104,8 +104,12 @@ class _BeeAppState extends ConsumerState<BeeApp>
     WidgetsBinding.instance.addObserver(this);
 
     // 初始化记账按钮动画控制器
+    // duration 先给一个占位值,实际值在 didChangeDependencies 里依 MediaQuery
+    // 校正——initState 阶段还不能 dependOnInheritedWidgetOfExactType(会触发
+    // "called before initState() completed" 断言),这是 Flutter 框架本身的
+    // 限制,不是这个开关特有的问题。
     _expandController = AnimationController(
-      duration: BeeMotion.durationOf(context, BeeMotion.fast),
+      duration: BeeMotion.fast,
       vsync: this,
     );
     _expandAnimation = CurvedAnimation(
@@ -121,6 +125,12 @@ class _BeeAppState extends ConsumerState<BeeApp>
       _setupQuickActions();
       _checkCloudLoginReminder();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _expandController.duration = BeeMotion.durationOf(context, BeeMotion.fast);
   }
 
   /// 檢查「曾設定雲端同步但目前未登入」的提醒是否該顯示,冷啟動(此處呼叫)
@@ -481,8 +491,7 @@ class _BeeAppState extends ConsumerState<BeeApp>
                 if (quickAdd.merchant != null) 'merchant': quickAdd.merchant,
                 if (quickAdd.categoryId != null)
                   'categoryId': quickAdd.categoryId,
-                if (quickAdd.accountId != null)
-                  'accountId': quickAdd.accountId,
+                if (quickAdd.accountId != null) 'accountId': quickAdd.accountId,
                 if (quickAdd.note != null) 'note': quickAdd.note,
               },
             'ts': DateTime.now().millisecondsSinceEpoch,
@@ -568,7 +577,8 @@ class _BeeAppState extends ConsumerState<BeeApp>
     _openDeepLink(
       action,
       type,
-      categoryId: action == AppLinkAction.quickAdd ? quickCategoryId : categoryId,
+      categoryId:
+          action == AppLinkAction.quickAdd ? quickCategoryId : categoryId,
       page: page,
       amount: quickAmount,
       merchant: quickMerchant,
@@ -652,7 +662,8 @@ class _BeeAppState extends ConsumerState<BeeApp>
         // BudgetPage)——原生 widget 端目前仍发送 page=budget 这个 wire 字
         // 符串(Phase 4 才重做原生 widget),这里维持不动,只换 App 端渲染的
         // 目标页面。
-        nav.push(MaterialPageRoute(builder: (_) => const ProjectOverviewPage()));
+        nav.push(
+            MaterialPageRoute(builder: (_) => const ProjectOverviewPage()));
         break;
       case 'detail':
         // 最近交易 / 仪表盘主体 → 首页明细列表:App 没有独立的明细页,首页

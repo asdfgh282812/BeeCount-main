@@ -113,13 +113,18 @@ class _PopoverOverlayState extends State<_PopoverOverlay>
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
   bool _isDismissed = false;
+  bool _started = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // duration 先给一个占位值,实际值在 didChangeDependencies 里依 MediaQuery
+    // 校正——initState 阶段还不能 dependOnInheritedWidgetOfExactType(会触发
+    // "called before initState() completed" 断言),这是 Flutter 框架本身的
+    // 限制,不是这个开关特有的问题。
     _controller = AnimationController(
-      duration: BeeMotion.durationOf(context, BeeMotion.fast),
+      duration: BeeMotion.fast,
       vsync: this,
     );
     _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
@@ -128,10 +133,19 @@ class _PopoverOverlayState extends State<_PopoverOverlay>
     _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: BeeMotion.standard),
     );
-    _controller.forward();
 
     // 监听路由状态变化
     widget.route?.animation?.addStatusListener(_routeAnimationStatusListener);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _controller.duration = BeeMotion.durationOf(context, BeeMotion.fast);
+    if (!_started) {
+      _started = true;
+      _controller.forward();
+    }
   }
 
   void _routeAnimationStatusListener(AnimationStatus status) {
@@ -143,7 +157,8 @@ class _PopoverOverlayState extends State<_PopoverOverlay>
 
   @override
   void dispose() {
-    widget.route?.animation?.removeStatusListener(_routeAnimationStatusListener);
+    widget.route?.animation
+        ?.removeStatusListener(_routeAnimationStatusListener);
     WidgetsBinding.instance.removeObserver(this);
     _controller.dispose();
     super.dispose();
@@ -180,19 +195,19 @@ class _PopoverOverlayState extends State<_PopoverOverlay>
     final topPadding = MediaQuery.of(context).padding.top + 56;
 
     return Stack(
-        children: [
-          // 背景遮罩（点击关闭），但不覆盖顶部 Header 区域
-          Positioned(
-            top: topPadding,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: GestureDetector(
-              onTap: _dismiss,
-              behavior: HitTestBehavior.opaque,
-              child: Container(color: Colors.transparent),
-            ),
+      children: [
+        // 背景遮罩（点击关闭），但不覆盖顶部 Header 区域
+        Positioned(
+          top: topPadding,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: GestureDetector(
+            onTap: _dismiss,
+            behavior: HitTestBehavior.opaque,
+            child: Container(color: Colors.transparent),
           ),
+        ),
         // 弹出菜单
         Positioned(
           left: widget.left,
@@ -261,8 +276,7 @@ class _PopoverOverlayState extends State<_PopoverOverlay>
     PopoverMenuItem item,
     bool isDark,
   ) {
-    final color = item.color ??
-        (isDark ? Colors.white : Colors.black87);
+    final color = item.color ?? (isDark ? Colors.white : Colors.black87);
 
     return InkWell(
       onTap: () async {
