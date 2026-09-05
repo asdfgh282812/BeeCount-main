@@ -693,8 +693,8 @@ class _ImportSuccessTile extends StatelessWidget {
     final primary = Theme.of(context).colorScheme.primary;
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 900),
-      curve: Curves.easeOutCubic,
+      duration: BeeMotion.durationOf(context, const Duration(milliseconds: 900)),
+      curve: BeeMotion.standard,
       builder: (ctx, v, child) {
         return AppListTile(
           leading: Icons.check_circle_outline,
