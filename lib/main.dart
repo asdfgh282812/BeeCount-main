@@ -564,6 +564,10 @@ class MainApp extends ConsumerWidget {
     );
     // Clamp 系统字体缩放，避免部分设备设置 1.5+ 造成 UI 溢出
     final media = MediaQuery.of(context);
+    // 减少动画:系统的「减弱动态效果」无障碍设定维持最高优先权(OR 关系),
+    // App 内开关本身不自动跟随/预设不读系统值,只是额外提供一个手动入口。
+    final reduceMotion =
+        media.disableAnimations || ref.watch(reduceMotionProvider);
     // init font scale persistence
     ref.watch(fontScaleInitProvider);
     final customScale = ref.watch(effectiveFontScaleProvider);
@@ -574,7 +578,10 @@ class MainApp extends ConsumerWidget {
     final combinedScale = clamped.scale(customScale); // returns double
     final newScaler = TextScaler.linear(combinedScale);
     return MediaQuery(
-      data: media.copyWith(textScaler: newScaler),
+      data: media.copyWith(
+        textScaler: newScaler,
+        disableAnimations: reduceMotion,
+      ),
       child: MaterialApp(
         navigatorKey: globalNavigatorKey,
         onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
