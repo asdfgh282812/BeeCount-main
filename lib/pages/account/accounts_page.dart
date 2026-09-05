@@ -80,7 +80,7 @@ class _SwipeActionRowState extends ConsumerState<_SwipeActionRow>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 200),
+      duration: BeeMotion.durationOf(context, BeeMotion.fast),
     )..addListener(() {
         if (mounted) setState(() {});
       });
@@ -127,7 +127,7 @@ class _SwipeActionRowState extends ConsumerState<_SwipeActionRow>
     } else if (notifier.state == widget.account.id) {
       notifier.state = null;
     }
-    await _controller.animateTo(target, curve: Curves.easeOut);
+    await _controller.animateTo(target, curve: BeeMotion.standard);
     if (!mounted) return;
     if (_controller.value == 0) {
       setState(() => _dragSign = 0);
