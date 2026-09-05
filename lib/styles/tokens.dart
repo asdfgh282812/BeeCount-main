@@ -547,6 +547,36 @@ class BeeDimens {
   static const double listRowVertical = 8;
 }
 
+/// 动画设计 token：全站页面转场与微互动统一用这套时长/曲线,不再各自写死
+/// Curves.xxx。跟 [BeeTokens] 分开成独立 class 是延续本文件里
+/// BeeDimens/BeeShadows 的既有拆分方式(按用途分组,不是所有东西都塞进
+/// BeeTokens)。
+class BeeMotion {
+  BeeMotion._();
+
+  /// 按钮/小型元件回馈。
+  static const fast = Duration(milliseconds: 150);
+
+  /// 列表/卡片/弹窗开合。
+  static const medium = Duration(milliseconds: 280);
+
+  /// 页面转场/大型元件进出场。
+  static const slow = Duration(milliseconds: 380);
+
+  /// 无回弹的减速曲线:页面转场、进度类动画。
+  static const standard = Curves.easeOutCubic;
+
+  /// 带轻微回弹感的曲线:按压回馈、弹窗/底部选单开合。直接沿用项目里已经
+  /// 验证过的 Curves.easeOutBack(message_popover_menu.dart /
+  /// product_promo_card.dart 原本就是这个),不额外写 SpringSimulation。
+  static const spring = Curves.easeOutBack;
+
+  /// 减少动画开关(或系统无障碍设定)打开时,把时长归零——单一动画元件用这个
+  /// 包一层就好,不用各自写三元判断。
+  static Duration durationOf(BuildContext context, Duration normal) =>
+      MediaQuery.disableAnimationsOf(context) ? Duration.zero : normal;
+}
+
 /// 阴影令牌
 class BeeShadows {
   static List<BoxShadow> card = [
