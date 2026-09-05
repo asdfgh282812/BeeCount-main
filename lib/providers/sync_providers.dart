@@ -870,6 +870,13 @@ void _applyAppearanceFields(Ref ref, Map<String, dynamic> appearance) {
       ref.read(skinAnimationEnabledProvider.notifier).state = skinAnim;
     }
   }
+  final reduceMotion = appearance['reduce_motion'] as bool?;
+  if (reduceMotion != null) {
+    final current = ref.read(reduceMotionProvider);
+    if (current != reduceMotion) {
+      ref.read(reduceMotionProvider.notifier).state = reduceMotion;
+    }
+  }
   final showTime = appearance['show_transaction_time'] as bool?;
   if (showTime != null) {
     final current = ref.read(showTransactionTimeProvider);

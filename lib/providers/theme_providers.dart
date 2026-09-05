@@ -595,6 +595,7 @@ void _pushAppearanceToCloud(Ref ref) {
         'header_decoration_style': ref.read(headerDecorationStyleProvider),
         'compact_amount': ref.read(compactAmountProvider),
         'skin_animation': ref.read(skinAnimationEnabledProvider),
+        'reduce_motion': ref.read(reduceMotionProvider),
         'show_transaction_time': ref.read(showTransactionTimeProvider),
         'header_skin': ref.read(headerSkinProvider),
         'note_display_mode': ref.read(noteDisplayModeProvider),
