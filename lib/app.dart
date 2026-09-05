@@ -105,12 +105,12 @@ class _BeeAppState extends ConsumerState<BeeApp>
 
     // 初始化记账按钮动画控制器
     _expandController = AnimationController(
-      duration: const Duration(milliseconds: 200),
+      duration: BeeMotion.durationOf(context, BeeMotion.fast),
       vsync: this,
     );
     _expandAnimation = CurvedAnimation(
       parent: _expandController,
-      curve: Curves.easeOut,
+      curve: BeeMotion.standard,
     );
 
     // 后台刷新账本同步状态
