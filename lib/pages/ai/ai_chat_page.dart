@@ -726,8 +726,8 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
       if (_scrollController.hasClients && mounted) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
+          duration: BeeMotion.durationOf(context, BeeMotion.medium),
+          curve: BeeMotion.standard,
         );
       }
     });
@@ -738,8 +738,8 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
+        duration: BeeMotion.durationOf(context, BeeMotion.medium),
+        curve: BeeMotion.standard,
       );
     }
   }
