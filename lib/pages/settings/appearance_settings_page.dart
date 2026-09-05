@@ -165,6 +165,26 @@ class _AppearanceSettingsPageState
                         },
                       ),
                       BeeTokens.cardDivider(context),
+                      // 减少动画 —— 开启后全站动画精简(省电、降低动态敏感度)
+                      AppListTile(
+                        leading: Icons.motion_photos_off_outlined,
+                        title: l10n.appearanceReduceMotion,
+                        subtitle: l10n.appearanceReduceMotionDesc,
+                        trailing: Switch.adaptive(
+                          value: ref.watch(reduceMotionProvider),
+                          onChanged: (value) {
+                            ref.read(reduceMotionProvider.notifier).state =
+                                value;
+                          },
+                          activeColor: ref.watch(primaryColorProvider),
+                        ),
+                        onTap: () {
+                          final current = ref.read(reduceMotionProvider);
+                          ref.read(reduceMotionProvider.notifier).state =
+                              !current;
+                        },
+                      ),
+                      BeeTokens.cardDivider(context),
                       // 显示缩放
                       AppListTile(
                         leading: Icons.zoom_out_map_outlined,

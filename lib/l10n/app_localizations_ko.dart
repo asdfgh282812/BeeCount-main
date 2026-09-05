@@ -2225,6 +2225,13 @@ class AppLocalizationsKo extends AppLocalizations {
       'Turn off to freeze animated skins on a still frame and save power';
 
   @override
+  String get appearanceReduceMotion => 'Reduce Motion';
+
+  @override
+  String get appearanceReduceMotionDesc =>
+      'Turn on to simplify animations across the app and save power';
+
+  @override
   String get appearanceShowTransactionTime => '거래 시간 표시';
 
   @override

@@ -2285,6 +2285,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Turn off to freeze animated skins on a still frame and save power';
 
   @override
+  String get appearanceReduceMotion => 'Reduce Motion';
+
+  @override
+  String get appearanceReduceMotionDesc =>
+      'Turn on to simplify animations across the app and save power';
+
+  @override
   String get appearanceShowTransactionTime => 'Show Transaction Time';
 
   @override

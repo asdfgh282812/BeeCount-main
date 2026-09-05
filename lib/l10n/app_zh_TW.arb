@@ -418,6 +418,8 @@
   "appearanceSettingsPageTitle": "個性化設定",
   "appearanceSkinAnimation": "面板動效",
   "appearanceSkinAnimationDesc": "關閉後動態面板停在靜止畫面，更省電",
+  "appearanceReduceMotion": "減少動畫",
+  "appearanceReduceMotionDesc": "開啟後全站動畫精簡化，更省電",
   "appearanceShowTransactionTime": "顯示交易時間",
   "appearanceShowTransactionTimeDesc": "在帳單列表顯示時分，編輯時可選擇時間",
   "appearanceNoteDisplay": "備註顯示方式",

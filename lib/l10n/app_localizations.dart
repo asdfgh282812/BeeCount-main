@@ -4195,6 +4195,18 @@ abstract class AppLocalizations {
   /// **'Turn off to freeze animated skins on a still frame and save power'**
   String get appearanceSkinAnimationDesc;
 
+  /// No description provided for @appearanceReduceMotion.
+  ///
+  /// In en, this message translates to:
+  /// **'Reduce Motion'**
+  String get appearanceReduceMotion;
+
+  /// No description provided for @appearanceReduceMotionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on to simplify animations across the app and save power'**
+  String get appearanceReduceMotionDesc;
+
   /// No description provided for @appearanceShowTransactionTime.
   ///
   /// In en, this message translates to:

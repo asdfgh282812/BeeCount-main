@@ -2215,6 +2215,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appearanceSkinAnimationDesc => '关闭后动态皮肤停在静止画面，更省电';
 
   @override
+  String get appearanceReduceMotion => 'Reduce Motion';
+
+  @override
+  String get appearanceReduceMotionDesc =>
+      'Turn on to simplify animations across the app and save power';
+
+  @override
   String get appearanceShowTransactionTime => '显示交易时间';
 
   @override
@@ -11574,6 +11581,12 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get appearanceSkinAnimationDesc => '關閉後動態面板停在靜止畫面，更省電';
+
+  @override
+  String get appearanceReduceMotion => '減少動畫';
+
+  @override
+  String get appearanceReduceMotionDesc => '開啟後全站動畫精簡化，更省電';
 
   @override
   String get appearanceShowTransactionTime => '顯示交易時間';
