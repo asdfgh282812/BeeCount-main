@@ -156,3 +156,39 @@ Task 10/11/17/18 的個別說明。
 Flutter Web 因专案依赖 `sqlite3`(`dart:ffi`)而不支援。因此计划 Task 19
 清单里「模拟器/实机肉眼确认转场、按压回馈手感」这一项**尚未由本次会话执行**,
 需要使用者在自己的设备/模拟器上补做一次。
+
+## 8. 事後修正:App 一啟動就崩潰(`initState` 呼叫 `MediaQuery`)
+
+**問題**:第 7 節裡 `message_popover_menu.dart`(彈出選單)、
+`product_promo_card.dart`(進場動畫)、`accounts_page.dart`(滑動 snap 動畫)、
+`app.dart`(記帳中心按鈕展開動畫)這 4 個檔案的 `AnimationController`
+初始化都在 `initState()` 裡直接呼叫 `BeeMotion.durationOf(context, ...)`。
+`durationOf` 內部呼叫 `MediaQuery.disableAnimationsOf(context)`,即
+`context.dependOnInheritedWidgetOfExactType<MediaQuery>()`——這個呼叫**不能**
+在 `initState()` 裡同步進行(Flutter 框架斷言:
+"`dependOnInheritedWidgetOfExactType<MediaQuery>()` ... was called before
+`_BeeAppState.initState()` completed")。因為 `app.dart` 的 `_BeeAppState`
+是整個 App 的根層 State,這個斷言在冷啟動時立刻觸發,導致 App 完全無法使用
+(紅屏崩潰)。
+
+計畫文件與 Task 10/11/17/18 對這個取捨的說明(「`duration` 是在 `initState`
+讀取當下的 `MediaQuery`,之後不會隨開關即時變化」)本身沒錯,但沒注意到
+`initState` 階段連讀一次都不被 Flutter 框架允許——這是純粹的實作疏漏,
+`flutter analyze`(靜態分析)抓不到這類執行期生命週期斷言,而這 4 個檔案
+依計畫本來就沒有寫對應的 widget test(見文件開頭「測試覆蓋的取捨」),所以
+一路到使用者實際啟動 App 才發現。
+
+**改了什麼**:4 個檔案的 `initState()` 裡,`AnimationController` 的
+`duration` 先給 `BeeMotion.xxx` 常數當佔位值(不呼叫 `durationOf`);新增
+`didChangeDependencies()` override,在裡面用
+`_controller.duration = BeeMotion.durationOf(context, BeeMotion.xxx);`
+校正——這正是 Flutter 錯誤訊息自己建議的位置("initialization based on
+inherited widgets can be placed in the didChangeDependencies method")。
+`message_popover_menu.dart` 原本在 `initState` 裡呼叫的
+`_controller.forward()` 一併搬到 `didChangeDependencies`(加一個 `_started`
+旗標避免重複觸發);`product_promo_card.dart` 的 `forward()` 本來就包在
+`Future.delayed` 裡延遲到下一輪事件循環才觸發,`didChangeDependencies` 一定
+會先跑完,不需要額外旗標。
+
+**驗證**:`flutter analyze`/`flutter test`(全量 1135 個測試)重新跑過,
+無新增問題。
