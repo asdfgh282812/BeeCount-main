@@ -119,6 +119,10 @@ Future<void> showBalanceAdjustmentDialog(
     ref.invalidate(defaultBillingPeriodOffsetProvider);
     ref.invalidate(creditCardPaymentPeriodRecordsProvider);
   }
+  // 帳戶總覽頁(資產頁)的淨資產/資產構成/單帳戶統計都只依賴這顆 tick 才會重算
+  // (statistics_providers.dart),這裡只 invalidate 單一帳戶的 provider 不會
+  // 波及總覽頁,導致調整餘額後回資產頁金額沒更新。
+  ref.read(statsRefreshProvider.notifier).state++;
   if (context.mounted) {
     showToast(context, l10n.commonSave);
   }

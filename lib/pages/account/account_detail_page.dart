@@ -1410,15 +1410,24 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
   ) {
     final categoryNameById = {for (final c in categories) c.id: c.name};
     final now = DateTime.now();
+    // 合併帳單群組(子卡彼此可能幣別不同)要先把每筆交易折算成帳本本位幣
+    // (讀記帳當下就算好的 nativeAmount)再相加,否則不同幣別的原始 amount
+    // 直接加總會失真(2026-09-05 使用者反饋:JPY 子卡消費被當 TWD 算進
+    // 「新增花費」/「應繳金額」)。單一帳戶(非群組)維持用自己幣別的原始
+    // amount,跟下面顯示用的 currencyCode(單卡情境=account.currency)對得上。
+    final isGroup = children.isNotEmpty;
+    final displayCurrency =
+        isGroup ? ref.watch(currentLedgerCurrencyProvider) : currencyCode;
     double newSpending = 0;
     double rewardThisPeriod = 0;
     for (final tx in txs) {
       if ((tx.type == 'expense' || tx.type == 'income') &&
           !effectiveDate(tx).isAfter(now)) {
-        newSpending += tx.type == 'expense' ? tx.amount : -tx.amount;
+        final amount = isGroup ? (tx.nativeAmount ?? tx.amount) : tx.amount;
+        newSpending += tx.type == 'expense' ? amount : -amount;
         if (tx.type == 'income' &&
             isRewardCategoryName(categoryNameById[tx.categoryId])) {
-          rewardThisPeriod += tx.amount;
+          rewardThisPeriod += amount;
         }
       }
     }
@@ -1436,7 +1445,7 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
           signed: true,
           showCurrency: false,
           useCompactFormat: useCompact,
-          currencyCode: currencyCode,
+          currencyCode: displayCurrency,
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
@@ -2162,6 +2171,12 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     ref.invalidate(creditCardBillingBadgeProvider);
     ref.invalidate(defaultBillingPeriodOffsetProvider);
     ref.invalidate(creditCardPaymentPeriodRecordsProvider);
+    // 合併帳單群組繳款([CreditCardGroupPaymentPage])是直接呼叫
+    // repo.insertTransactionsBatch,不像單卡繳款走 TransferForm/
+    // TransactionEditorPage 那樣會自動 bump 這顆 tick——帳戶總覽頁(資產頁)
+    // 的淨資產/資產構成/所有帳戶統計都只依賴它才重算,漏了就會出現「繳完費用
+    // 回資產頁金額沒更新」。
+    ref.read(statsRefreshProvider.notifier).state++;
   }
 
   Widget _buildTransactionListBody(

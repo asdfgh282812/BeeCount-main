@@ -278,7 +278,7 @@ class LocalAccountRepository implements AccountRepository {
 
   @override
   Future<double> getCreditCardChargedAsOf(int accountId,
-      {DateTime? asOf}) async {
+      {DateTime? asOf, bool convertToLedgerCurrency = false}) async {
     final now = DateTime.now();
     // clamp 到「现在」——即使调用方显式传了未来时间点,也不该把还没发生的
     // 周期性交易预先计入(对齐 Cloud `min(cycle_end_dt, now)`)。
@@ -291,7 +291,7 @@ class LocalAccountRepository implements AccountRepository {
     // 標記延後入帳的交易,讓「已繳金額」倒推出 -140 的異常負數)。
     final results = await db.customSelect(
       '''
-      SELECT type, amount FROM transactions
+      SELECT type, amount, native_amount FROM transactions
       WHERE account_id = ?1 AND type IN ('expense', 'income')
         AND $_kExcludeJoinedSharedLedgerSql
         AND COALESCE(deferred_posting_at, happened_at) <= ?2
@@ -305,7 +305,10 @@ class LocalAccountRepository implements AccountRepository {
     var charged = 0.0;
     for (final row in results) {
       final type = row.data['type'] as String;
-      final amount = (row.data['amount'] as num).toDouble();
+      final rawAmount = (row.data['amount'] as num).toDouble();
+      final amount = convertToLedgerCurrency
+          ? ((row.data['native_amount'] as num?)?.toDouble() ?? rawAmount)
+          : rawAmount;
       charged += type == 'expense' ? amount : -amount;
     }
     return charged;
@@ -322,7 +325,7 @@ class LocalAccountRepository implements AccountRepository {
         .get();
     var paid = 0.0;
     for (final t in txs) {
-      paid += t.amount;
+      paid += t.toAmount ?? t.amount;
     }
     return paid;
   }
@@ -932,15 +935,28 @@ class LocalAccountRepository implements AccountRepository {
     // 對帳清單口徑:expense/income 只認 account_id,transfer 只認
     // to_account_id(轉出視角不算消費),其它 type 不收——跟
     // reconciliation_providers.dart 舊版 Dart 端 belongs 判斷語意一致。
+    // 例外:繳「這一期」帳單的轉帳(note 是 creditCardPaymentNote() 產生的
+    // 「信用卡繳款(帳單 X~cycleEnd)」,結尾日期剛好等於這次查詢的
+    // cycleEnd)不能被當成這一期自己的對帳候選項——它是繳清這期帳單的動作,
+    // 不是新增消費。繳的是「別期」帳單、只是入帳歸屬日落在這期窗口內的轉帳
+    // (例如延遲到下一期才繳清上一期欠款)仍然要收,對帳時要看到那筆繳款
+    // 沖銷了多少舊欠款,鎖在 account_statement_transactions_test.dart 的期三
+    // 案例——所以這裡只比對 note 尾端的帳單結束日跟本次 cycleEnd 是否相同
+    // (代表「自己繳自己」),不是排除所有繳款轉帳。
+    final cycleEndIso = '${cycleEnd.year.toString().padLeft(4, '0')}-'
+        '${cycleEnd.month.toString().padLeft(2, '0')}-'
+        '${cycleEnd.day.toString().padLeft(2, '0')}';
+    final selfPaymentNoteIndex = ids.length + 1;
     final where =
         "(type IN ('expense', 'income') AND account_id IN ($idPlaceholders)) "
-        "OR (type = 'transfer' AND to_account_id IN ($idPlaceholders))";
+        "OR (type = 'transfer' AND to_account_id IN ($idPlaceholders) "
+        "AND (note IS NULL OR note NOT LIKE ?$selfPaymentNoteIndex))";
 
     // 入帳歸屬日 = COALESCE(deferred_posting_at, happened_at),兩個時間戳
     // 落库都是 epoch 秒。cycleEnd 視為「含整個自然日」,補到 23:59:59。
     final endOfDay =
         DateTime(cycleEnd.year, cycleEnd.month, cycleEnd.day, 23, 59, 59);
-    final startIndex = ids.length + 1;
+    final startIndex = selfPaymentNoteIndex + 1;
     final endIndex = startIndex + 1;
 
     final results = await db.customSelect(
@@ -954,6 +970,7 @@ class LocalAccountRepository implements AccountRepository {
       ''',
       variables: [
         ...idVariables,
+        d.Variable.withString('信用卡繳款(帳單 %~$cycleEndIso)%'),
         d.Variable.withInt(cycleStart.millisecondsSinceEpoch ~/ 1000),
         d.Variable.withInt(endOfDay.millisecondsSinceEpoch ~/ 1000),
       ],

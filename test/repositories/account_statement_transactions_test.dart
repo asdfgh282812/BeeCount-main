@@ -199,4 +199,85 @@ void main() {
     // 4 筆延後入帳消費(1197+1554+307+54)+ 2 筆一般消費(969+30)- 回饋 300。
     expect(statementTotal(period3), 3811);
   });
+
+  test('繳「這一期」帳單的轉帳不會出現在自己這期的對帳清單裡', () async {
+    final lid = await seedLedger();
+    final bankId = await db.into(db.accounts).insert(AccountsCompanion.insert(
+          ledgerId: lid,
+          name: '銀行帳戶',
+          type: const Value('debit_card'),
+        ));
+    final cardId = await db.into(db.accounts).insert(AccountsCompanion.insert(
+          ledgerId: lid,
+          name: '信用卡',
+          type: const Value('credit_card'),
+          billingDay: const Value(5),
+          paymentDueDay: const Value(20),
+        ));
+
+    await repo.addTransaction(
+      ledgerId: lid,
+      type: 'expense',
+      amount: 100,
+      accountId: cardId,
+      happenedAt: DateTime(2026, 8, 20),
+    );
+    await repo.addTransaction(
+      ledgerId: lid,
+      type: 'expense',
+      amount: 200,
+      accountId: cardId,
+      happenedAt: DateTime(2026, 8, 27),
+    );
+    // 繳這一期(2026-08-05~2026-09-05)帳單的轉帳,發生在帳期結帳日當天,
+    // note 是 creditCardPaymentNote() 那套「信用卡繳款(帳單 X~Y)」格式,
+    // 重現使用者回報的 bug 場景(見截圖:8/5~9/5 帳期裡出現一筆同期繳款)。
+    await repo.addTransaction(
+      ledgerId: lid,
+      type: 'transfer',
+      amount: 300,
+      accountId: bankId,
+      toAccountId: cardId,
+      happenedAt: DateTime(2026, 9, 5),
+      note: '信用卡繳款(帳單 2026-08-05~2026-09-05)',
+    );
+
+    final period = await repo.getAccountStatementTransactions(
+      accountId: cardId,
+      cycleStart: DateTime(2026, 8, 6),
+      cycleEnd: DateTime(2026, 9, 5),
+    );
+
+    expect(period.length, 2);
+    expect(period.every((t) => t.type == 'expense'), isTrue);
+
+    // 但如果這筆轉帳繳的是「別期」帳單(note 尾端日期跟本次查詢的
+    // cycleEnd 不一樣),只是入帳歸屬日剛好落在這期窗口內,仍然要收——
+    // 跟上面「星展信用卡」期三案例的既有行為一致,不能被這次修正誤傷。
+    await repo.addTransaction(
+      ledgerId: lid,
+      type: 'transfer',
+      amount: 150,
+      accountId: bankId,
+      toAccountId: cardId,
+      happenedAt: DateTime(2026, 9, 5),
+      note: '信用卡繳款(帳單 2026-07-05~2026-08-05)',
+    );
+
+    final periodWithOtherPeriodPayment =
+        await repo.getAccountStatementTransactions(
+      accountId: cardId,
+      cycleStart: DateTime(2026, 8, 6),
+      cycleEnd: DateTime(2026, 9, 5),
+    );
+
+    expect(periodWithOtherPeriodPayment.length, 3);
+    expect(
+      periodWithOtherPeriodPayment
+          .where((t) => t.type == 'transfer')
+          .single
+          .amount,
+      150,
+    );
+  });
 }

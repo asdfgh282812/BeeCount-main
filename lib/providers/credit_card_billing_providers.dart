@@ -35,15 +35,24 @@ List<int> _parseExtraIds(String extraIdsKey) => extraIdsKey.isEmpty
 /// 帳從卡片上移除,對建立分期計畫之後的任何 cutoff 都成立」),否則這筆錢
 /// 會同時算在「這張卡的原始消費」跟「新分期計畫產生的各期交易」兩邊,重複
 /// 計入應繳金額。
+///
+/// [ids] 超過一個 = 合併帳單群組(主帳戶 + 子卡)——子卡彼此可能幣別不同,
+/// 這裡把每個 id 的 `getCreditCardChargedAsOf` 都傳
+/// `convertToLedgerCurrency: true`,讓每筆交易先折算成帳本本位幣再相加,
+/// 否則不同幣別的原始數字直接加總會失真(2026-09-05 使用者反饋)。單一帳戶
+/// (`ids.length == 1`)維持原樣,不折算——單卡頁面本來就用該帳戶自己的幣別
+/// 顯示。
 Future<double> _dueAsOf(
   BaseRepository repo,
   List<int> ids,
   DateTime cutoff,
 ) async {
+  final isGroup = ids.length > 1;
   var charged = 0.0;
   var paidTotal = 0.0;
   for (final id in ids) {
-    charged += await repo.getCreditCardChargedAsOf(id, asOf: cutoff);
+    charged += await repo.getCreditCardChargedAsOf(id,
+        asOf: cutoff, convertToLedgerCurrency: isGroup);
     charged -= await repo.getOffsetTotalForAccount(id);
     paidTotal += await repo.getCreditCardPaidTotal(id);
   }
@@ -104,14 +113,16 @@ Future<double> _periodNewSpend(
   int? billingDay,
   int offset,
 ) async {
+  final isGroup = ids.length > 1;
   final period = billingCyclePeriod(billingDay, offset);
   var chargedEnd = 0.0;
   var chargedStart = 0.0;
   for (final id in ids) {
-    chargedEnd +=
-        await repo.getCreditCardChargedAsOf(id, asOf: endOfDay(period.end));
+    chargedEnd += await repo.getCreditCardChargedAsOf(id,
+        asOf: endOfDay(period.end), convertToLedgerCurrency: isGroup);
     chargedStart += await repo.getCreditCardChargedAsOf(id,
-        asOf: startOfDayExclusivePrior(period.start));
+        asOf: startOfDayExclusivePrior(period.start),
+        convertToLedgerCurrency: isGroup);
   }
   return chargedEnd - chargedStart;
 }
@@ -187,7 +198,8 @@ final creditCardPaymentPeriodRecordsProvider = FutureProvider.family
   final home = attributePaymentsToPeriods(
     periods: periods,
     payments: [
-      for (final tx in allPayments) (paymentId: tx.id, amount: tx.amount),
+      for (final tx in allPayments)
+        (paymentId: tx.id, amount: tx.toAmount ?? tx.amount),
     ],
   );
 

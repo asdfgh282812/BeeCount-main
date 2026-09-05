@@ -117,13 +117,28 @@ abstract class AccountRepository {
   /// **不含** initialBalance / transfer / adjustment——这三者在 Cloud 的信用卡
   /// 帳單公式里都不存在,混进来会让 App 端算出的欠款跟 Server 对不上
   /// (`getAccountBalance` 是给一般资产余额用的,别复用在信用卡帳單口径上)。
-  Future<double> getCreditCardChargedAsOf(int accountId, {DateTime? asOf});
+  ///
+  /// [convertToLedgerCurrency]:合併帳單群組(呼叫端把多個子帳戶 id 加總)才
+  /// 該傳 `true`——子卡彼此可能幣別不同(例如 TWD 帳本下掛一張 JPY 子卡),
+  /// 這時每筆交易要先折算成帳本本位幣(讀已經記帳當下折算好的
+  /// `nativeAmount ?? amount`)才能相加,否則就是把不同幣別的原始數字直接
+  /// 加總(2026-09-05 使用者反饋:合併帳單群組裡一張 JPY 子卡的消費被當成
+  /// TWD 加進「應繳金額」,數字爆量失真)。單一帳戶(非群組)呼叫時**不要**
+  /// 傳 `true`——單卡頁面本來就是用該帳戶自己的幣別顯示,傳了反而會把數字
+  /// 換成本位幣但畫面仍標示原幣別,兩邊對不上。
+  Future<double> getCreditCardChargedAsOf(int accountId,
+      {DateTime? asOf, bool convertToLedgerCurrency = false});
 
-  /// 信用卡帳單口徑「历史累计已繳金額」:Σ transfer.amount(toAccountId=
-  /// accountId),真·终身、不设任何 cutoff——镜像 Cloud
-  /// `compute_cycle_period_billing` 的 `paid_total`:不论繳款发生在哪个帳期,
-  /// 一律先套用在最早未清偿的帳期上(FIFO watermark),所以这里不能只算
-  /// 「本期」或「asOf 之前」。
+  /// 信用卡帳單口徑「历史累计已繳金額」:Σ(toAmount ?? amount)
+  /// (toAccountId=accountId 的 transfer),真·终身、不设任何 cutoff——镜像
+  /// Cloud `compute_cycle_period_billing` 的 `paid_total`:不论繳款发生在哪个
+  /// 帳期,一律先套用在最早未清偿的帳期上(FIFO watermark),所以这里不能只算
+  /// 「本期」或「asOf 之前」。用 `toAmount ?? amount` 而非 `amount`——`toAmount`
+  /// 才是「轉入方(這張卡)實際入帳的金額」,同幣別轉帳兩者相等,跨幣別轉帳時
+  /// 只有 `toAmount` 是對的(`amount` 是轉出方幣別的數字)。**注意**:這裡沒有
+  /// 進一步把 `toAmount` 折算成帳本本位幣——跨幣別轉帳沒有預先存好的折算快照
+  /// (跟 `nativeAmount` 只對應交易的來源端幣別不同),合併帳單群組若子卡幣別
+  /// 跟繳款轉入的幣別不同,這裡仍可能有殘餘誤差,屬已知範圍外情況。
   Future<double> getCreditCardPaidTotal(int accountId);
 
   /// 「繳款記錄」清單顯示用:這張卡收到的全部繳款交易明細,跟
@@ -239,7 +254,10 @@ abstract class AccountRepository {
   ///
   /// 跟 [getAccountTransactions] 的差異不只是多一個 COALESCE:member 帳戶
   /// 判斷收窄成對帳清單的口徑——expense/income 只認 `account_id`,transfer
-  /// 只認 `to_account_id`(轉出這張卡不算消費),其它 type(adjustment 等)
+  /// 只認 `to_account_id`(轉出這張卡不算消費)且排除「繳的正是這期帳單」
+  /// 的轉帳(note 尾端的帳單結束日等於 [cycleEnd]——繳清自己這期帳單的轉帳
+  /// 不是新增消費,不能算進自己這期的對帳候選項;繳的是別期帳單、只是入帳
+  /// 歸屬日落在這期窗口內的轉帳仍然要收,不排除),其它 type(adjustment 等)
   /// 不收,跟 `reconciliation.dart` 的 `effectiveDate` + 呼叫方 belongs 判斷
   /// 語意一致(之前是 provider 端在 Dart 拿 ±1 期寬視窗再篩,延後入帳距離
   /// 超過一期或呼叫方臨時選了很遠的日期時,原始 `happened_at` 落在視窗外會
