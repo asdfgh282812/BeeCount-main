@@ -45,6 +45,9 @@ class LocalCategoryRepository implements CategoryRepository {
         existingId: existing.first.id,
       );
     }
+    // 只有一级分类自动配色;二级分类颜色继承父分类,不单独存值(见
+    // category_selector.dart 的 _CategoryItem 颜色解析逻辑)。
+    final color = parentId == null ? await _nextAutoColor(kind) : null;
     return await db.into(db.categories).insert(
       CategoriesCompanion.insert(
         name: name,
@@ -54,8 +57,18 @@ class LocalCategoryRepository implements CategoryRepository {
         level: d.Value(level),
         parentId: d.Value(parentId),
         syncId: d.Value(syncId ?? _uuid.v4()),
+        color: d.Value(color),
       ),
     );
+  }
+
+  /// 按 kind 分组,依既有一级分类数量循环从 [kCategoryColorPalette] 取下一个
+  /// 颜色——跟 v55 迁移回填既有分类用的算法一致,保证「同一顺序位置」拿到
+  /// 同一个颜色。
+  Future<String> _nextAutoColor(String kind) async {
+    final existingTop = await getTopLevelCategories(kind);
+    return kCategoryColorPalette[
+        existingTop.length % kCategoryColorPalette.length];
   }
 
   @override
@@ -611,6 +624,7 @@ class LocalCategoryRepository implements CategoryRepository {
                       : null,
               communityIconId: null,
               syncId: s.syncId,
+              color: s.color,
             ));
           }
           return;
@@ -727,6 +741,7 @@ class LocalCategoryRepository implements CategoryRepository {
           iconType: row.read<String?>('icon_type') ?? 'material',
           customIconPath: row.read<String?>('custom_icon_path'),
           communityIconId: row.read<String?>('community_icon_id'),
+          color: row.read<String?>('color'),
         );
       }).toList();
     });
@@ -837,6 +852,7 @@ class LocalCategoryRepository implements CategoryRepository {
             : null,
         communityIconId: null,
         syncId: s.syncId,
+        color: s.color,
       ));
     }
     return result;

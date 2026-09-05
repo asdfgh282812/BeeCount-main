@@ -11,6 +11,7 @@ import '../../utils/shared_ledger_picker_filter.dart';
 import '../../styles/tokens.dart';
 import '../category_icon.dart';
 import '../../pages/category/category_manage_page.dart';
+import '../../pages/category/category_edit_page.dart';
 
 /// 分类选择器组件
 /// 用于选择收入或支出分类，支持二级分类原地展开
@@ -166,86 +167,78 @@ class _CategorySelectorState extends ConsumerState<CategorySelector> {
         ? topLevelCategories
         : (subCategoriesMap[expandedId] ?? const <Category>[]);
     final showBack = expandedId != null;
+    // 展开子分类时,颜色要继承回父分类(见 _CategoryItem 的颜色解析)。
+    final parentCategory = showBack
+        ? topLevelCategories.firstWhere((c) => c.id == expandedId,
+            orElse: () => topLevelCategories.first)
+        : null;
+    // 未展开时最后一格固定「新增」,取代原本网格下方独立的「分類管理」
+    // 按钮——跟 moze 一样;展开子分类时这一格换成「返回」,两种情况都是
+    // +1,所以 itemCount 统一按 items.length + 1 算。
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SizedBox(
-          // 固定 2 行高度,超出的项目在 GridView 自身内部滚动浏览,不再靠外层
-          // ListView 撑开、把画面挤成 3 行以上。
-          height: 68 * 2 + 6,
-          child: GridView.builder(
-            padding: EdgeInsets.zero,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 5,
-              crossAxisSpacing: 4,
-              mainAxisSpacing: 6,
-              mainAxisExtent: 68,
-            ),
-            itemCount: items.length + (showBack ? 1 : 0),
-            itemBuilder: (context, index) {
-              if (showBack && index == 0) {
-                return _CategoryBackItem(
-                  onTap: () => setState(() => _expandedCategoryId = null),
-                );
-              }
-              final cat = items[showBack ? index - 1 : index];
-              final children = subCategoriesMap[cat.id] ?? const <Category>[];
-              final hasChildren = !showBack && children.isNotEmpty;
-              return _CategoryItem(
-                category: cat,
-                selected: _selectedId == cat.id,
-                hasChildren: hasChildren,
-                isSubCategory: showBack,
-                compact: true,
-                onTap: () {
-                  if (hasChildren) {
-                    setState(() => _expandedCategoryId = cat.id);
-                    return;
-                  }
-                  setState(() => _selectedId = cat.id);
-                  widget.onCategorySelected(cat);
-                },
-              );
-            },
-          ),
+    return SizedBox(
+      // 固定 2 行高度,超出的项目在 GridView 自身内部滚动浏览,不再靠外层
+      // ListView 撑开、把画面挤成 3 行以上。
+      height: 68 * 2 + 6,
+      child: GridView.builder(
+        padding: EdgeInsets.zero,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 5,
+          crossAxisSpacing: 4,
+          mainAxisSpacing: 6,
+          mainAxisExtent: 68,
         ),
-        const SizedBox(height: 8),
-        Center(
-          child: InkWell(
-            onTap: () {
-              final tabIndex = widget.kind == 'expense' ? 0 : 1;
-              Navigator.of(context).push(
+        itemCount: items.length + 1,
+        itemBuilder: (context, index) {
+          if (showBack) {
+            if (index == 0) {
+              return _CategoryBackItem(
+                onTap: () => setState(() => _expandedCategoryId = null),
+              );
+            }
+            final cat = items[index - 1];
+            return _CategoryItem(
+              category: cat,
+              selected: _selectedId == cat.id,
+              isSubCategory: true,
+              parent: parentCategory,
+              compact: true,
+              onTap: () {
+                setState(() => _selectedId = cat.id);
+                widget.onCategorySelected(cat);
+              },
+            );
+          }
+
+          if (index == items.length) {
+            return _CategoryAddItem(
+              onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => CategoryManagePage(initialTabIndex: tabIndex),
+                  builder: (_) => CategoryEditPage(kind: widget.kind),
                 ),
-              );
-            },
-            borderRadius: BorderRadius.circular(20),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.settings_outlined,
-                    size: 16,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    AppLocalizations.of(context).mineCategoryManagement,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
               ),
-            ),
-          ),
-        ),
-      ],
+            );
+          }
+
+          final cat = items[index];
+          final children = subCategoriesMap[cat.id] ?? const <Category>[];
+          final hasChildren = children.isNotEmpty;
+          return _CategoryItem(
+            category: cat,
+            selected: _selectedId == cat.id,
+            hasChildren: hasChildren,
+            compact: true,
+            onTap: () {
+              if (hasChildren) {
+                setState(() => _expandedCategoryId = cat.id);
+                return;
+              }
+              setState(() => _selectedId = cat.id);
+              widget.onCategorySelected(cat);
+            },
+          );
+        },
+      ),
     );
   }
 
@@ -513,6 +506,7 @@ class _SubcategorySelectorCard extends ConsumerWidget {
               category: subCat,
               selected: selectedId == subCat.id,
               isSubCategory: true,
+              parent: parentCategory,
               onTap: () => onSubCategoryTap(subCat),
             );
           },
@@ -568,6 +562,11 @@ class _CategoryItem extends StatelessWidget {
         compact ? (isSubCategory ? 16.0 : 18.0) : (isSubCategory ? 20.0 : 24.0);
     final spacing = compact ? 4.0 : 8.0;
     final primaryColor = Theme.of(context).colorScheme.primary;
+    // 二级分类没有自己的颜色,继承父分类的(见 CategorySelector 传入 parent
+    // 的两处调用点)。分类本身没配到颜色(旧数据/转账分类等)时 resolvedColor
+    // 为 null,退回原本的灰色 token 底色,不影响既有外观。
+    final resolvedColor =
+        _parseCategoryColor(isSubCategory ? parent?.color : category.color);
 
     return InkWell(
       onTap: onTap,
@@ -582,17 +581,23 @@ class _CategoryItem extends StatelessWidget {
                 width: iconSize,
                 height: iconSize,
                 decoration: BoxDecoration(
-                  color: selected
-                      ? primaryColor.withValues(alpha: 0.25)
-                      : isSubCategory
-                          ? BeeTokens.surfaceCategoryIconLight(context)
-                          : BeeTokens.surfaceCategoryIcon(context),
+                  color: resolvedColor ??
+                      (selected
+                          ? primaryColor.withValues(alpha: 0.25)
+                          : isSubCategory
+                              ? BeeTokens.surfaceCategoryIconLight(context)
+                              : BeeTokens.surfaceCategoryIcon(context)),
                   shape: BoxShape.circle,
+                  border: resolvedColor != null && selected
+                      ? Border.all(color: primaryColor, width: 2.5)
+                      : null,
                 ),
                 child: _buildIcon(
                   context,
                   iconGlyphSize,
-                  selected ? primaryColor : BeeTokens.iconCategory(context),
+                  resolvedColor != null
+                      ? Colors.white
+                      : (selected ? primaryColor : BeeTokens.iconCategory(context)),
                 ),
               ),
               // 有子分类时在图标右下角显示三个点（完全分开，不重叠）
@@ -684,5 +689,66 @@ class _CategoryBackItem extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// compactGrid 模式下主類別網格的最後一格:新增分類,取代原本網格下方
+/// 獨立的「分類管理」按鈕(與 moze 一致)。點擊直接開新增分類頁,跟
+/// CategoryManagePage._addCategory 用同一個入口(CategoryEditPage)。
+class _CategoryAddItem extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _CategoryAddItem({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(48),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: primaryColor.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.add, size: 18, color: primaryColor),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            AppLocalizations.of(context).commonAdd,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontSize: 10,
+                  color: BeeTokens.textSecondary(context),
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 解析分类颜色十六进制字符串(如 "#FF9800")。空值/格式错误一律返回
+/// null,让调用方退回原本的灰色 token 底色——跟 tag_chip.dart 的
+/// _parseColor 同款写法,分类这边额外允许 null 直接短路。
+Color? _parseCategoryColor(String? hex) {
+  if (hex == null || hex.isEmpty) return null;
+  try {
+    var value = hex;
+    if (value.startsWith('#')) {
+      value = value.substring(1);
+    }
+    if (value.length == 6) {
+      value = 'FF$value';
+    }
+    return Color(int.parse(value, radix: 16));
+  } catch (_) {
+    return null;
   }
 }

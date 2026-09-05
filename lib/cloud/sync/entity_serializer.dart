@@ -220,6 +220,7 @@ class EntitySerializer {
         'customIconPath': category.customIconPath,
       if (category.communityIconId != null)
         'communityIconId': category.communityIconId,
+      if (category.color != null) 'color': category.color,
       // 自定义图标上传到云后的引用，让 web 端能直接拉到对应文件。
       if (iconCloudFileId != null) 'iconCloudFileId': iconCloudFileId,
       if (iconCloudSha256 != null) 'iconCloudSha256': iconCloudSha256,

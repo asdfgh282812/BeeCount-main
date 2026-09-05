@@ -134,7 +134,38 @@ class Categories extends Table {
   TextColumn get customIconPath => text().nullable()(); // 自定义图标本地路径
   TextColumn get communityIconId => text().nullable()(); // 社区图标ID（预留）
   TextColumn get syncId => text().nullable()(); // 跨设备同步唯一标识 (UUID)
+  // v55: 分类专属颜色(十六进制字符串,如 #FF9800)。只有一级分类存值,二级
+  // 分类渲染时继承父分类的颜色,不单独存一份(见 kCategoryColorPalette)。
+  TextColumn get color => text().nullable()();
 }
+
+/// 分类自动配色色盘——新建一级分类(见 LocalCategoryRepository.createCategory)
+/// 与 v55 迁移回填既有一级分类共用同一份,按 kind 分组、依序循环指派,让相邻
+/// 分类不撞色。数值取自 TagSeedService 的预设标签色盘(视觉上已验证过一轮
+/// 好看的色相分布),这里刻意直接抄一份字面量而不是共享同一个 List——避免
+/// db.dart(数据层)反过来 import services/ 造成分层倒挂。
+const List<String> kCategoryColorPalette = [
+  '#FF5722', // 深橙
+  '#E91E63', // 粉红
+  '#9C27B0', // 紫色
+  '#673AB7', // 深紫
+  '#3F51B5', // 靛蓝
+  '#2196F3', // 蓝色
+  '#03A9F4', // 浅蓝
+  '#00BCD4', // 青色
+  '#009688', // 蓝绿
+  '#4CAF50', // 绿色
+  '#8BC34A', // 浅绿
+  '#CDDC39', // 酸橙
+  '#FFC107', // 琥珀
+  '#FF9800', // 橙色
+  '#795548', // 棕色
+  '#607D8B', // 蓝灰
+  '#F44336', // 红色
+  '#00E676', // 亮绿
+  '#FF4081', // 粉红强调
+  '#536DFE', // 靛蓝强调
+];
 
 class Transactions extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -1092,7 +1123,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 54; // v54: 清理分期計畫已刪但期數/交易引用還在的孤儿(见 v54 迁移注释)
+  int get schemaVersion => 55; // v55: 分类专属颜色(color,见 v55 迁移注释)
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2232,6 +2263,33 @@ class BeeDatabase extends _$BeeDatabase {
               );
             ''');
             logger.info('DBMigration', 'v54 迁移完成');
+          }
+          if (from < 55) {
+            // v55:分类专属颜色(color)。二级分类不单独存值,渲染时继承父分类
+            // 颜色(见 lib/widgets/category/category_selector.dart 的
+            // _CategoryItem),这里只需要回填既有的一级分类。之后新建的一级
+            // 分类由 LocalCategoryRepository.createCategory 走同一份
+            // kCategoryColorPalette 继续指派,保证「同一顺序位置」两条路径
+            // 拿到同一个颜色。
+            logger.info('DBMigration', '开始迁移到 v55: 分类专属颜色(color)');
+            await _addColumnIfMissing(
+                'categories', 'color', 'ALTER TABLE categories ADD COLUMN color TEXT;');
+            final topLevelRows = await customSelect(
+              'SELECT id, kind FROM categories WHERE parent_id IS NULL ORDER BY kind, sort_order, id',
+            ).get();
+            final perKindIndex = <String, int>{};
+            for (final row in topLevelRows) {
+              final id = row.read<int>('id');
+              final kind = row.read<String>('kind');
+              final index = perKindIndex[kind] ?? 0;
+              perKindIndex[kind] = index + 1;
+              final color =
+                  kCategoryColorPalette[index % kCategoryColorPalette.length];
+              await customStatement(
+                  'UPDATE categories SET color = ? WHERE id = ?', [color, id]);
+            }
+            logger.info('DBMigration',
+                'v55 迁移完成,共指派 ${topLevelRows.length} 个一级分类颜色');
           }
         },
         onCreate: (m) async {

@@ -923,6 +923,7 @@ extension SyncEngineApplyExt on SyncEngine {
         customIconPath: d.Value(resolvedCustomIconPath),
         communityIconId: d.Value(payload['communityIconId'] as String?),
         parentId: d.Value(parentId),
+        color: d.Value(payload['color'] as String?),
       ));
       logger.debug('SyncEngine', 'pull: 更新分类 $syncId');
     } else {
@@ -938,6 +939,7 @@ extension SyncEngineApplyExt on SyncEngine {
               communityIconId: d.Value(payload['communityIconId'] as String?),
               parentId: d.Value(parentId),
               syncId: d.Value(syncId),
+              color: d.Value(payload['color'] as String?),
             ),
           );
       activePullCache?.putCategory(syncId, localCategoryId);

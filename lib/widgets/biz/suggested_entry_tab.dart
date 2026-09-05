@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/db.dart';
 import '../../l10n/app_localizations.dart';
+import '../../providers/database_providers.dart';
 import '../../providers/suggestion_providers.dart';
 import 'suggested_category_grid.dart';
 
@@ -24,6 +25,14 @@ class SuggestedEntryTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final asyncCategories = ref.watch(categorySuggestionsProvider);
+    // 建议格子里可能是二级分类,颜色要继承父分类——这里连带把全量分类的
+    // id→颜色 map 一起准备好,交给 SuggestedCategoryGrid 解析(见该 widget
+    // 内部的颜色解析逻辑)。categoriesProvider App 内多处已在用,通常已有
+    // 缓存,这里 watch 不会是首次冷查询。
+    final allCategories = ref.watch(categoriesProvider).valueOrNull;
+    final colorByCategoryId = {
+      for (final c in allCategories ?? const <Category>[]) c.id: c.color,
+    };
     return asyncCategories.when(
       data: (categories) {
         if (categories.isEmpty) {
@@ -31,6 +40,7 @@ class SuggestedEntryTab extends ConsumerWidget {
         }
         return SuggestedCategoryGrid(
           categories: categories,
+          colorByCategoryId: colorByCategoryId,
           onCategorySelected: onCategoryPicked,
         );
       },
