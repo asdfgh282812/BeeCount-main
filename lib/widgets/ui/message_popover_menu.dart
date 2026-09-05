@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../styles/tokens.dart';
+
 /// 消息长按弹出菜单项
 class PopoverMenuItem {
   final IconData icon;
@@ -117,14 +119,14 @@ class _PopoverOverlayState extends State<_PopoverOverlay>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 150),
+      duration: BeeMotion.durationOf(context, BeeMotion.fast),
       vsync: this,
     );
     _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
+      CurvedAnimation(parent: _controller, curve: BeeMotion.spring),
     );
     _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+      CurvedAnimation(parent: _controller, curve: BeeMotion.standard),
     );
     _controller.forward();
 
