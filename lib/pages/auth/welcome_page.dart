@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../styles/tokens.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_cloud_sync/flutter_cloud_sync.dart' hide SyncStatus;
 import '../../widgets/biz/bee_icon.dart';
@@ -85,17 +86,22 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
       if (_needsCurrencyStep) _buildCurrencyPage(context, theme, l10n),
       if (_needsCategoryStep) _buildCategoryModePage(context, theme, l10n),
     ];
-    final pageKeys = _isExistingUserFlow ? const ['import'] : _newUserPageKeys();
+    final pageKeys =
+        _isExistingUserFlow ? const ['import'] : _newUserPageKeys();
 
     final pages = _isExistingUserFlow ? existingUserPages : newUserPages;
     final pageCount = pages.length;
-    final safePageIndex =
-        _currentPage < 0 ? 0 : (_currentPage >= pageKeys.length ? pageKeys.length - 1 : _currentPage);
+    final safePageIndex = _currentPage < 0
+        ? 0
+        : (_currentPage >= pageKeys.length
+            ? pageKeys.length - 1
+            : _currentPage);
     final currentKey = pageKeys[safePageIndex];
     // 伺服器位址页/登录页有自己的送出按钮（要么要校验网络，要么要开浏览器
     // 等回调），不走通用的「下一页」逻辑，所以底部只留一个「上一页」。
-    final showGenericNextButton =
-        currentKey == 'lang' || currentKey == 'currency' || currentKey == 'category';
+    final showGenericNextButton = currentKey == 'lang' ||
+        currentKey == 'currency' ||
+        currentKey == 'category';
 
     return Scaffold(
       backgroundColor: theme.primaryColor,
@@ -128,7 +134,9 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
             Expanded(
               child: PageView(
                 controller: _pageController,
-                physics: _isExistingUserFlow ? const NeverScrollableScrollPhysics() : null,
+                physics: _isExistingUserFlow
+                    ? const NeverScrollableScrollPhysics()
+                    : null,
                 onPageChanged: (index) {
                   setState(() {
                     _currentPage = index;
@@ -148,8 +156,9 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
                       TextButton(
                         onPressed: () {
                           _pageController.previousPage(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
+                            duration:
+                                BeeMotion.durationOf(context, BeeMotion.medium),
+                            curve: BeeMotion.standard,
                           );
                         },
                         style: TextButton.styleFrom(
@@ -163,7 +172,8 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
                           ? FilledButton(
                               onPressed: _isInitializing
                                   ? null
-                                  : () => _handlePrimaryButtonPressed(currentKey),
+                                  : () =>
+                                      _handlePrimaryButtonPressed(currentKey),
                               style: FilledButton.styleFrom(
                                 backgroundColor: Colors.white,
                                 foregroundColor: theme.primaryColor,
@@ -173,7 +183,8 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
                           : FilledButton(
                               onPressed: _isInitializing
                                   ? null
-                                  : () => _handlePrimaryButtonPressed(currentKey),
+                                  : () =>
+                                      _handlePrimaryButtonPressed(currentKey),
                               style: FilledButton.styleFrom(
                                 backgroundColor: Colors.white,
                                 foregroundColor: theme.primaryColor,
@@ -182,13 +193,14 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
                                   ? const SizedBox(
                                       width: 20,
                                       height: 20,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
                                     )
                                   : Text(l10n.commonFinish),
                             )),
-                ],
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),
@@ -203,8 +215,8 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
     switch (currentKey) {
       case 'lang':
         _pageController.nextPage(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
+          duration: BeeMotion.durationOf(context, BeeMotion.medium),
+          curve: BeeMotion.standard,
         );
         break;
       case 'currency':
@@ -231,7 +243,8 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
               color: Colors.white.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.dns_outlined, size: 64, color: Colors.white),
+            child:
+                const Icon(Icons.dns_outlined, size: 64, color: Colors.white),
           ),
           const SizedBox(height: 32),
           Text(
@@ -262,9 +275,11 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 hintText: l10n.welcomeServerAddressHint,
-                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                hintStyle:
+                    TextStyle(color: Colors.white.withValues(alpha: 0.5)),
                 border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               ),
               onSubmitted: (_) => _confirmServerAddress(),
             ),
@@ -331,7 +346,8 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
       // 探测可达性 + 确认 server 端真的开了 SSO（server 现成的
       // GET /auth/sso/status 端点，见 BeeCount-Cloud src/routers/auth.py）。
       final statusUri = Uri.parse('$url$apiPrefix/auth/sso/status');
-      final resp = await http.get(statusUri).timeout(const Duration(seconds: 10));
+      final resp =
+          await http.get(statusUri).timeout(const Duration(seconds: 10));
       if (resp.statusCode != 200) {
         throw Exception('HTTP ${resp.statusCode}');
       }
@@ -362,8 +378,8 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
       if (!mounted) return;
       setState(() => _serverAddressBusy = false);
       _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
+        duration: BeeMotion.durationOf(context, BeeMotion.medium),
+        curve: BeeMotion.standard,
       );
     } catch (e) {
       logger.warning('welcome', '伺服器位址校验失败: $url ($e)');
@@ -450,8 +466,8 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           _pageController.nextPage(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
+            duration: BeeMotion.durationOf(context, BeeMotion.medium),
+            curve: BeeMotion.standard,
           );
         }
       });
@@ -494,8 +510,8 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             _pageController.nextPage(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
+              duration: BeeMotion.durationOf(context, BeeMotion.medium),
+              curve: BeeMotion.standard,
             );
           }
         });
@@ -544,7 +560,8 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
     if (applyCurrencyPrefs) {
       await prefs.setString('selected_currency', _selectedCurrency);
       await prefs.setString('baseCurrency', _selectedCurrency);
-      ref.read(baseCurrencyProvider.notifier).state = _selectedCurrency.toUpperCase();
+      ref.read(baseCurrencyProvider.notifier).state =
+          _selectedCurrency.toUpperCase();
     }
     if (!mounted) return;
     setState(() => _isInitializing = false);
@@ -639,14 +656,16 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
               itemBuilder: (context, index) {
                 final locale = availableLocales[index];
                 final isSelected = currentLocale == locale;
-                final displayName = languageNotifier.getLanguageDisplayName(context, locale);
+                final displayName =
+                    languageNotifier.getLanguageDisplayName(context, locale);
 
                 return InkWell(
                   onTap: () {
                     languageNotifier.setLanguage(locale);
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                     child: Row(
                       children: [
                         Expanded(
@@ -654,7 +673,9 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
                             displayName,
                             style: theme.textTheme.bodyLarge?.copyWith(
                               color: Colors.white,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
                             ),
                           ),
                         ),
@@ -838,7 +859,6 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
               ),
             ),
           ),
-
         ],
       ),
     );
@@ -981,7 +1001,9 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
 
           // 导入按钮
           FilledButton.icon(
-            onPressed: _isImportingAttachment ? null : () => _importAttachments(context),
+            onPressed: _isImportingAttachment
+                ? null
+                : () => _importAttachments(context),
             icon: _isImportingAttachment
                 ? const SizedBox(
                     width: 18,
@@ -1061,11 +1083,13 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
       if (!context.mounted) return;
 
       if (importResult.success) {
-        showToast(context, l10n.welcomeImportAttachmentSuccess(importResult.imported));
+        showToast(context,
+            l10n.welcomeImportAttachmentSuccess(importResult.imported));
         // 导入成功，完成流程
         _finishExistingUserFlow();
       } else {
-        showToast(context, l10n.welcomeImportAttachmentFailed(importResult.message ?? ''));
+        showToast(context,
+            l10n.welcomeImportAttachmentFailed(importResult.message ?? ''));
       }
     } catch (e, st) {
       logger.error('welcome', '导入附件失败', e, st);
@@ -1205,7 +1229,8 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
               : Colors.white.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.3),
+            color:
+                isSelected ? Colors.white : Colors.white.withValues(alpha: 0.3),
             width: 2,
           ),
         ),
@@ -1215,7 +1240,9 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
             Row(
               children: [
                 Icon(
-                  isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                  isSelected
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
                   color: Colors.white,
                   size: 24,
                 ),
@@ -1245,27 +1272,27 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
             ),
             const SizedBox(height: 12),
             ...features.map((feature) => Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.check_circle_outline,
-                    color: Colors.white.withValues(alpha: 0.8),
-                    size: 16,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      feature,
-                      style: theme.textTheme.bodySmall?.copyWith(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.check_circle_outline,
                         color: Colors.white.withValues(alpha: 0.8),
+                        size: 16,
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          feature,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.white.withValues(alpha: 0.8),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            )),
+                )),
           ],
         ),
       ),
