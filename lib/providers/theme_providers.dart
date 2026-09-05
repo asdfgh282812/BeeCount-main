@@ -299,6 +299,37 @@ final skinAnimationInitProvider = FutureProvider<void>((ref) async {
   });
 });
 
+/// 「减少动画」开关。false(预设) = 全站动画正常播放,类似 iOS 原生 app 的
+/// 流畅手感;true = 精简/去除动画(省电、降低动态敏感度)。
+///
+/// 命名方向刻意跟 skinAnimationEnabledProvider 相反(那个 true=启用动效,
+/// 这个 true=减少动画):设定页给使用者看到的文案就是「减少动画」,provider
+/// 语意跟 UI 文案一致可以省掉一层反相判断。
+///
+/// 这个开关不自动跟随/读取系统的「减弱动态效果」无障碍设定(预设不受系统
+/// 影响),但两者在 main.dart 的根层级 MediaQuery 是 `||` 关系——系统开启时
+/// 不管这个开关是什么都会停(见 main.dart MainApp.build)。
+final reduceMotionProvider = StateProvider<bool>((ref) => false);
+
+final reduceMotionInitProvider = FutureProvider<void>((ref) async {
+  final prefs = await SharedPreferences.getInstance();
+  final saved = prefs.getBool('reduceMotion');
+  if (saved != null) {
+    ref.read(reduceMotionProvider.notifier).state = saved;
+  }
+  ref.listen<bool>(reduceMotionProvider, (prev, next) async {
+    final fromServer = isApplyingFromServer;
+    final endPush = fromServer ? null : beginThemePush();
+    try {
+      await prefs.setBool('reduceMotion', next);
+      if (fromServer) return;
+      _pushAppearanceToCloud(ref);
+    } finally {
+      endPush?.call();
+    }
+  });
+});
+
 // 显示交易时间Provider（默认不显示）
 // false = 只显示日期
 // true = 显示日期和时间（时:分）
