@@ -653,14 +653,14 @@ class _ProductPromoCardState extends State<ProductPromoCard>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 600),
+      duration: BeeMotion.durationOf(context, BeeMotion.slow),
       vsync: this,
     );
     _scaleAnimation = Tween<double>(begin: 0.95, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
+      CurvedAnimation(parent: _controller, curve: BeeMotion.spring),
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+      CurvedAnimation(parent: _controller, curve: BeeMotion.standard),
     );
     Future.delayed(const Duration(milliseconds: 200), () {
       if (mounted) _controller.forward();
