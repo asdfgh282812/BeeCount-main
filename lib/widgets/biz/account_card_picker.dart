@@ -112,10 +112,11 @@ class _AccountCardPickerSheetState
     var accounts = allAccounts
         .where((a) =>
             (widget.allowAllCurrencies || a.currency.toUpperCase() == wanted) &&
-            isTradableType(a.type) &&
             // 主帳戶(合併帳單分組,type=='account_group')是純管理容器,不是
             // 真實可入帳的帳戶,不該出現在交易的帳戶選擇器裡——底下子帳戶各自
-            // 有自己的真實 type,會照常出現在對應分組底下。
+            // 有自己的真實 type,會照常出現在對應分組底下。其它所有類型
+            // (含房產/車輛/投資/保險/公積金/貸款)餘額計算方式一致,對齊
+            // BeeCount Cloud,都能正常入帳。
             a.type != 'account_group' &&
             a.id != widget.excludeAccountId)
         .toList();

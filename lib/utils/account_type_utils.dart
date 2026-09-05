@@ -20,30 +20,6 @@ bool isLiabilityType(String type) {
   return type == 'credit_card' || type == 'loan';
 }
 
-/// 估值账户类型（资产类）
-const valuationOnlyAssetTypes = [
-  'real_estate',
-  'vehicle',
-  'investment',
-  'insurance',
-  'social_fund',
-];
-
-/// 估值账户类型（负债类）
-const valuationOnlyLiabilityTypes = ['loan'];
-
-/// 所有估值账户类型
-const valuationOnlyTypes = [
-  ...valuationOnlyAssetTypes,
-  ...valuationOnlyLiabilityTypes,
-];
-
-/// 是否为估值账户类型（不参与日常记账）
-bool isValuationOnlyType(String type) => valuationOnlyTypes.contains(type);
-
-/// 是否为可交易账户类型（参与日常记账）
-bool isTradableType(String type) => !isValuationOnlyType(type);
-
 /// 账户类型常量（完整排序）
 const accountTypeOrder = [
   'cash',

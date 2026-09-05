@@ -419,11 +419,6 @@ class LocalAccountRepository implements AccountRepository {
 
     if (account == null) return 0.0;
 
-    // 估值账户直接返回 initialBalance 作为当前估值
-    if (isValuationOnlyType(account.type)) {
-      return account.initialBalance;
-    }
-
     double balance = account.initialBalance;
     final sharedIds = await _sharedLedgerIds();
     // 账户余额只该反映「已经发生」的交易——周期性交易可以预先生成未来日期
@@ -478,11 +473,6 @@ class LocalAccountRepository implements AccountRepository {
     final account = await (db.select(db.accounts)
           ..where((a) => a.id.equals(accountId)))
         .getSingle();
-
-    // 估值账户直接返回 initialBalance
-    if (isValuationOnlyType(account.type)) {
-      return account.initialBalance;
-    }
 
     // 获取所有交易(排除共享账本)。happenedAt <= now:同 [getAccountBalance]
     // 注释,不把未来才发生的周期性交易算进当前余额。
@@ -988,19 +978,6 @@ class LocalAccountRepository implements AccountRepository {
     final account = await getAccount(accountId);
     if (account == null) return [];
 
-    // 估值账户：每天返回固定估值
-    if (isValuationOnlyType(account.type)) {
-      final result = <({DateTime date, double balance})>[];
-      var currentDate =
-          DateTime(startDate.year, startDate.month, startDate.day);
-      final end = DateTime(endDate.year, endDate.month, endDate.day);
-      while (!currentDate.isAfter(end)) {
-        result.add((date: currentDate, balance: account.initialBalance));
-        currentDate = currentDate.add(const Duration(days: 1));
-      }
-      return result;
-    }
-
     // 获取 endDate **当天结束**之前的所有交易(按日期升序,排除共享账本)。
     // endDate 语义是「含当天」:调用方(trendTodayAnchor)传当天 0 点,若用
     // <= endDate 会把当天发生的交易全部截掉 —— 趋势终点永远停在"昨晚为止",
@@ -1301,16 +1278,6 @@ class LocalAccountRepository implements AccountRepository {
               totalBalance: e.value,
             ))
         .toList();
-  }
-
-  @override
-  Future<void> updateAccountValuation(int accountId, double newValue) async {
-    await (db.update(db.accounts)..where((a) => a.id.equals(accountId))).write(
-      AccountsCompanion(
-        initialBalance: d.Value(newValue),
-        updatedAt: d.Value(DateTime.now()),
-      ),
-    );
   }
 
   @override

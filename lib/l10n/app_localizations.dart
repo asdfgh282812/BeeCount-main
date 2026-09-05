@@ -12660,48 +12660,6 @@ abstract class AppLocalizations {
   /// **'Social Fund'**
   String get accountTypeSocialFund;
 
-  /// No description provided for @valuationCurrentValue.
-  ///
-  /// In en, this message translates to:
-  /// **'Current Valuation'**
-  String get valuationCurrentValue;
-
-  /// No description provided for @valuationCurrentDebt.
-  ///
-  /// In en, this message translates to:
-  /// **'Current Debt'**
-  String get valuationCurrentDebt;
-
-  /// No description provided for @valuationUpdateValue.
-  ///
-  /// In en, this message translates to:
-  /// **'Update Valuation'**
-  String get valuationUpdateValue;
-
-  /// No description provided for @valuationUpdateDebt.
-  ///
-  /// In en, this message translates to:
-  /// **'Update Debt'**
-  String get valuationUpdateDebt;
-
-  /// No description provided for @valuationLastUpdated.
-  ///
-  /// In en, this message translates to:
-  /// **'Last updated: {date}'**
-  String valuationLastUpdated(String date);
-
-  /// No description provided for @valuationAccountHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter current valuation'**
-  String get valuationAccountHint;
-
-  /// No description provided for @valuationDebtHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter current debt amount'**
-  String get valuationDebtHint;
-
   /// No description provided for @accountGroupTradable.
   ///
   /// In en, this message translates to:
@@ -17480,6 +17438,12 @@ abstract class AppLocalizations {
   /// **'Interest: {total} total · {paid} paid · {remaining} left'**
   String installmentInterestSummaryLine(
       String total, String paid, String remaining);
+
+  /// No description provided for @accountBalanceReconciled.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed {count} account(s) out of sync with server'**
+  String accountBalanceReconciled(int count);
 }
 
 class _AppLocalizationsDelegate

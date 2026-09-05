@@ -6779,29 +6779,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get accountTypeSocialFund => '사회보험기금';
 
   @override
-  String get valuationCurrentValue => '현재 평가액';
-
-  @override
-  String get valuationCurrentDebt => '현재 채무액';
-
-  @override
-  String get valuationUpdateValue => '평가액 업데이트';
-
-  @override
-  String get valuationUpdateDebt => '채무액 업데이트';
-
-  @override
-  String valuationLastUpdated(String date) {
-    return '마지막 업데이트: $date';
-  }
-
-  @override
-  String get valuationAccountHint => '현재 평가액을 입력하세요';
-
-  @override
-  String get valuationDebtHint => '현재 채무액을 입력하세요';
-
-  @override
   String get accountGroupTradable => '일상 계정';
 
   @override
@@ -9461,5 +9438,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String installmentInterestSummaryLine(
       String total, String paid, String remaining) {
     return 'Interest: $total total · $paid paid · $remaining left';
+  }
+
+  @override
+  String accountBalanceReconciled(int count) {
+    return 'Fixed $count account(s) out of sync with server';
   }
 }

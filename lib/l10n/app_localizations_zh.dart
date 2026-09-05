@@ -6701,29 +6701,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get accountTypeSocialFund => '公积金/社保';
 
   @override
-  String get valuationCurrentValue => '当前估值';
-
-  @override
-  String get valuationCurrentDebt => '当前欠款';
-
-  @override
-  String get valuationUpdateValue => '更新估值';
-
-  @override
-  String get valuationUpdateDebt => '更新欠款';
-
-  @override
-  String valuationLastUpdated(String date) {
-    return '上次更新: $date';
-  }
-
-  @override
-  String get valuationAccountHint => '请输入当前估值';
-
-  @override
-  String get valuationDebtHint => '请输入当前欠款金额';
-
-  @override
   String get accountGroupTradable => '日常账户';
 
   @override
@@ -9369,6 +9346,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String installmentInterestSummaryLine(
       String total, String paid, String remaining) {
     return 'Interest: $total total · $paid paid · $remaining left';
+  }
+
+  @override
+  String accountBalanceReconciled(int count) {
+    return 'Fixed $count account(s) out of sync with server';
   }
 }
 
@@ -16063,29 +16045,6 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get accountTypeSocialFund => '公積金/社保';
 
   @override
-  String get valuationCurrentValue => '當前估值';
-
-  @override
-  String get valuationCurrentDebt => '當前欠款';
-
-  @override
-  String get valuationUpdateValue => '更新估值';
-
-  @override
-  String get valuationUpdateDebt => '更新欠款';
-
-  @override
-  String valuationLastUpdated(String date) {
-    return '上次更新: $date';
-  }
-
-  @override
-  String get valuationAccountHint => '請輸入當前估值';
-
-  @override
-  String get valuationDebtHint => '請輸入當前欠款金額';
-
-  @override
   String get accountGroupTradable => '日常帳戶';
 
   @override
@@ -18685,5 +18644,10 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String installmentInterestSummaryLine(
       String total, String paid, String remaining) {
     return '利息:總計 $total・已還 $paid・剩餘 $remaining';
+  }
+
+  @override
+  String accountBalanceReconciled(int count) {
+    return '已修正 $count 個與伺服器不同步的帳戶';
   }
 }

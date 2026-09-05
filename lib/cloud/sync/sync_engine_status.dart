@@ -229,4 +229,70 @@ extension SyncEngineHealthChecks on SyncEngine {
         'backfillUntrackedEntities: 共补写 $backfilled 条 sync_change');
     return backfilled;
   }
+
+  /// 帐户关键字段(initialBalance/type/currency)本地 vs server 逐条比对,
+  /// 不一致就直接以 server 为准覆盖本地。
+  ///
+  /// 背景:`sync_engine_apply.dart` 的 `_applyAccountChange` insert 分支(本机
+  /// 第一次见到某个 syncId)对缺键字段落的是硬编码默认值(0.0/'cash'/'CNY'),
+  /// 不像 update 分支有 containsKey 保护——如果本机对这个账户应用的第一条
+  /// 变更恰好是 web 端 `exclude_unset=True` 的局部 PATCH(而不是携带全字段
+  /// 的建账事件),就会把默认值当真实数据写死,此后本地这个字段永远卡在
+  /// 错误值(后续局部 update 只会 absent() 保留,不会再纠正)。
+  ///
+  /// 这里用 `readAccounts`(user-global 全量快照读取,含完整 initialBalance/
+  /// accountType/currency,不受 exclude_unset 影响)逐条核对本地是否跟 server
+  /// 权威值一致,不一致就直接写回本地——不经 changeTracker(这是把本地拉
+  /// 齐到 server 已知状态,不是产生新的本地改动去 push,否则会造成推送
+  /// 环路)。返回修正的账户数,供调用方展示给用户。
+  Future<int> reconcileAccountBalances({required int ledgerId}) async {
+    final ledger = await (db.select(db.ledgers)
+          ..where((l) => l.id.equals(ledgerId)))
+        .getSingleOrNull();
+    if (ledger == null) return 0;
+    final serverLedgerId = ledger.syncId ?? ledger.id.toString();
+
+    List<BeeCountCloudReadAccount> remoteAccounts;
+    try {
+      remoteAccounts = await provider.readAccounts(ledgerId: serverLedgerId);
+    } catch (e) {
+      logger.warning('SyncEngine', 'reconcileAccountBalances 拉取账户失败: $e');
+      return 0;
+    }
+
+    var fixed = 0;
+    for (final remote in remoteAccounts) {
+      final local = await (db.select(db.accounts)
+            ..where((a) => a.syncId.equals(remote.id)))
+          .getSingleOrNull();
+      if (local == null) continue;
+
+      final needsBalanceFix = remote.initialBalance != null &&
+          (local.initialBalance - remote.initialBalance!).abs() > 0.0001;
+      final needsTypeFix =
+          remote.accountType != null && local.type != remote.accountType;
+      final needsCurrencyFix =
+          remote.currency != null && local.currency != remote.currency;
+      if (!needsBalanceFix && !needsTypeFix && !needsCurrencyFix) continue;
+
+      await (db.update(db.accounts)..where((a) => a.id.equals(local.id)))
+          .write(AccountsCompanion(
+        initialBalance: needsBalanceFix
+            ? d.Value(remote.initialBalance!)
+            : const d.Value.absent(),
+        type: needsTypeFix
+            ? d.Value(remote.accountType!)
+            : const d.Value.absent(),
+        currency: needsCurrencyFix
+            ? d.Value(remote.currency!)
+            : const d.Value.absent(),
+      ));
+      fixed++;
+      logger.info(
+          'SyncEngine',
+          'reconcileAccountBalances: 修正账户 ${remote.id}(${remote.name}) '
+              'balance=$needsBalanceFix type=$needsTypeFix currency=$needsCurrencyFix');
+    }
+    return fixed;
+  }
 }

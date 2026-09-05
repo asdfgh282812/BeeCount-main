@@ -92,8 +92,7 @@ abstract class AccountRepository {
 
   /// 隐藏 / 恢复账户(账户隐藏 #240)。内部走 [updateAccount] → 记
   /// user-global 'update' change → 同步。**不要**绕过它直接改列,否则隐藏
-  /// 状态不会 push 到云端(同 `updateAccountSortOrders` / `updateAccountValuation`
-  /// 的教训)。
+  /// 状态不会 push 到云端(同 `updateAccountSortOrders` 的教训)。
   Future<void> setAccountHidden(int id, bool hidden);
 
   /// 获取所有信用卡账户
@@ -318,9 +317,6 @@ abstract class AccountRepository {
   /// 按 (账户类型, 币种) 聚合的资产构成(多币种折算用)。currency 已大写归一。
   Future<List<({String type, String currency, double totalBalance})>>
       getAssetCompositionByTypeAndCurrency();
-
-  /// 更新估值账户的当前估值
-  Future<void> updateAccountValuation(int accountId, double newValue);
 
   // ============================================
   // 共享账本(§7 / v25)— 跨设备共享的 SharedLedgerAccounts 表

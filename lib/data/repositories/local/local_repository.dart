@@ -2319,9 +2319,8 @@ class LocalRepository extends BaseRepository {
   /// 隐藏 / 恢复账户(账户隐藏 #240)。**必须**走 [updateAccount](本类上面这个
   /// 已带 change 追踪的版本),不能直接委托 `_accountRepo.setAccountHidden` ——
   /// 后者(LocalAccountRepository 的裸实现)不知道 changeTracker,直接调用会
-  /// 让隐藏状态不同步到云端(同 `updateAccountValuation` 的教训;
-  /// `updateAccountSortOrders` 原本也是这个坑,2026-09-05 已在本类补上
-  /// change 追踪)。
+  /// 让隐藏状态不同步到云端(`updateAccountSortOrders` 原本也是这个坑,已在
+  /// 本类补上 change 追踪)。
   @override
   Future<void> setAccountHidden(int id, bool hidden) =>
       updateAccount(id, hidden: hidden);
@@ -2638,10 +2637,6 @@ class LocalRepository extends BaseRepository {
   Future<List<({String type, String currency, double totalBalance})>>
       getAssetCompositionByTypeAndCurrency() =>
           _accountRepo.getAssetCompositionByTypeAndCurrency();
-
-  @override
-  Future<void> updateAccountValuation(int accountId, double newValue) =>
-      _accountRepo.updateAccountValuation(accountId, newValue);
 
   @override
   Future<SharedLedgerAccount?> getSharedAccountBySyncId(String syncId) =>

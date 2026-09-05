@@ -1820,6 +1820,13 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
       case AccountSwipeAction.none:
         return;
       case AccountSwipeAction.adjustBalance:
+        // 帳戶群組沒有自己的餘額(餘額是子帳戶加總),不支援調整餘額;其它
+        // 所有類型(含房產/車輛/投資/保險/公積金/貸款)餘額計算方式都一樣
+        // (initialBalance + 交易加總,對齊 BeeCount Cloud),都能正常用。
+        if (account.type == 'account_group') {
+          _viewAccountDetail(context, ref, account);
+          return;
+        }
         await showBalanceAdjustmentDialog(
             context, ref, account, AppLocalizations.of(context));
       case AccountSwipeAction.addTransaction:

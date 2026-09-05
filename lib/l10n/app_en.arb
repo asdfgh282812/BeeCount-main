@@ -2918,20 +2918,6 @@
   "accountTypeVehicle": "Vehicle",
   "accountTypeInsurance": "Insurance",
   "accountTypeSocialFund": "Social Fund",
-  "valuationCurrentValue": "Current Valuation",
-  "valuationCurrentDebt": "Current Debt",
-  "valuationUpdateValue": "Update Valuation",
-  "valuationUpdateDebt": "Update Debt",
-  "valuationLastUpdated": "Last updated: {date}",
-  "@valuationLastUpdated": {
-    "placeholders": {
-      "date": {
-        "type": "String"
-      }
-    }
-  },
-  "valuationAccountHint": "Enter current valuation",
-  "valuationDebtHint": "Enter current debt amount",
   "accountGroupTradable": "Daily Accounts",
   "accountGroupValuation": "Assets/Liabilities",
   "adjustmentTransaction": "Valuation Adjustment",
@@ -4142,6 +4128,12 @@
       "total": { "type": "String" },
       "paid": { "type": "String" },
       "remaining": { "type": "String" }
+    }
+  },
+  "accountBalanceReconciled": "Fixed {count} account(s) out of sync with server",
+  "@accountBalanceReconciled": {
+    "placeholders": {
+      "count": { "type": "int" }
     }
   }
 }

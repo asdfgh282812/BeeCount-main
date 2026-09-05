@@ -4,8 +4,7 @@
 /// - `updateAccountSortOrders` 落值(sortOrder 按传入顺序写入)。
 /// - `updateAccountSortOrders` 记 user-global change(同步依赖)——这是本次
 ///   修的坑:原本直接委托 `_accountRepo`,不记 change,拖曳排序永远不会推到
-///   云端,跟 `updateAccountValuation` 曾经的问题一样(见 account_hidden_test.dart
-///   头部注释)。
+///   云端(见 account_hidden_test.dart 头部注释提到的同一类历史问题)。
 /// - 无 changeTracker(未登录同步)时仍能正常落值,不报错。
 import 'package:flutter_test/flutter_test.dart';
 import 'package:drift/native.dart';
@@ -49,8 +48,7 @@ void main() {
     expect(b!.sortOrder, 2);
   });
 
-  test('updateAccountSortOrders 记 user-global change(拖曳排序必须能同步)',
-      () async {
+  test('updateAccountSortOrders 记 user-global change(拖曳排序必须能同步)', () async {
     final tracker = ChangeTracker(db);
     final trackedRepo = LocalRepository(db, changeTracker: tracker);
     final lid = await trackedRepo.createLedger(name: 'L');

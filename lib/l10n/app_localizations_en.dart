@@ -6984,29 +6984,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountTypeSocialFund => 'Social Fund';
 
   @override
-  String get valuationCurrentValue => 'Current Valuation';
-
-  @override
-  String get valuationCurrentDebt => 'Current Debt';
-
-  @override
-  String get valuationUpdateValue => 'Update Valuation';
-
-  @override
-  String get valuationUpdateDebt => 'Update Debt';
-
-  @override
-  String valuationLastUpdated(String date) {
-    return 'Last updated: $date';
-  }
-
-  @override
-  String get valuationAccountHint => 'Enter current valuation';
-
-  @override
-  String get valuationDebtHint => 'Enter current debt amount';
-
-  @override
   String get accountGroupTradable => 'Daily Accounts';
 
   @override
@@ -9688,5 +9665,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String installmentInterestSummaryLine(
       String total, String paid, String remaining) {
     return 'Interest: $total total · $paid paid · $remaining left';
+  }
+
+  @override
+  String accountBalanceReconciled(int count) {
+    return 'Fixed $count account(s) out of sync with server';
   }
 }

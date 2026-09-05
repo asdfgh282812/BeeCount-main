@@ -94,13 +94,6 @@
   "accountTypeVehicle": "車輛",
   "accountTypeInsurance": "保險",
   "accountTypeSocialFund": "公積金/社保",
-  "valuationCurrentValue": "當前估值",
-  "valuationCurrentDebt": "當前欠款",
-  "valuationUpdateValue": "更新估值",
-  "valuationUpdateDebt": "更新欠款",
-  "valuationLastUpdated": "上次更新: {date}",
-  "valuationAccountHint": "請輸入當前估值",
-  "valuationDebtHint": "請輸入當前欠款金額",
   "accountGroupTradable": "日常帳戶",
   "accountGroupValuation": "資產/負債",
   "adjustmentTransaction": "估值調整",
@@ -3682,6 +3675,12 @@
       "total": { "type": "String" },
       "paid": { "type": "String" },
       "remaining": { "type": "String" }
+    }
+  },
+  "accountBalanceReconciled": "已修正 {count} 個與伺服器不同步的帳戶",
+  "@accountBalanceReconciled": {
+    "placeholders": {
+      "count": { "type": "int" }
     }
   }
 }

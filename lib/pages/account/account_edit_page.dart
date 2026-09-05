@@ -118,7 +118,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     _parentAccountId = widget.account?.parentAccountId;
     _avatarPath = widget.account?.avatarPath;
     _includeInTotal = widget.account?.includeInTotal ?? true;
-    _typeTab = isValuationOnlyType(_selectedType) ? 1 : 0;
+    _typeTab = valuationAccountTypes.contains(_selectedType) ? 1 : 0;
     _loadReminderSettings();
     _loadParentCandidates();
   }
@@ -376,21 +376,14 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
 
   bool get isEditing => widget.account != null;
 
-  String _getInitialBalanceLabel(AppLocalizations l10n) {
-    if (isValuationOnlyType(_selectedType)) {
-      return isLiabilityType(_selectedType)
-          ? l10n.valuationCurrentDebt
-          : l10n.valuationCurrentValue;
-    }
-    return l10n.accountInitialBalance;
-  }
+  // 所有帳戶類型的餘額計算方式都一樣(initialBalance + 交易加總,對齊
+  // BeeCount Cloud 的 compute_account_balance),這裡的輸入框統一是「期初
+  // 餘額」語意,不再對估值型帳戶顯示「目前價值/目前欠款」這種暗示「這格
+  // 就是全部餘額」的文案。
+  String _getInitialBalanceLabel(AppLocalizations l10n) =>
+      l10n.accountInitialBalance;
 
   String _getInitialBalanceHint(AppLocalizations l10n) {
-    if (isValuationOnlyType(_selectedType)) {
-      return isLiabilityType(_selectedType)
-          ? l10n.valuationDebtHint
-          : l10n.valuationAccountHint;
-    }
     switch (_selectedType) {
       case 'credit_card':
         return l10n.creditCardInitialBalanceHint;
@@ -574,18 +567,15 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                             childAspectRatio: 1.0,
                             children: typesForTab.map((type) {
                               final isSelected = _selectedType == type;
-                              // 编辑模式禁止跨“可交易 / 估值”大类切换（语义不同）
-                              final disabled = isEditing &&
-                                  isValuationOnlyType(type) !=
-                                      isValuationOnlyType(widget.account!.type);
+                              // 「日常/估值」兩個 Tab 現在只是分組 UI,所有類型
+                              // 餘額計算方式一致,編輯模式不再需要禁止跨組切換。
                               return _AccountTypeCard(
                                 type: type,
                                 label: getAccountTypeLabel(context, type),
                                 isSelected: isSelected,
                                 primaryColor: primaryColor,
-                                disabled: disabled,
-                                onTap:
-                                    disabled ? () {} : () => _selectType(type),
+                                disabled: false,
+                                onTap: () => _selectType(type),
                               );
                             }).toList(),
                           ),

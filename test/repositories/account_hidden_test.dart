@@ -8,9 +8,9 @@
 ///   共用的过滤 helper)排除 `hidden` 账户。
 ///
 /// 关键风险(见 CLAUDE.md 数据库访问规则 + 02-tech-design-app.md §三.1):隐藏开关
-/// 必须走会记 change 的 `updateAccount`,不能像 `updateAccountValuation` 那样直接
-/// 委托底层、不记 change、不同步(`updateAccountSortOrders` 原本也是这个坑,
-/// 2026-09-05 已补上 change 追踪,见 account_sort_order_test.dart)。
+/// 必须走会记 change 的 `updateAccount`,不能直接委托底层、不记 change、不同步
+/// (`updateAccountSortOrders` 原本也是这个坑,已补上 change 追踪,见
+/// account_sort_order_test.dart)。
 import 'package:flutter_test/flutter_test.dart';
 import 'package:drift/native.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -56,8 +56,7 @@ void main() {
           ..where((c) => c.action.equals('update')))
         .get();
     expect(changes, isNotEmpty,
-        reason:
-            '隐藏必须走会记 change 的 updateAccount,否则隐藏状态不会 push 到云端');
+        reason: '隐藏必须走会记 change 的 updateAccount,否则隐藏状态不会 push 到云端');
   });
 
   test('setAccountHidden 便捷法往返(true → false)', () async {
@@ -107,18 +106,16 @@ void main() {
   test('隐藏账户后 getNetWorthBreakdown 数值不变 (D1)', () async {
     final lid = await repo.createLedger(name: 'L');
     await repo.createAccount(ledgerId: lid, name: 'A', initialBalance: 1000);
-    final hiddenId = await repo.createAccount(
-        ledgerId: lid, name: 'B', initialBalance: 500);
+    final hiddenId =
+        await repo.createAccount(ledgerId: lid, name: 'B', initialBalance: 500);
 
     final before = await repo.getNetWorthBreakdown();
 
     await repo.setAccountHidden(hiddenId, true);
     final after = await repo.getNetWorthBreakdown();
 
-    expect(after.totalAssets, before.totalAssets,
-        reason: '隐藏不是删除,总资产不应变化(D1)');
-    expect(after.netWorth, before.netWorth,
-        reason: '隐藏账户仍计入净资产(D1)');
+    expect(after.totalAssets, before.totalAssets, reason: '隐藏不是删除,总资产不应变化(D1)');
+    expect(after.netWorth, before.netWorth, reason: '隐藏账户仍计入净资产(D1)');
   });
 
   test('隐藏账户后 getAssetCompositionByType 数值不变 (D1)', () async {
@@ -129,8 +126,7 @@ void main() {
         ledgerId: lid, name: 'B', type: 'cash', initialBalance: 500);
 
     final before = await repo.getAssetCompositionByType();
-    final beforeCash =
-        before.firstWhere((e) => e.type == 'cash').totalBalance;
+    final beforeCash = before.firstWhere((e) => e.type == 'cash').totalBalance;
 
     await repo.setAccountHidden(hiddenId, true);
     final after = await repo.getAssetCompositionByType();
@@ -145,8 +141,7 @@ void main() {
   // getActiveRecurringCountByAccount / addRecurringTransaction。
   // ==========================================================================
 
-  test('getActiveRuleCountByAccount 统计引用该账户的活跃规则(转出/转入任一端)',
-      () async {
+  test('getActiveRuleCountByAccount 统计引用该账户的活跃规则(转出/转入任一端)', () async {
     final lid = await repo.createLedger(name: 'L');
     final aid = await repo.createAccount(ledgerId: lid, name: 'A');
     final bid = await repo.createAccount(ledgerId: lid, name: 'B');
