@@ -776,16 +776,16 @@ class _PosterCarouselPreviewDialogState
                   // 向右滑动，显示上一张
                   if (_currentPage > 0) {
                     _pageController.previousPage(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
+                      duration: BeeMotion.durationOf(context, BeeMotion.medium),
+                      curve: BeeMotion.standard,
                     );
                   }
                 } else if (details.primaryVelocity! < 0) {
                   // 向左滑动，显示下一张
                   if (_currentPage < _posterTypes.length - 1) {
                     _pageController.nextPage(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
+                      duration: BeeMotion.durationOf(context, BeeMotion.medium),
+                      curve: BeeMotion.standard,
                     );
                   }
                 }
