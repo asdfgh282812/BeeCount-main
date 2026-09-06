@@ -550,6 +550,7 @@ class _StatementRow extends ConsumerWidget {
                     color: BeeTokens.textTertiary(context),
                   ),
                 ),
+                if (!isTransfer) buildFeeDiscountSubtitle(context, l10n, tx),
               ],
             ),
           ),

@@ -14,6 +14,7 @@ import '../../providers.dart';
 import '../../providers/budget_providers.dart';
 import '../../services/attachment_service.dart';
 import '../../services/billing/post_processor.dart';
+import '../../services/data/category_service.dart';
 import '../../styles/tokens.dart';
 import '../../utils/account_type_utils.dart';
 import '../../utils/card_reward_calc.dart';
@@ -74,6 +75,7 @@ class _DetailBundle {
   final List<Transaction> refunds;
   final List<CardRewardRule> rewardRules;
   final List<_ResolvedSplit> splits;
+  final Project? project;
 
   /// 這筆交易關聯的欠款(不管是還款交易本身,還是某筆欠款的起點交易),
   /// null = 跟欠款無關。見 [_TransactionDetailCardState._loadBundle]。
@@ -86,6 +88,7 @@ class _DetailBundle {
     required this.refunds,
     required this.rewardRules,
     required this.splits,
+    required this.project,
     required this.relatedDebt,
   });
 }
@@ -162,12 +165,17 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
         : Future.wait(rewardRuleIds.map(repo.getCardRewardRuleBySyncId))
             .then((rules) => rules.whereType<CardRewardRule>().toList());
 
+    final projectFuture = tx.projectSyncId != null
+        ? repo.getProjectBySyncId(tx.projectSyncId!)
+        : Future.value(null);
+
     final account = await accountFuture;
     final tags = await tagsFuture;
     final attachments = await attachmentsFuture;
     final refunds = await refundsFuture;
     final rewardRules = await rewardRulesFuture;
     final splits = await _loadSplits(repo, tx);
+    final project = await projectFuture;
     final relatedDebt = await _loadRelatedDebt(repo, tx);
     return _DetailBundle(
       account: account,
@@ -176,6 +184,7 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
       refunds: refunds,
       rewardRules: rewardRules,
       splits: splits,
+      project: project,
       relatedDebt: relatedDebt,
     );
   }
@@ -943,63 +952,8 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
   /// App 這裡沒有,只能自己心算。跟金額本身一样走 [AmountText],既能繼承
   /// 隐藏金额(隱私模式)開關,也不用自己重做币种符号/千分位格式化。
   Widget _buildFeeDiscountSubtitle(
-      BuildContext context, AppLocalizations l10n) {
-    final tx = widget.transaction;
-    final feeAmount = tx.feeAmount ?? 0;
-    final discountAmount = tx.discountAmount ?? 0;
-    if (feeAmount == 0 && discountAmount == 0) return const SizedBox.shrink();
-
-    final subtitleStyle = TextStyle(
-      fontSize: 12,
-      color: BeeTokens.textTertiary(context),
-    );
-
-    final segments = <Widget>[];
-    void addSegment(String label, double amount) {
-      if (segments.isNotEmpty) {
-        segments
-            .add(Text(l10n.txDetailFeeDiscountSeparator, style: subtitleStyle));
-      }
-      segments.add(Text('$label ', style: subtitleStyle));
-      segments.add(AmountText(
-        value: amount,
-        signed: false,
-        currencyCode: tx.currencyCode,
-        showCurrency: tx.currencyCode != null,
-        decimals: 2,
-        style: subtitleStyle,
-      ));
-    }
-
-    if (feeAmount != 0) {
-      addSegment(
-        (tx.feeLabel != null && tx.feeLabel!.isNotEmpty)
-            ? tx.feeLabel!
-            : l10n.transactionFeeLabelHint,
-        feeAmount,
-      );
-    }
-    if (discountAmount != 0) {
-      addSegment(
-        (tx.discountLabel != null && tx.discountLabel!.isNotEmpty)
-            ? tx.discountLabel!
-            : l10n.transactionDiscountLabelHint,
-        discountAmount,
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 2),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('(${l10n.txDetailFeeDiscountPrefix} ', style: subtitleStyle),
-          ...segments,
-          Text(')', style: subtitleStyle),
-        ],
-      ),
-    );
-  }
+          BuildContext context, AppLocalizations l10n) =>
+      buildFeeDiscountSubtitle(context, l10n, widget.transaction);
 
   Widget _detailItem(BuildContext context, IconData icon, String text) {
     return Expanded(
@@ -1037,6 +991,7 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
         '${tx.happenedAt.year}/${tx.happenedAt.month.toString().padLeft(2, '0')}/${tx.happenedAt.day.toString().padLeft(2, '0')}';
     final timeText =
         '${tx.happenedAt.hour.toString().padLeft(2, '0')}:${tx.happenedAt.minute.toString().padLeft(2, '0')}';
+    final project = bundle?.project;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -1069,6 +1024,18 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
               _detailItem(context, Icons.sell_outlined, firstTagName),
             ],
           ),
+          if (project != null) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                _detailItem(
+                  context,
+                  CategoryService.getCategoryIcon(project.icon),
+                  project.name,
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 10),
           Row(
             children: [
@@ -1277,6 +1244,67 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
       ),
     );
   }
+}
+
+/// 交易列表/對帳清單皆可共用的手續費/折扣小字提示,格式:「(內含 手續費
+/// NT$36)」。抽成頂層函式讓 `account_reconciliation_page.dart` 的對帳
+/// 清單列也能直接引用,不用重複這段組字邏輯。
+Widget buildFeeDiscountSubtitle(
+    BuildContext context, AppLocalizations l10n, Transaction tx) {
+  final feeAmount = tx.feeAmount ?? 0;
+  final discountAmount = tx.discountAmount ?? 0;
+  if (feeAmount == 0 && discountAmount == 0) return const SizedBox.shrink();
+
+  final subtitleStyle = TextStyle(
+    fontSize: 12,
+    color: BeeTokens.textTertiary(context),
+  );
+
+  final segments = <Widget>[];
+  void addSegment(String label, double amount) {
+    if (segments.isNotEmpty) {
+      segments
+          .add(Text(l10n.txDetailFeeDiscountSeparator, style: subtitleStyle));
+    }
+    segments.add(Text('$label ', style: subtitleStyle));
+    segments.add(AmountText(
+      value: amount,
+      signed: false,
+      currencyCode: tx.currencyCode,
+      showCurrency: tx.currencyCode != null,
+      decimals: 2,
+      style: subtitleStyle,
+    ));
+  }
+
+  if (feeAmount != 0) {
+    addSegment(
+      (tx.feeLabel != null && tx.feeLabel!.isNotEmpty)
+          ? tx.feeLabel!
+          : l10n.transactionFeeLabelHint,
+      feeAmount,
+    );
+  }
+  if (discountAmount != 0) {
+    addSegment(
+      (tx.discountLabel != null && tx.discountLabel!.isNotEmpty)
+          ? tx.discountLabel!
+          : l10n.transactionDiscountLabelHint,
+      discountAmount,
+    );
+  }
+
+  return Padding(
+    padding: const EdgeInsets.only(top: 2),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('(${l10n.txDetailFeeDiscountPrefix} ', style: subtitleStyle),
+        ...segments,
+        Text(')', style: subtitleStyle),
+      ],
+    ),
+  );
 }
 
 String _trimPercentZeros(double v) {
