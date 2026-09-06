@@ -24,9 +24,11 @@ List<int> _parseExtraIds(String extraIdsKey) => extraIdsKey.isEmpty
     ? const <int>[]
     : extraIdsKey.split(',').map(int.parse).toList();
 
-/// 算 [ids] 加總後在 [cutoff] 這個時間點的「仍欠款」金額(正值=欠款,對齊
-/// Cloud `remaining_due`/`carryover_due` 的正負號),[cutoff] 為 null 時退化成
-/// 只看 `paidTotal`(不太會發生,呼叫端一律會傳 cutoff)。
+/// 算 [ids] 裡每一個帳戶在 [cutoff] 這個時間點各自的「仍欠款」金額(正值=
+/// 欠款,對齊 Cloud `remaining_due`/`carryover_due` 的正負號)——已結清
+/// (`<= 0.005`)的帳戶不會出現在回傳的 map 裡。[_dueAsOf]/群組繳款頁的「分攤
+/// 預覽」都建立在這個共用計算上,不要各自重寫一份(2026-09-07 bugfix,見下方
+/// 「先淨額、再換算」的說明)。
 ///
 /// 子專案 4(帳單分期沖銷):`charged` 要先扣掉
 /// [InstallmentRepository.getOffsetTotalForAccount]——已經被某個分期計畫
@@ -36,30 +38,59 @@ List<int> _parseExtraIds(String extraIdsKey) => extraIdsKey.isEmpty
 /// 會同時算在「這張卡的原始消費」跟「新分期計畫產生的各期交易」兩邊,重複
 /// 計入應繳金額。
 ///
-/// [ids] 超過一個 = 合併帳單群組(主帳戶 + 子卡)——子卡彼此可能幣別不同,
-/// 這裡把每個 id 的 `getCreditCardChargedAsOf`/`getCreditCardPaidTotal` 都傳
-/// `convertToLedgerCurrency: true`,讓每筆交易先折算成帳本本位幣再相加,
-/// 否則不同幣別的原始數字直接加總會失真(2026-09-05 使用者反饋:charged 側;
-/// 2026-09-06 使用者反饋:paidTotal 側同一個 bug,見
-/// [AccountRepository.getCreditCardPaidTotal] docstring)。單一帳戶
-/// (`ids.length == 1`)維持原樣,不折算——單卡頁面本來就用該帳戶自己的幣別
-/// 顯示。
-Future<double> _dueAsOf(
+/// **先用該帳戶自己的幣別算淨額、已結清就直接跳過,沒結清、且是合併帳單
+/// 群組時才折算成帳本本位幣**(2026-09-07 bugfix)——原本不管有沒有結清,
+/// 都先把 `charged`/`paidTotal` 分別折算成帳本本位幣再相減,對於「已經用該
+/// 帳戶自己的幣別繳清」的外幣子卡,消費當下的匯率跟繳款當下的匯率不同,兩邊
+/// 各自折算後相減會殘留一筆匯差,被誤當成「這張已結清的子卡還欠群組 X 元」
+/// 疊加進總額(使用者反饋:外幣子卡已經單獨繳清,合併帳單群組的「剩餘帳款」
+/// 卻比實際多算了匯差,而群組繳款頁因為完全沒折算、直接用該帳戶自己幣別
+/// 淨額,沒有這個問題)。已結清的帳戶(不論幣別)一律跳過,徹底避開匯差殘值；
+/// 只有「還沒結清」的子卡,才需要為了跟其他不同幣別的子卡加總而換算——這筆
+/// 換算沒有上面那種「兩個不同時間點匯率互相打架」的問題,因為是先用同一個
+/// `convertToLedgerCurrency: true` 呼叫一次重新拿 charged/paidTotal 再相減,
+/// 不是拿两次不同convert設定的結果去湊。單一帳戶(`ids.length == 1`)永遠
+/// 不折算——單卡頁面本來就用該帳戶自己的幣別顯示。
+Future<Map<int, double>> creditCardDueByChildAsOf(
   BaseRepository repo,
   List<int> ids,
   DateTime cutoff,
 ) async {
   final isGroup = ids.length > 1;
-  var charged = 0.0;
-  var paidTotal = 0.0;
+  final result = <int, double>{};
   for (final id in ids) {
-    charged += await repo.getCreditCardChargedAsOf(id,
-        asOf: cutoff, convertToLedgerCurrency: isGroup);
-    charged -= await repo.getOffsetTotalForAccount(id);
-    paidTotal += await repo.getCreditCardPaidTotal(id,
-        convertToLedgerCurrency: isGroup);
+    final offsetTotal = await repo.getOffsetTotalForAccount(id);
+    final chargedNative =
+        await repo.getCreditCardChargedAsOf(id, asOf: cutoff) - offsetTotal;
+    final paidNative = await repo.getCreditCardPaidTotal(id);
+    final dueNative =
+        creditCardDueAsOf(charged: chargedNative, paidTotal: paidNative);
+    if (dueNative <= 0.005) continue;
+    if (!isGroup) {
+      result[id] = dueNative;
+      continue;
+    }
+    final chargedConverted = await repo.getCreditCardChargedAsOf(id,
+            asOf: cutoff, convertToLedgerCurrency: true) -
+        offsetTotal;
+    final paidConverted =
+        await repo.getCreditCardPaidTotal(id, convertToLedgerCurrency: true);
+    result[id] =
+        creditCardDueAsOf(charged: chargedConverted, paidTotal: paidConverted);
   }
-  return creditCardDueAsOf(charged: charged, paidTotal: paidTotal);
+  return result;
+}
+
+/// 算 [ids] 加總後在 [cutoff] 這個時間點的「仍欠款」金額,細節見
+/// [creditCardDueByChildAsOf]。
+Future<double> _dueAsOf(
+  BaseRepository repo,
+  List<int> ids,
+  DateTime cutoff,
+) async {
+  final byChild = await creditCardDueByChildAsOf(repo, ids, cutoff);
+  final total = byChild.values.fold(0.0, (double a, double b) => a + b);
+  return total;
 }
 
 /// 規則一:進入信用卡「交易明細」tab 時預設停留的帳期 offset——「尚未繳清

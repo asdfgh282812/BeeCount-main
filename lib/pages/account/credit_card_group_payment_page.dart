@@ -65,17 +65,12 @@ class _CreditCardGroupPaymentPageState
   Future<void> _loadDue() async {
     final repo = ref.read(repositoryProvider);
     final cutoff = endOfDay(widget.period.end);
-    final due = <int, double>{};
-    for (final child in widget.children) {
-      // 跟帳單彙總卡片同一套 Cloud-對齊公式(charged - 終身 paidTotal,不能用
-      // getCreditCardUsedAmount——那個方法混入了 initialBalance/adjustment,
-      // 對不上 Server 端的信用卡帳單口徑)。
-      final charged =
-          await repo.getCreditCardChargedAsOf(child.id, asOf: cutoff);
-      final paidTotal = await repo.getCreditCardPaidTotal(child.id);
-      final amount = creditCardDueAsOf(charged: charged, paidTotal: paidTotal);
-      if (amount > 0.005) due[child.id] = amount;
-    }
+    // 跟帳單彙總卡片(帳戶詳情頁「剩餘帳款」)共用同一套計算,不要各自重寫
+    // 一份——2026-09-07 之前這裡自己重算,既沒扣分期沖銷,子卡跨幣別時也沒
+    // 折算成帳本本位幣,曾經跟帳單彙總卡片的數字兜不起來(見
+    // [creditCardDueByChildAsOf] 文件註解)。
+    final due = await creditCardDueByChildAsOf(
+        repo, widget.children.map((c) => c.id).toList(), cutoff);
     if (!mounted) return;
     final total = due.values.fold(0.0, (a, b) => a + b);
     setState(() {
