@@ -7680,6 +7680,16 @@ class AppLocalizationsKo extends AppLocalizations {
   String get txAccountRequiredHint => 'Please select an account';
 
   @override
+  String get txCategoryRequiredHint => 'Please select a category';
+
+  @override
+  String get txAmountRequiredHint => 'Please enter an amount';
+
+  @override
+  String get txSplitRequiredHint =>
+      'Please complete the split details (at least 2 entries, each amount greater than 0)';
+
+  @override
   String get txCrossCurrencyTransferBlocked =>
       'Cross-currency transfers are not supported yet. Record two entries or use same-currency accounts.';
 

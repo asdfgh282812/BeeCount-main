@@ -83,6 +83,13 @@ Map<int, double> allocateCardPayment({
   return allocations;
 }
 
+/// 「信用卡繳款」備註的固定前綴——鏡射 BeeCount Cloud
+/// `src/services/credit_card_billing.py::CARD_PAYMENT_NOTE_PREFIX`。
+/// [AccountRepository.getAccountStatementTransactions] 用這個前綴排除對帳
+/// 清單裡的繳款轉帳(不論繳的是哪一期,見該方法文件註解),跟這裡的 note
+/// 生成共用同一個字串常數,避免兩處各自硬編碼、其中一處改字漏改另一處。
+const String cardPaymentNotePrefix = '信用卡繳款(帳單 ';
+
 /// 繳款交易的備註文字——照抄 BeeCount Cloud
 /// `src/routers/write/accounts.py::card_payment_ep` 的預設 note 生成:不是用
 /// 使用者當下正在瀏覽的帳期(呼叫端可能是任何 offset),而是用「最近一次已
@@ -107,7 +114,7 @@ String creditCardPaymentNote({
   final period = billingCyclePeriod(billingDay, offset);
   final cycleStart = period.start.subtract(const Duration(days: 1));
   final cycleEnd = period.end;
-  final base = '信用卡繳款(帳單 ${iso(cycleStart)}~${iso(cycleEnd)})';
+  final base = '$cardPaymentNotePrefix${iso(cycleStart)}~${iso(cycleEnd)})';
   return isOverflowToGroup ? '$base(溢繳結轉)' : base;
 }
 

@@ -14208,6 +14208,24 @@ abstract class AppLocalizations {
   /// **'Please select an account'**
   String get txAccountRequiredHint;
 
+  /// No description provided for @txCategoryRequiredHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a category'**
+  String get txCategoryRequiredHint;
+
+  /// No description provided for @txAmountRequiredHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter an amount'**
+  String get txAmountRequiredHint;
+
+  /// No description provided for @txSplitRequiredHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Please complete the split details (at least 2 entries, each amount greater than 0)'**
+  String get txSplitRequiredHint;
+
   /// No description provided for @txCrossCurrencyTransferBlocked.
   ///
   /// In en, this message translates to:

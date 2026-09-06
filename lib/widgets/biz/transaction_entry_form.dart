@@ -1147,7 +1147,6 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     return Padding(
       padding: const EdgeInsets.only(top: 2),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
         children: [
           InkWell(
             onTap: _editRate,
@@ -1166,6 +1165,44 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// 金額列右側的送出鍵——跟「滑動送出」共用同一個 [_submit],不管
+  /// [canSubmit] 是否成立都直接呼叫,靠 [_submit] 自己的驗證分支跳對應的
+  /// 錯誤提示(而不是把按鈕整個 disable 掉、卻不說明缺了什麼)。
+  Widget _buildInlineSubmitButton(BuildContext context, bool canSubmit) {
+    final theme = Theme.of(context);
+    final ready = canSubmit && !_isSubmitting;
+    return Material(
+      color: ready
+          ? theme.colorScheme.primary
+          : BeeTokens.surfaceKeySecondary(context),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        key: const Key('inlineSubmitButton'),
+        borderRadius: BorderRadius.circular(10),
+        onTap: _isSubmitting ? null : _submit,
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: _isSubmitting
+              ? SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: theme.colorScheme.onPrimary,
+                  ),
+                )
+              : Icon(
+                  Icons.check_rounded,
+                  size: 20,
+                  color: ready
+                      ? theme.colorScheme.onPrimary
+                      : BeeTokens.iconSecondary(context),
+                ),
+        ),
       ),
     );
   }
@@ -1577,14 +1614,23 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     double total;
     if (_splits.isNotEmpty) {
       _commitActiveSplitAmount();
-      if (_splits.length < 2 || _splits.any((s) => s.amount <= 0)) return;
+      if (_splits.length < 2 || _splits.any((s) => s.amount <= 0)) {
+        showToast(context, AppLocalizations.of(context).txSplitRequiredHint);
+        return;
+      }
       total = _splits.fold<double>(0, (sum, s) => sum + s.amount);
     } else {
-      if (_selectedCategory == null) return;
+      if (_selectedCategory == null) {
+        showToast(context, AppLocalizations.of(context).txCategoryRequiredHint);
+        return;
+      }
       total = _op == null
           ? _parsedAmount()
           : computeAmountOp(_acc, _op!, _parsedAmount());
-      if (total.abs() <= 0) return;
+      if (total.abs() <= 0) {
+        showToast(context, AppLocalizations.of(context).txAmountRequiredHint);
+        return;
+      }
     }
     final category = _selectedCategory ?? _splits.first.category;
 
@@ -1724,6 +1770,10 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
       canSubmit: canSubmit,
       isSubmitting: _isSubmitting,
       onSubmit: _submit,
+      // 手勢拉到底但缺必填欄位(canSubmit == false)時,重用 _submit 本身
+      // 的驗證分支——它會依實際缺漏的欄位跳對應的錯誤提示,而不是讓手勢
+      // 像沒反應一樣。
+      onBlockedSubmit: _submit,
       bottomBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1787,18 +1837,20 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
               });
             },
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    if (widget.editingTransactionId != null)
+                    if (widget.editingTransactionId != null) ...[
                       _TxAuthorAvatars(
                           editingTransactionId: widget.editingTransactionId!),
-                    const Spacer(),
+                      const SizedBox(width: 8),
+                    ],
                     _buildCurrencyChip(context),
                     // v51 支出/收入手續費/折扣:拆帳模式下不提供(比照拆帳跟
                     // 「進階設定」互斥的既有規則)。
-                    if (_splits.isEmpty)
+                    if (_splits.isEmpty) ...[
+                      const SizedBox(width: 4),
                       AdjustmentToggleButton(
                         key: const Key('feeDiscountToggle'),
                         enabled: _feeDiscountEnabled,
@@ -1819,38 +1871,66 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
                           }
                         }),
                       ),
-                    const SizedBox(width: 6),
-                    if (_op != null) ...[
-                      Text(
-                        _fmtAbs(_acc),
-                        style: text.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                          color: BeeTokens.textSecondary(context),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Text(
-                          amountOpGlyph(_op!),
-                          style: text.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600, color: primary),
-                        ),
-                      ),
                     ],
-                    Text(
-                      _amountStr,
-                      style: text.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.0,
-                        color: BeeTokens.textPrimary(context),
+                    const SizedBox(width: 10),
+                    // 金額欄位加上框線,跟名稱/商家等欄位一樣容易辨認出是
+                    // 一個可點的輸入區塊——撐滿幣別/切換鍵跟送出鍵之間剩下
+                    // 的全部空間,數字靠右對齊(貼著送出鍵,習慣上比較像
+                    // 計算機的金額顯示)。
+                    Expanded(
+                      child: Container(
+                        constraints: const BoxConstraints(minHeight: 44),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: BeeTokens.border(context)),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            if (_op != null) ...[
+                              Text(
+                                _fmtAbs(_acc),
+                                style: text.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  color: BeeTokens.textSecondary(context),
+                                ),
+                              ),
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 8),
+                                child: Text(
+                                  amountOpGlyph(_op!),
+                                  style: text.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: primary),
+                                ),
+                              ),
+                            ],
+                            Flexible(
+                              child: Text(
+                                _amountStr,
+                                textAlign: TextAlign.right,
+                                overflow: TextOverflow.ellipsis,
+                                style: text.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.0,
+                                  color: BeeTokens.textPrimary(context),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
+                    const SizedBox(width: 10),
+                    _buildInlineSubmitButton(context, canSubmit),
                   ],
                 ),
                 if (_op != null) ...[
                   const SizedBox(height: 4),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       Text(
                         '= ',

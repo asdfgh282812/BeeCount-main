@@ -7595,6 +7595,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get txAccountRequiredHint => 'Please select an account';
 
   @override
+  String get txCategoryRequiredHint => 'Please select a category';
+
+  @override
+  String get txAmountRequiredHint => 'Please enter an amount';
+
+  @override
+  String get txSplitRequiredHint =>
+      'Please complete the split details (at least 2 entries, each amount greater than 0)';
+
+  @override
   String get txCrossCurrencyTransferBlocked => '暂不支持跨币种转账,请分别记两笔或使用同币种账户';
 
   @override
@@ -17094,6 +17104,15 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get txAccountRequiredHint => '請選擇帳戶';
+
+  @override
+  String get txCategoryRequiredHint => '請選擇分類';
+
+  @override
+  String get txAmountRequiredHint => '請輸入金額';
+
+  @override
+  String get txSplitRequiredHint => '請完成拆帳明細(至少 2 筆,且金額需大於 0)';
 
   @override
   String get txCrossCurrencyTransferBlocked => '暫不支援跨幣種轉帳,請分別記兩筆或使用同幣種帳戶';

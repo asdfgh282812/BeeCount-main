@@ -28,6 +28,7 @@ class PullToSubmitScrollView extends StatefulWidget {
     required this.onSubmit,
     this.padding,
     this.bottomBar,
+    this.onBlockedSubmit,
   });
 
   final Widget child;
@@ -35,6 +36,12 @@ class PullToSubmitScrollView extends StatefulWidget {
   final bool canSubmit;
   final bool isSubmitting;
   final VoidCallback onSubmit;
+
+  /// 手勢有拉到武裝門檻、放開時卻是 [canSubmit] == false 的狀況(必填欄位缺漏)。
+  /// 預設不給就維持原本「靜默不送出」的行為;傳入後可讓呼叫端(通常直接
+  /// 重用 onSubmit 本身,靠它既有的驗證分支跳對應的錯誤提示)在這個狀況下
+  /// 也給使用者一點反饋,而不是讓手勢像沒反應一樣。
+  final VoidCallback? onBlockedSubmit;
 
   /// 疊在滾動內容下方、固定不隨滾動的區塊(如金額小算盤、備註歷史建議列)。
   /// 手指壓在這塊區域拖曳一樣算數,見上方 class 說明。
@@ -108,8 +115,11 @@ class _PullToSubmitScrollViewState extends State<PullToSubmitScrollView> {
     _lastPointerY = null;
     final shouldSubmit = _armed;
     _reset();
-    if (shouldSubmit && widget.canSubmit && !widget.isSubmitting) {
+    if (!shouldSubmit || widget.isSubmitting) return;
+    if (widget.canSubmit) {
       widget.onSubmit();
+    } else {
+      widget.onBlockedSubmit?.call();
     }
   }
 

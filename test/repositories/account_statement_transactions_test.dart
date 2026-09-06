@@ -200,7 +200,7 @@ void main() {
     expect(statementTotal(period3), 3811);
   });
 
-  test('繳「這一期」帳單的轉帳不會出現在自己這期的對帳清單裡', () async {
+  test('信用卡繳款轉帳不論繳的是哪一期帳單,都不會出現在對帳清單裡', () async {
     final lid = await seedLedger();
     final bankId = await db.into(db.accounts).insert(AccountsCompanion.insert(
           ledgerId: lid,
@@ -251,9 +251,11 @@ void main() {
     expect(period.length, 2);
     expect(period.every((t) => t.type == 'expense'), isTrue);
 
-    // 但如果這筆轉帳繳的是「別期」帳單(note 尾端日期跟本次查詢的
-    // cycleEnd 不一樣),只是入帳歸屬日剛好落在這期窗口內,仍然要收——
-    // 跟上面「星展信用卡」期三案例的既有行為一致,不能被這次修正誤傷。
+    // 就算這筆轉帳繳的是「別期」帳單(note 尾端日期跟本次查詢的 cycleEnd
+    // 不一樣),只是入帳歸屬日剛好落在這期窗口內,一樣要排除——鏡射 BeeCount
+    // Cloud `is_card_settlement_note` 不分期別、只認 note 前綴的排除語意
+    // (2026-09-06 使用者反饋:App 舊版只排除同期繳款,導致上一期延後繳的
+    // 轉帳仍出現在這期清單裡,跟 server 不一致)。
     await repo.addTransaction(
       ledgerId: lid,
       type: 'transfer',
@@ -271,13 +273,34 @@ void main() {
       cycleEnd: DateTime(2026, 9, 5),
     );
 
-    expect(periodWithOtherPeriodPayment.length, 3);
+    expect(periodWithOtherPeriodPayment.length, 2);
     expect(
-      periodWithOtherPeriodPayment
-          .where((t) => t.type == 'transfer')
-          .single
-          .amount,
-      150,
+      periodWithOtherPeriodPayment.every((t) => t.type == 'expense'),
+      isTrue,
+    );
+
+    // 但一般轉帳(沒有信用卡繳款 note 前綴)不受影響,依舊收進對帳清單——
+    // 這是使用者這次反饋明確要求保留的行為(只排除繳費,一般轉帳依舊納入)。
+    await repo.addTransaction(
+      ledgerId: lid,
+      type: 'transfer',
+      amount: 7477,
+      accountId: bankId,
+      toAccountId: cardId,
+      happenedAt: DateTime(2026, 9, 5),
+    );
+
+    final periodWithPlainTransfer =
+        await repo.getAccountStatementTransactions(
+      accountId: cardId,
+      cycleStart: DateTime(2026, 8, 6),
+      cycleEnd: DateTime(2026, 9, 5),
+    );
+
+    expect(periodWithPlainTransfer.length, 3);
+    expect(
+      periodWithPlainTransfer.where((t) => t.type == 'transfer').single.amount,
+      7477,
     );
   });
 }

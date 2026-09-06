@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../../db.dart';
 import '../../../services/system/logger_service.dart';
 import '../../../utils/account_type_utils.dart';
+import '../../../utils/credit_card_payment.dart' show cardPaymentNotePrefix;
 import '../account_repository.dart';
 import '../exceptions.dart';
 
@@ -925,28 +926,28 @@ class LocalAccountRepository implements AccountRepository {
     // 對帳清單口徑:expense/income 只認 account_id,transfer 只認
     // to_account_id(轉出視角不算消費),其它 type 不收——跟
     // reconciliation_providers.dart 舊版 Dart 端 belongs 判斷語意一致。
-    // 例外:繳「這一期」帳單的轉帳(note 是 creditCardPaymentNote() 產生的
-    // 「信用卡繳款(帳單 X~cycleEnd)」,結尾日期剛好等於這次查詢的
-    // cycleEnd)不能被當成這一期自己的對帳候選項——它是繳清這期帳單的動作,
-    // 不是新增消費。繳的是「別期」帳單、只是入帳歸屬日落在這期窗口內的轉帳
-    // (例如延遲到下一期才繳清上一期欠款)仍然要收,對帳時要看到那筆繳款
-    // 沖銷了多少舊欠款,鎖在 account_statement_transactions_test.dart 的期三
-    // 案例——所以這裡只比對 note 尾端的帳單結束日跟本次 cycleEnd 是否相同
-    // (代表「自己繳自己」),不是排除所有繳款轉帳。
-    final cycleEndIso = '${cycleEnd.year.toString().padLeft(4, '0')}-'
-        '${cycleEnd.month.toString().padLeft(2, '0')}-'
-        '${cycleEnd.day.toString().padLeft(2, '0')}';
-    final selfPaymentNoteIndex = ids.length + 1;
+    // 例外:信用卡繳款轉帳(note 是 creditCardPaymentNote() 產生的
+    // 「$cardPaymentNotePrefix...)」)不論繳的是哪一期帳單,一律不能算進對帳
+    // 候選項——它是「清償某一期已結帳單」的動作本身,不是新增消費;帳單彙總
+    // 已經用不分時間窗口的 lifetime paid_total watermark 把清償效果算進
+    // remaining_due,清單裡再收一次會讓使用者看到一筆「多出來」、跟真實消費
+    // 對不上的轉帳列。鏡射 BeeCount Cloud `get_account_statement` 的
+    // `is_card_settlement_note` 前綴排除語意——不比對帳單期別,只比對 note
+    // 前綴(2026-09-06 使用者反饋:App 舊版只排除「同期」繳款,上一期延後繳
+    // 的轉帳仍會出現在這期清單裡,跟 server 端「不分期別一律排除」不一致)。
+    // 使用者自己手動轉帳、或自訂了 note 覆蓋掉這個前綴,不受影響,依舊收進
+    // 清單。
+    final notePatternIndex = ids.length + 1;
     final where =
         "(type IN ('expense', 'income') AND account_id IN ($idPlaceholders)) "
         "OR (type = 'transfer' AND to_account_id IN ($idPlaceholders) "
-        "AND (note IS NULL OR note NOT LIKE ?$selfPaymentNoteIndex))";
+        "AND (note IS NULL OR note NOT LIKE ?$notePatternIndex))";
 
     // 入帳歸屬日 = COALESCE(deferred_posting_at, happened_at),兩個時間戳
     // 落库都是 epoch 秒。cycleEnd 視為「含整個自然日」,補到 23:59:59。
     final endOfDay =
         DateTime(cycleEnd.year, cycleEnd.month, cycleEnd.day, 23, 59, 59);
-    final startIndex = selfPaymentNoteIndex + 1;
+    final startIndex = notePatternIndex + 1;
     final endIndex = startIndex + 1;
 
     final results = await db.customSelect(
@@ -960,7 +961,7 @@ class LocalAccountRepository implements AccountRepository {
       ''',
       variables: [
         ...idVariables,
-        d.Variable.withString('信用卡繳款(帳單 %~$cycleEndIso)%'),
+        d.Variable.withString('$cardPaymentNotePrefix%'),
         d.Variable.withInt(cycleStart.millisecondsSinceEpoch ~/ 1000),
         d.Variable.withInt(endOfDay.millisecondsSinceEpoch ~/ 1000),
       ],

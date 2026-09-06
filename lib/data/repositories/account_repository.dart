@@ -253,10 +253,12 @@ abstract class AccountRepository {
   ///
   /// 跟 [getAccountTransactions] 的差異不只是多一個 COALESCE:member 帳戶
   /// 判斷收窄成對帳清單的口徑——expense/income 只認 `account_id`,transfer
-  /// 只認 `to_account_id`(轉出這張卡不算消費)且排除「繳的正是這期帳單」
-  /// 的轉帳(note 尾端的帳單結束日等於 [cycleEnd]——繳清自己這期帳單的轉帳
-  /// 不是新增消費,不能算進自己這期的對帳候選項;繳的是別期帳單、只是入帳
-  /// 歸屬日落在這期窗口內的轉帳仍然要收,不排除),其它 type(adjustment 等)
+  /// 只認 `to_account_id`(轉出這張卡不算消費)且排除信用卡繳款轉帳(note
+  /// 前綴是 `creditCardPaymentNote()` 產生的「信用卡繳款(帳單 ...)」——不論
+  /// 繳的是哪一期帳單都排除,不比對 [cycleEnd]:它是清償某一期已結帳單的
+  /// 動作本身,不是新增消費,鏡射 BeeCount Cloud `get_account_statement` 的
+  /// `is_card_settlement_note` 前綴排除語意;一般轉帳、或使用者自訂 note
+  /// 覆蓋掉這個前綴的轉帳不受影響,仍然收),其它 type(adjustment 等)
   /// 不收,跟 `reconciliation.dart` 的 `effectiveDate` + 呼叫方 belongs 判斷
   /// 語意一致(之前是 provider 端在 Dart 拿 ±1 期寬視窗再篩,延後入帳距離
   /// 超過一期或呼叫方臨時選了很遠的日期時,原始 `happened_at` 落在視窗外會
