@@ -161,6 +161,7 @@ class LocalInstallmentRepository implements InstallmentRepository {
             );
         await db.into(db.installmentPeriods).insert(
               InstallmentPeriodsCompanion.insert(
+                syncId: d.Value(_uuid.v4()),
                 ledgerId: ledgerId,
                 planSyncId: planSyncId,
                 periodNo: period.periodNo,

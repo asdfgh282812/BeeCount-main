@@ -1185,7 +1185,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 56; // v56: 专案分类子预算 + 期间切换附加设定
+  int get schemaVersion => 57; // v57: 修补分期期数缺失 sync_id 并补推云端
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2403,6 +2403,55 @@ class BeeDatabase extends _$BeeDatabase {
                 'CREATE UNIQUE INDEX IF NOT EXISTS idx_project_category_budgets_unique '
                 'ON project_category_budgets(project_id, category_id);');
             logger.info('DBMigration', 'v56 迁移完成');
+          }
+          if (from < 57) {
+            // v57:一次性修补「建立分期付款计画时,installment_periods 从未
+            // 写入 sync_id」的历史资料。根因:
+            // LocalInstallmentRepository.createInstallmentPlan() 逐期
+            // insert installment_periods 时(建表以来)一直漏帶 syncId(同一
+            // 迴圈里的 transaction insert 反而有明确带
+            // `syncId: d.Value(_uuid.v4())`)——导致
+            // LocalRepository.createInstallmentPlan() 登记 ChangeTracker 那段
+            // `if (p.syncId == null) continue;` 恒为真,这些期数从未被记进
+            // local_changes,自然也从未推送到云端。使用者手机建立的分期计画
+            // 因此在本机(有完整期数)显示正常,但 Web 端「期数明细」永远是
+            // 空的(BeeCount Cloud 的 read_installment_period_projection 对
+            // 这个 plan 完全没有任何列)。
+            //
+            // sync_id 用 v36 同款 randomblob UUID v4 表达式当场产生,再比照
+            // v36/v53 的做法登记一笔 local_changes upsert,让它们在下次同步
+            // 时当"新建"补推上云(没开云端同步的使用者 push 循环本来就不会
+            // 跑,这几行是 no-op)。只处理仍属于现存帳本的期数——已经是孤儿
+            // 的行留给 v53/v54 的既有清理逻辑处理,这里不重复。
+            //
+            // 先把「这次要补的期数」的 id 记进暂存表,再做 UPDATE——不能等
+            // UPDATE 写完 sync_id 之后才用「sync_id IS NOT NULL」反查,那样
+            // 会连本来就已经同步过的期数(sync_id 早已存在)一起重新登记进
+            // local_changes,造成不必要的重复推送。
+            logger.info('DBMigration', '开始迁移到 v57: 修补分期期数缺失的 sync_id 并补推云端');
+            await customStatement('''
+              CREATE TEMP TABLE _v57_periods_to_fix AS
+              SELECT id FROM installment_periods
+              WHERE sync_id IS NULL
+                AND ledger_id IN (SELECT id FROM ledgers);
+            ''');
+            await customStatement('''
+              UPDATE installment_periods
+              SET sync_id = lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' ||
+                substr(hex(randomblob(2)), 2) || '-' ||
+                substr('89ab', abs(random()) % 4 + 1, 1) ||
+                substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6)))
+              WHERE id IN (SELECT id FROM _v57_periods_to_fix);
+            ''');
+            await customStatement('''
+              INSERT INTO local_changes
+                (entity_type, entity_id, entity_sync_id, ledger_id, action)
+              SELECT 'installment_period', id, sync_id, ledger_id, 'upsert'
+              FROM installment_periods
+              WHERE id IN (SELECT id FROM _v57_periods_to_fix);
+            ''');
+            await customStatement('DROP TABLE _v57_periods_to_fix;');
+            logger.info('DBMigration', 'v57 迁移完成');
           }
         },
         onCreate: (m) async {
