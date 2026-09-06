@@ -806,6 +806,13 @@ class _CategoryCard extends ConsumerWidget {
         ? Colors.orange[50]
         : Theme.of(context).colorScheme.surface;
 
+    // 分类专属颜色：二级分类没有自己的颜色，继承父分类的（跟
+    // category_selector.dart 的 _CategoryItem 颜色解析逻辑一致）。分类本身
+    // 没配到颜色（旧数据/转账分类等）时 resolvedColor 为 null，退回原本的
+    // 灰底/橙底外观，不影响既有效果。
+    final resolvedColor = CategoryUtils.parseColor(
+        item.isSubCategory ? item.parent?.color : item.category.color);
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -832,17 +839,23 @@ class _CategoryCard extends ConsumerWidget {
                     width: item.isSubCategory ? 28 : 32,
                     height: item.isSubCategory ? 28 : 32,
                     decoration: BoxDecoration(
-                      color: item.isSubCategory
-                          ? Colors.orange.withValues(alpha: 0.2)
-                          : Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                      color: resolvedColor ??
+                          (item.isSubCategory
+                              ? Colors.orange.withValues(alpha: 0.2)
+                              : Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withValues(alpha: 0.1)),
                       shape: BoxShape.circle,
                     ),
                     child: CategoryIconWidget(
                       category: item.category,
                       size: item.isSubCategory ? 16.0 : 18.0,
-                      color: item.isSubCategory
-                          ? Colors.orange[700]!
-                          : Theme.of(context).colorScheme.primary,
+                      color: resolvedColor != null
+                          ? Colors.white
+                          : (item.isSubCategory
+                              ? Colors.orange[700]!
+                              : Theme.of(context).colorScheme.primary),
                       circular: true,
                     ),
                   ),
