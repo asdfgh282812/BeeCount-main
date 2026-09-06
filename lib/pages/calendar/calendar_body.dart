@@ -70,16 +70,27 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
   }
 
   void _onPageChanged(DateTime focusedMonth) {
+    // 翻月时保留选中的「日」(如 9/7 翻到下个月停在 10/7),而不是清空选中日;
+    // 目标月没有对应天数时(如 1/31 翻到 2 月)钳制到当月最后一天。
+    final newSelectedDay = _selectedDay == null
+        ? null
+        : _clampDayToMonth(_selectedDay!.day, focusedMonth);
     setState(() {
       _focusedMonth = focusedMonth;
-      // 切换月份时，清空选中日期
-      _selectedDay = null;
+      _selectedDay = newSelectedDay;
     });
     ref.read(calendarSelectedMonthProvider.notifier).state = focusedMonth;
-    ref.read(calendarSelectedDateProvider.notifier).state = null;
+    ref.read(calendarSelectedDateProvider.notifier).state = newSelectedDay;
     // 与首页头部「年/月 + 收支结余」摘要联动 —— 之前该摘要靠列表滚动可见性
     // 驱动 selectedMonthProvider,现在改由日历翻页/跳转驱动,保持同一契约。
     ref.read(selectedMonthProvider.notifier).state = focusedMonth;
+  }
+
+  /// 将「日」钳制到目标月份的合法范围内(如 31 号翻到只有 30 天的月份时停在 30 号)。
+  DateTime _clampDayToMonth(int day, DateTime month) {
+    final lastDayOfMonth = DateTime(month.year, month.month + 1, 0).day;
+    return DateTime(
+        month.year, month.month, day > lastDayOfMonth ? lastDayOfMonth : day);
   }
 
   /// 跳转到今天。暴露给外层 Header 的「今天」入口(双击首页 tab)调用。
@@ -123,15 +134,19 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
       month = DateTime(lastDay.year, lastDay.month, 1);
     }
 
+    // 与滑动切月(_onPageChanged)保持同一语义:保留选中的「日」,目标月没有
+    // 对应天数时钳制到当月最后一天
+    final newSelectedDay = _selectedDay == null
+        ? null
+        : _clampDayToMonth(_selectedDay!.day, month);
     setState(() {
       _focusedMonth = month;
-      // 与滑动切月(_onPageChanged)保持同一语义:清空选中日,下方当日列表收起
-      _selectedDay = null;
+      _selectedDay = newSelectedDay;
     });
     // 程序化跳转时 table_calendar 会置 _pageCallbackDisabled(table_calendar_
     // base.dart:165),onPageChanged 不会回调,provider 必须手动同步
     ref.read(calendarSelectedMonthProvider.notifier).state = month;
-    ref.read(calendarSelectedDateProvider.notifier).state = null;
+    ref.read(calendarSelectedDateProvider.notifier).state = newSelectedDay;
     ref.read(selectedMonthProvider.notifier).state = month;
   }
 
