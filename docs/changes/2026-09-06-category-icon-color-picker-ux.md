@@ -20,6 +20,16 @@
 - `_CategoryCard.build`：新增 `resolvedColor`，逻辑跟 `category_selector.dart` 的 `_CategoryItem` 一致——二级分类没有自己的颜色，继承父分类的（`item.isSubCategory ? item.parent?.color : item.category.color`，经 `CategoryUtils.parseColor` 解析）。图标圆形背景优先用 `resolvedColor`，没配到颜色时才退回原本的"主题色浅色调 / 橙色调"兜底；有颜色时图标本身改用白色，保证在彩色底上可读。
   - 注：`_CategoryItem.parent` 这个字段目前所有构造调用点都没传值（分析器本来就有 `unused_element_parameter` 警告），所以二级分类分支实际上恒为 null——这是既有技术债，不在本次范围内修；本次改动只影响一级分类网格（也是用户截图里展示、需要修的那个）。
 
+### `lib/data/repositories/local/local_category_repository.dart`（真正的根因）
+
+上面 `_CategoryCard` 的改动本身没生效——用户截图验证时，分类管理页的图标背景依旧全是主题色底，编辑页里已经有颜色的分类（如"交通"）打开颜色选择器也完全看不出选中态。往下查发现根因不在任何一处 UI 渲染逻辑，而是 `watchCategoriesWithCount()`（分类管理页和分类编辑页共用的数据源）：这个方法是手写 raw SQL，`SELECT` 清单里根本没有 `c.color`，手动拼 `Category(...)` 对象时自然也没传 `color` 字段——**不管数据库里这一行的 `color` 实际是什么，这条查询路径读出来的 `Category.color` 永远是 `null`**。
+
+- `CategoryManagePage` 的分类网格 watch 的就是这个 provider（`categoriesWithCountProvider` → `watchCategoriesWithCount()`），所以图标背景永远看不到颜色。
+- 用户点分类进入编辑页时，`_onEditCategory(item.category)` 传的正是这个残缺的 `Category` 对象，`CategoryEditPage.initState` 里 `_selectedColor = widget.category?.color` 于是初始化成 `null`，颜色选择器自然选不中任何色块——即使数据库里那一行的 `color` 是真实有效的十六进制值。
+- 反过来，记账页的分类选择器（`category_selector.dart`）能正确显示颜色，是因为它用的是另一个 provider（`categoriesProvider` → `getAllCategories()`），后者用 Drift 的类型化 `db.select(db.categories)` 会自动选取全部列，没有这个遗漏。
+
+修法：`SELECT` 里加上 `c.color as category_color`（连同 `GROUP BY` 一起补），构造 `Category(...)` 时加上 `color: row.read<String?>('category_color')`。改完之后分类管理页网格、以及从管理页点进去的编辑页，颜色都会跟记账页的分类选择器保持一致。
+
 ### `lib/l10n/app_en.arb` / `lib/l10n/app_zh_TW.arb`
 
 新增 3 个 key（只更新这两个文件，`app_zh.arb`/`app_ko.arb` 按既定策略不再维护）：

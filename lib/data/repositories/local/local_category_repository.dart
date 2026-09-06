@@ -767,11 +767,12 @@ class LocalCategoryRepository implements CategoryRepository {
         c.icon_type as category_icon_type,
         c.custom_icon_path as category_custom_icon_path,
         c.community_icon_id as category_community_icon_id,
+        c.color as category_color,
         COALESCE(COUNT(t.id), 0) as transaction_count
       FROM categories c
       LEFT JOIN transactions t ON t.category_id = c.id
       WHERE c.kind != 'transfer'
-      GROUP BY c.id, c.name, c.kind, c.icon, c.sort_order, c.parent_id, c.level, c.icon_type, c.custom_icon_path, c.community_icon_id
+      GROUP BY c.id, c.name, c.kind, c.icon, c.sort_order, c.parent_id, c.level, c.icon_type, c.custom_icon_path, c.community_icon_id, c.color
       ORDER BY c.sort_order
       ''',
       readsFrom: {db.categories, db.transactions},
@@ -793,6 +794,7 @@ class LocalCategoryRepository implements CategoryRepository {
           iconType: row.read<String?>('category_icon_type') ?? 'material',
           customIconPath: row.read<String?>('category_custom_icon_path'),
           communityIconId: row.read<String?>('category_community_icon_id'),
+          color: row.read<String?>('category_color'),
         );
         final directCount = row.read<int>('transaction_count');
         categoryMap[category.id] = (category: category, directCount: directCount);

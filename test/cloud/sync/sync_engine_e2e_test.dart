@@ -584,6 +584,95 @@ void main() {
     });
   });
 
+  group('v55 分类颜色 push backfill', () {
+    // 模拟 db.dart v55 migration 2026-09-06 之前的 bug 场景:分类早就正常同步
+    // 过一次(local_changes 里已经有一条记录、且已标记 pushed),后来 color
+    // 字段被 customStatement 之类绕过 outbox 的路径直接改掉,没有产生任何新
+    // local_changes 记录。_backfillLegacyUserGlobalChanges 的 knownSyncIds
+    // 检查会命中这个 syncId(因为旧记录还在)而跳过,只有专门的
+    // _backfillLegacyCategoryColorPush 才会补推。
+    Future<int> insertLegacyColoredCategory({String syncId = 'cat-legacy-1'}) async {
+      final catId = await db.into(db.categories).insert(
+            CategoriesCompanion.insert(
+              name: 'Legacy',
+              kind: 'expense',
+              syncId: Value(syncId),
+            ),
+          );
+      // 模拟"曾经正常同步过一次"——登记 + 标记为已推送。
+      await changeTracker.recordUserGlobalChange(
+        entityType: 'category',
+        entityId: catId,
+        entitySyncId: syncId,
+        action: 'upsert',
+      );
+      final oldChange =
+          await changeTracker.getUnpushedChangesForLedger(0);
+      await changeTracker.markPushed(oldChange.map((c) => c.id).toList());
+      // 模拟旧版 v55 migration 用 customStatement 绕过 outbox 直接改 color。
+      await db.customStatement(
+          'UPDATE categories SET color = ? WHERE id = ?', ['#FF5722', catId]);
+      return catId;
+    }
+
+    test('legacy 分类(有色但 outbox 之外改的)→ 首次 push 时补推一次', () async {
+      await insertLegacyColoredCategory();
+
+      final pushed = await engine.pushUserGlobalEntities();
+      expect(pushed, 1);
+
+      expect(provider.pushedBatches, hasLength(1));
+      final batch = provider.pushedBatches.first;
+      expect(batch, hasLength(1));
+      expect(batch.first['entity_type'], 'category');
+      expect(batch.first['entity_sync_id'], 'cat-legacy-1');
+      expect(batch.first['action'], 'upsert');
+      expect((batch.first['payload'] as Map)['color'], '#FF5722');
+
+      expect(await engine.appCursor.hasBackfilled('category_color_push_v55'),
+          isTrue);
+    });
+
+    test('补推标记已存在 → 不重复补推(即使又有别的 legacy 分类)', () async {
+      await insertLegacyColoredCategory();
+      await engine.pushUserGlobalEntities();
+      expect(provider.pushedBatches, hasLength(1));
+
+      // 再插一个"legacy 有色"分类,但标记已经写过 → 不应该再被这套 backfill 捞到
+      await insertLegacyColoredCategory(syncId: 'cat-legacy-2');
+      final pushed2 = await engine.pushUserGlobalEntities();
+      expect(pushed2, 0,
+          reason: '补推标记已经落过一次,不会对新的 legacy 分类再跑一遍全量扫描');
+      expect(provider.pushedBatches, hasLength(1));
+    });
+
+    test('没有颜色的分类不受影响', () async {
+      // 走跟 insertLegacyColoredCategory 同样的"已知 syncId、已标记 pushed"
+      // 前置状态,只是不碰 color——这样才是单独隔离验证 backfill 只挑有色的,
+      // 而不是碰巧被 _backfillLegacyUserGlobalChanges(专门对付完全没有
+      // local_changes 记录的实体)捞到。
+      final catId = await db.into(db.categories).insert(
+            CategoriesCompanion.insert(
+              name: 'NoColor',
+              kind: 'expense',
+              syncId: const Value('cat-no-color'),
+            ),
+          );
+      await changeTracker.recordUserGlobalChange(
+        entityType: 'category',
+        entityId: catId,
+        entitySyncId: 'cat-no-color',
+        action: 'upsert',
+      );
+      final oldChange = await changeTracker.getUnpushedChangesForLedger(0);
+      await changeTracker.markPushed(oldChange.map((c) => c.id).toList());
+
+      final pushed = await engine.pushUserGlobalEntities();
+      expect(pushed, 0);
+      expect(provider.pushedBatches, isEmpty);
+    });
+  });
+
   group('recordChanges=false:fullPull 不反向回流', () {
     test(
         'LocalRepository.insertTransactionsBatch(recordChanges: false) → 不写 local_changes',

@@ -742,6 +742,55 @@ class SyncEngine implements app.SyncService {
     }
   }
 
+  /// v55 分类颜色 push backfill 的一次性标记 tag。跟 [_entityTypeBackfillTags]
+  /// 共用 [AppCursorStore.hasBackfilled]/[markBackfilled] 那套 per 账号+设备
+  /// 持久化标记基建,但这里補的是 **push** 方向(那边是 pull 方向),所以没跟
+  /// 那个数组合并,单独存一个 tag 常量。
+  static const _categoryColorPushBackfillTag = 'category_color_push_v55';
+
+  /// 补齐 v55 迁移遗留的分类颜色 push 缺口(**跨 app 版本持久化一次**,不是
+  /// [_userGlobalLegacyBackfilled] 那种 per-session flag)。
+  ///
+  /// 背景见 `db.dart` v55 migration 顶部注释:2026-09-06 之前的迁移代码直接
+  /// 用 `customStatement` 回填 `categories.color`,绕过了 ChangeTracker/
+  /// local_changes outbox,导致回填的颜色只落在本机、从未推上服务器。当天
+  /// 晚些时候的修法(在同一个 `if (from < 55)` 迁移块里补插 unpushed 的
+  /// local_changes 行)只对**尚未跑过 v55 迁移的设备**有效——迁移块按
+  /// schemaVersion 转换只跑一次,已经跑过旧版 v55(本机 schemaVersion 早就
+  /// ≥55)的设备,就算升级到带修法的新版本,也不会重新进入这个 `if` 块,颜色
+  /// 会永久卡在"本机有、服务器 NULL"。
+  ///
+  /// 这里用 [AppCursorStore.hasBackfilled] 的持久化标记(跟 pull 方向的
+  /// entity-type backfill 同一套 key 派生,只是语义换成 push):无条件扫一遍
+  /// 本机「一级分类且 color 非空」的全部记录,对每一条补插一条 `update`
+  /// local_changes——不检查 local_changes 里是否已有这个 syncId 的记录(那是
+  /// [_backfillLegacyUserGlobalChanges] 的职责,对付的是"完全没同步过"的
+  /// 实体;这里对付的是"同步过、但后来某个字段被 outbox 之外的路径改掉"的
+  /// 实体,即使 knownSyncIds 命中也要补推)。补的这条 change 序列化时会带上
+  /// 当前完整状态(不只是 color),等价于把这个分类重新 upsert 一次,幂等、
+  /// 无副作用。只需要成功跑过一次,用 [AppCursorStore.markBackfilled] 记录。
+  Future<void> _backfillLegacyCategoryColorPush() async {
+    if (await appCursor.hasBackfilled(_categoryColorPushBackfillTag)) return;
+    final coloredTopLevel = await (db.select(db.categories)
+          ..where((c) => c.parentId.isNull() & c.color.isNotNull()))
+        .get();
+    var enqueued = 0;
+    for (final c in coloredTopLevel) {
+      final syncId = c.syncId;
+      if (syncId == null || syncId.isEmpty) continue;
+      await changeTracker.recordUserGlobalChange(
+        entityType: 'category',
+        entityId: c.id,
+        entitySyncId: syncId,
+        action: 'update',
+      );
+      enqueued++;
+    }
+    await appCursor.markBackfilled(_categoryColorPushBackfillTag);
+    logger.info('SyncEngine',
+        'category color push backfill: 补登记 $enqueued 条待推送 color 更新');
+  }
+
   Future<int> _doPushUserGlobalEntities() async {
     // Legacy backfill:v19 migration 给老 user-global 实体填了 syncId 但没登记
     // local_changes,这里一次性补登记。每 SyncEngine 实例只跑一次。
@@ -749,6 +798,9 @@ class SyncEngine implements app.SyncService {
       await _backfillLegacyUserGlobalChanges();
       _userGlobalLegacyBackfilled = true;
     }
+    // v55 分类颜色 push backfill:见 [_backfillLegacyCategoryColorPush] 文档。
+    // 用持久化标记(不是 per-session flag),跨账号+设备只需成功跑过一次。
+    await _backfillLegacyCategoryColorPush();
 
     final globalChanges = await changeTracker.getUnpushedChangesForLedger(0);
     if (globalChanges.isEmpty) {
