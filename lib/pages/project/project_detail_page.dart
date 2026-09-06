@@ -367,6 +367,9 @@ class _ProjectDetailBody extends ConsumerWidget {
               for (final entry in allocated)
                 _CategoryBudgetTile(
                   category: entry.key,
+                  parent: entry.key.parentId != null
+                      ? categoryById[entry.key.parentId]
+                      : null,
                   usage: entry.value,
                   budgetAmount: usage.effectiveBudget == null
                       ? null
@@ -389,6 +392,9 @@ class _ProjectDetailBody extends ConsumerWidget {
               for (final entry in unallocated)
                 _CategoryBudgetTile(
                   category: entry.key,
+                  parent: entry.key.parentId != null
+                      ? categoryById[entry.key.parentId]
+                      : null,
                   usage: entry.value,
                   budgetAmount: null,
                   currencySymbol: currencySymbol,
@@ -568,6 +574,7 @@ class _CategoryGroupSection extends StatelessWidget {
 
 class _CategoryBudgetTile extends StatelessWidget {
   final Category category;
+  final Category? parent;
   final ProjectCategoryUsage usage;
   final double? budgetAmount;
   final String currencySymbol;
@@ -576,6 +583,7 @@ class _CategoryBudgetTile extends StatelessWidget {
 
   const _CategoryBudgetTile({
     required this.category,
+    this.parent,
     required this.usage,
     required this.budgetAmount,
     required this.currencySymbol,
@@ -588,7 +596,8 @@ class _CategoryBudgetTile extends StatelessWidget {
     final categoryName = CategoryUtils.getDisplayName(category.name, context);
     final iconData =
         getCategoryIconData(category: category, categoryName: categoryName);
-    final resolvedColor = CategoryUtils.parseColor(category.color);
+    final resolvedColor = CategoryUtils.parseColor(
+        category.parentId != null ? parent?.color : category.color);
 
     return InkWell(
       onTap: onTap,

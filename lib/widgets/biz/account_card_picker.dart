@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +7,7 @@ import '../../data/db.dart';
 import '../../data/repositories/local/local_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers.dart';
+import '../../services/custom_icon_service.dart';
 import '../../styles/tokens.dart';
 import '../../utils/account_type_utils.dart';
 import '../../utils/lru_cache.dart';
@@ -413,10 +416,19 @@ class _AccountRow extends ConsumerWidget {
                 color: typeColor.withValues(alpha: 0.14),
                 border: Border.all(color: typeColor.withValues(alpha: 0.35)),
               ),
-              child: Center(
-                child: AccountTypeIcon(
-                    type: account.type, size: 18, color: typeColor),
-              ),
+              child: account.avatarPath != null
+                  ? ClipOval(
+                      child: _PickerAccountAvatarImage(
+                        avatarPath: account.avatarPath!,
+                        size: 36,
+                        fallback: AccountTypeIcon(
+                            type: account.type, size: 18, color: typeColor),
+                      ),
+                    )
+                  : Center(
+                      child: AccountTypeIcon(
+                          type: account.type, size: 18, color: typeColor),
+                    ),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -489,6 +501,41 @@ class _AccountRow extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// 账户头像图片,比照 `accounts_page.dart` 的 `_AccountAvatarImage`——
+/// avatarPath 是 custom_icons/ 下的相对路径,用 CustomIconService 解回绝对
+/// 路径显示;解析失败/文件被清过缓存就退回调用方传入的 [fallback](类型图标)。
+class _PickerAccountAvatarImage extends StatelessWidget {
+  final String avatarPath;
+  final double size;
+  final Widget fallback;
+
+  const _PickerAccountAvatarImage({
+    required this.avatarPath,
+    required this.size,
+    required this.fallback,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: CustomIconService().resolveIconPath(avatarPath),
+      builder: (context, snapshot) {
+        final abs = snapshot.data;
+        if (abs == null) return Center(child: fallback);
+        final file = File(abs);
+        if (!file.existsSync()) return Center(child: fallback);
+        return Image.file(
+          file,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Center(child: fallback),
+        );
+      },
     );
   }
 }

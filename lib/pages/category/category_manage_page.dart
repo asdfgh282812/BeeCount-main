@@ -970,6 +970,7 @@ class _SubcategoryDialogState extends ConsumerState<_SubcategoryDialog> {
   @override
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).colorScheme.primary;
+    final resolvedColor = CategoryUtils.parseColor(widget.parentCategory.color);
     final l10n = AppLocalizations.of(context);
 
     return Dialog(
@@ -989,13 +990,13 @@ class _SubcategoryDialogState extends ConsumerState<_SubcategoryDialog> {
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
-                    color: primaryColor.withValues(alpha: 0.1),
+                    color: resolvedColor ?? primaryColor.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: CategoryIconWidget(
                     category: widget.parentCategory,
                     size: 18,
-                    color: primaryColor,
+                    color: resolvedColor != null ? Colors.white : primaryColor,
                     circular: true,
                   ),
                 ),
@@ -1058,6 +1059,7 @@ class _SubcategoryDialogState extends ConsumerState<_SubcategoryDialog> {
                   return _DialogSubCategoryCard(
                     category: item.category,
                     transactionCount: item.transactionCount,
+                    parentColorHex: widget.parentCategory.color,
                     onTap: () => widget.onSubCategoryTap(item.category),
                   );
                 },
@@ -1122,18 +1124,21 @@ class _DialogActionButton extends StatelessWidget {
 class _DialogSubCategoryCard extends StatelessWidget {
   final db.Category category;
   final int transactionCount;
+  final String? parentColorHex;
   final VoidCallback onTap;
 
   const _DialogSubCategoryCard({
     required this.category,
     required this.transactionCount,
     required this.onTap,
+    this.parentColorHex,
   });
 
 
   @override
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).colorScheme.primary;
+    final resolvedColor = CategoryUtils.parseColor(parentColorHex);
     final isDark = BeeTokens.isDark(context);
 
     return InkWell(
@@ -1155,13 +1160,13 @@ class _DialogSubCategoryCard extends StatelessWidget {
               width: 26,
               height: 26,
               decoration: BoxDecoration(
-                color: primaryColor.withValues(alpha: 0.1),
+                color: resolvedColor ?? primaryColor.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: CategoryIconWidget(
                 category: category,
                 size: 14,
-                color: primaryColor,
+                color: resolvedColor != null ? Colors.white : primaryColor,
                 circular: true,
               ),
             ),
