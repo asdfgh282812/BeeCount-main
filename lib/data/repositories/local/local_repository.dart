@@ -2370,8 +2370,10 @@ class LocalRepository extends BaseRepository {
           asOf: asOf, convertToLedgerCurrency: convertToLedgerCurrency);
 
   @override
-  Future<double> getCreditCardPaidTotal(int accountId) =>
-      _accountRepo.getCreditCardPaidTotal(accountId);
+  Future<double> getCreditCardPaidTotal(int accountId,
+          {bool convertToLedgerCurrency = false}) =>
+      _accountRepo.getCreditCardPaidTotal(accountId,
+          convertToLedgerCurrency: convertToLedgerCurrency);
 
   @override
   Future<List<Transaction>> getCreditCardPaymentTransactions(int accountId) =>

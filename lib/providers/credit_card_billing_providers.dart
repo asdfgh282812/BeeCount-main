@@ -37,9 +37,11 @@ List<int> _parseExtraIds(String extraIdsKey) => extraIdsKey.isEmpty
 /// 計入應繳金額。
 ///
 /// [ids] 超過一個 = 合併帳單群組(主帳戶 + 子卡)——子卡彼此可能幣別不同,
-/// 這裡把每個 id 的 `getCreditCardChargedAsOf` 都傳
+/// 這裡把每個 id 的 `getCreditCardChargedAsOf`/`getCreditCardPaidTotal` 都傳
 /// `convertToLedgerCurrency: true`,讓每筆交易先折算成帳本本位幣再相加,
-/// 否則不同幣別的原始數字直接加總會失真(2026-09-05 使用者反饋)。單一帳戶
+/// 否則不同幣別的原始數字直接加總會失真(2026-09-05 使用者反饋:charged 側;
+/// 2026-09-06 使用者反饋:paidTotal 側同一個 bug,見
+/// [AccountRepository.getCreditCardPaidTotal] docstring)。單一帳戶
 /// (`ids.length == 1`)維持原樣,不折算——單卡頁面本來就用該帳戶自己的幣別
 /// 顯示。
 Future<double> _dueAsOf(
@@ -54,7 +56,8 @@ Future<double> _dueAsOf(
     charged += await repo.getCreditCardChargedAsOf(id,
         asOf: cutoff, convertToLedgerCurrency: isGroup);
     charged -= await repo.getOffsetTotalForAccount(id);
-    paidTotal += await repo.getCreditCardPaidTotal(id);
+    paidTotal += await repo.getCreditCardPaidTotal(id,
+        convertToLedgerCurrency: isGroup);
   }
   return creditCardDueAsOf(charged: charged, paidTotal: paidTotal);
 }
@@ -163,6 +166,7 @@ final creditCardPaymentPeriodRecordsProvider = FutureProvider.family
   ref.watch(syncGenerationProvider);
   final repo = ref.watch(repositoryProvider);
   final ids = [params.accountId, ..._parseExtraIds(params.extraIdsKey)];
+  final isGroup = ids.length > 1;
 
   DateTime? firstActivity;
   for (final id in ids) {
@@ -195,11 +199,23 @@ final creditCardPaymentPeriodRecordsProvider = FutureProvider.family
   ]..sort((a, b) => (a.deferredPostingAt ?? a.happenedAt)
       .compareTo(b.deferredPostingAt ?? b.happenedAt));
 
+  // 跟上面 [periods] 的 `newSpend`(合併帳單群組時已經是 `convertToLedgerCurrency:
+  // true` 折算過的帳本本位幣數字,見 [_periodNewSpend])同一個幣別基準——
+  // 群組場景下這裡也要改用 `nativeAmount ?? amount`,否則子卡自己幣別的
+  // `toAmount` 直接拿去跟折算過的 newSpend 做 FIFO 比對,金額對不上會讓
+  // 「繳款記錄」歸屬到錯的帳期(2026-09-06 使用者反饋,同一批 paidTotal
+  // 幣別修正,見 [AccountRepository.getCreditCardPaidTotal] docstring)。單一
+  // 帳戶場景維持原樣(`toAmount ?? amount`,對齐該帳戶自己幣別的 newSpend)。
   final home = attributePaymentsToPeriods(
     periods: periods,
     payments: [
       for (final tx in allPayments)
-        (paymentId: tx.id, amount: tx.toAmount ?? tx.amount),
+        (
+          paymentId: tx.id,
+          amount: isGroup
+              ? (tx.nativeAmount ?? tx.amount)
+              : (tx.toAmount ?? tx.amount),
+        ),
     ],
   );
 

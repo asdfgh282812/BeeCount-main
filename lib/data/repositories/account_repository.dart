@@ -128,17 +128,27 @@ abstract class AccountRepository {
   Future<double> getCreditCardChargedAsOf(int accountId,
       {DateTime? asOf, bool convertToLedgerCurrency = false});
 
-  /// 信用卡帳單口徑「历史累计已繳金額」:Σ(toAmount ?? amount)
-  /// (toAccountId=accountId 的 transfer),真·终身、不设任何 cutoff——镜像
+  /// 信用卡帳單口徑「历史累计已繳金額」:真·终身、不设任何 cutoff——镜像
   /// Cloud `compute_cycle_period_billing` 的 `paid_total`:不论繳款发生在哪个
   /// 帳期,一律先套用在最早未清偿的帳期上(FIFO watermark),所以这里不能只算
-  /// 「本期」或「asOf 之前」。用 `toAmount ?? amount` 而非 `amount`——`toAmount`
-  /// 才是「轉入方(這張卡)實際入帳的金額」,同幣別轉帳兩者相等,跨幣別轉帳時
-  /// 只有 `toAmount` 是對的(`amount` 是轉出方幣別的數字)。**注意**:這裡沒有
-  /// 進一步把 `toAmount` 折算成帳本本位幣——跨幣別轉帳沒有預先存好的折算快照
-  /// (跟 `nativeAmount` 只對應交易的來源端幣別不同),合併帳單群組若子卡幣別
-  /// 跟繳款轉入的幣別不同,這裡仍可能有殘餘誤差,屬已知範圍外情況。
-  Future<double> getCreditCardPaidTotal(int accountId);
+  /// 「本期」或「asOf 之前」。
+  ///
+  /// [convertToLedgerCurrency]:同 [getCreditCardChargedAsOf] 的同名參數——
+  /// 合併帳單群組(呼叫端把多個子卡 id 加總)才該傳 `true`。原本這裡固定用
+  /// `toAmount ?? amount`(轉入方/這張卡自己幣別的入帳金額),單一帳戶場景
+  /// 沒問題,但合併帳單群組彙總時子卡彼此可能幣別不同,直接把不同幣別的
+  /// `toAmount` 加總、再拿去跟已經折算成帳本本位幣的 `charged` 相減比較,會把
+  /// 子卡自己幣別的原始數字誤當帳本本位幣算,「已繳金額」/「剩餘帳款」嚴重
+  /// 失真(2026-09-06 使用者反饋,跟 Cloud 端 `src/services/
+  /// credit_card_billing.py` 同一批修正——Cloud 也是同樣的 bug:paid_total
+  /// 原本只讀 `to_amount`,沒有跟 charged 側一樣改讀 `native_amount`)。傳
+  /// `true` 時改用 `nativeAmount ?? amount`(轉出方金額折算帳本本位幣的快照,
+  /// 跟 charged 側 `getCreditCardChargedAsOf` 用的是同一個欄位、同一個換算
+  /// 基準,不管轉入的這張卡自己幣別是什麼,都能跟 charged 側正確相減比較)。
+  /// 單一帳戶(非群組)呼叫時維持預設 `false`,行為不變(仍用 `toAmount ??
+  /// amount`,對齐該帳戶自己幣別的顯示)。
+  Future<double> getCreditCardPaidTotal(int accountId,
+      {bool convertToLedgerCurrency = false});
 
   /// 「繳款記錄」清單顯示用:這張卡收到的全部繳款交易明細,跟
   /// [getCreditCardPaidTotal] 同一個查詢範圍,只是回傳明細列而非加總,依

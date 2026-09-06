@@ -316,7 +316,8 @@ class LocalAccountRepository implements AccountRepository {
   }
 
   @override
-  Future<double> getCreditCardPaidTotal(int accountId) async {
+  Future<double> getCreditCardPaidTotal(int accountId,
+      {bool convertToLedgerCurrency = false}) async {
     final sharedIds = await _sharedLedgerIds();
     final txs = await (db.select(db.transactions)
           ..where((t) =>
@@ -326,7 +327,9 @@ class LocalAccountRepository implements AccountRepository {
         .get();
     var paid = 0.0;
     for (final t in txs) {
-      paid += t.toAmount ?? t.amount;
+      paid += convertToLedgerCurrency
+          ? (t.nativeAmount ?? t.amount)
+          : (t.toAmount ?? t.amount);
     }
     return paid;
   }
