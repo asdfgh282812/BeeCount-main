@@ -28,9 +28,15 @@ class LocalProjectRepository implements ProjectRepository {
     bool carryoverEnabled = false,
     bool visibleOnHome = true,
     int sortOrder = 0,
+    bool incomeIncludedInBudget = false,
+    bool dailyBudgetEnabled = false,
+    String dailyBudgetMode = 'proportional',
+    int? reminderThresholdPercent,
   }) async {
     assert(
-      periodType == 'monthly' || periodType == 'yearly' || periodType == 'fixed',
+      periodType == 'monthly' ||
+          periodType == 'yearly' ||
+          periodType == 'fixed',
       "periodType 必须是 'monthly'/'yearly'/'fixed',实际传入 \"$periodType\"",
     );
     return await db.into(db.projects).insert(
@@ -46,6 +52,10 @@ class LocalProjectRepository implements ProjectRepository {
             visibleOnHome: d.Value(visibleOnHome),
             sortOrder: d.Value(sortOrder),
             syncId: d.Value(_uuid.v4()),
+            incomeIncludedInBudget: d.Value(incomeIncludedInBudget),
+            dailyBudgetEnabled: d.Value(dailyBudgetEnabled),
+            dailyBudgetMode: d.Value(dailyBudgetMode),
+            reminderThresholdPercent: d.Value(reminderThresholdPercent),
           ),
         );
   }
@@ -67,6 +77,11 @@ class LocalProjectRepository implements ProjectRepository {
     bool? visibleOnHome,
     bool? enabled,
     int? sortOrder,
+    bool? incomeIncludedInBudget,
+    bool? dailyBudgetEnabled,
+    String? dailyBudgetMode,
+    int? reminderThresholdPercent,
+    bool clearReminderThresholdPercent = false,
   }) async {
     await (db.update(db.projects)..where((t) => t.id.equals(id))).write(
       ProjectsCompanion(
@@ -98,6 +113,20 @@ class LocalProjectRepository implements ProjectRepository {
         enabled: enabled != null ? d.Value(enabled) : const d.Value.absent(),
         sortOrder:
             sortOrder != null ? d.Value(sortOrder) : const d.Value.absent(),
+        incomeIncludedInBudget: incomeIncludedInBudget != null
+            ? d.Value(incomeIncludedInBudget)
+            : const d.Value.absent(),
+        dailyBudgetEnabled: dailyBudgetEnabled != null
+            ? d.Value(dailyBudgetEnabled)
+            : const d.Value.absent(),
+        dailyBudgetMode: dailyBudgetMode != null
+            ? d.Value(dailyBudgetMode)
+            : const d.Value.absent(),
+        reminderThresholdPercent: clearReminderThresholdPercent
+            ? const d.Value(null)
+            : (reminderThresholdPercent != null
+                ? d.Value(reminderThresholdPercent)
+                : const d.Value.absent()),
         updatedAt: d.Value(DateTime.now()),
       ),
     );
@@ -122,8 +151,7 @@ class LocalProjectRepository implements ProjectRepository {
 
   @override
   Future<Project?> getProject(int id) =>
-      (db.select(db.projects)..where((t) => t.id.equals(id)))
-          .getSingleOrNull();
+      (db.select(db.projects)..where((t) => t.id.equals(id))).getSingleOrNull();
 
   @override
   Future<Project?> getProjectBySyncId(String syncId) =>
@@ -203,6 +231,28 @@ class LocalProjectRepository implements ProjectRepository {
     return _parseDouble(result.data['total']);
   }
 
+  /// 對稱 [_sumExpenses],`type='income'`。收入併入預算(§3.4 第 1 點)用。
+  Future<double> _sumIncome(
+      String projectSyncId, DateTime start, DateTime end) async {
+    final result = await db.customSelect(
+      '''
+      SELECT COALESCE(SUM(COALESCE(native_amount, amount)), 0) as total
+      FROM transactions
+      WHERE project_sync_id = ?
+        AND type = 'income'
+        AND happened_at >= ?
+        AND happened_at < ?
+      ''',
+      variables: [
+        d.Variable.withString(projectSyncId),
+        d.Variable.withDateTime(start),
+        d.Variable.withDateTime(end),
+      ],
+      readsFrom: {db.transactions},
+    ).getSingle();
+    return _parseDouble(result.data['total']);
+  }
+
   ({DateTime start, DateTime end}) _periodRange(
       Project project, DateTime now, int monthStartDay) {
     switch (project.periodType) {
@@ -246,8 +296,9 @@ class LocalProjectRepository implements ProjectRepository {
     final sd = await _monthStartDayOf(project.ledgerId);
     final range = _periodRange(project, now, sd);
     final syncId = project.syncId;
-    final used =
-        syncId == null ? 0.0 : await _sumExpenses(syncId, range.start, range.end);
+    final used = syncId == null
+        ? 0.0
+        : await _sumExpenses(syncId, range.start, range.end);
 
     double? carriedOver;
     if (project.carryoverEnabled &&
@@ -261,12 +312,127 @@ class LocalProjectRepository implements ProjectRepository {
       }
     }
 
+    double? incomeIncluded;
+    if (project.incomeIncludedInBudget &&
+        project.budgetAmount != null &&
+        syncId != null) {
+      incomeIncluded = await _sumIncome(syncId, range.start, range.end);
+    }
+
     return ProjectUsage(
       used: used,
       budget: project.budgetAmount,
       carriedOver: carriedOver,
+      incomeIncluded: incomeIncluded,
       periodStart: range.start,
       periodEnd: range.end,
+    );
+  }
+
+  @override
+  Future<List<ProjectCategoryUsage>> getProjectCategoryBreakdown(
+    String projectSyncId, {
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final rows = await db.customSelect(
+      '''
+      SELECT
+        category_id,
+        SUM(CASE WHEN type = 'expense' THEN COALESCE(native_amount, amount) ELSE 0 END) AS expense_total,
+        SUM(CASE WHEN type = 'income' THEN COALESCE(native_amount, amount) ELSE 0 END) AS income_total,
+        COUNT(*) AS cnt
+      FROM transactions
+      WHERE project_sync_id = ?
+        AND happened_at >= ?
+        AND happened_at < ?
+      GROUP BY category_id
+      ''',
+      variables: [
+        d.Variable.withString(projectSyncId),
+        d.Variable.withDateTime(start),
+        d.Variable.withDateTime(end),
+      ],
+      readsFrom: {db.transactions},
+    ).get();
+    return rows
+        .map((row) => ProjectCategoryUsage(
+              categoryId: row.data['category_id'] as int?,
+              expenseTotal: _parseDouble(row.data['expense_total']),
+              incomeTotal: _parseDouble(row.data['income_total']),
+              recordCount: (row.data['cnt'] as int?) ?? 0,
+            ))
+        .toList();
+  }
+
+  @override
+  Future<int> upsertProjectCategoryBudget({
+    required int projectId,
+    required int categoryId,
+    required String mode,
+    double? fixedAmount,
+    double? percentage,
+    bool carryoverEnabled = false,
+  }) async {
+    assert(
+      mode == 'fixed' || mode == 'percentage',
+      "mode 必须是 'fixed'/'percentage',实际传入 \"$mode\"",
+    );
+    final existing = await (db.select(db.projectCategoryBudgets)
+          ..where((t) =>
+              t.projectId.equals(projectId) & t.categoryId.equals(categoryId)))
+        .getSingleOrNull();
+
+    if (existing != null) {
+      await (db.update(db.projectCategoryBudgets)
+            ..where((t) => t.id.equals(existing.id)))
+          .write(ProjectCategoryBudgetsCompanion(
+        mode: d.Value(mode),
+        fixedAmount: d.Value(fixedAmount),
+        percentage: d.Value(percentage),
+        carryoverEnabled: d.Value(carryoverEnabled),
+        updatedAt: d.Value(DateTime.now()),
+      ));
+      return existing.id;
+    }
+
+    return await db.into(db.projectCategoryBudgets).insert(
+          ProjectCategoryBudgetsCompanion.insert(
+            projectId: projectId,
+            categoryId: categoryId,
+            mode: d.Value(mode),
+            fixedAmount: d.Value(fixedAmount),
+            percentage: d.Value(percentage),
+            carryoverEnabled: d.Value(carryoverEnabled),
+            syncId: d.Value(_uuid.v4()),
+          ),
+        );
+  }
+
+  @override
+  Future<void> removeProjectCategoryBudget(
+      int projectId, int categoryId) async {
+    await (db.delete(db.projectCategoryBudgets)
+          ..where((t) =>
+              t.projectId.equals(projectId) & t.categoryId.equals(categoryId)))
+        .go();
+  }
+
+  @override
+  Future<List<ProjectCategoryBudget>> getProjectCategoryBudgets(int projectId) {
+    return (db.select(db.projectCategoryBudgets)
+          ..where((t) => t.projectId.equals(projectId))
+          ..orderBy([(t) => d.OrderingTerm.asc(t.sortOrder)]))
+        .get();
+  }
+
+  @override
+  Future<void> updateProjectReminderNotifiedKey(
+      int id, String periodKey) async {
+    await (db.update(db.projects)..where((t) => t.id.equals(id))).write(
+      ProjectsCompanion(
+        reminderNotifiedPeriodKey: d.Value(periodKey),
+      ),
     );
   }
 

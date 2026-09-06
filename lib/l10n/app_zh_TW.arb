@@ -345,13 +345,30 @@
   },
   "annualReportAchievementSaver": "精打細算",
   "annualReportAchievementSaverDesc": "年度結餘為正",
+  "annualReportAchieved": "已達成",
+  "annualReportAvgDailyExpenseDesc": "平均每天花費金額",
+  "annualReportAvgMonthlyExpenseDesc": "平均每月花費金額",
+  "annualReportAvgPerRecord": "平均每筆消費",
+  "annualReportAvgPerRecordDesc": "你每次記帳的平均金額",
+  "annualReportCategoryCount": "消費分類數",
+  "annualReportCategoryCountDesc": "你使用過的消費分類數量",
+  "annualReportCongratsSaved": "恭喜你存下了",
   "annualReportEntrySubtitle": "生成專屬年度報告，分享你的記帳故事",
+  "annualReportExpenseHighest": "支出最高",
   "annualReportFirstRecord": "第一筆記錄",
   "annualReportGenerating": "正在生成年度報告...",
   "annualReportHighestMonth": "支出最高月份",
+  "annualReportIncomeExpenseSubtitle": "每月收入與支出的對比",
+  "annualReportIncomeExpenseTitle": "收支對比",
+  "annualReportIncomeHighest": "收入最高",
+  "annualReportInsightsSubtitle": "從數據中發現你的消費習慣",
+  "annualReportInsightsTitle": "年度洞察",
   "annualReportLargestExpense": "年度最大支出",
   "annualReportLargestIncome": "年度最大收入",
   "annualReportLowestMonth": "支出最低月份",
+  "annualReportMonthlyExpenseTrend": "月度支出趨勢",
+  "annualReportMostActiveMonth": "最活躍月份",
+  "annualReportMostActiveMonthDesc": "記帳活動最頻繁的月份",
   "annualReportNetSavings": "年度結餘",
   "annualReportNoData": "暫無{year}年資料",
   "@annualReportNoData": {
@@ -361,6 +378,8 @@
       }
     }
   },
+  "annualReportNotAchieved": "未達成",
+  "annualReportOverspent": "今年花超了",
   "annualReportPage1Subtitle": "{year}年記帳之旅",
   "@annualReportPage1Subtitle": {
     "placeholders": {
@@ -378,7 +397,12 @@
   "annualReportPage4Title": "特別時刻",
   "annualReportPage5Subtitle": "你的記帳成就徽章",
   "annualReportPage5Title": "年度成就",
+  "annualReportPersistence": "記帳堅持",
+  "annualReportPosterFooterHint": "掃描下載蜜蜂記帳，開啟你的記帳之旅",
   "annualReportSaveSuccess": "年度報告海報已儲存",
+  "annualReportSavingsRate": "儲蓄率",
+  "annualReportSavingsRateDescNegative": "今年支出超過了收入",
+  "annualReportSavingsRateDescPositive": "今年你存下了收入的這個比例",
   "annualReportShareButton": "生成分享海報",
   "annualReportSubtitle": "回顧你的{year}年財務足跡",
   "@annualReportSubtitle": {
@@ -694,12 +718,16 @@
   "categoryExpenseTransport": "交通-地鐵-公交-出租車-網約車-停車費-加油",
   "categoryExpenseType": "支出分類",
   "categoryIconLabel": "分類圖示",
+  "categoryColorLabel": "分類顏色",
   "categoryCustomIconTitle": "自訂圖示",
   "categoryCustomIconTapToSelect": "點擊選擇圖片",
   "categoryCustomIconTapToChange": "點擊更換圖片",
   "categoryCustomIconError": "選擇圖片時出錯",
   "categoryCustomIconRequired": "請選擇自訂圖示圖片",
   "categoryCustomIconCrop": "裁剪圖示",
+  "categorySystemIconTitle": "系統圖示",
+  "categorySystemIconTapToSelect": "點擊選擇圖示",
+  "categorySystemIconTapToChange": "點擊更換圖示",
   "categoryImport": "匯入分類",
   "categoryImportFailed": "匯入失敗",
   "categoryImportInvalidFile": "請選擇分類包檔案（.zip）",
@@ -3518,6 +3546,53 @@
   "projectDetailPureTrackingHint": "此專案未設預算,僅作花費記錄。",
   "projectDetailCarriedOverLabel": "結轉",
   "projectDetailNoTransactionsHint": "此專案還沒有任何交易",
+  "projectPeriodPickerTitle": "選擇區間",
+  "projectDetailExpenseLabel": "出帳",
+  "projectDetailIncomeLabel": "入帳",
+  "projectDetailNetTotalLabel": "總計",
+  "projectDetailAllocatedGroupTitle": "已分配預算",
+  "projectDetailUnallocatedGroupTitle": "未分配預算",
+  "projectDetailUnsetGroupTitle": "未設定預算",
+  "projectDetailUnallocatedLabel": "未分配",
+  "projectDetailUnallocatedAmountLabel": "未分配 {amount}",
+  "@projectDetailUnallocatedAmountLabel": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "projectDetailOverAllocatedAmountLabel": "超額分配 {amount}",
+  "@projectDetailOverAllocatedAmountLabel": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "projectDetailDailyBudgetLabel": "每日預算",
+  "projectCategoryBudgetEditTitle": "分類子預算",
+  "projectCategoryBudgetEnableToggle": "設定子預算",
+  "projectCategoryBudgetModeFixed": "固定金額",
+  "projectCategoryBudgetModePercentage": "按照比例",
+  "projectCategoryBudgetPercentageHint": "0-100",
+  "projectCategoryBudgetFooterLabel": "已分配 {allocated} / 總預算 {total}",
+  "@projectCategoryBudgetFooterLabel": {
+    "placeholders": {
+      "allocated": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "projectCategoryBudgetSaveSuccess": "已儲存",
+  "projectIncomeIncludedToggle": "收入併入預算",
+  "projectDailyBudgetToggle": "顯示每日預算",
+  "projectReminderToggle": "預算超標提醒",
+  "projectReminderThresholdLabel": "提醒門檻",
+  "projectReminderCustomHint": "自訂百分比",
   "swipesmartSettingsTitle": "SwipeSmart 信用卡推薦",
   "swipesmartSettingsSubtitle": "連接你的 SwipeSmart 帳號,記帳時可以取得信用卡推薦",
   "swipesmartConnected": "已連接:{masked}",

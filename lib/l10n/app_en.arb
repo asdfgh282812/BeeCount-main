@@ -553,12 +553,31 @@
   "annualReportTotalIncome": "Total Income",
   "annualReportTotalExpense": "Total Expense",
   "annualReportNetSavings": "Net Savings",
+  "annualReportInsightsTitle": "Annual Insights",
+  "annualReportInsightsSubtitle": "Discover your spending habits from the data",
+  "annualReportAvgPerRecord": "Average per Transaction",
+  "annualReportAvgPerRecordDesc": "Your average amount per transaction",
+  "annualReportAvgDailyExpenseDesc": "Average amount spent per day",
+  "annualReportAvgMonthlyExpenseDesc": "Average amount spent per month",
+  "annualReportMostActiveMonth": "Most Active Month",
+  "annualReportMostActiveMonthDesc": "The month with the most transaction activity",
+  "annualReportCategoryCount": "Spending Categories",
+  "annualReportCategoryCountDesc": "Number of spending categories you've used",
+  "annualReportSavingsRate": "Savings Rate",
+  "annualReportSavingsRateDescPositive": "The share of your income you saved this year",
+  "annualReportSavingsRateDescNegative": "Your spending exceeded your income this year",
+  "annualReportPersistence": "Bookkeeping Streak",
+  "annualReportIncomeExpenseTitle": "Income vs. Expense",
+  "annualReportIncomeExpenseSubtitle": "Monthly comparison of income and expense",
+  "annualReportIncomeHighest": "Highest Income",
+  "annualReportExpenseHighest": "Highest Expense",
   "annualReportPage2Title": "Expense Analysis",
   "annualReportPage2Subtitle": "Where your money went",
   "annualReportPage3Title": "Monthly Trends",
   "annualReportPage3Subtitle": "12 months of income & expense",
   "annualReportHighestMonth": "Highest Spending Month",
   "annualReportLowestMonth": "Lowest Spending Month",
+  "annualReportMonthlyExpenseTrend": "Monthly Expense Trend",
   "annualReportPage4Title": "Special Moments",
   "annualReportPage4Subtitle": "Memorable transactions",
   "annualReportLargestExpense": "Largest Expense",
@@ -589,6 +608,11 @@
   "annualReportShareButton": "Generate Share Poster",
   "annualReportGenerating": "Generating annual report...",
   "annualReportSaveSuccess": "Annual report poster saved",
+  "annualReportCongratsSaved": "Congrats, you saved",
+  "annualReportOverspent": "You overspent this year",
+  "annualReportAchieved": "Achieved",
+  "annualReportNotAchieved": "Not Achieved",
+  "annualReportPosterFooterHint": "Scan to download BeeCount and start your bookkeeping journey",
   "mineShareApp": "Share App",
   "mineShareWithFriends": "Share BeeCount with friends",
   "mineCopyPromoText": "Copy Promo Text",
@@ -786,12 +810,16 @@
   "categoryNameTooLong": "Category name cannot exceed 4 characters",
   "categoryNameDuplicate": "Category name already exists",
   "categoryIconLabel": "Category Icon",
+  "categoryColorLabel": "Category Color",
   "categoryCustomIconTitle": "Custom Icon",
   "categoryCustomIconTapToSelect": "Tap to select image",
   "categoryCustomIconTapToChange": "Tap to change image",
   "categoryCustomIconError": "Error selecting image",
   "categoryCustomIconRequired": "Please select a custom icon image",
   "categoryCustomIconCrop": "Crop Icon",
+  "categorySystemIconTitle": "System Icon",
+  "categorySystemIconTapToSelect": "Tap to select an icon",
+  "categorySystemIconTapToChange": "Tap to change icon",
   "categoryDangerousOperations": "Dangerous Operations",
   "categoryDeleteTitle": "Delete Category",
   "categoryDeleteSubtitle": "Cannot be recovered after deletion",
@@ -3939,6 +3967,53 @@
   "projectDetailPureTrackingHint": "This project has no budget — spending is tracked only.",
   "projectDetailCarriedOverLabel": "Carried over",
   "projectDetailNoTransactionsHint": "No transactions in this project yet",
+  "projectPeriodPickerTitle": "Select Period",
+  "projectDetailExpenseLabel": "Expense",
+  "projectDetailIncomeLabel": "Income",
+  "projectDetailNetTotalLabel": "Total",
+  "projectDetailAllocatedGroupTitle": "Allocated Budget",
+  "projectDetailUnallocatedGroupTitle": "Unallocated Budget",
+  "projectDetailUnsetGroupTitle": "No Budget Set",
+  "projectDetailUnallocatedLabel": "Unallocated",
+  "projectDetailUnallocatedAmountLabel": "Unallocated {amount}",
+  "@projectDetailUnallocatedAmountLabel": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "projectDetailOverAllocatedAmountLabel": "Over-allocated {amount}",
+  "@projectDetailOverAllocatedAmountLabel": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "projectDetailDailyBudgetLabel": "Daily budget",
+  "projectCategoryBudgetEditTitle": "Category Budgets",
+  "projectCategoryBudgetEnableToggle": "Set sub-budget",
+  "projectCategoryBudgetModeFixed": "Fixed Amount",
+  "projectCategoryBudgetModePercentage": "Percentage",
+  "projectCategoryBudgetPercentageHint": "0-100",
+  "projectCategoryBudgetFooterLabel": "Allocated {allocated} / Budget {total}",
+  "@projectCategoryBudgetFooterLabel": {
+    "placeholders": {
+      "allocated": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "projectCategoryBudgetSaveSuccess": "Saved",
+  "projectIncomeIncludedToggle": "Include income in budget",
+  "projectDailyBudgetToggle": "Show daily budget",
+  "projectReminderToggle": "Budget alert",
+  "projectReminderThresholdLabel": "Alert threshold",
+  "projectReminderCustomHint": "Custom %",
   "swipesmartSettingsTitle": "SwipeSmart Card Recommendation",
   "swipesmartSettingsSubtitle": "Connect your SwipeSmart account to get card recommendations while entering transactions",
   "swipesmartConnected": "Connected: {masked}",

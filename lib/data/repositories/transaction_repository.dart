@@ -545,8 +545,14 @@ abstract class TransactionRepository {
   Future<List<Transaction>> getRefundsOf(String originalSyncId);
 
   /// v44:查出所有指定了某個專案(projectSyncId)的交易,依時間新到舊排序。
-  /// 專案詳情頁交易列表用,同 [getRefundsOf] 的 syncId 過濾模式。
-  Future<List<Transaction>> getTransactionsByProject(String projectSyncId);
+  /// 專案詳情頁交易列表用,同 [getRefundsOf] 的 syncId 過濾模式。[start]/[end]
+  /// 都不傳時維持全時間範圍(v56 前的既有行為);有傳則加半開區間
+  /// `[start, end)` 篩選,配合專案詳情頁的期間切換功能。
+  Future<List<Transaction>> getTransactionsByProject(
+    String projectSyncId, {
+    DateTime? start,
+    DateTime? end,
+  });
 
   /// 根据 syncId 更新交易的全部字段
   Future<void> updateTransactionBySyncId({

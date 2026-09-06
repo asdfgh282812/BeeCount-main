@@ -1218,6 +1218,68 @@ class AppLocalizationsZh extends AppLocalizations {
   String get annualReportNetSavings => '年度结余';
 
   @override
+  String get annualReportInsightsTitle => 'Annual Insights';
+
+  @override
+  String get annualReportInsightsSubtitle =>
+      'Discover your spending habits from the data';
+
+  @override
+  String get annualReportAvgPerRecord => 'Average per Transaction';
+
+  @override
+  String get annualReportAvgPerRecordDesc =>
+      'Your average amount per transaction';
+
+  @override
+  String get annualReportAvgDailyExpenseDesc => 'Average amount spent per day';
+
+  @override
+  String get annualReportAvgMonthlyExpenseDesc =>
+      'Average amount spent per month';
+
+  @override
+  String get annualReportMostActiveMonth => 'Most Active Month';
+
+  @override
+  String get annualReportMostActiveMonthDesc =>
+      'The month with the most transaction activity';
+
+  @override
+  String get annualReportCategoryCount => 'Spending Categories';
+
+  @override
+  String get annualReportCategoryCountDesc =>
+      'Number of spending categories you\'ve used';
+
+  @override
+  String get annualReportSavingsRate => 'Savings Rate';
+
+  @override
+  String get annualReportSavingsRateDescPositive =>
+      'The share of your income you saved this year';
+
+  @override
+  String get annualReportSavingsRateDescNegative =>
+      'Your spending exceeded your income this year';
+
+  @override
+  String get annualReportPersistence => 'Bookkeeping Streak';
+
+  @override
+  String get annualReportIncomeExpenseTitle => 'Income vs. Expense';
+
+  @override
+  String get annualReportIncomeExpenseSubtitle =>
+      'Monthly comparison of income and expense';
+
+  @override
+  String get annualReportIncomeHighest => 'Highest Income';
+
+  @override
+  String get annualReportExpenseHighest => 'Highest Expense';
+
+  @override
   String get annualReportPage2Title => '支出分析';
 
   @override
@@ -1234,6 +1296,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get annualReportLowestMonth => '支出最低月份';
+
+  @override
+  String get annualReportMonthlyExpenseTrend => 'Monthly Expense Trend';
 
   @override
   String get annualReportPage4Title => '特别时刻';
@@ -1286,6 +1351,22 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get annualReportSaveSuccess => '年度报告海报已保存';
+
+  @override
+  String get annualReportCongratsSaved => 'Congrats, you saved';
+
+  @override
+  String get annualReportOverspent => 'You overspent this year';
+
+  @override
+  String get annualReportAchieved => 'Achieved';
+
+  @override
+  String get annualReportNotAchieved => 'Not Achieved';
+
+  @override
+  String get annualReportPosterFooterHint =>
+      'Scan to download BeeCount and start your bookkeeping journey';
 
   @override
   String get mineShareApp => '分享应用';
@@ -1845,6 +1926,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get categoryIconLabel => '分类图标';
 
   @override
+  String get categoryColorLabel => '分类颜色';
+
+  @override
   String get categoryCustomIconTitle => '自定义图标';
 
   @override
@@ -1861,6 +1945,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get categoryCustomIconCrop => '裁剪图标';
+
+  @override
+  String get categorySystemIconTitle => 'System Icon';
+
+  @override
+  String get categorySystemIconTapToSelect => 'Tap to select an icon';
+
+  @override
+  String get categorySystemIconTapToChange => 'Tap to change icon';
 
   @override
   String get categoryDangerousOperations => '危险操作';
@@ -8910,6 +9003,81 @@ class AppLocalizationsZh extends AppLocalizations {
       'No transactions in this project yet';
 
   @override
+  String get projectPeriodPickerTitle => 'Select Period';
+
+  @override
+  String get projectDetailExpenseLabel => 'Expense';
+
+  @override
+  String get projectDetailIncomeLabel => 'Income';
+
+  @override
+  String get projectDetailNetTotalLabel => 'Total';
+
+  @override
+  String get projectDetailAllocatedGroupTitle => 'Allocated Budget';
+
+  @override
+  String get projectDetailUnallocatedGroupTitle => 'Unallocated Budget';
+
+  @override
+  String get projectDetailUnsetGroupTitle => 'No Budget Set';
+
+  @override
+  String get projectDetailUnallocatedLabel => 'Unallocated';
+
+  @override
+  String projectDetailUnallocatedAmountLabel(String amount) {
+    return 'Unallocated $amount';
+  }
+
+  @override
+  String projectDetailOverAllocatedAmountLabel(String amount) {
+    return 'Over-allocated $amount';
+  }
+
+  @override
+  String get projectDetailDailyBudgetLabel => 'Daily budget';
+
+  @override
+  String get projectCategoryBudgetEditTitle => 'Category Budgets';
+
+  @override
+  String get projectCategoryBudgetEnableToggle => 'Set sub-budget';
+
+  @override
+  String get projectCategoryBudgetModeFixed => 'Fixed Amount';
+
+  @override
+  String get projectCategoryBudgetModePercentage => 'Percentage';
+
+  @override
+  String get projectCategoryBudgetPercentageHint => '0-100';
+
+  @override
+  String projectCategoryBudgetFooterLabel(String allocated, String total) {
+    return 'Allocated $allocated / Budget $total';
+  }
+
+  @override
+  String get projectCategoryBudgetSaveSuccess => 'Saved';
+
+  @override
+  String get projectIncomeIncludedToggle => 'Include income in budget';
+
+  @override
+  String get projectDailyBudgetToggle => 'Show daily budget';
+
+  @override
+  String get projectReminderToggle => 'Budget alert';
+
+  @override
+  String get projectReminderThresholdLabel => 'Alert threshold';
+
+  @override
+  String get projectReminderCustomHint => 'Custom %';
+
+  @override
   String get swipesmartSettingsTitle => 'SwipeSmart Card Recommendation';
 
   @override
@@ -10568,6 +10736,60 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get annualReportNetSavings => '年度結餘';
 
   @override
+  String get annualReportInsightsTitle => '年度洞察';
+
+  @override
+  String get annualReportInsightsSubtitle => '從數據中發現你的消費習慣';
+
+  @override
+  String get annualReportAvgPerRecord => '平均每筆消費';
+
+  @override
+  String get annualReportAvgPerRecordDesc => '你每次記帳的平均金額';
+
+  @override
+  String get annualReportAvgDailyExpenseDesc => '平均每天花費金額';
+
+  @override
+  String get annualReportAvgMonthlyExpenseDesc => '平均每月花費金額';
+
+  @override
+  String get annualReportMostActiveMonth => '最活躍月份';
+
+  @override
+  String get annualReportMostActiveMonthDesc => '記帳活動最頻繁的月份';
+
+  @override
+  String get annualReportCategoryCount => '消費分類數';
+
+  @override
+  String get annualReportCategoryCountDesc => '你使用過的消費分類數量';
+
+  @override
+  String get annualReportSavingsRate => '儲蓄率';
+
+  @override
+  String get annualReportSavingsRateDescPositive => '今年你存下了收入的這個比例';
+
+  @override
+  String get annualReportSavingsRateDescNegative => '今年支出超過了收入';
+
+  @override
+  String get annualReportPersistence => '記帳堅持';
+
+  @override
+  String get annualReportIncomeExpenseTitle => '收支對比';
+
+  @override
+  String get annualReportIncomeExpenseSubtitle => '每月收入與支出的對比';
+
+  @override
+  String get annualReportIncomeHighest => '收入最高';
+
+  @override
+  String get annualReportExpenseHighest => '支出最高';
+
+  @override
   String get annualReportPage2Title => '支出分析';
 
   @override
@@ -10584,6 +10806,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get annualReportLowestMonth => '支出最低月份';
+
+  @override
+  String get annualReportMonthlyExpenseTrend => '月度支出趨勢';
 
   @override
   String get annualReportPage4Title => '特別時刻';
@@ -10636,6 +10861,21 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get annualReportSaveSuccess => '年度報告海報已儲存';
+
+  @override
+  String get annualReportCongratsSaved => '恭喜你存下了';
+
+  @override
+  String get annualReportOverspent => '今年花超了';
+
+  @override
+  String get annualReportAchieved => '已達成';
+
+  @override
+  String get annualReportNotAchieved => '未達成';
+
+  @override
+  String get annualReportPosterFooterHint => '掃描下載蜜蜂記帳，開啟你的記帳之旅';
 
   @override
   String get mineShareApp => '分享應用程式';
@@ -11195,6 +11435,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get categoryIconLabel => '分類圖示';
 
   @override
+  String get categoryColorLabel => '分類顏色';
+
+  @override
   String get categoryCustomIconTitle => '自訂圖示';
 
   @override
@@ -11211,6 +11454,15 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get categoryCustomIconCrop => '裁剪圖示';
+
+  @override
+  String get categorySystemIconTitle => '系統圖示';
+
+  @override
+  String get categorySystemIconTapToSelect => '點擊選擇圖示';
+
+  @override
+  String get categorySystemIconTapToChange => '點擊更換圖示';
 
   @override
   String get categoryDangerousOperations => '危險操作';
@@ -18229,6 +18481,81 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get projectDetailNoTransactionsHint => '此專案還沒有任何交易';
+
+  @override
+  String get projectPeriodPickerTitle => '選擇區間';
+
+  @override
+  String get projectDetailExpenseLabel => '出帳';
+
+  @override
+  String get projectDetailIncomeLabel => '入帳';
+
+  @override
+  String get projectDetailNetTotalLabel => '總計';
+
+  @override
+  String get projectDetailAllocatedGroupTitle => '已分配預算';
+
+  @override
+  String get projectDetailUnallocatedGroupTitle => '未分配預算';
+
+  @override
+  String get projectDetailUnsetGroupTitle => '未設定預算';
+
+  @override
+  String get projectDetailUnallocatedLabel => '未分配';
+
+  @override
+  String projectDetailUnallocatedAmountLabel(String amount) {
+    return '未分配 $amount';
+  }
+
+  @override
+  String projectDetailOverAllocatedAmountLabel(String amount) {
+    return '超額分配 $amount';
+  }
+
+  @override
+  String get projectDetailDailyBudgetLabel => '每日預算';
+
+  @override
+  String get projectCategoryBudgetEditTitle => '分類子預算';
+
+  @override
+  String get projectCategoryBudgetEnableToggle => '設定子預算';
+
+  @override
+  String get projectCategoryBudgetModeFixed => '固定金額';
+
+  @override
+  String get projectCategoryBudgetModePercentage => '按照比例';
+
+  @override
+  String get projectCategoryBudgetPercentageHint => '0-100';
+
+  @override
+  String projectCategoryBudgetFooterLabel(String allocated, String total) {
+    return '已分配 $allocated / 總預算 $total';
+  }
+
+  @override
+  String get projectCategoryBudgetSaveSuccess => '已儲存';
+
+  @override
+  String get projectIncomeIncludedToggle => '收入併入預算';
+
+  @override
+  String get projectDailyBudgetToggle => '顯示每日預算';
+
+  @override
+  String get projectReminderToggle => '預算超標提醒';
+
+  @override
+  String get projectReminderThresholdLabel => '提醒門檻';
+
+  @override
+  String get projectReminderCustomHint => '自訂百分比';
 
   @override
   String get swipesmartSettingsTitle => 'SwipeSmart 信用卡推薦';

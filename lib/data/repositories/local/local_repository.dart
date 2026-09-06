@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/drift.dart' as d;
@@ -6,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../db.dart';
 import '../../../cloud/sync/change_tracker.dart';
 import '../../../services/currency/rate_math.dart';
+import '../../../services/system/project_budget_reminder_service.dart';
 import '../../../services/data/recurring_rule_schedule.dart'
     as recurring_schedule;
 import '../../../utils/shared_ledger_picker_filter.dart';
@@ -35,7 +37,8 @@ import 'local_exchange_rate_repository.dart';
 import 'local_card_reward_rule_repository.dart';
 import '../debt_repository.dart';
 import 'local_debt_repository.dart';
-import '../project_repository.dart' show ProjectUsage, ProjectWithUsage;
+import '../project_repository.dart'
+    show ProjectUsage, ProjectWithUsage, ProjectCategoryUsage;
 import 'local_project_repository.dart';
 import 'local_reward_choice_cache_repository.dart';
 import '../installment_repository.dart';
@@ -518,6 +521,10 @@ class LocalRepository extends BaseRepository {
         );
       }
     }
+    if (projectSyncId != null) {
+      unawaited(
+          ProjectBudgetReminderService.checkAndNotify(this, projectSyncId));
+    }
     return id;
   }
 
@@ -654,6 +661,10 @@ class LocalRepository extends BaseRepository {
           ledgerId: old.ledgerId,
           action: 'update',
         );
+        if (old.projectSyncId != null) {
+          unawaited(ProjectBudgetReminderService.checkAndNotify(
+              this, old.projectSyncId));
+        }
         return;
       }
     }
@@ -682,6 +693,10 @@ class LocalRepository extends BaseRepository {
       discountLabel: discountLabel,
       baseAmount: baseAmount,
     );
+    if (old?.projectSyncId != null) {
+      unawaited(ProjectBudgetReminderService.checkAndNotify(
+          this, old!.projectSyncId));
+    }
   }
 
   @override
@@ -1307,6 +1322,10 @@ class LocalRepository extends BaseRepository {
         action: 'update',
       );
     }
+    if (projectSyncId != null) {
+      unawaited(
+          ProjectBudgetReminderService.checkAndNotify(this, projectSyncId));
+    }
   }
 
   @override
@@ -1518,8 +1537,13 @@ class LocalRepository extends BaseRepository {
       _transactionRepo.getRefundsOf(originalSyncId);
 
   @override
-  Future<List<Transaction>> getTransactionsByProject(String projectSyncId) =>
-      _transactionRepo.getTransactionsByProject(projectSyncId);
+  Future<List<Transaction>> getTransactionsByProject(
+    String projectSyncId, {
+    DateTime? start,
+    DateTime? end,
+  }) =>
+      _transactionRepo.getTransactionsByProject(projectSyncId,
+          start: start, end: end);
 
   @override
   Future<void> updateTransactionBySyncId({
@@ -1656,6 +1680,7 @@ class LocalRepository extends BaseRepository {
     int level = 1,
     int? parentId,
     String? syncId,
+    String? color,
   }) async {
     final id = await _categoryRepo.createCategory(
       name: name,
@@ -1665,6 +1690,7 @@ class LocalRepository extends BaseRepository {
       level: level,
       parentId: parentId,
       syncId: syncId,
+      color: color,
     );
     if (changeTracker != null) {
       final cat = await _categoryRepo.getCategoryById(id);
@@ -1713,11 +1739,15 @@ class LocalRepository extends BaseRepository {
 
   @override
   Future<void> updateCategory(int id,
-      {String? name, String? icon, int? parentId, int? level}) async {
+      {String? name,
+      String? icon,
+      int? parentId,
+      int? level,
+      String? color}) async {
     final cat =
         changeTracker != null ? await _categoryRepo.getCategoryById(id) : null;
     await _categoryRepo.updateCategory(id,
-        name: name, icon: icon, parentId: parentId, level: level);
+        name: name, icon: icon, parentId: parentId, level: level, color: color);
     if (cat?.syncId != null) {
       await changeTracker!.recordUserGlobalChange(
         entityType: 'category',
@@ -4319,6 +4349,10 @@ class LocalRepository extends BaseRepository {
     bool carryoverEnabled = false,
     bool visibleOnHome = true,
     int sortOrder = 0,
+    bool incomeIncludedInBudget = false,
+    bool dailyBudgetEnabled = false,
+    String dailyBudgetMode = 'proportional',
+    int? reminderThresholdPercent,
   }) async {
     final id = await _projectRepo.createProject(
       ledgerId: ledgerId,
@@ -4331,6 +4365,10 @@ class LocalRepository extends BaseRepository {
       carryoverEnabled: carryoverEnabled,
       visibleOnHome: visibleOnHome,
       sortOrder: sortOrder,
+      incomeIncludedInBudget: incomeIncludedInBudget,
+      dailyBudgetEnabled: dailyBudgetEnabled,
+      dailyBudgetMode: dailyBudgetMode,
+      reminderThresholdPercent: reminderThresholdPercent,
     );
     if (changeTracker != null) {
       final row = await (db.select(db.projects)..where((t) => t.id.equals(id)))
@@ -4365,6 +4403,11 @@ class LocalRepository extends BaseRepository {
     bool? visibleOnHome,
     bool? enabled,
     int? sortOrder,
+    bool? incomeIncludedInBudget,
+    bool? dailyBudgetEnabled,
+    String? dailyBudgetMode,
+    int? reminderThresholdPercent,
+    bool clearReminderThresholdPercent = false,
   }) async {
     await _projectRepo.updateProject(
       id,
@@ -4382,6 +4425,11 @@ class LocalRepository extends BaseRepository {
       visibleOnHome: visibleOnHome,
       enabled: enabled,
       sortOrder: sortOrder,
+      incomeIncludedInBudget: incomeIncludedInBudget,
+      dailyBudgetEnabled: dailyBudgetEnabled,
+      dailyBudgetMode: dailyBudgetMode,
+      reminderThresholdPercent: reminderThresholdPercent,
+      clearReminderThresholdPercent: clearReminderThresholdPercent,
     );
     await _recordProjectChange(id, 'update');
   }
@@ -4464,6 +4512,87 @@ class LocalRepository extends BaseRepository {
           {bool includeDisabled = false}) =>
       _projectRepo.getAllProjectUsages(ledgerId, now,
           includeDisabled: includeDisabled);
+
+  @override
+  Future<List<ProjectCategoryUsage>> getProjectCategoryBreakdown(
+    String projectSyncId, {
+    required DateTime start,
+    required DateTime end,
+  }) =>
+      _projectRepo.getProjectCategoryBreakdown(projectSyncId,
+          start: start, end: end);
+
+  @override
+  Future<List<ProjectCategoryBudget>> getProjectCategoryBudgets(
+          int projectId) =>
+      _projectRepo.getProjectCategoryBudgets(projectId);
+
+  @override
+  Future<int> upsertProjectCategoryBudget({
+    required int projectId,
+    required int categoryId,
+    required String mode,
+    double? fixedAmount,
+    double? percentage,
+    bool carryoverEnabled = false,
+  }) async {
+    final id = await _projectRepo.upsertProjectCategoryBudget(
+      projectId: projectId,
+      categoryId: categoryId,
+      mode: mode,
+      fixedAmount: fixedAmount,
+      percentage: percentage,
+      carryoverEnabled: carryoverEnabled,
+    );
+    await _recordProjectCategoryBudgetChange(id, 'update');
+    return id;
+  }
+
+  @override
+  Future<void> removeProjectCategoryBudget(
+      int projectId, int categoryId) async {
+    final existing = await (db.select(db.projectCategoryBudgets)
+          ..where((t) =>
+              t.projectId.equals(projectId) & t.categoryId.equals(categoryId)))
+        .getSingleOrNull();
+    if (existing == null) return;
+    await _projectRepo.removeProjectCategoryBudget(projectId, categoryId);
+    if (changeTracker != null && existing.syncId != null) {
+      final project = await _projectRepo.getProject(projectId);
+      if (project != null) {
+        await changeTracker!.recordLedgerChange(
+          entityType: 'project_category_budget',
+          entityId: existing.id,
+          entitySyncId: existing.syncId!,
+          ledgerId: project.ledgerId,
+          action: 'delete',
+        );
+      }
+    }
+  }
+
+  /// 仿 [_recordProjectChange]:分類子預算是 ledger-scoped 實體,但這張表
+  /// 本身沒有 `ledgerId` 欄位,要透過所屬專案反查。
+  Future<void> _recordProjectCategoryBudgetChange(int id, String action) async {
+    if (changeTracker == null) return;
+    final row = await (db.select(db.projectCategoryBudgets)
+          ..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
+    if (row == null || row.syncId == null) return;
+    final project = await _projectRepo.getProject(row.projectId);
+    if (project == null) return;
+    await changeTracker!.recordLedgerChange(
+      entityType: 'project_category_budget',
+      entityId: id,
+      entitySyncId: row.syncId!,
+      ledgerId: project.ledgerId,
+      action: action,
+    );
+  }
+
+  @override
+  Future<void> updateProjectReminderNotifiedKey(int id, String periodKey) =>
+      _projectRepo.updateProjectReminderNotifiedKey(id, periodKey);
 
   @override
   Future<int> backfillProjectForCategoryBatch({

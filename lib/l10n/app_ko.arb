@@ -529,6 +529,7 @@
   "categoryNameTooLong": "카테고리 이름은 4자를 초과할 수 없습니다",
   "categoryNameDuplicate": "이미 존재하는 카테고리 이름입니다",
   "categoryIconLabel": "카테고리 아이콘",
+  "categoryColorLabel": "카테고리 색상",
   "categoryCustomIconTitle": "사용자 지정 아이콘",
   "categoryCustomIconTapToSelect": "눌러서 이미지 선택",
   "categoryCustomIconTapToChange": "눌러서 이미지 변경",

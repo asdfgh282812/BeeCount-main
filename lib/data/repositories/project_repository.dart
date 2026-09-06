@@ -8,6 +8,10 @@ class ProjectUsage {
   final double? budget;
   final double? carriedOver;
 
+  /// 該期實際併入預算的收入總額(project.incomeIncludedInBudget=true 時才
+  /// 非 null),UI 顯示明細/除錯用,不是 [effectiveBudget] 之外的必要欄位。
+  final double? incomeIncluded;
+
   /// 本次計算採用的週期範圍,半開區間 [periodStart, periodEnd)。UI 顯示週期
   /// 文字(本月/年度/起訖日)用。
   final DateTime periodStart;
@@ -17,13 +21,16 @@ class ProjectUsage {
     required this.used,
     this.budget,
     this.carriedOver,
+    this.incomeIncluded,
     required this.periodStart,
     required this.periodEnd,
   });
 
-  /// 有效預算 = budget + carriedOver(carryoverEnabled 時);純記錄專案為 null。
-  double? get effectiveBudget =>
-      budget == null ? null : budget! + (carriedOver ?? 0);
+  /// 有效預算 = budget + carriedOver(carryoverEnabled 時) +
+  /// incomeIncluded(incomeIncludedInBudget 時);純記錄專案為 null。
+  double? get effectiveBudget => budget == null
+      ? null
+      : budget! + (carriedOver ?? 0) + (incomeIncluded ?? 0);
 
   double? get remaining =>
       effectiveBudget == null ? null : effectiveBudget! - used;
@@ -43,6 +50,23 @@ class ProjectWithUsage {
   final ProjectUsage usage;
 
   const ProjectWithUsage({required this.project, required this.usage});
+}
+
+/// 該專案在某期間內,依一級分類分組的花費/收入統計 + 筆數。跟
+/// [ProjectCategoryBudgets] 的分配額度是兩個獨立來源,由呼叫端合併成「已
+/// 分配/未分配/未設定」三組(分組是展示邏輯,不在 repository 層做)。
+class ProjectCategoryUsage {
+  final int? categoryId;
+  final double expenseTotal;
+  final double incomeTotal;
+  final int recordCount;
+
+  const ProjectCategoryUsage({
+    required this.categoryId,
+    required this.expenseTotal,
+    required this.incomeTotal,
+    required this.recordCount,
+  });
 }
 
 /// 專案 repository 介面。ledger-scoped 实体(同 budget/debt/ledger),對齐
@@ -65,11 +89,15 @@ abstract class ProjectRepository {
     bool carryoverEnabled = false,
     bool visibleOnHome = true,
     int sortOrder = 0,
+    bool incomeIncludedInBudget = false,
+    bool dailyBudgetEnabled = false,
+    String dailyBudgetMode = 'proportional',
+    int? reminderThresholdPercent,
   });
 
   /// 更新可變欄位。[clearIcon]/[clearBudgetAmount]/[clearPeriodStart]/
-  /// [clearPeriodEnd] 顯式清空對應欄位(區分「沒傳」跟「傳 null 清空」,
-  /// 同 [DebtRepository.updateDebt] 的慣例)。
+  /// [clearPeriodEnd]/[clearReminderThresholdPercent] 顯式清空對應欄位(區分
+  /// 「沒傳」跟「傳 null 清空」,同 [DebtRepository.updateDebt] 的慣例)。
   Future<void> updateProject(
     int id, {
     String? name,
@@ -86,6 +114,11 @@ abstract class ProjectRepository {
     bool? visibleOnHome,
     bool? enabled,
     int? sortOrder,
+    bool? incomeIncludedInBudget,
+    bool? dailyBudgetEnabled,
+    String? dailyBudgetMode,
+    int? reminderThresholdPercent,
+    bool clearReminderThresholdPercent = false,
   });
 
   /// 刪除規則對齐 server(design doc §7/§8):該專案若有任何交易關聯(見
@@ -130,4 +163,35 @@ abstract class ProjectRepository {
   /// 帳本下所有(依 [includeDisabled])專案的花費統計,依 [sortOrder] 排序。
   Future<List<ProjectWithUsage>> getAllProjectUsages(int ledgerId, DateTime now,
       {bool includeDisabled = false});
+
+  /// 建立/更新一筆分類子預算分配(依 (projectId, categoryId) 唯一鍵
+  /// upsert)。[categoryId] 應為一級分類,呼叫端(UI 分類選擇器)負責守規矩,
+  /// repository 層不額外驗證(同全庫對 level 的處理慣例)。
+  Future<int> upsertProjectCategoryBudget({
+    required int projectId,
+    required int categoryId,
+    required String mode,
+    double? fixedAmount,
+    double? percentage,
+    bool carryoverEnabled = false,
+  });
+
+  /// 移除一筆分類子預算分配(分類本身被刪除,或使用者手動移除分配時呼叫,
+  /// 直接刪列,無軟刪除必要)。
+  Future<void> removeProjectCategoryBudget(int projectId, int categoryId);
+
+  Future<List<ProjectCategoryBudget>> getProjectCategoryBudgets(int projectId);
+
+  /// 該專案在 [start, end) 期間內,依一級分類分組的支出/收入統計 + 筆數。
+  /// 回傳所有「在期間內有交易」的分類;沒有交易的分類由呼叫端自行從
+  /// [getAllProjects]/`getAllCategories()` 補上「未設定預算」那組。
+  Future<List<ProjectCategoryUsage>> getProjectCategoryBreakdown(
+    String projectSyncId, {
+    required DateTime start,
+    required DateTime end,
+  });
+
+  /// 純本機欄位寫入(§6.3 預算提醒):記錄「這期已經提醒過」,不經過
+  /// [ChangeTracker](這欄位本來就不同步)。
+  Future<void> updateProjectReminderNotifiedKey(int id, String periodKey);
 }

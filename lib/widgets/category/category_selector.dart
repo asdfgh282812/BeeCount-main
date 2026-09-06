@@ -566,7 +566,7 @@ class _CategoryItem extends StatelessWidget {
     // 的两处调用点)。分类本身没配到颜色(旧数据/转账分类等)时 resolvedColor
     // 为 null,退回原本的灰色 token 底色,不影响既有外观。
     final resolvedColor =
-        _parseCategoryColor(isSubCategory ? parent?.color : category.color);
+        CategoryUtils.parseColor(isSubCategory ? parent?.color : category.color);
 
     return InkWell(
       onTap: onTap,
@@ -734,21 +734,3 @@ class _CategoryAddItem extends StatelessWidget {
   }
 }
 
-/// 解析分类颜色十六进制字符串(如 "#FF9800")。空值/格式错误一律返回
-/// null,让调用方退回原本的灰色 token 底色——跟 tag_chip.dart 的
-/// _parseColor 同款写法,分类这边额外允许 null 直接短路。
-Color? _parseCategoryColor(String? hex) {
-  if (hex == null || hex.isEmpty) return null;
-  try {
-    var value = hex;
-    if (value.startsWith('#')) {
-      value = value.substring(1);
-    }
-    if (value.length == 6) {
-      value = 'FF$value';
-    }
-    return Color(int.parse(value, radix: 16));
-  } catch (_) {
-    return null;
-  }
-}

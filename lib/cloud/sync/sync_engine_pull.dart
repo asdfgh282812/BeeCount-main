@@ -271,6 +271,7 @@ class LookupCache {
   final Map<String, int> _category = {};
   final Map<String, int> _account = {};
   final Map<String, int> _tag = {};
+  final Map<String, int> _project = {};
 
   /// transactions 表 syncId → 已存在记录的轻量信息(id + createdByUserId)。
   /// `_applyTransactionChange` 每条都要查 existing tx 决定 INSERT/UPDATE,
@@ -298,6 +299,11 @@ class LookupCache {
       final s = t.syncId;
       if (s != null && s.isNotEmpty) _tag[s] = t.id;
     }
+    final projects = await db.select(db.projects).get();
+    for (final p in projects) {
+      final s = p.syncId;
+      if (s != null && s.isNotEmpty) _project[s] = p.id;
+    }
     // tx 全表加载:只保留 id + syncId + createdByUserId(每行 ~100B,10k 条 ~1MB)
     final txs = await db.select(db.transactions).get();
     for (final t in txs) {
@@ -309,7 +315,8 @@ class LookupCache {
     logger.info(
         'LookupCache',
         'prime: ledgers=${_ledger.length} categories=${_category.length} '
-            'accounts=${_account.length} tags=${_tag.length} transactions=${_tx.length}');
+            'accounts=${_account.length} tags=${_tag.length} '
+            'projects=${_project.length} transactions=${_tx.length}');
   }
 
   int? ledgerId(String? syncId) =>
@@ -320,6 +327,8 @@ class LookupCache {
       (syncId == null || syncId.isEmpty) ? null : _account[syncId];
   int? tagId(String? syncId) =>
       (syncId == null || syncId.isEmpty) ? null : _tag[syncId];
+  int? projectId(String? syncId) =>
+      (syncId == null || syncId.isEmpty) ? null : _project[syncId];
 
   /// `_TxCacheEntry` 是 part 内私有,仅供 apply 路径用,所以 ignore lint。
   // ignore: library_private_types_in_public_api
@@ -330,6 +339,7 @@ class LookupCache {
   void putCategory(String syncId, int id) => _category[syncId] = id;
   void putAccount(String syncId, int id) => _account[syncId] = id;
   void putTag(String syncId, int id) => _tag[syncId] = id;
+  void putProject(String syncId, int id) => _project[syncId] = id;
   void putTransaction(String syncId, int id, String? createdByUserId) =>
       _tx[syncId] = _TxCacheEntry(id: id, createdByUserId: createdByUserId);
   void removeTransaction(String syncId) => _tx.remove(syncId);

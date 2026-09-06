@@ -53,6 +53,11 @@ class _CategoryEditPageState extends ConsumerState<CategoryEditPage> {
   String? _customIconPath;
   bool _isPickingImage = false;
 
+  // 分类颜色(仅一级分类可设,二级分类颜色继承父分类,不显示选择器)。
+  // null 表示"自动配色"——保存时 repo.createCategory 会走
+  // _nextAutoColor 兜底;用户一旦手动选色,这里就是显式值。
+  String? _selectedColor;
+
   /// 获取自定义图标的绝对路径（用于预览）
   /// 处理相对路径和绝对路径两种情况
   Future<String?> _getAbsoluteIconPath() async {
@@ -91,6 +96,10 @@ class _CategoryEditPageState extends ConsumerState<CategoryEditPage> {
     } else {
       _selectedIcon = 'category'; // 默认图标
     }
+
+    // 初始化颜色状态:编辑模式沿用既有值(二级分类本来就是 null);新建
+    // 一级分类留 null,保存时走自动配色。
+    _selectedColor = widget.category?.color;
 
     // 初始化二级分类状态
     if (widget.category != null) {
@@ -355,25 +364,34 @@ class _CategoryEditPageState extends ConsumerState<CategoryEditPage> {
                           const SizedBox(height: 16),
                           // 自定义图标选项
                           _buildCustomIconSection(context),
-                          const SizedBox(height: 16),
-                          const Divider(),
-                          const SizedBox(height: 16),
-                          // Material 图标网格
-                          GroupedIconGrid(
-                            selectedIcon:
-                                _iconType == 'material' ? _selectedIcon : null,
-                            kind: widget.kind,
-                            onIconSelected: (icon) {
-                              setState(() {
-                                _iconType = 'material';
-                                _selectedIcon = icon;
-                              });
-                            },
-                          ),
+                          const SizedBox(height: 12),
+                          // 系统图标选项：点击后弹出选择器，不直接铺满页面
+                          _buildSystemIconSection(context),
                         ],
                       ),
                     ),
                   ),
+
+                  // 分类颜色(只有一级分类能设色;二级分类颜色继承父分类)
+                  if (!_isSubCategory) ...[
+                    const SizedBox(height: 16),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              AppLocalizations.of(context).categoryColorLabel,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 16),
+                            _buildColorPicker(context),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
 
                   if (isEditing) ...[
                     const SizedBox(height: 32),
@@ -479,6 +497,10 @@ class _CategoryEditPageState extends ConsumerState<CategoryEditPage> {
           icon: _selectedIcon,
           // 二级分类可以修改父分类
           parentId: _isSubCategory ? _selectedParentCategory?.id : null,
+          // 二级分类不存颜色(继承父分类),只有一级分类手动选色才传
+          color: (!_isSubCategory && _selectedColor != null)
+              ? _selectedColor
+              : null,
         );
 
         // 更新图标信息
@@ -514,11 +536,13 @@ class _CategoryEditPageState extends ConsumerState<CategoryEditPage> {
           showToast(context,
               AppLocalizations.of(context).categorySubCategoryCreated(name));
         } else {
-          // 新建一级分类
+          // 新建一级分类。_selectedColor 为 null 时 repo 会走
+          // _nextAutoColor 自动配色,用户手动选色则用显式值。
           newCategoryId = await repo.createCategory(
             name: name,
             kind: widget.kind,
             icon: _selectedIcon,
+            color: _selectedColor,
           );
           if (!mounted) return;
           showToast(
@@ -639,6 +663,71 @@ class _CategoryEditPageState extends ConsumerState<CategoryEditPage> {
     }
   }
 
+  /// 构建分类颜色选择器:20 色调色板(跟 v55 迁移回填/`_nextAutoColor` 用同一
+  /// 份 `db.kCategoryColorPalette`),grid 布局。不选(null)= 自动配色,保存
+  /// 时交给 repo.createCategory 的 `_nextAutoColor` 兜底 —— 只有编辑既有分类
+  /// 或用户主动点了某个色块之后 `_selectedColor` 才会有显式值。
+  Widget _buildColorPicker(BuildContext context) {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: db.kCategoryColorPalette.map((colorHex) {
+        final isSelected = _selectedColor?.toUpperCase() == colorHex.toUpperCase();
+        final color = _parseColorHex(colorHex);
+        // 描边/勾选颜色跟随色块自身明暗决定，而不是跟随 App 深浅色主题——
+        // 之前用 BeeTokens.isDark(context) 挑边框色，深色主题下碰到柠檬黄、
+        // 亮绿这类浅色色块时，白色描边对比度不够，选中状态几乎看不出来。
+        final markColor = _isLightColor(color) ? Colors.black : Colors.white;
+
+        return GestureDetector(
+          onTap: () => setState(() => _selectedColor = colorHex),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            width: isSelected ? 44 : 40,
+            height: isSelected ? 44 : 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              border: isSelected ? Border.all(color: markColor, width: 3) : null,
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: color.withValues(alpha: 0.5),
+                        blurRadius: 8,
+                        spreadRadius: 2,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: isSelected
+                ? Icon(Icons.check, color: markColor, size: 20)
+                : null,
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Color _parseColorHex(String hex) {
+    try {
+      String h = hex;
+      if (h.startsWith('#')) {
+        h = h.substring(1);
+      }
+      if (h.length == 6) {
+        h = 'FF$h';
+      }
+      return Color(int.parse(h, radix: 16));
+    } catch (e) {
+      return Colors.grey;
+    }
+  }
+
+  bool _isLightColor(Color color) {
+    return color.computeLuminance() > 0.5;
+  }
+
   /// 构建自定义图标选择区域
   Widget _buildCustomIconSection(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -753,6 +842,142 @@ class _CategoryEditPageState extends ConsumerState<CategoryEditPage> {
         ),
       ),
     );
+  }
+
+  /// 构建系统图标选择区域：跟自定义图标选项同款卡片样式（同为二选一），
+  /// 点击后弹出底部选择器，而不是把整套 GroupedIconGrid 直接铺在页面上。
+  Widget _buildSystemIconSection(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final isSelected = _iconType == 'material';
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    return InkWell(
+      onTap: _pickSystemIcon,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? primaryColor.withValues(alpha: 0.1)
+              : BeeTokens.surface(context),
+          border: Border.all(
+            color: isSelected ? primaryColor : BeeTokens.border(context),
+            width: isSelected ? 2 : 1,
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: BeeTokens.surfaceHeader(context),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: BeeTokens.border(context)),
+              ),
+              child: Icon(
+                _getCategoryIcon(_selectedIcon),
+                size: 24,
+                color: isSelected
+                    ? primaryColor
+                    : BeeTokens.textSecondary(context),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.categorySystemIconTitle,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: isSelected ? primaryColor : null,
+                          fontWeight:
+                              isSelected ? FontWeight.bold : FontWeight.normal,
+                        ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isSelected
+                        ? l10n.categorySystemIconTapToChange
+                        : l10n.categorySystemIconTapToSelect,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: BeeTokens.textTertiary(context),
+                        ),
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected)
+              Icon(
+                Icons.check_circle,
+                color: primaryColor,
+                size: 24,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 弹出系统图标选择器（比照 ProjectEditPage._pickIcon 的底部弹窗样式）：
+  /// 点击后才展开完整的 GroupedIconGrid，而不是直接铺在编辑页里。
+  Future<void> _pickSystemIcon() async {
+    final l10n = AppLocalizations.of(context);
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: BeeTokens.surface(context),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (context, scrollController) => Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    l10n.categoryIconLabel,
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w600),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: SingleChildScrollView(
+                controller: scrollController,
+                padding: const EdgeInsets.all(16),
+                child: GroupedIconGrid(
+                  selectedIcon: _iconType == 'material' ? _selectedIcon : null,
+                  kind: widget.kind,
+                  onIconSelected: (icon) => Navigator.pop(context, icon),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (picked != null) {
+      setState(() {
+        _iconType = 'material';
+        _selectedIcon = picked;
+      });
+    }
   }
 
   /// 选择自定义图标

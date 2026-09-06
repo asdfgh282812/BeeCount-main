@@ -40,8 +40,15 @@ class _ProjectEditPageState extends ConsumerState<ProjectEditPage> {
   bool _visibleOnHome = true;
   bool _enabled = true;
   bool _isLoading = false;
+  bool _incomeIncludedInBudget = false;
+  bool _dailyBudgetEnabled = false;
+  String _dailyBudgetMode = 'proportional';
+  int? _reminderThresholdPercent;
+  final _reminderCustomController = TextEditingController();
 
   bool get _isEditing => widget.project != null;
+
+  static const _reminderPresets = [50, 80, 100, 120];
 
   @override
   void initState() {
@@ -60,6 +67,14 @@ class _ProjectEditPageState extends ConsumerState<ProjectEditPage> {
       _carryoverEnabled = p.carryoverEnabled;
       _visibleOnHome = p.visibleOnHome;
       _enabled = p.enabled;
+      _incomeIncludedInBudget = p.incomeIncludedInBudget;
+      _dailyBudgetEnabled = p.dailyBudgetEnabled;
+      _dailyBudgetMode = p.dailyBudgetMode ?? 'proportional';
+      _reminderThresholdPercent = p.reminderThresholdPercent;
+      if (_reminderThresholdPercent != null &&
+          !_reminderPresets.contains(_reminderThresholdPercent)) {
+        _reminderCustomController.text = '$_reminderThresholdPercent';
+      }
     }
   }
 
@@ -67,6 +82,7 @@ class _ProjectEditPageState extends ConsumerState<ProjectEditPage> {
   void dispose() {
     _nameController.dispose();
     _amountController.dispose();
+    _reminderCustomController.dispose();
     super.dispose();
   }
 
@@ -124,19 +140,49 @@ class _ProjectEditPageState extends ConsumerState<ProjectEditPage> {
                       SizedBox(height: 12.0.scaled(context, ref)),
                       Row(
                         children: [
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .primary
-                                  .withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(
-                              CategoryService.getCategoryIcon(_selectedIcon),
-                              color: Theme.of(context).colorScheme.primary,
+                          InkWell(
+                            onTap: _pickIcon,
+                            borderRadius: BorderRadius.circular(10),
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary
+                                        .withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Icon(
+                                    CategoryService.getCategoryIcon(
+                                        _selectedIcon),
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                                Positioned(
+                                  right: -2,
+                                  bottom: -2,
+                                  child: Container(
+                                    width: 16,
+                                    height: 16,
+                                    decoration: BoxDecoration(
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: BeeTokens.surface(context),
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    child: const Icon(Icons.edit,
+                                        size: 10, color: Colors.white),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           SizedBox(width: 12.0.scaled(context, ref)),
@@ -154,18 +200,6 @@ class _ProjectEditPageState extends ConsumerState<ProjectEditPage> {
                             ),
                           ),
                         ],
-                      ),
-                      SizedBox(height: 16.0.scaled(context, ref)),
-                      Text(l10n.projectIconLabel,
-                          style: TextStyle(
-                              fontSize: 13,
-                              color: BeeTokens.textTertiary(context))),
-                      SizedBox(height: 8.0.scaled(context, ref)),
-                      GroupedIconGrid(
-                        selectedIcon: _selectedIcon,
-                        kind: 'expense',
-                        onIconSelected: (icon) =>
-                            setState(() => _selectedIcon = icon),
                       ),
                     ],
                   ),
@@ -204,9 +238,8 @@ class _ProjectEditPageState extends ConsumerState<ProjectEditPage> {
                         SizedBox(height: 8.0.scaled(context, ref)),
                         TextField(
                           controller: _amountController,
-                          keyboardType:
-                              const TextInputType.numberWithOptions(
-                                  decimal: true),
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
                           inputFormatters: [
                             FilteringTextInputFormatter.allow(
                                 RegExp(r'^\d+\.?\d{0,2}')),
@@ -311,8 +344,7 @@ class _ProjectEditPageState extends ConsumerState<ProjectEditPage> {
                         title: l10n.projectVisibleOnHomeToggle,
                         trailing: Switch.adaptive(
                           value: _visibleOnHome,
-                          onChanged: (v) =>
-                              setState(() => _visibleOnHome = v),
+                          onChanged: (v) => setState(() => _visibleOnHome = v),
                         ),
                         onTap: () =>
                             setState(() => _visibleOnHome = !_visibleOnHome),
@@ -330,12 +362,187 @@ class _ProjectEditPageState extends ConsumerState<ProjectEditPage> {
                     ],
                   ),
                 ),
+                SizedBox(height: 12.0.scaled(context, ref)),
+                // 收入併入預算 / 每日預算 / 預算提醒(design doc §6)
+                SectionCard(
+                  margin: EdgeInsets.zero,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      AppListTile(
+                        leading: Icons.trending_up,
+                        title: l10n.projectIncomeIncludedToggle,
+                        trailing: Switch.adaptive(
+                          value: _incomeIncludedInBudget,
+                          onChanged: _pureTracking
+                              ? null
+                              : (v) =>
+                                  setState(() => _incomeIncludedInBudget = v),
+                        ),
+                        onTap: _pureTracking
+                            ? null
+                            : () => setState(() => _incomeIncludedInBudget =
+                                !_incomeIncludedInBudget),
+                      ),
+                      AppListTile(
+                        leading: Icons.today_outlined,
+                        title: l10n.projectDailyBudgetToggle,
+                        trailing: Switch.adaptive(
+                          value: _dailyBudgetEnabled,
+                          onChanged: (_pureTracking || _periodType == 'fixed')
+                              ? null
+                              : (v) => setState(() => _dailyBudgetEnabled = v),
+                        ),
+                        onTap: (_pureTracking || _periodType == 'fixed')
+                            ? null
+                            : () => setState(() =>
+                                _dailyBudgetEnabled = !_dailyBudgetEnabled),
+                      ),
+                      if (_dailyBudgetEnabled &&
+                          !_pureTracking &&
+                          _periodType != 'fixed') ...[
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 16.0.scaled(context, ref),
+                              vertical: 4.0.scaled(context, ref)),
+                          child: SegmentedButton<String>(
+                            segments: [
+                              ButtonSegment(
+                                  value: 'fixed',
+                                  label: Text(
+                                      l10n.projectCategoryBudgetModeFixed)),
+                              ButtonSegment(
+                                  value: 'proportional',
+                                  label: Text(l10n
+                                      .projectCategoryBudgetModePercentage)),
+                            ],
+                            selected: {_dailyBudgetMode},
+                            onSelectionChanged: (s) =>
+                                setState(() => _dailyBudgetMode = s.first),
+                          ),
+                        ),
+                        SizedBox(height: 4.0.scaled(context, ref)),
+                      ],
+                      AppListTile(
+                        leading: Icons.notifications_outlined,
+                        title: l10n.projectReminderToggle,
+                        trailing: Switch.adaptive(
+                          value: _reminderThresholdPercent != null,
+                          onChanged: (v) => setState(
+                              () => _reminderThresholdPercent = v ? 80 : null),
+                        ),
+                        onTap: () => setState(() => _reminderThresholdPercent =
+                            _reminderThresholdPercent == null ? 80 : null),
+                      ),
+                      if (_reminderThresholdPercent != null) ...[
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 16.0.scaled(context, ref),
+                              vertical: 4.0.scaled(context, ref)),
+                          child: Wrap(
+                            spacing: 8,
+                            children: [
+                              for (final preset in _reminderPresets)
+                                ChoiceChip(
+                                  label: Text('$preset%'),
+                                  selected: _reminderThresholdPercent == preset,
+                                  onSelected: (_) => setState(() {
+                                    _reminderThresholdPercent = preset;
+                                    _reminderCustomController.clear();
+                                  }),
+                                ),
+                            ],
+                          ),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 16.0.scaled(context, ref),
+                              vertical: 4.0.scaled(context, ref)),
+                          child: TextField(
+                            controller: _reminderCustomController,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            decoration: InputDecoration(
+                              hintText: l10n.projectReminderCustomHint,
+                              isDense: true,
+                            ),
+                            onChanged: (v) {
+                              final parsed = int.tryParse(v);
+                              if (parsed != null &&
+                                  parsed >= 1 &&
+                                  parsed <= 200) {
+                                setState(
+                                    () => _reminderThresholdPercent = parsed);
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _pickIcon() async {
+    final l10n = AppLocalizations.of(context);
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: BeeTokens.surface(context),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (context, scrollController) => Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    l10n.projectIconLabel,
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w600),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: SingleChildScrollView(
+                controller: scrollController,
+                padding: const EdgeInsets.all(16),
+                child: GroupedIconGrid(
+                  selectedIcon: _selectedIcon,
+                  kind: 'expense',
+                  onIconSelected: (icon) => Navigator.pop(context, icon),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (picked != null) {
+      setState(() => _selectedIcon = picked);
+    }
   }
 
   Future<void> _pickDate({required bool isStart}) async {
@@ -389,6 +596,15 @@ class _ProjectEditPageState extends ConsumerState<ProjectEditPage> {
       final repo = ref.read(repositoryProvider);
       final ledgerId = ref.read(currentLedgerIdProvider);
 
+      // 收入併入預算/每日預算 在純記錄型專案上沒有意義,存檔時強制歸位,避免
+      // UI 短暫顯示過的開關狀態殘留到資料庫(例如先開啟每日預算,再切成純記錄)。
+      final effectiveIncomeIncluded =
+          _pureTracking ? false : _incomeIncludedInBudget;
+      final effectiveDailyBudgetEnabled =
+          (_pureTracking || _periodType == 'fixed')
+              ? false
+              : _dailyBudgetEnabled;
+
       if (_isEditing) {
         await repo.updateProject(
           widget.project!.id,
@@ -405,6 +621,11 @@ class _ProjectEditPageState extends ConsumerState<ProjectEditPage> {
           carryoverEnabled: _periodType == 'fixed' ? false : _carryoverEnabled,
           visibleOnHome: _visibleOnHome,
           enabled: _enabled,
+          incomeIncludedInBudget: effectiveIncomeIncluded,
+          dailyBudgetEnabled: effectiveDailyBudgetEnabled,
+          dailyBudgetMode: _dailyBudgetMode,
+          reminderThresholdPercent: _reminderThresholdPercent,
+          clearReminderThresholdPercent: _reminderThresholdPercent == null,
         );
       } else {
         await repo.createProject(
@@ -417,6 +638,10 @@ class _ProjectEditPageState extends ConsumerState<ProjectEditPage> {
           periodEnd: _periodType == 'fixed' ? _periodEnd : null,
           carryoverEnabled: _periodType == 'fixed' ? false : _carryoverEnabled,
           visibleOnHome: _visibleOnHome,
+          incomeIncludedInBudget: effectiveIncomeIncluded,
+          dailyBudgetEnabled: effectiveDailyBudgetEnabled,
+          dailyBudgetMode: _dailyBudgetMode,
+          reminderThresholdPercent: _reminderThresholdPercent,
         );
       }
 
@@ -490,13 +715,13 @@ class _DateField extends StatelessWidget {
   final DateTime? date;
   final VoidCallback onTap;
 
-  const _DateField({required this.label, required this.date, required this.onTap});
+  const _DateField(
+      {required this.label, required this.date, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final text = date == null
-        ? label
-        : '${date!.year}/${date!.month}/${date!.day}';
+    final text =
+        date == null ? label : '${date!.year}/${date!.month}/${date!.day}';
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),

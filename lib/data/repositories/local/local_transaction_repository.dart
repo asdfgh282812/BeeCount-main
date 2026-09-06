@@ -1899,11 +1899,20 @@ class LocalTransactionRepository implements TransactionRepository {
 
   @override
   Future<List<Transaction>> getTransactionsByProject(
-      String projectSyncId) async {
-    return await (db.select(db.transactions)
-          ..where((t) => t.projectSyncId.equals(projectSyncId))
-          ..orderBy([(t) => d.OrderingTerm.desc(t.happenedAt)]))
-        .get();
+    String projectSyncId, {
+    DateTime? start,
+    DateTime? end,
+  }) async {
+    final query = db.select(db.transactions)
+      ..where((t) => t.projectSyncId.equals(projectSyncId));
+    if (start != null) {
+      query.where((t) => t.happenedAt.isBiggerOrEqualValue(start));
+    }
+    if (end != null) {
+      query.where((t) => t.happenedAt.isSmallerThanValue(end));
+    }
+    query.orderBy([(t) => d.OrderingTerm.desc(t.happenedAt)]);
+    return await query.get();
   }
 
   @override

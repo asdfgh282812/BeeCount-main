@@ -37,6 +37,20 @@ extension _SyncEngineResolvers on SyncEngine {
     return cat?.id;
   }
 
+  /// 按 syncId 查 project 的本地 int id。v56 专案分类子预算(
+  /// project_category_budget)解析 projectSyncId 用,跟 ledger/category/
+  /// account 三个 resolver 同款结构。
+  Future<int?> _resolveProjectIdBySyncId(String? syncId) async {
+    if (syncId == null || syncId.isEmpty) return null;
+    final cached = activePullCache?.projectId(syncId);
+    if (cached != null) return cached;
+    final proj = await (db.select(db.projects)
+          ..where((p) => p.syncId.equals(syncId)))
+        .getSingleOrNull();
+    if (proj != null) activePullCache?.putProject(syncId, proj.id);
+    return proj?.id;
+  }
+
   /// 按 syncId 查 account 的本地 int id。同理，跨设备稳定。
   /// §7 决策 v25:返 null 时调用方应检查 tx 是否有 accountSyncIdOverride
   /// 字段。

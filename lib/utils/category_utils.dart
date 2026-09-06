@@ -196,4 +196,22 @@ class CategoryUtils {
 
     return translationString.split(separator).map((e) => e.trim()).toList();
   }
+
+  /// 解析分类颜色十六进制字符串(如 "#FF9800",见 Categories.color / v55)。
+  /// 空值/格式错误一律返回 null,调用方应退回原本的灰色 token 底色。
+  static Color? parseColor(String? hex) {
+    if (hex == null || hex.isEmpty) return null;
+    try {
+      var value = hex;
+      if (value.startsWith('#')) {
+        value = value.substring(1);
+      }
+      if (value.length == 6) {
+        value = 'FF$value';
+      }
+      return Color(int.parse(value, radix: 16));
+    } catch (_) {
+      return null;
+    }
+  }
 }

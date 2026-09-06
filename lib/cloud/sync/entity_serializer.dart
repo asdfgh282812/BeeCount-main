@@ -511,6 +511,37 @@ class EntitySerializer {
       'visibleOnHome': project.visibleOnHome,
       'enabled': project.enabled,
       'sortOrder': project.sortOrder,
+      // v56 新增 4 欄(design doc 2026-09-06 §7.1)。Cloud 端尚未實作這幾個
+      // key,現階段推上去會被 Cloud 的白名單機制靜默丟棄——這是已知且可接受
+      // 的過渡狀態,不是 bug。刻意不含 reminderNotifiedPeriodKey(本機專用)。
+      'incomeIncludedInBudget': project.incomeIncludedInBudget,
+      'dailyBudgetEnabled': project.dailyBudgetEnabled,
+      if (project.dailyBudgetMode != null)
+        'dailyBudgetMode': project.dailyBudgetMode,
+      if (project.reminderThresholdPercent != null)
+        'reminderThresholdPercent': project.reminderThresholdPercent,
+    };
+  }
+
+  // ==================== Project Category Budget ====================
+
+  /// 專案分類子預算(v56,對齐 BeeCount Cloud `project_category_budget` sync
+  /// entity——Cloud 端尚未實作,見 docs/CLOUD_SYNC_INTEGRATION.md 過渡狀態
+  /// 說明)。ledger-scope,全量恆發(仿 [serializeDebt]/[serializeProject],
+  /// 這張表沒有「清空代表特殊語意」的欄位)。
+  static Map<String, dynamic> serializeProjectCategoryBudget(
+    ProjectCategoryBudget budget, {
+    required String projectSyncId,
+    required String categorySyncId,
+  }) {
+    return {
+      'syncId': budget.syncId,
+      'projectSyncId': projectSyncId,
+      'categorySyncId': categorySyncId,
+      'mode': budget.mode,
+      'fixedAmount': budget.fixedAmount,
+      'percentage': budget.percentage,
+      'carryoverEnabled': budget.carryoverEnabled,
     };
   }
 

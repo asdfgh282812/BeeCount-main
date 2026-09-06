@@ -978,6 +978,67 @@ class Projects extends Table {
   /// 使用者自訂排序。
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
 
+  /// 收入併入預算(v56)。true 時 [ProjectUsage.effectiveBudget] 額外加上該期
+  /// 收入總額。
+  BoolColumn get incomeIncludedInBudget =>
+      boolean().withDefault(const Constant(false))();
+
+  /// 是否顯示每日預算(v56,純前端展示邏輯,不影響用量計算)。
+  BoolColumn get dailyBudgetEnabled =>
+      boolean().withDefault(const Constant(false))();
+
+  /// 每日預算模式(v56):'fixed' / 'proportional'。`dailyBudgetEnabled=false`
+  /// 時忽略。
+  TextColumn get dailyBudgetMode =>
+      text().nullable().withDefault(const Constant('proportional'))();
+
+  /// 預算超標提醒門檻百分比(v56)。null=不提醒;否則 1-200 的整數(可超過
+  /// 100 代表「超支才提醒」)。
+  IntColumn get reminderThresholdPercent => integer().nullable()();
+
+  /// 本機專用(v56):記錄「這期已經提醒過」,值=該期 periodStart 的 ISO
+  /// 字串。**不寫入 sync payload**(見 entity_serializer.dart 的
+  /// serializeProject 註解)。
+  TextColumn get reminderNotifiedPeriodKey => text().nullable()();
+
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+/// v56 專案分類子預算:專案總預算可以進一步分配給一級分類,支援「固定金額」
+/// 與「按照比例」兩種分配方式。ledger-scoped 實體,對齐 BeeCount Cloud
+/// `project_category_budget` sync entity(Cloud 端尚未實作,見
+/// docs/CLOUD_SYNC_INTEGRATION.md 過渡狀態說明)。
+///
+/// 字段/wire key 對照 entity_serializer.dart 的 serializeProjectCategoryBudget
+/// ——改字段前先去那邊核對。
+class ProjectCategoryBudgets extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// 跨设备同步 syncId(UUID)。新建必须填。
+  TextColumn get syncId => text().nullable()();
+
+  /// 關聯專案 id(FK -> Projects.id,無 DB 約束,同全庫慣例)。
+  IntColumn get projectId => integer()();
+
+  /// 關聯分類 id(FK -> Categories.id,僅一級分類,無 DB 約束)。
+  IntColumn get categoryId => integer()();
+
+  /// 分配模式:'fixed' / 'percentage'。
+  TextColumn get mode => text().withDefault(const Constant('fixed'))();
+
+  /// mode='fixed' 用的固定金額。
+  RealColumn get fixedAmount => real().nullable()();
+
+  /// mode='percentage' 用,0-100。
+  RealColumn get percentage => real().nullable()();
+
+  /// 結轉(僅專案週期 monthly/yearly 有意義,fixed 週期忽略)。
+  BoolColumn get carryoverEnabled =>
+      boolean().withDefault(const Constant(false))();
+
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 }
@@ -1110,6 +1171,7 @@ class RewardChoiceCaches extends Table {
   TransactionSplits,
   Debts,
   Projects,
+  ProjectCategoryBudgets,
   RewardChoiceCaches,
   InstallmentPlans,
   InstallmentPeriods,
@@ -1123,7 +1185,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 55; // v55: 分类专属颜色(color,见 v55 迁移注释)
+  int get schemaVersion => 56; // v56: 专案分类子预算 + 期间切换附加设定
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2271,25 +2333,76 @@ class BeeDatabase extends _$BeeDatabase {
             // 分类由 LocalCategoryRepository.createCategory 走同一份
             // kCategoryColorPalette 继续指派,保证「同一顺序位置」两条路径
             // 拿到同一个颜色。
+            //
+            // 2026-09-06 修正:本迁移直接用 customStatement 改 categories 表,
+            // 完全绕过 ChangeTracker/local_changes outbox——跟正常的
+            // createCategory/updateCategory 写入路径不一样,不会产生
+            // sync push 事件。结果是回填的颜色只在本机生效,server 端
+            // user_category_projection.color 永远收不到这批既有分类的颜色
+            // (线上库实测验证过:全部 NULL)。这里比照 v19 syncId 回填踩过的
+            // 同一类坑(见 sync_engine.dart 的
+            // _backfillLegacyUserGlobalChanges 注释)——直接在迁移里补插
+            // 一条 unpushed 的 local_changes 行(pushedAt 留空),下次同步时
+            // SyncEngine._doPushUserGlobalEntities 会按 entityId 重新查
+            // categories 当前行序列化推送,不需要在这里自己拼 payloadJson。
             logger.info('DBMigration', '开始迁移到 v55: 分类专属颜色(color)');
-            await _addColumnIfMissing(
-                'categories', 'color', 'ALTER TABLE categories ADD COLUMN color TEXT;');
+            await _addColumnIfMissing('categories', 'color',
+                'ALTER TABLE categories ADD COLUMN color TEXT;');
             final topLevelRows = await customSelect(
-              'SELECT id, kind FROM categories WHERE parent_id IS NULL ORDER BY kind, sort_order, id',
+              'SELECT id, kind, sync_id FROM categories WHERE parent_id IS NULL ORDER BY kind, sort_order, id',
             ).get();
             final perKindIndex = <String, int>{};
+            var enqueuedForSync = 0;
             for (final row in topLevelRows) {
               final id = row.read<int>('id');
               final kind = row.read<String>('kind');
+              final syncId = row.readNullable<String>('sync_id');
               final index = perKindIndex[kind] ?? 0;
               perKindIndex[kind] = index + 1;
               final color =
                   kCategoryColorPalette[index % kCategoryColorPalette.length];
               await customStatement(
                   'UPDATE categories SET color = ? WHERE id = ?', [color, id]);
+              // syncId 为空(极老、从未同步过的种子数据)没有推送意义,跳过。
+              if (syncId != null && syncId.isNotEmpty) {
+                await into(localChanges).insert(LocalChangesCompanion.insert(
+                  entityType: 'category',
+                  entityId: id,
+                  entitySyncId: syncId,
+                  ledgerId: 0, // user-global 实体固定挂 0,跟 ChangeTracker.recordUserGlobalChange 约定一致
+                  action: 'update',
+                ));
+                enqueuedForSync++;
+              }
             }
             logger.info('DBMigration',
-                'v55 迁移完成,共指派 ${topLevelRows.length} 个一级分类颜色');
+                'v55 迁移完成,共指派 ${topLevelRows.length} 个一级分类颜色,其中 $enqueuedForSync 个已登记待推送');
+          }
+          if (from < 56) {
+            // v56:专案分类子预算(project_category_budgets 新表)+ 专案层级
+            // 三个附加设定(收入并入预算/每日预算/预算超标提醒)。
+            logger.info('DBMigration', '开始迁移到 v56: 专案分类子预算 + 期间切换附加设定');
+            await _addColumnIfMissing('projects', 'income_included_in_budget',
+                'ALTER TABLE projects ADD COLUMN income_included_in_budget BOOLEAN NOT NULL DEFAULT 0;');
+            await _addColumnIfMissing('projects', 'daily_budget_enabled',
+                'ALTER TABLE projects ADD COLUMN daily_budget_enabled BOOLEAN NOT NULL DEFAULT 0;');
+            await _addColumnIfMissing('projects', 'daily_budget_mode',
+                "ALTER TABLE projects ADD COLUMN daily_budget_mode TEXT DEFAULT 'proportional';");
+            await _addColumnIfMissing('projects', 'reminder_threshold_percent',
+                'ALTER TABLE projects ADD COLUMN reminder_threshold_percent INTEGER;');
+            await _addColumnIfMissing(
+                'projects',
+                'reminder_notified_period_key',
+                'ALTER TABLE projects ADD COLUMN reminder_notified_period_key TEXT;');
+            await _createTableIfMissing(
+                migrator, 'project_category_budgets', projectCategoryBudgets);
+            await customStatement(
+                'CREATE INDEX IF NOT EXISTS idx_project_category_budgets_project '
+                'ON project_category_budgets(project_id);');
+            await customStatement(
+                'CREATE UNIQUE INDEX IF NOT EXISTS idx_project_category_budgets_unique '
+                'ON project_category_budgets(project_id, category_id);');
+            logger.info('DBMigration', 'v56 迁移完成');
           }
         },
         onCreate: (m) async {
@@ -2313,6 +2426,13 @@ class BeeDatabase extends _$BeeDatabase {
           await customStatement(
               'CREATE INDEX IF NOT EXISTS idx_installment_periods_plan '
               'ON installment_periods(plan_sync_id, period_no);');
+          // v56 的兩個索引只在 onUpgrade 建,全新安裝補建(同上面 v48/v49 的理由)。
+          await customStatement(
+              'CREATE INDEX IF NOT EXISTS idx_project_category_budgets_project '
+              'ON project_category_budgets(project_id);');
+          await customStatement(
+              'CREATE UNIQUE INDEX IF NOT EXISTS idx_project_category_budgets_unique '
+              'ON project_category_budgets(project_id, category_id);');
         },
       );
 

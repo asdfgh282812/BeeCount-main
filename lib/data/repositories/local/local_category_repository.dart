@@ -30,6 +30,7 @@ class LocalCategoryRepository implements CategoryRepository {
     int level = 1,
     int? parentId,
     String? syncId,
+    String? color,
   }) async {
     // 撞同名抛 DuplicateNameException((name,kind) 联合唯一,跨 kind 可同名)。caller 显式 handle:
     //   - UI 主动建 → 先过 isCategoryNameDuplicate 警告;真冲突 try/catch 弹 toast
@@ -45,9 +46,11 @@ class LocalCategoryRepository implements CategoryRepository {
         existingId: existing.first.id,
       );
     }
-    // 只有一级分类自动配色;二级分类颜色继承父分类,不单独存值(见
-    // category_selector.dart 的 _CategoryItem 颜色解析逻辑)。
-    final color = parentId == null ? await _nextAutoColor(kind) : null;
+    // 只有一级分类存颜色;二级分类颜色继承父分类,不单独存值(见
+    // category_selector.dart 的 _CategoryItem 颜色解析逻辑)。手动指定
+    // [color] 时优先用它(用户在编辑页选的颜色),没指定才走自动配色。
+    final resolvedColor =
+        parentId != null ? null : (color ?? await _nextAutoColor(kind));
     return await db.into(db.categories).insert(
       CategoriesCompanion.insert(
         name: name,
@@ -57,7 +60,7 @@ class LocalCategoryRepository implements CategoryRepository {
         level: d.Value(level),
         parentId: d.Value(parentId),
         syncId: d.Value(syncId ?? _uuid.v4()),
-        color: d.Value(color),
+        color: d.Value(resolvedColor),
       ),
     );
   }
@@ -110,6 +113,7 @@ class LocalCategoryRepository implements CategoryRepository {
     String? icon,
     int? parentId,
     int? level,
+    String? color,
   }) async {
     await (db.update(db.categories)..where((c) => c.id.equals(id))).write(
       CategoriesCompanion(
@@ -120,6 +124,7 @@ class LocalCategoryRepository implements CategoryRepository {
             ? (parentId == -1 ? const d.Value(null) : d.Value(parentId))
             : const d.Value.absent(),
         level: level != null ? d.Value(level) : const d.Value.absent(),
+        color: color != null ? d.Value(color) : const d.Value.absent(),
       ),
     );
   }

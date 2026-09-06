@@ -418,6 +418,26 @@ extension SyncEngineSerializationExt on SyncEngine {
           ledgerSyncId: parentLedgerSyncId,
         );
 
+      case 'project_category_budget':
+        final budget = await (db.select(db.projectCategoryBudgets)
+              ..where((t) => t.id.equals(entityId)))
+            .getSingleOrNull();
+        if (budget == null) return <String, dynamic>{};
+        final proj = await (db.select(db.projects)
+              ..where((t) => t.id.equals(budget.projectId)))
+            .getSingleOrNull();
+        final cat = await (db.select(db.categories)
+              ..where((c) => c.id.equals(budget.categoryId)))
+            .getSingleOrNull();
+        if (proj?.syncId == null || cat?.syncId == null) {
+          return <String, dynamic>{};
+        }
+        return EntitySerializer.serializeProjectCategoryBudget(
+          budget,
+          projectSyncId: proj!.syncId!,
+          categorySyncId: cat!.syncId!,
+        );
+
       case 'installment_plan':
         final plan = await (db.select(db.installmentPlans)
               ..where((t) => t.id.equals(entityId)))
@@ -786,6 +806,41 @@ extension SyncEngineSerializationExt on SyncEngine {
         'payload': EntitySerializer.serializeProject(
           project,
           ledgerSyncId: ledger.syncId,
+        ),
+        'updated_at': now,
+      });
+    }
+
+    // 專案分類子預算(v56,Cloud 端尚未實作,見過渡狀態說明):按專案 id 過濾
+    // (project_category_budgets 沒有 ledgerId 欄位,靠上面剛載入的
+    // projects 列表反查所屬)。
+    final projectIds = projects.map((p) => p.id).toSet();
+    final projectCategoryBudgetRows =
+        await db.select(db.projectCategoryBudgets).get();
+    for (final budget in projectCategoryBudgetRows) {
+      if (!projectIds.contains(budget.projectId)) continue;
+      final syncId = budget.syncId ?? _uuid.v4();
+      if (budget.syncId == null) {
+        await (db.update(db.projectCategoryBudgets)
+              ..where((t) => t.id.equals(budget.id)))
+            .write(ProjectCategoryBudgetsCompanion(syncId: d.Value(syncId)));
+      }
+      final proj = projects
+          .cast<Project?>()
+          .firstWhere((p) => p?.id == budget.projectId, orElse: () => null);
+      final cat = categories
+          .cast<Category?>()
+          .firstWhere((c) => c?.id == budget.categoryId, orElse: () => null);
+      if (proj?.syncId == null || cat?.syncId == null) continue;
+      syncChanges.add({
+        'ledger_id': ledgerId,
+        'entity_type': 'project_category_budget',
+        'entity_sync_id': syncId,
+        'action': 'upsert',
+        'payload': EntitySerializer.serializeProjectCategoryBudget(
+          budget,
+          projectSyncId: proj!.syncId!,
+          categorySyncId: cat!.syncId!,
         ),
         'updated_at': now,
       });

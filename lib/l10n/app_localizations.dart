@@ -2322,6 +2322,114 @@ abstract class AppLocalizations {
   /// **'Net Savings'**
   String get annualReportNetSavings;
 
+  /// No description provided for @annualReportInsightsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Annual Insights'**
+  String get annualReportInsightsTitle;
+
+  /// No description provided for @annualReportInsightsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discover your spending habits from the data'**
+  String get annualReportInsightsSubtitle;
+
+  /// No description provided for @annualReportAvgPerRecord.
+  ///
+  /// In en, this message translates to:
+  /// **'Average per Transaction'**
+  String get annualReportAvgPerRecord;
+
+  /// No description provided for @annualReportAvgPerRecordDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Your average amount per transaction'**
+  String get annualReportAvgPerRecordDesc;
+
+  /// No description provided for @annualReportAvgDailyExpenseDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Average amount spent per day'**
+  String get annualReportAvgDailyExpenseDesc;
+
+  /// No description provided for @annualReportAvgMonthlyExpenseDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Average amount spent per month'**
+  String get annualReportAvgMonthlyExpenseDesc;
+
+  /// No description provided for @annualReportMostActiveMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Most Active Month'**
+  String get annualReportMostActiveMonth;
+
+  /// No description provided for @annualReportMostActiveMonthDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'The month with the most transaction activity'**
+  String get annualReportMostActiveMonthDesc;
+
+  /// No description provided for @annualReportCategoryCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Spending Categories'**
+  String get annualReportCategoryCount;
+
+  /// No description provided for @annualReportCategoryCountDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Number of spending categories you\'ve used'**
+  String get annualReportCategoryCountDesc;
+
+  /// No description provided for @annualReportSavingsRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Savings Rate'**
+  String get annualReportSavingsRate;
+
+  /// No description provided for @annualReportSavingsRateDescPositive.
+  ///
+  /// In en, this message translates to:
+  /// **'The share of your income you saved this year'**
+  String get annualReportSavingsRateDescPositive;
+
+  /// No description provided for @annualReportSavingsRateDescNegative.
+  ///
+  /// In en, this message translates to:
+  /// **'Your spending exceeded your income this year'**
+  String get annualReportSavingsRateDescNegative;
+
+  /// No description provided for @annualReportPersistence.
+  ///
+  /// In en, this message translates to:
+  /// **'Bookkeeping Streak'**
+  String get annualReportPersistence;
+
+  /// No description provided for @annualReportIncomeExpenseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Income vs. Expense'**
+  String get annualReportIncomeExpenseTitle;
+
+  /// No description provided for @annualReportIncomeExpenseSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly comparison of income and expense'**
+  String get annualReportIncomeExpenseSubtitle;
+
+  /// No description provided for @annualReportIncomeHighest.
+  ///
+  /// In en, this message translates to:
+  /// **'Highest Income'**
+  String get annualReportIncomeHighest;
+
+  /// No description provided for @annualReportExpenseHighest.
+  ///
+  /// In en, this message translates to:
+  /// **'Highest Expense'**
+  String get annualReportExpenseHighest;
+
   /// No description provided for @annualReportPage2Title.
   ///
   /// In en, this message translates to:
@@ -2357,6 +2465,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Lowest Spending Month'**
   String get annualReportLowestMonth;
+
+  /// No description provided for @annualReportMonthlyExpenseTrend.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly Expense Trend'**
+  String get annualReportMonthlyExpenseTrend;
 
   /// No description provided for @annualReportPage4Title.
   ///
@@ -2453,6 +2567,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Annual report poster saved'**
   String get annualReportSaveSuccess;
+
+  /// No description provided for @annualReportCongratsSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Congrats, you saved'**
+  String get annualReportCongratsSaved;
+
+  /// No description provided for @annualReportOverspent.
+  ///
+  /// In en, this message translates to:
+  /// **'You overspent this year'**
+  String get annualReportOverspent;
+
+  /// No description provided for @annualReportAchieved.
+  ///
+  /// In en, this message translates to:
+  /// **'Achieved'**
+  String get annualReportAchieved;
+
+  /// No description provided for @annualReportNotAchieved.
+  ///
+  /// In en, this message translates to:
+  /// **'Not Achieved'**
+  String get annualReportNotAchieved;
+
+  /// No description provided for @annualReportPosterFooterHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan to download BeeCount and start your bookkeeping journey'**
+  String get annualReportPosterFooterHint;
 
   /// No description provided for @mineShareApp.
   ///
@@ -3511,6 +3655,12 @@ abstract class AppLocalizations {
   /// **'Category Icon'**
   String get categoryIconLabel;
 
+  /// No description provided for @categoryColorLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Category Color'**
+  String get categoryColorLabel;
+
   /// No description provided for @categoryCustomIconTitle.
   ///
   /// In en, this message translates to:
@@ -3546,6 +3696,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Crop Icon'**
   String get categoryCustomIconCrop;
+
+  /// No description provided for @categorySystemIconTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'System Icon'**
+  String get categorySystemIconTitle;
+
+  /// No description provided for @categorySystemIconTapToSelect.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to select an icon'**
+  String get categorySystemIconTapToSelect;
+
+  /// No description provided for @categorySystemIconTapToChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to change icon'**
+  String get categorySystemIconTapToChange;
 
   /// No description provided for @categoryDangerousOperations.
   ///
@@ -16673,6 +16841,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No transactions in this project yet'**
   String get projectDetailNoTransactionsHint;
+
+  /// No description provided for @projectPeriodPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Period'**
+  String get projectPeriodPickerTitle;
+
+  /// No description provided for @projectDetailExpenseLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Expense'**
+  String get projectDetailExpenseLabel;
+
+  /// No description provided for @projectDetailIncomeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Income'**
+  String get projectDetailIncomeLabel;
+
+  /// No description provided for @projectDetailNetTotalLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get projectDetailNetTotalLabel;
+
+  /// No description provided for @projectDetailAllocatedGroupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Allocated Budget'**
+  String get projectDetailAllocatedGroupTitle;
+
+  /// No description provided for @projectDetailUnallocatedGroupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unallocated Budget'**
+  String get projectDetailUnallocatedGroupTitle;
+
+  /// No description provided for @projectDetailUnsetGroupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No Budget Set'**
+  String get projectDetailUnsetGroupTitle;
+
+  /// No description provided for @projectDetailUnallocatedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Unallocated'**
+  String get projectDetailUnallocatedLabel;
+
+  /// No description provided for @projectDetailUnallocatedAmountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Unallocated {amount}'**
+  String projectDetailUnallocatedAmountLabel(String amount);
+
+  /// No description provided for @projectDetailOverAllocatedAmountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Over-allocated {amount}'**
+  String projectDetailOverAllocatedAmountLabel(String amount);
+
+  /// No description provided for @projectDetailDailyBudgetLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily budget'**
+  String get projectDetailDailyBudgetLabel;
+
+  /// No description provided for @projectCategoryBudgetEditTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Category Budgets'**
+  String get projectCategoryBudgetEditTitle;
+
+  /// No description provided for @projectCategoryBudgetEnableToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set sub-budget'**
+  String get projectCategoryBudgetEnableToggle;
+
+  /// No description provided for @projectCategoryBudgetModeFixed.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed Amount'**
+  String get projectCategoryBudgetModeFixed;
+
+  /// No description provided for @projectCategoryBudgetModePercentage.
+  ///
+  /// In en, this message translates to:
+  /// **'Percentage'**
+  String get projectCategoryBudgetModePercentage;
+
+  /// No description provided for @projectCategoryBudgetPercentageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'0-100'**
+  String get projectCategoryBudgetPercentageHint;
+
+  /// No description provided for @projectCategoryBudgetFooterLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Allocated {allocated} / Budget {total}'**
+  String projectCategoryBudgetFooterLabel(String allocated, String total);
+
+  /// No description provided for @projectCategoryBudgetSaveSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get projectCategoryBudgetSaveSuccess;
+
+  /// No description provided for @projectIncomeIncludedToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Include income in budget'**
+  String get projectIncomeIncludedToggle;
+
+  /// No description provided for @projectDailyBudgetToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show daily budget'**
+  String get projectDailyBudgetToggle;
+
+  /// No description provided for @projectReminderToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Budget alert'**
+  String get projectReminderToggle;
+
+  /// No description provided for @projectReminderThresholdLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Alert threshold'**
+  String get projectReminderThresholdLabel;
+
+  /// No description provided for @projectReminderCustomHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom %'**
+  String get projectReminderCustomHint;
 
   /// No description provided for @swipesmartSettingsTitle.
   ///

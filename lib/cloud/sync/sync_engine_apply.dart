@@ -75,6 +75,9 @@ extension SyncEngineApplyExt on SyncEngine {
       case 'project':
         await _applyProjectChange(change);
         return true;
+      case 'project_category_budget':
+        await _applyProjectCategoryBudgetChange(change);
+        return true;
       case 'installment_plan':
         await _applyInstallmentPlanChange(change);
         return true;
@@ -1206,9 +1209,18 @@ extension SyncEngineApplyExt on SyncEngine {
 
   /// 應用專案(v44)变更。对齐 [_applyBudgetChange]/[_applyDebtChange]:按
   /// syncId upsert,delete 走同样的路径。ledger 的外键在 payload 里以
-  /// syncId 形式带来,用 _resolveLedgerIdBySyncId 换成本地 int id。所有
-  /// 欄位恆發(见 entity_serializer.dart serializeProject 的注释),这里
-  /// 无条件覆盖,不做 containsKey 保護。
+  /// syncId 形式带来,用 _resolveLedgerIdBySyncId 换成本地 int id。**除了
+  /// v56 新增的 4 个欄位以外**,所有欄位恆發(见 entity_serializer.dart
+  /// serializeProject 的注释),这里无条件覆盖,不做 containsKey 保護。
+  ///
+  /// v56 新增的 incomeIncludedInBudget/dailyBudgetEnabled/dailyBudgetMode/
+  /// reminderThresholdPercent **刻意跟上面舊欄位風格不同,用 containsKey
+  /// 保護**——因为 Cloud 端目前完全不认得这 4 个 key,任何一次由 Cloud 广播
+  /// 回来的 project 变更(哪怕只是改了 name 之类的舊欄位)payload 里都不会带
+  /// 这 4 个 key。如果沿用舊欄位的「缺键 ?? 默认值」写法,本机刚设置好的这
+  /// 4 个设置会被下一次 pull 打回默认值,违反「本机优先写入,多装置间暂不
+  /// 同步」的过渡期设计(design doc 2026-09-06 §0 第 5 点)。**不要因为跟
+  /// 舊欄位風格不一致就「统一」删掉这个保护**。
   Future<void> _applyProjectChange(BeeCountCloudSyncChange change) async {
     final syncId = change.entitySyncId;
 
@@ -1246,6 +1258,24 @@ extension SyncEngineApplyExt on SyncEngine {
     final enabled = payload['enabled'] as bool? ?? true;
     final sortOrder = (payload['sortOrder'] as num?)?.toInt() ?? 0;
 
+    // v56 新增欄位,containsKey 保護(理由見函式頂部註解)。
+    final hasIncomeIncludedKey = payload.containsKey('incomeIncludedInBudget');
+    final incomeIncludedInBudget = hasIncomeIncludedKey
+        ? (payload['incomeIncludedInBudget'] as bool? ?? false)
+        : null;
+    final hasDailyBudgetEnabledKey = payload.containsKey('dailyBudgetEnabled');
+    final dailyBudgetEnabled = hasDailyBudgetEnabledKey
+        ? (payload['dailyBudgetEnabled'] as bool? ?? false)
+        : null;
+    final hasDailyBudgetModeKey = payload.containsKey('dailyBudgetMode');
+    final dailyBudgetMode =
+        hasDailyBudgetModeKey ? payload['dailyBudgetMode'] as String? : null;
+    final hasReminderThresholdKey =
+        payload.containsKey('reminderThresholdPercent');
+    final reminderThresholdPercent = hasReminderThresholdKey
+        ? (payload['reminderThresholdPercent'] as num?)?.toInt()
+        : null;
+
     final localLedgerId = await _resolveLedgerIdBySyncId(ledgerSyncId);
     if (localLedgerId == null) {
       logger.info('SyncEngine',
@@ -1271,6 +1301,18 @@ extension SyncEngineApplyExt on SyncEngine {
         visibleOnHome: d.Value(visibleOnHome),
         enabled: d.Value(enabled),
         sortOrder: d.Value(sortOrder),
+        incomeIncludedInBudget: hasIncomeIncludedKey
+            ? d.Value(incomeIncludedInBudget!)
+            : const d.Value.absent(),
+        dailyBudgetEnabled: hasDailyBudgetEnabledKey
+            ? d.Value(dailyBudgetEnabled!)
+            : const d.Value.absent(),
+        dailyBudgetMode: hasDailyBudgetModeKey
+            ? d.Value(dailyBudgetMode)
+            : const d.Value.absent(),
+        reminderThresholdPercent: hasReminderThresholdKey
+            ? d.Value(reminderThresholdPercent)
+            : const d.Value.absent(),
         updatedAt: d.Value(DateTime.now()),
       ));
       logger.debug('SyncEngine', 'pull: 更新专案 $syncId');
@@ -1288,8 +1330,84 @@ extension SyncEngineApplyExt on SyncEngine {
             enabled: d.Value(enabled),
             sortOrder: d.Value(sortOrder),
             syncId: d.Value(syncId),
+            incomeIncludedInBudget: d.Value(incomeIncludedInBudget ?? false),
+            dailyBudgetEnabled: d.Value(dailyBudgetEnabled ?? false),
+            dailyBudgetMode: d.Value(dailyBudgetMode ?? 'proportional'),
+            reminderThresholdPercent: d.Value(reminderThresholdPercent),
           ));
       logger.debug('SyncEngine', 'pull: 新增专案 $syncId');
+    }
+  }
+
+  /// 應用專案分類子預算(v56,Cloud 端尚未實作,見 serializeProjectCategoryBudget
+  /// 注釋)变更。对齐 [_applyDebtChange]:按 syncId upsert,delete 走同样的
+  /// 路径。projectSyncId/categorySyncId 都要解析成本地 int id——這張表跟
+  /// [_applyDebtChange] 對 ledger 的處理一樣,任一解析不到就跳過不建孤兒行
+  /// (分類子預算沒有「先建個空殼再補連結」的必要性)。全量恆發,不做
+  /// containsKey 保護(同 serializeProjectCategoryBudget 的注釋)。
+  Future<void> _applyProjectCategoryBudgetChange(
+      BeeCountCloudSyncChange change) async {
+    final syncId = change.entitySyncId;
+
+    if (change.action == 'delete') {
+      final existing = await (db.select(db.projectCategoryBudgets)
+            ..where((t) => t.syncId.equals(syncId)))
+          .getSingleOrNull();
+      if (existing != null) {
+        await (db.delete(db.projectCategoryBudgets)
+              ..where((t) => t.id.equals(existing.id)))
+            .go();
+        logger.debug('SyncEngine', 'pull: 删除专案分类子预算 $syncId');
+      }
+      return;
+    }
+
+    final payload = change.payload!;
+    final projectSyncId = payload['projectSyncId'] as String?;
+    final categorySyncId = payload['categorySyncId'] as String?;
+    final mode = payload['mode'] as String? ?? 'fixed';
+    final fixedAmount = (payload['fixedAmount'] as num?)?.toDouble();
+    final percentage = (payload['percentage'] as num?)?.toDouble();
+    final carryoverEnabled = payload['carryoverEnabled'] as bool? ?? false;
+
+    final localProjectId = await _resolveProjectIdBySyncId(projectSyncId);
+    final localCategoryId = await _resolveCategoryIdBySyncId(categorySyncId);
+    if (localProjectId == null || localCategoryId == null) {
+      logger.info(
+          'SyncEngine', 'pull: 专案分类子预算 $syncId 的 project/category 本地未就绪,跳过');
+      return;
+    }
+
+    final existing = await (db.select(db.projectCategoryBudgets)
+          ..where((t) => t.syncId.equals(syncId)))
+        .getSingleOrNull();
+
+    if (existing != null) {
+      await (db.update(db.projectCategoryBudgets)
+            ..where((t) => t.id.equals(existing.id)))
+          .write(ProjectCategoryBudgetsCompanion(
+        projectId: d.Value(localProjectId),
+        categoryId: d.Value(localCategoryId),
+        mode: d.Value(mode),
+        fixedAmount: d.Value(fixedAmount),
+        percentage: d.Value(percentage),
+        carryoverEnabled: d.Value(carryoverEnabled),
+        updatedAt: d.Value(DateTime.now()),
+      ));
+      logger.debug('SyncEngine', 'pull: 更新专案分类子预算 $syncId');
+    } else {
+      await db.into(db.projectCategoryBudgets).insert(
+            ProjectCategoryBudgetsCompanion.insert(
+              projectId: localProjectId,
+              categoryId: localCategoryId,
+              mode: d.Value(mode),
+              fixedAmount: d.Value(fixedAmount),
+              percentage: d.Value(percentage),
+              carryoverEnabled: d.Value(carryoverEnabled),
+              syncId: d.Value(syncId),
+            ),
+          );
+      logger.debug('SyncEngine', 'pull: 新增专案分类子预算 $syncId');
     }
   }
 

@@ -1222,6 +1222,68 @@ class AppLocalizationsKo extends AppLocalizations {
   String get annualReportNetSavings => '순 저축액';
 
   @override
+  String get annualReportInsightsTitle => 'Annual Insights';
+
+  @override
+  String get annualReportInsightsSubtitle =>
+      'Discover your spending habits from the data';
+
+  @override
+  String get annualReportAvgPerRecord => 'Average per Transaction';
+
+  @override
+  String get annualReportAvgPerRecordDesc =>
+      'Your average amount per transaction';
+
+  @override
+  String get annualReportAvgDailyExpenseDesc => 'Average amount spent per day';
+
+  @override
+  String get annualReportAvgMonthlyExpenseDesc =>
+      'Average amount spent per month';
+
+  @override
+  String get annualReportMostActiveMonth => 'Most Active Month';
+
+  @override
+  String get annualReportMostActiveMonthDesc =>
+      'The month with the most transaction activity';
+
+  @override
+  String get annualReportCategoryCount => 'Spending Categories';
+
+  @override
+  String get annualReportCategoryCountDesc =>
+      'Number of spending categories you\'ve used';
+
+  @override
+  String get annualReportSavingsRate => 'Savings Rate';
+
+  @override
+  String get annualReportSavingsRateDescPositive =>
+      'The share of your income you saved this year';
+
+  @override
+  String get annualReportSavingsRateDescNegative =>
+      'Your spending exceeded your income this year';
+
+  @override
+  String get annualReportPersistence => 'Bookkeeping Streak';
+
+  @override
+  String get annualReportIncomeExpenseTitle => 'Income vs. Expense';
+
+  @override
+  String get annualReportIncomeExpenseSubtitle =>
+      'Monthly comparison of income and expense';
+
+  @override
+  String get annualReportIncomeHighest => 'Highest Income';
+
+  @override
+  String get annualReportExpenseHighest => 'Highest Expense';
+
+  @override
   String get annualReportPage2Title => '지출 분석';
 
   @override
@@ -1238,6 +1300,9 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get annualReportLowestMonth => '지출이 가장 적은 달';
+
+  @override
+  String get annualReportMonthlyExpenseTrend => 'Monthly Expense Trend';
 
   @override
   String get annualReportPage4Title => '특별한 순간';
@@ -1290,6 +1355,22 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get annualReportSaveSuccess => '연간 리포트 포스터를 저장했습니다';
+
+  @override
+  String get annualReportCongratsSaved => 'Congrats, you saved';
+
+  @override
+  String get annualReportOverspent => 'You overspent this year';
+
+  @override
+  String get annualReportAchieved => 'Achieved';
+
+  @override
+  String get annualReportNotAchieved => 'Not Achieved';
+
+  @override
+  String get annualReportPosterFooterHint =>
+      'Scan to download BeeCount and start your bookkeeping journey';
 
   @override
   String get mineShareApp => '앱 공유';
@@ -1852,6 +1933,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get categoryIconLabel => '카테고리 아이콘';
 
   @override
+  String get categoryColorLabel => '카테고리 색상';
+
+  @override
   String get categoryCustomIconTitle => '사용자 지정 아이콘';
 
   @override
@@ -1868,6 +1952,15 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get categoryCustomIconCrop => '아이콘 자르기';
+
+  @override
+  String get categorySystemIconTitle => 'System Icon';
+
+  @override
+  String get categorySystemIconTapToSelect => 'Tap to select an icon';
+
+  @override
+  String get categorySystemIconTapToChange => 'Tap to change icon';
 
   @override
   String get categoryDangerousOperations => '위험한 작업';
@@ -9000,6 +9093,81 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String get projectDetailNoTransactionsHint =>
       'No transactions in this project yet';
+
+  @override
+  String get projectPeriodPickerTitle => 'Select Period';
+
+  @override
+  String get projectDetailExpenseLabel => 'Expense';
+
+  @override
+  String get projectDetailIncomeLabel => 'Income';
+
+  @override
+  String get projectDetailNetTotalLabel => 'Total';
+
+  @override
+  String get projectDetailAllocatedGroupTitle => 'Allocated Budget';
+
+  @override
+  String get projectDetailUnallocatedGroupTitle => 'Unallocated Budget';
+
+  @override
+  String get projectDetailUnsetGroupTitle => 'No Budget Set';
+
+  @override
+  String get projectDetailUnallocatedLabel => 'Unallocated';
+
+  @override
+  String projectDetailUnallocatedAmountLabel(String amount) {
+    return 'Unallocated $amount';
+  }
+
+  @override
+  String projectDetailOverAllocatedAmountLabel(String amount) {
+    return 'Over-allocated $amount';
+  }
+
+  @override
+  String get projectDetailDailyBudgetLabel => 'Daily budget';
+
+  @override
+  String get projectCategoryBudgetEditTitle => 'Category Budgets';
+
+  @override
+  String get projectCategoryBudgetEnableToggle => 'Set sub-budget';
+
+  @override
+  String get projectCategoryBudgetModeFixed => 'Fixed Amount';
+
+  @override
+  String get projectCategoryBudgetModePercentage => 'Percentage';
+
+  @override
+  String get projectCategoryBudgetPercentageHint => '0-100';
+
+  @override
+  String projectCategoryBudgetFooterLabel(String allocated, String total) {
+    return 'Allocated $allocated / Budget $total';
+  }
+
+  @override
+  String get projectCategoryBudgetSaveSuccess => 'Saved';
+
+  @override
+  String get projectIncomeIncludedToggle => 'Include income in budget';
+
+  @override
+  String get projectDailyBudgetToggle => 'Show daily budget';
+
+  @override
+  String get projectReminderToggle => 'Budget alert';
+
+  @override
+  String get projectReminderThresholdLabel => 'Alert threshold';
+
+  @override
+  String get projectReminderCustomHint => 'Custom %';
 
   @override
   String get swipesmartSettingsTitle => 'SwipeSmart Card Recommendation';

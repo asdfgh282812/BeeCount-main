@@ -774,6 +774,7 @@
   "categoryNameTooLong": "分类名称不能超过4个字",
   "categoryNameDuplicate": "分类名称已存在",
   "categoryIconLabel": "分类图标",
+  "categoryColorLabel": "分类颜色",
   "categoryCustomIconTitle": "自定义图标",
   "categoryCustomIconTapToSelect": "点击选择图片",
   "categoryCustomIconTapToChange": "点击更换图片",

@@ -10,6 +10,10 @@ abstract class CategoryRepository {
   ///
   /// 可选 [syncId] / [level] / [parentId]:给 seed 这种需要显式塞确定性
   /// syncId / 指定层级和父级的路径用;UI 主动建一般不传(走默认 L1 + auto v4 id)。
+  ///
+  /// [color]:一级分类的手动指定颜色(十六进制字符串,如 `#FF9800`)。不传时
+  /// 一级分类走 `_nextAutoColor` 自动配色;二级分类(parentId 非空)始终忽略
+  /// 此参数,颜色继承自父分类。
   Future<int> createCategory({
     required String name,
     required String kind,
@@ -18,6 +22,7 @@ abstract class CategoryRepository {
     int level = 1,
     int? parentId,
     String? syncId,
+    String? color,
   });
 
   /// 创建二级分类。撞同名同样抛 [DuplicateNameException]。
@@ -34,12 +39,14 @@ abstract class CategoryRepository {
   /// 更新分类
   /// [parentId] 传入具体值表示设置父分类，传入 -1 表示清空父分类（变为一级分类）
   /// [level] 传入 1 或 2 表示修改分类层级
+  /// [color] 手动改一级分类颜色(十六进制字符串);不传则维持原值不变
   Future<void> updateCategory(
     int id, {
     String? name,
     String? icon,
     int? parentId,
     int? level,
+    String? color,
   });
 
   /// 删除分类
