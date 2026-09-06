@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../styles/tokens.dart';
+import '../../utils/card_reward_period.dart';
 import '../../utils/month_range.dart';
 
 /// 期間切換元件(design doc 2026-09-06 §4.1):左右箭頭 + 可點擊的期間文字。
@@ -104,6 +105,50 @@ Future<int?> showPeriodRangeListPicker(
         label: '${_formatDate(range.start)}~${_formatDate(endInclusive)}',
       ));
     }
+  }
+
+  return showModalBottomSheet<int>(
+    context: context,
+    backgroundColor: BeeTokens.surfaceElevated(context),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    ),
+    isScrollControlled: true,
+    builder: (_) => _PeriodRangeListPickerSheet(
+      entries: entries,
+      initialOffset: currentOffset,
+    ),
+  );
+}
+
+/// 信用卡「選擇區間」清單彈窗:跟 [showPeriodRangeListPicker] 是同一個彈窗
+/// UI,只是週期改用 [billingCyclePeriod](帳單結帳日週期)算,而不是自然月/
+/// 年——帳戶頁的信用卡帳單彙總卡片用這個,見
+/// `account_detail_page.dart::_buildBillingSummaryCard`。
+///
+/// [oldestOffset] 是清單要往回列到哪一期(含),呼叫端應該用該帳戶(含合併
+/// 帳單子卡)最早一筆交易反推——沒有資料的更舊帳期不列出來,避免使用者選到
+/// 空清單(2026-09-06 使用者回報)。[currentOffset] 必須 <= 0(0 = 涵蓋今天、
+/// 尚未結束的本期,呼叫端的右箭頭本來就不允許切到未來);若呼叫端傳入的
+/// [oldestOffset] 比目前選中的 [currentOffset] 還新(例如使用者先手動點箭頭
+/// 翻到比最早交易還舊的帳期),仍會把 [currentOffset] 納入清單,確保目前選取
+/// 一定在列表裡可以被勾選到。
+Future<int?> showBillingCyclePeriodListPicker(
+  BuildContext context, {
+  required int? billingDay,
+  required int currentOffset,
+  required int oldestOffset,
+}) {
+  final effectiveOldestOffset =
+      oldestOffset < currentOffset ? oldestOffset : currentOffset;
+  final entries = <({int offset, String label})>[];
+  for (var offset = 0; offset >= effectiveOldestOffset; offset--) {
+    final period = billingCyclePeriod(billingDay, offset);
+    entries.add((
+      offset: offset,
+      label: '${_formatDate(period.start.subtract(const Duration(days: 1)))} – '
+          '${_formatDate(period.end)}',
+    ));
   }
 
   return showModalBottomSheet<int>(

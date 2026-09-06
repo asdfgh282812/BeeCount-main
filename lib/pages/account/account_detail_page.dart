@@ -392,7 +392,7 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
             ref.watch(defaultBillingPeriodOffsetProvider((
           accountId: account.id,
           extraIdsKey: extraIdsKey,
-          billingDay: account.billingDay,
+          billingDay: _effectiveBillingDay(account),
         )));
         final resolvedOffset = defaultOffsetAsync.valueOrNull;
         if (resolvedOffset == null) {
@@ -986,11 +986,21 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
   // 帳單週期(信用卡「交易明細」/「帳戶資訊」tab 共用)
   // ============================================
 
+  /// 帳單週期實際要用的結帳日:真的信用卡(有設 billingDay)用卡片本身的
+  /// 結帳日;沒設時(例如合併帳單主帳戶/一般帳戶群組當「彙總檢視」容器用,
+  /// 本身不是真的信用卡)不要退化寫死成「每月 1 號」,改對齊帳本的
+  /// `monthStartDay`——不然週期起訖會跟使用者在帳本設定的月結日對不上
+  /// (2026-09-06 使用者回報)。只有「應繳日期」「紅利回饋規則」這類真的需要
+  /// 銀行實際結帳日的欄位才維持原本的 `account.billingDay`(null 就不顯示/
+  /// 不適用),不套用這個退化規則。
+  int? _effectiveBillingDay(db.Account account) =>
+      account.billingDay ??
+      ref.read(currentLedgerProvider).asData?.value?.monthStartDay;
+
   /// 帳單週期起訖:[offset]=0 為涵蓋今天的本期,負數往前推一期一期算。
-  /// 沒設 billingDay 時退化成「每月 1 號」起算的自然月。
   ({DateTime start, DateTime end}) _billingPeriod(
           db.Account account, int offset) =>
-      billingCyclePeriod(account.billingDay, offset);
+      billingCyclePeriod(_effectiveBillingDay(account), offset);
 
   /// 繳款期限(帳戶資訊 tab):帳單週期結束後的第一個 paymentDueDay。
   DateTime _dueDate(DateTime periodEnd, int paymentDueDay) {
@@ -1020,6 +1030,45 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
       '${_formatYmd(period.start.subtract(const Duration(days: 1)))} – '
       '${_formatYmd(period.end)}';
 
+  /// 點週期文字開「選擇區間」清單彈窗(跟專案頁同一套 UI,見
+  /// `showBillingCyclePeriodListPicker` 文件註解),讓使用者直接挑歷史帳期,
+  /// 不用一期一期點箭頭找。清單只列到這個帳戶(含合併帳單子卡)最早一筆交易
+  /// 所在的帳期為止,不列沒有資料的更舊帳期——跟
+  /// `creditCardPaymentPeriodRecordsProvider` 找 `oldestOffset` 的算法一致
+  /// (見 `credit_card_billing_providers.dart` 的說明)。
+  Future<void> _openBillingPeriodPicker(BuildContext context,
+      db.Account account, List<db.Account> children) async {
+    final billingDay = _effectiveBillingDay(account);
+    final repo = ref.read(repositoryProvider);
+    final ids = [account.id, ...children.map((c) => c.id)];
+    DateTime? firstActivity;
+    for (final id in ids) {
+      final at = await repo.getCreditCardFirstActivityAt(id);
+      if (at != null && (firstActivity == null || at.isBefore(firstActivity))) {
+        firstActivity = at;
+      }
+    }
+    var oldestOffset = 0;
+    if (firstActivity != null) {
+      while (billingCyclePeriod(billingDay, oldestOffset)
+          .start
+          .isAfter(firstActivity)) {
+        oldestOffset -= 1;
+        if (oldestOffset < -600) break;
+      }
+    }
+    if (!context.mounted) return;
+    final selected = await showBillingCyclePeriodListPicker(
+      context,
+      billingDay: billingDay,
+      currentOffset: _billingPeriodOffset,
+      oldestOffset: oldestOffset,
+    );
+    if (selected != null && mounted) {
+      setState(() => _billingPeriodOffset = selected);
+    }
+  }
+
   // ============================================
   // 「交易明細」tab:信用卡帳單彙總卡片
   // ============================================
@@ -1038,7 +1087,7 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     final txAsync = ref.watch(accountStatementTransactionsProvider((
       accountId: account.id,
       extraIdsKey: extraIdsKey,
-      billingDay: account.billingDay,
+      billingDay: _effectiveBillingDay(account),
       cycleOffset: _billingPeriodOffset,
     )));
     // 規則二(MOZE 對標):上期欠款/剩餘帳款改用終身跑動餘額在指定時間點的
@@ -1062,35 +1111,14 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 週期導航
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  icon: Icon(Icons.chevron_left,
-                      size: 20, color: BeeTokens.iconSecondary(context)),
-                  onPressed: () => setState(() => _billingPeriodOffset -= 1),
-                ),
-                Text(
-                  _formatCycleLabel(period),
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: BeeTokens.textPrimary(context),
-                  ),
-                ),
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  icon: Icon(Icons.chevron_right,
-                      size: 20,
-                      color: _billingPeriodOffset < 0
-                          ? BeeTokens.iconSecondary(context)
-                          : BeeTokens.iconTertiary(context)),
-                  onPressed: _billingPeriodOffset < 0
-                      ? () => setState(() => _billingPeriodOffset += 1)
-                      : null,
-                ),
-              ],
+            PeriodRangeSelector(
+              label: _formatCycleLabel(period),
+              onPrev: () => setState(() => _billingPeriodOffset -= 1),
+              onNext: _billingPeriodOffset < 0
+                  ? () => setState(() => _billingPeriodOffset += 1)
+                  : null,
+              onTapLabel: () =>
+                  _openBillingPeriodPicker(context, account, children),
             ),
             Divider(
                 height: 16.0.scaled(context, ref),
@@ -1332,7 +1360,7 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     final summaryAsync = ref.watch(cardRewardAccountSummaryProvider((
       accountId: account.id,
       extraIdsKey: _extraIdsKey(children),
-      billingDay: account.billingDay,
+      billingDay: _effectiveBillingDay(account),
       offset: _billingPeriodOffset,
     )));
     final summaries = summaryAsync.valueOrNull ?? const [];
@@ -1507,14 +1535,14 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     final txAsync = ref.watch(accountStatementTransactionsProvider((
       accountId: account.id,
       extraIdsKey: extraIdsKey,
-      billingDay: account.billingDay,
+      billingDay: _effectiveBillingDay(account),
       cycleOffset: _billingPeriodOffset,
     )));
     final paymentRecordsAsync =
         ref.watch(creditCardPaymentPeriodRecordsProvider((
       accountId: account.id,
       extraIdsKey: extraIdsKey,
-      billingDay: account.billingDay,
+      billingDay: _effectiveBillingDay(account),
       targetOffset: _billingPeriodOffset,
     )));
     final accountNameById = <int, String>{
