@@ -683,6 +683,23 @@ extension SyncEngineApplyExt on SyncEngine {
             ? null
             : swipesmartCardIdRaw;
 
+    // 信用卡到期自動扣繳:autoPayEnabled 跟 hidden 同款 D6 缺鍵保留語義
+    // (缺鍵 → null → update 不覆蓋本地,insert 缺鍵落預設 false)。
+    // autoPayFromAccountId 跟 parentAccountId/swipesmartCardId 同款
+    // containsKey 保護 + 空字串清空。
+    final autoPayEnabled = payload.containsKey('autoPayEnabled')
+        ? (payload['autoPayEnabled'] as bool? ?? false)
+        : null;
+    final hasAutoPayFromAccountIdKey =
+        payload.containsKey('autoPayFromAccountId');
+    final autoPayFromAccountIdRaw = hasAutoPayFromAccountIdKey
+        ? payload['autoPayFromAccountId'] as String?
+        : null;
+    final autoPayFromAccountId =
+        (autoPayFromAccountIdRaw == null || autoPayFromAccountIdRaw.isEmpty)
+            ? null
+            : autoPayFromAccountIdRaw;
+
     var existing = await (db.select(db.accounts)
           ..where((a) => a.syncId.equals(syncId)))
         .getSingleOrNull();
@@ -761,6 +778,12 @@ extension SyncEngineApplyExt on SyncEngine {
             ? d.Value(swipesmartCardId)
             : const d.Value.absent(),
         avatarPath: d.Value(resolvedAvatarPath),
+        autoPayEnabled: autoPayEnabled == null
+            ? const d.Value.absent()
+            : d.Value(autoPayEnabled),
+        autoPayFromAccountId: hasAutoPayFromAccountIdKey
+            ? d.Value(autoPayFromAccountId)
+            : const d.Value.absent(),
       ));
       logger.debug('SyncEngine', 'pull: 更新账户 $syncId');
     } else {
@@ -784,6 +807,8 @@ extension SyncEngineApplyExt on SyncEngine {
               parentAccountId: d.Value(parentAccountId),
               swipesmartCardId: d.Value(swipesmartCardId),
               avatarPath: d.Value(resolvedAvatarPath),
+              autoPayEnabled: d.Value(autoPayEnabled ?? false),
+              autoPayFromAccountId: d.Value(autoPayFromAccountId),
             ),
           );
       activePullCache?.putAccount(syncId, localId);

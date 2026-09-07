@@ -187,11 +187,18 @@ class TransferFormState extends ConsumerState<TransferForm>
     if (_toAccountId != null) _loadAccount(_toAccountId!, isFrom: false);
 
     // 全新轉帳(沒有指定初始帳戶、也不是編輯既有交易)時,靜默預帶最近一筆
-    // 轉帳用過的兩個帳戶,省去每次都要手動選兩次的麻煩。
+    // (排除信用卡繳款)轉帳用過的兩個帳戶,省去每次都要手動選兩次的麻煩。
     if (_fromAccountId == null &&
         _toAccountId == null &&
         widget.editingTransactionId == null) {
       _loadLastUsedTransferAccounts();
+    } else if (_fromAccountId == null &&
+        _toAccountId != null &&
+        widget.editingTransactionId == null) {
+      // 已指定轉入帳戶、缺轉出帳戶(典型情境:信用卡繳費入口只帶
+      // `initialToAccountId`)——依「這個轉入帳戶」而非全帳本最近一筆轉帳
+      // 來預帶來源帳戶,避免繳不同信用卡時互相污染彼此的繳費帳戶記憶。
+      _loadLastFromAccountForToAccount(_toAccountId!);
     }
   }
 
@@ -211,6 +218,27 @@ class TransferFormState extends ConsumerState<TransferForm>
       _toAccountId = pair.toAccountId;
       _fromAccount = from;
       _toAccount = to;
+    });
+  }
+
+  /// 依「轉入帳戶」查最近一次轉進這裡用過的來源帳戶,靜默預帶——跟
+  /// [_loadLastUsedTransferAccounts] 不同,這裡刻意「按信用卡」查,不是抓
+  /// 全帳本最近一筆轉帳,才不會出現繳 A 卡卻預帶上次繳 B 卡帳戶的狀況。
+  Future<void> _loadLastFromAccountForToAccount(int toAccountId) async {
+    final repo = ref.read(repositoryProvider);
+    final ledgerId = ref.read(currentLedgerIdProvider);
+    final fromId = await repo.getLastFromAccountForToAccount(
+      ledgerId: ledgerId,
+      toAccountId: toAccountId,
+    );
+    if (fromId == null || !mounted) return;
+    // 使用者在等待查詢結果的這段時間手動選過來源帳戶了,不要覆蓋。
+    if (_fromAccountId != null) return;
+    final from = await _lookupAccount(fromId);
+    if (!mounted || from == null || from.hidden) return;
+    setState(() {
+      _fromAccountId = fromId;
+      _fromAccount = from;
     });
   }
 
@@ -353,6 +381,9 @@ class TransferFormState extends ConsumerState<TransferForm>
     if (result == null || !mounted) return;
     final id = result.accountId;
     if (id == null) return; // allowNull:false 理论上拿不到 null,防御
+    // 手動選轉入帳戶、且轉出帳戶還沒選過時,記下來——挑完後依這個轉入帳戶
+    // (例如某張信用卡)去預帶上次轉進它的來源帳戶,見下方呼叫。
+    final shouldSuggestFromAccount = !isFrom && _fromAccountId == null;
     setState(() {
       if (isFrom) {
         _fromAccountId = id;
@@ -365,6 +396,9 @@ class TransferFormState extends ConsumerState<TransferForm>
       _toRateFetchAttemptedFor = null;
     });
     await _loadAccount(id, isFrom: isFrom);
+    if (shouldSuggestFromAccount) {
+      await _loadLastFromAccountForToAccount(id);
+    }
   }
 
   void _swapAccounts() {
@@ -882,34 +916,61 @@ class TransferFormState extends ConsumerState<TransferForm>
                               }
                             }),
                           ),
-                          const Spacer(),
-                          if (_op != null) ...[
-                            Text(
-                              _fmtAbs(_acc),
-                              style: text.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w500,
-                                color: BeeTokens.textSecondary(context),
+                          const SizedBox(width: 10),
+                          // 金額欄位加上框線、常駐送出鍵——比照
+                          // `transaction_entry_form.dart` 收支表單的金額列,
+                          // 讓轉帳跟收支的金額/打勾確認版面對齊一致。
+                          Expanded(
+                            child: Container(
+                              constraints:
+                                  const BoxConstraints(minHeight: 44),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 6),
+                              decoration: BoxDecoration(
+                                border:
+                                    Border.all(color: BeeTokens.border(context)),
+                                borderRadius: BorderRadius.circular(10),
                               ),
-                            ),
-                            Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 8),
-                              child: Text(
-                                amountOpGlyph(_op!),
-                                style: text.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: primary),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  if (_op != null) ...[
+                                    Text(
+                                      _fmtAbs(_acc),
+                                      style: text.titleMedium?.copyWith(
+                                        fontWeight: FontWeight.w500,
+                                        color: BeeTokens.textSecondary(context),
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8),
+                                      child: Text(
+                                        amountOpGlyph(_op!),
+                                        style: text.titleMedium?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                            color: primary),
+                                      ),
+                                    ),
+                                  ],
+                                  Flexible(
+                                    child: Text(
+                                      _amountStr,
+                                      textAlign: TextAlign.right,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: text.headlineSmall?.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: 0.0,
+                                        color: BeeTokens.textPrimary(context),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
-                          Text(
-                            _amountStr,
-                            style: text.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.0,
-                              color: BeeTokens.textPrimary(context),
                             ),
                           ),
+                          const SizedBox(width: 10),
+                          _buildInlineSubmitButton(context, canSubmit),
                         ],
                       ),
                       if (_op != null) ...[
@@ -1030,6 +1091,45 @@ class TransferFormState extends ConsumerState<TransferForm>
             ),
           ),
       ],
+    );
+  }
+
+  /// 金額列右側的送出鍵——跟「滑動送出」共用同一個 [_submit],不管
+  /// [canSubmit] 是否成立都直接呼叫,靠 [_submit] 自己的驗證分支跳對應的
+  /// 錯誤提示;寫法照抄 `transaction_entry_form.dart` 的同名方法,讓轉帳跟
+  /// 收支的金額/打勾確認版面對齊一致。
+  Widget _buildInlineSubmitButton(BuildContext context, bool canSubmit) {
+    final theme = Theme.of(context);
+    final ready = canSubmit && !_isSubmitting;
+    return Material(
+      color: ready
+          ? theme.colorScheme.primary
+          : BeeTokens.surfaceKeySecondary(context),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        key: const Key('inlineSubmitButton'),
+        borderRadius: BorderRadius.circular(10),
+        onTap: _isSubmitting ? null : _submit,
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: _isSubmitting
+              ? SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: theme.colorScheme.onPrimary,
+                  ),
+                )
+              : Icon(
+                  Icons.check_rounded,
+                  size: 20,
+                  color: ready
+                      ? theme.colorScheme.onPrimary
+                      : BeeTokens.iconSecondary(context),
+                ),
+        ),
+      ),
     );
   }
 

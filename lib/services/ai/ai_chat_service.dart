@@ -152,9 +152,9 @@ class AIChatService {
           ? "You are BeeCount's AI assistant, mainly helping users with bookkeeping. "
               'If users ask about statistics, queries and other functions, please inform them that they are not supported yet and guide them to use the bookkeeping function. '
               'Please respond in English.'
-          : '你是蜜蜂记账的AI助手,主要帮助用户记账。'
-              '如果用户询问统计、查询等功能,请告知暂不支持,引导用户使用记账功能。'
-              '请用中文回复。';
+          : '你是蜜蜂記帳的AI助手,主要幫助使用者記帳。'
+              '如果使用者詢問統計、查詢等功能,請告知暫不支援,引導使用者使用記帳功能。'
+              '請用繁體中文回覆。';
 
       final response = await AIProviderFactory.chat(
         input,

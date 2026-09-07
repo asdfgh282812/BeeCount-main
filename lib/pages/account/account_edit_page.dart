@@ -68,6 +68,20 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
   // include_in_total)。正极性,新建账户默认 true(=納入)。
   bool _includeInTotal = true;
 
+  // 信用卡到期自動扣繳(對齊 BeeCount Cloud `auto_pay_enabled` +
+  // `auto_pay_from_account_id`)。只在額度/帳單日/還款日還在時有意義
+  // (account_group 或沒有掛靠群組的獨立信用卡),見 _buildAutoPaySection。
+  // App 端只存這兩個欄位供跨裝置同步顯示——到期實際扣款交易仍是 Cloud 端
+  // 排程執行,App 離線時不會在本地產生扣款交易(docs/changes/
+  // 2026-09-07-credit-card-auto-pay-fields.md)。
+  bool _autoPayEnabled = false;
+  String? _autoPayFromAccountId;
+  // 來源帳戶候選:排除 account_group 類型與自己,對齊 Cloud web
+  // AccountsPanel.tsx 的 `r.account_type !== 'account_group' && r.id !==
+  // form.editingId` 過濾規則。跟 _parentCandidates 一起在 _loadAccountCandidates
+  // 裡算(同一次 getAllAccounts() 查詢)。
+  List<db.Account> _autoPaySourceCandidates = [];
+
   // 日常账户类型（走流水）
   static const List<String> tradableAccountTypes = [
     'cash',
@@ -115,8 +129,10 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     _parentAccountId = widget.account?.parentAccountId;
     _avatarPath = widget.account?.avatarPath;
     _includeInTotal = widget.account?.includeInTotal ?? true;
+    _autoPayEnabled = widget.account?.autoPayEnabled ?? false;
+    _autoPayFromAccountId = widget.account?.autoPayFromAccountId;
     _typeTab = valuationAccountTypes.contains(_selectedType) ? 1 : 0;
-    _loadParentCandidates();
+    _loadAccountCandidates();
   }
 
   /// 主帳戶候選清單:對齊 BeeCount Cloud server `_assert_valid_account_parent`
@@ -124,7 +140,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
   /// 否則同步到 server 會被拒絕)、不能選自己、群組禁巢狀(候選本身
   /// `parentAccountId` 必須是 null)。不做子帳戶類型一致性檢查——server
   /// 明確允許混合(design doc 2026-09-05 決策3)。
-  Future<void> _loadParentCandidates() async {
+  Future<void> _loadAccountCandidates() async {
     final repo = ref.read(repositoryProvider);
     final all = await repo.getAllAccounts();
     final candidates = all.where((a) {
@@ -133,8 +149,18 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
       if (widget.account != null && a.id == widget.account!.id) return false;
       return a.syncId != null && a.syncId!.isNotEmpty;
     }).toList();
+    // 自動扣繳來源帳戶候選:排除 account_group(純管理容器,沒有自己的
+    // 餘額可扣)與自己,對齊 Cloud web AccountsPanel.tsx 同款過濾規則。
+    final autoPaySources = all.where((a) {
+      if (a.type == 'account_group') return false;
+      if (widget.account != null && a.id == widget.account!.id) return false;
+      return a.syncId != null && a.syncId!.isNotEmpty;
+    }).toList();
     if (mounted) {
-      setState(() => _parentCandidates = candidates);
+      setState(() {
+        _parentCandidates = candidates;
+        _autoPaySourceCandidates = autoPaySources;
+      });
     }
   }
 
@@ -284,6 +310,109 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     );
   }
 
+  void _showAutoPaySourcePicker(BuildContext context, AppLocalizations l10n) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final a in _autoPaySourceCandidates)
+              ListTile(
+                title: Text(a.name),
+                trailing: _autoPayFromAccountId == a.syncId
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () {
+                  setState(() => _autoPayFromAccountId = a.syncId);
+                  Navigator.of(sheetContext).pop();
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 信用卡到期自動扣繳(§2.9,對齊 BeeCount Cloud web AccountsPanel.tsx 同款
+  /// 開關 + 來源帳戶佈局):只在額度/帳單日/還款日還在時(account_group 或
+  /// 沒有掛靠群組的獨立信用卡)才呼叫這個方法渲染。關掉開關時順手清空來源
+  /// 帳戶,對齊 [_save] 的 `!_autoPayEnabled → autoPayFromAccountId: null`。
+  Widget _buildAutoPaySection(
+      BuildContext context, AppLocalizations l10n, Color primaryColor) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(height: 12.0.scaled(context, ref)),
+        Divider(
+          height: BeeTokens.cardInnerDividerHeight(context),
+          thickness: BeeTokens.cardInnerDividerHeight(context),
+          color: BeeTokens.cardInnerDividerColor(context),
+        ),
+        SizedBox(height: 12.0.scaled(context, ref)),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.accountAutoPayToggleLabel,
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w500),
+                  ),
+                  SizedBox(height: 2.0.scaled(context, ref)),
+                  Text(
+                    l10n.accountAutoPayToggleHint,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: BeeTokens.textTertiary(context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Switch(
+              value: _autoPayEnabled,
+              activeThumbColor: primaryColor,
+              onChanged: (value) => setState(() {
+                _autoPayEnabled = value;
+                if (!value) _autoPayFromAccountId = null;
+              }),
+            ),
+          ],
+        ),
+        if (_autoPayEnabled) ...[
+          SizedBox(height: 12.0.scaled(context, ref)),
+          InkWell(
+            onTap: () => _showAutoPaySourcePicker(context, l10n),
+            borderRadius: BorderRadius.circular(12),
+            child: InputDecorator(
+              decoration: _filledDecoration(context, primaryColor,
+                  label: l10n.accountAutoPaySourceLabel),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _autoPaySourceCandidates
+                              .where((a) => a.syncId == _autoPayFromAccountId)
+                              .map((a) => a.name)
+                              .firstOrNull ??
+                          l10n.accountAutoPaySourcePlaceholder,
+                    ),
+                  ),
+                  Icon(Icons.arrow_drop_down,
+                      color: BeeTokens.textSecondary(context)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   /// 入口C:彈窗新增主帳戶(群組),成功後直接把目前這個帳戶掛靠上去。
   Future<void> _openCreateGroupSheet(AppLocalizations l10n) async {
     final created = await showModalBottomSheet<db.Account>(
@@ -416,6 +545,8 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         _creditLimitController.clear();
         _billingDay = null;
         _paymentDueDay = null;
+        _autoPayEnabled = false;
+        _autoPayFromAccountId = null;
       }
       final wasBankOrCredit =
           oldType == 'bank_card' || oldType == 'credit_card';
@@ -753,6 +884,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                                 ),
                               ],
                             ),
+                            _buildAutoPaySection(context, l10n, primaryColor),
                           ],
                         ),
                       ),
@@ -837,6 +969,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                                   ),
                                 ],
                               ),
+                              _buildAutoPaySection(context, l10n, primaryColor),
                               SizedBox(height: 12.0.scaled(context, ref)),
                             ],
                             // 开户行 / 卡号后四（双列）
@@ -1196,6 +1329,14 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
       return;
     }
 
+    // 自動扣繳開著就必須選來源帳戶,對齊 Cloud web AccountsPage.tsx 的
+    // `autoPaySourceRequired` 驗證。
+    if (_autoPayEnabled && _autoPayFromAccountId == null) {
+      showToast(
+          context, AppLocalizations.of(context).accountAutoPaySourceRequired);
+      return;
+    }
+
     setState(() => _saving = true);
 
     try {
@@ -1282,6 +1423,11 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           avatarPath: _avatarPath,
           clearAvatar: _avatarPath == null,
           includeInTotal: _includeInTotal,
+          autoPayEnabled: hasBillingFields ? _autoPayEnabled : false,
+          autoPayFromAccountId: hasBillingFields && _autoPayEnabled
+              ? _autoPayFromAccountId
+              : null,
+          clearAutoPayFromAccountId: !hasBillingFields || !_autoPayEnabled,
         );
       } else {
         final isBankOrCredit =
@@ -1310,6 +1456,10 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           note: noteText.isNotEmpty ? noteText : null,
           parentAccountId: _parentAccountId,
           includeInTotal: _includeInTotal,
+          autoPayEnabled: hasBillingFields ? _autoPayEnabled : false,
+          autoPayFromAccountId: hasBillingFields && _autoPayEnabled
+              ? _autoPayFromAccountId
+              : null,
         );
 
         // 新建场景头像还是临时裁剪文件的绝对路径（新建时账户 id 还不存在,

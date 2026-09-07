@@ -210,8 +210,8 @@ Future<void> _loadMaterialIcons() async {
     }
     root = dir.path;
   }
-  final otf =
-      File('$root/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf');
+  final otf = File(
+      '$root/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf');
   if (!otf.existsSync()) return;
   final loader = FontLoader('MaterialIcons')
     ..addFont(Future.value(ByteData.view(otf.readAsBytesSync().buffer)));
@@ -302,6 +302,7 @@ Account _account(int id, String name, {String type = 'bank'}) => Account(
       sortOrder: id,
       hidden: false,
       includeInTotal: true,
+      autoPayEnabled: false,
     );
 
 Category _category(int id, String name, String icon) => Category(
@@ -316,11 +317,20 @@ Category _category(int id, String name, String icon) => Category(
 
 List<QuickAddCategoryItem> _quickAddCategories(_Pack p) => [
       QuickAddCategoryItem(
-          categoryId: 1, name: p.categoryNames[0], icon: 'restaurant', total: 1620),
+          categoryId: 1,
+          name: p.categoryNames[0],
+          icon: 'restaurant',
+          total: 1620),
       QuickAddCategoryItem(
-          categoryId: 2, name: p.categoryNames[1], icon: 'directions_car', total: 480),
+          categoryId: 2,
+          name: p.categoryNames[1],
+          icon: 'directions_car',
+          total: 480),
       QuickAddCategoryItem(
-          categoryId: 3, name: p.categoryNames[2], icon: 'shopping_cart', total: 2350),
+          categoryId: 3,
+          name: p.categoryNames[2],
+          icon: 'shopping_cart',
+          total: 2350),
       QuickAddCategoryItem(
           categoryId: 4, name: p.categoryNames[3], icon: 'movie', total: 300),
     ];
@@ -355,19 +365,31 @@ List<RecentTransactionItem> _recentItems(_Pack p) {
   return [
     RecentTransactionItem(
       transaction: tx(
-          id: 1, type: 'expense', amount: 32, categoryId: 1, at: DateTime(2026, 7, 20, 9, 12)),
+          id: 1,
+          type: 'expense',
+          amount: 32,
+          categoryId: 1,
+          at: DateTime(2026, 7, 20, 9, 12)),
       category: cafe,
       account: main,
     ),
     RecentTransactionItem(
       transaction: tx(
-          id: 2, type: 'income', amount: 18500, categoryId: 2, at: DateTime(2026, 7, 19, 10, 0)),
+          id: 2,
+          type: 'income',
+          amount: 18500,
+          categoryId: 2,
+          at: DateTime(2026, 7, 19, 10, 0)),
       category: salary,
       account: main,
     ),
     RecentTransactionItem(
       transaction: tx(
-          id: 3, type: 'expense', amount: 156.8, categoryId: 3, at: DateTime(2026, 7, 19, 18, 40)),
+          id: 3,
+          type: 'expense',
+          amount: 156.8,
+          categoryId: 3,
+          at: DateTime(2026, 7, 19, 18, 40)),
       category: grocery,
       account: sub,
     ),

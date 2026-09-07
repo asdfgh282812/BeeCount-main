@@ -40,7 +40,7 @@ void main() {
         now: DateTime(2026, 5, 26),
       );
       // 单币种账本:账户清单**不带**币种后缀,与加多币种之前逐字相同
-      expect(out, contains('账户列表：支付宝、微信零钱、招行储蓄'));
+      expect(out, contains('帳戶清單：支付宝、微信零钱、招行储蓄'));
     });
 
     // 智能记账多币种(.docs/multi-currency-ai)
@@ -58,7 +58,7 @@ void main() {
         inputSource: 'X',
         now: DateTime(2026, 5, 26),
       );
-      expect(out, contains('账户列表：微信、Chase(USD)'));
+      expect(out, contains('帳戶清單：微信、Chase(USD)'));
     });
 
     test('单币种账本的币种提示只有一行主币种', () {
@@ -72,8 +72,8 @@ void main() {
         inputSource: 'X',
         now: DateTime(2026, 5, 26),
       );
-      expect(out, contains('账本主币种：CNY'));
-      expect(out, isNot(contains('已有外币账户')));
+      expect(out, contains('帳本主要幣別：CNY'));
+      expect(out, isNot(contains('已有外幣帳戶')));
     });
 
     test('有外币账户时列出可用币种', () {
@@ -87,7 +87,7 @@ void main() {
         inputSource: 'X',
         now: DateTime(2026, 5, 26),
       );
-      expect(out, contains('账本主币种：CNY；账本内已有外币账户：USD'));
+      expect(out, contains('帳本主要幣別：CNY；帳本內已有外幣帳戶：USD'));
     });
 
     test('默认模板含 currency 字段说明与外币示例', () {
@@ -109,29 +109,29 @@ void main() {
         inputSource: 'X',
         now: DateTime(2026, 5, 26),
       );
-      expect(out, contains('不要填货币符号'));
+      expect(out, contains('不要填貨幣符號'));
       expect(out, contains('\$ → USD'));
     });
 
     // 「日元能识别、美元不行」的根因之一:只靠一句「填 ISO 代码」,模型对没有
     // 样例的币种会漏填。对照表从别名表运行时生成,prompt 与解析器同一份数据。
     group('币种对照表', () {
-      test('常用币种都在表里,且只给一个规范名(不带繁体/口语变体)', () {
+      test('常用币种都在表里,且只给一个规范名(不带简体/口语变体)', () {
         final out = builder.build(
           context: AiExtractionContext.fallback,
           inputSource: 'X',
           now: DateTime(2026, 5, 26),
         );
-        expect(out, contains('币种对照'));
+        expect(out, contains('幣別對照'));
         expect(out, contains('美元=USD'));
-        expect(out, contains('日元=JPY'));
-        expect(out, contains('欧元=EUR'));
-        expect(out, contains('英镑=GBP'));
-        expect(out, contains('港币=HKD'));
-        expect(out, contains('泰铢=THB'));
-        // 繁体变体只用于解析,不该出现在 prompt 里(白烧 token)
-        expect(out, isNot(contains('歐元')));
-        expect(out, isNot(contains('港幣')));
+        expect(out, contains('日圓=JPY'));
+        expect(out, contains('歐元=EUR'));
+        expect(out, contains('英鎊=GBP'));
+        expect(out, contains('港幣=HKD'));
+        expect(out, contains('泰銖=THB'));
+        // 简体变体只用于解析,不该出现在 prompt 里(白烧 token)
+        expect(out, isNot(contains('欧元')));
+        expect(out, isNot(contains('港币')));
       });
 
       test('账本主币种自己不进对照表(相同就该省略字段)', () {
@@ -141,8 +141,8 @@ void main() {
           inputSource: 'X',
           now: DateTime(2026, 5, 26),
         );
-        expect(out, contains('账本主币种：JPY'));
-        expect(out, isNot(contains('日元=JPY')));
+        expect(out, contains('帳本主要幣別：JPY'));
+        expect(out, isNot(contains('日圓=JPY')));
       });
 
       test('账本在用的长尾币种也带上(哪怕不在常用列表里)', () {
@@ -164,7 +164,7 @@ void main() {
         );
         final line = out
             .split('\n')
-            .firstWhere((l) => l.startsWith('币种对照'));
+            .firstWhere((l) => l.startsWith('幣別對照'));
         final pairs = line.split('：').last.split('、');
         for (final pair in pairs) {
           if (!pair.contains('=')) continue; // 纯 code 项
@@ -258,8 +258,8 @@ void main() {
         now: DateTime(2026, 5, 26),
       );
       expect(out, startsWith('CUSTOM: X'));
-      expect(out, isNot(contains('账本主币种')));
-      expect(out, isNot(contains('账户列表')));
+      expect(out, isNot(contains('帳本主要幣別')));
+      expect(out, isNot(contains('帳戶清單')));
     });
 
     test('空 context → 走 hardcoded fallback 分类', () {
@@ -269,9 +269,9 @@ void main() {
         ocrText: 'Y',
         now: DateTime(2026, 5, 26),
       );
-      expect(out, contains('餐饮、交通、购物、娱乐、居家'));
-      expect(out, contains('工资、理财、红包'));
-      expect(out, isNot(contains('账户列表'))); // accounts 为空时不输出
+      expect(out, contains('餐飲、交通、購物、娛樂、居家'));
+      expect(out, contains('工資、理財、收紅包'));
+      expect(out, isNot(contains('帳戶清單'))); // accounts 为空时不输出
     });
 
     test('自定义模板优先于默认模板', () {
@@ -321,7 +321,7 @@ void main() {
         ocrText: '',
         now: DateTime(2026, 5, 26),
       );
-      expect(out, contains('JSON数组'));
+      expect(out, contains('JSON陣列'));
     });
   });
 }

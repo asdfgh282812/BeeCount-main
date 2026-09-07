@@ -66,11 +66,11 @@ class AndroidNotificationUtil implements util.NotificationUtil {
 
     const androidDetails = AndroidNotificationDetails(
       'accounting_reminder',
-      '记账提醒',
-      channelDescription: '每日记账提醒',
+      '記帳提醒',
+      channelDescription: '每日記帳提醒',
       importance: Importance.max,
       priority: Priority.max,
-      ticker: '记账提醒',
+      ticker: '記帳提醒',
       icon: '@mipmap/ic_launcher',
       enableVibration: true,
       playSound: true,
@@ -130,11 +130,11 @@ class AndroidNotificationUtil implements util.NotificationUtil {
 
     const androidDetails = AndroidNotificationDetails(
       'accounting_reminder',
-      '记账提醒',
-      channelDescription: '每日记账提醒',
+      '記帳提醒',
+      channelDescription: '每日記帳提醒',
       importance: Importance.max,
       priority: Priority.max,
-      ticker: '记账提醒',
+      ticker: '記帳提醒',
       icon: '@mipmap/ic_launcher',
       enableVibration: true,
       playSound: true,
@@ -206,11 +206,11 @@ class AndroidNotificationUtil implements util.NotificationUtil {
 
     const androidDetails = AndroidNotificationDetails(
       'accounting_reminder',
-      '记账提醒',
-      channelDescription: '每日记账提醒',
+      '記帳提醒',
+      channelDescription: '每日記帳提醒',
       importance: Importance.max,
       priority: Priority.max,
-      ticker: '记账提醒',
+      ticker: '記帳提醒',
       icon: '@mipmap/ic_launcher',
       enableVibration: true,
       playSound: true,
@@ -261,11 +261,11 @@ class AndroidNotificationUtil implements util.NotificationUtil {
 
         const androidDetails = AndroidNotificationDetails(
           'accounting_reminder_backup',
-          '记账提醒备用',
-          channelDescription: '记账提醒备用通道',
+          '記帳提醒備用',
+          channelDescription: '記帳提醒備用通道',
           importance: Importance.max,
           priority: Priority.max,
-          ticker: '记账提醒',
+          ticker: '記帳提醒',
           icon: '@mipmap/ic_launcher',
           enableVibration: true,
           playSound: true,

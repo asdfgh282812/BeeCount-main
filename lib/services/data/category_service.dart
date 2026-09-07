@@ -742,6 +742,31 @@ class CategoryService {
     }
   }
 
+  /// `icon` 字符串是否"看起来像 emoji"(而非本类 switch 认识的英文标识符,
+  /// 如 'restaurant')。已知 key 都是较长的纯 ASCII 标识符,emoji 通常
+  /// 1~2 个 grapheme 且码点落在 ASCII 之外很远的区域——启发式,不追求 100%
+  /// 精确。与 `lib/widget/views/widget_view_style.dart` 里的
+  /// `widgetLooksLikeEmoji` 是同一算法,那边服务桌面小组件、这里服务主 App。
+  static bool looksLikeEmoji(String s) {
+    if (s.length > 4) return false;
+    final codePoint = s.runes.isEmpty ? 0 : s.runes.first;
+    return codePoint > 0x2100;
+  }
+
+  /// 图标兜底渲染:`icon` 是 emoji(例如 Web 端专案图示允许自由输入 emoji)
+  /// 就直接画文字,否则交给 [getCategoryIcon](内部对不认识的 key/null 已
+  /// 兜底 `Icons.category`)。
+  static Widget iconOrEmojiWidget({
+    required String? icon,
+    required Color color,
+    double size = 18,
+  }) {
+    if (icon != null && icon.isNotEmpty && looksLikeEmoji(icon)) {
+      return Text(icon, style: TextStyle(fontSize: size * 0.9));
+    }
+    return Icon(getCategoryIcon(icon), size: size, color: color);
+  }
+
   /// 分类筛选和排序工具方法
 
   /// 按分类类型筛选

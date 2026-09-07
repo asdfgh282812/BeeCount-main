@@ -90,6 +90,22 @@ class Accounts extends Table {
   /// Debts.excludedFromTotal 的先例)。
   BoolColumn get includeInTotal =>
       boolean().withDefault(const Constant(true))();
+
+  /// v58 信用卡到期自動扣繳開關(對齊 BeeCount Cloud `accounts.
+  /// auto_pay_enabled`)。只對 account_group(主帳戶)或沒有掛靠任何群組的
+  /// 獨立信用卡有意義,子卡欄位隱藏、跟著主帳戶走(跟 creditLimit/
+  /// billingDay 同款「移交主帳戶管理」語意,見 account_edit_page.dart)。
+  /// **注意**:App 端只存這個開關供跨裝置同步顯示,到期實際扣款交易仍是
+  /// Cloud 端 `services/credit_card_autopay.py` 排程執行——App 離線時不會
+  /// 在本地產生扣款交易,這是刻意縮小的範圍(docs/changes/
+  /// 2026-09-07-credit-card-auto-pay-fields.md)。
+  BoolColumn get autoPayEnabled =>
+      boolean().withDefault(const Constant(false))();
+
+  /// 自動扣繳來源帳戶的 syncId(對齊 BeeCount Cloud `accounts.
+  /// auto_pay_from_account_id`):另一個帳戶,不可以是 account_group 類型或
+  /// 自己,null = 未選擇。跟 parentAccountId 同款用 syncId 做跨裝置穩定引用。
+  TextColumn get autoPayFromAccountId => text().nullable()();
 }
 
 /// 自动汇率本地缓存。日期键 append-only;可随时整表重建 → **不进同步**(README D2)。
@@ -1185,7 +1201,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 57; // v57: 修补分期期数缺失 sync_id 并补推云端
+  int get schemaVersion => 58; // v58: 信用卡自動扣繳欄位(accounts.auto_pay_*)
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2369,7 +2385,8 @@ class BeeDatabase extends _$BeeDatabase {
                   entityType: 'category',
                   entityId: id,
                   entitySyncId: syncId,
-                  ledgerId: 0, // user-global 实体固定挂 0,跟 ChangeTracker.recordUserGlobalChange 约定一致
+                  ledgerId:
+                      0, // user-global 实体固定挂 0,跟 ChangeTracker.recordUserGlobalChange 约定一致
                   action: 'update',
                 ));
                 enqueuedForSync++;
@@ -2452,6 +2469,22 @@ class BeeDatabase extends _$BeeDatabase {
             ''');
             await customStatement('DROP TABLE _v57_periods_to_fix;');
             logger.info('DBMigration', 'v57 迁移完成');
+          }
+          if (from < 58) {
+            // v58:信用卡到期自動扣繳(accounts.auto_pay_enabled +
+            // accounts.auto_pay_from_account_id),對齊 BeeCount Cloud
+            // `accounts.auto_pay_enabled`/`auto_pay_from_account_id`(見
+            // docs/changes/2026-09-07-credit-card-auto-pay-fields.md)。
+            logger.info(
+                'DBMigration', '开始迁移到 v58: 信用卡自動扣繳(accounts.auto_pay_*)');
+            await _addColumnIfMissing(
+                'accounts',
+                'auto_pay_enabled',
+                'ALTER TABLE accounts ADD COLUMN auto_pay_enabled '
+                    'BOOLEAN NOT NULL DEFAULT 0;');
+            await _addColumnIfMissing('accounts', 'auto_pay_from_account_id',
+                'ALTER TABLE accounts ADD COLUMN auto_pay_from_account_id TEXT;');
+            logger.info('DBMigration', 'v58 迁移完成');
           }
         },
         onCreate: (m) async {

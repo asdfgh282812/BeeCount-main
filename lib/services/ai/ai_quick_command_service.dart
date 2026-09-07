@@ -63,7 +63,7 @@ class AIQuickCommandService {
           .get();
 
       if (transactions.isEmpty) {
-        return '本月暂无交易记录';
+        return '本月暫無交易紀錄';
       }
 
       // 统计收支
@@ -81,15 +81,15 @@ class AIQuickCommandService {
       final savingsRate = totalIncome > 0 ? (balance / totalIncome * 100) : 0;
 
       return '''
-【本月统计】
-- 总收入: ${_formatAmount(totalIncome)}
-- 总支出: ${_formatAmount(totalExpense)}
-- 结余: ${_formatAmount(balance)}
-- 储蓄率: ${savingsRate.toStringAsFixed(1)}%
-- 交易笔数: ${transactions.length}笔
+【本月統計】
+- 總收入: ${_formatAmount(totalIncome)}
+- 總支出: ${_formatAmount(totalExpense)}
+- 結餘: ${_formatAmount(balance)}
+- 儲蓄率: ${savingsRate.toStringAsFixed(1)}%
+- 交易筆數: ${transactions.length}筆
 ''';
     } catch (e) {
-      return '获取月度统计数据失败: $e';
+      return '取得月度統計資料失敗: $e';
     }
   }
 
@@ -112,7 +112,7 @@ class AIQuickCommandService {
           .get();
 
       if (transactions.isEmpty) {
-        return '本月暂无支出记录';
+        return '本月暫無支出紀錄';
       }
 
       // 按分类统计
@@ -144,11 +144,11 @@ class AIQuickCommandService {
       }
 
       return '''
-【分类统计】(前10)
+【分類統計】(前10)
 ${categoryList.join('\n')}
 ''';
     } catch (e) {
-      return '获取分类统计数据失败: $e';
+      return '取得分類統計資料失敗: $e';
     }
   }
 
@@ -168,7 +168,7 @@ ${categoryList.join('\n')}
           .get();
 
       if (transactions.isEmpty) {
-        return '最近30天暂无交易记录';
+        return '最近30天暫無交易紀錄';
       }
 
       final list = <String>[];
@@ -190,11 +190,11 @@ ${categoryList.join('\n')}
       }
 
       return '''
-【最近交易】(最近20笔)
+【最近交易】(最近20筆)
 ${list.join('\n')}
 ''';
     } catch (e) {
-      return '获取最近交易记录失败: $e';
+      return '取得最近交易紀錄失敗: $e';
     }
   }
 
@@ -235,11 +235,11 @@ ${list.join('\n')}
       }
 
       return '''
-【近期趋势】
+【近期趨勢】
 ${trends.join('\n')}
 ''';
     } catch (e) {
-      return '获取近期趋势数据失败: $e';
+      return '取得近期趨勢資料失敗: $e';
     }
   }
 

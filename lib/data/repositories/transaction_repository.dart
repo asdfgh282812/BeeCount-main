@@ -176,10 +176,23 @@ abstract class TransactionRepository {
     required int categoryId,
   });
 
-  /// 該帳本最近一筆轉帳交易使用的來源/目的帳戶，用於開新轉帳時預帶「最近
-  /// 用過的兩個帳戶」。沒有歷史轉帳紀錄時回傳 null。
+  /// 該帳本最近一筆「非信用卡繳款」轉帳交易使用的來源/目的帳戶，用於開新
+  /// 轉帳(主頁「新增轉帳」等未指定任何一側帳戶的通用入口)時預帶「最近用過
+  /// 的兩個帳戶」。刻意排除備註帶 [cardPaymentNotePrefix] 前綴的信用卡繳款
+  /// 轉帳，讓通用轉帳入口不會被繳信用卡的紀錄污染。沒有符合的歷史轉帳紀錄
+  /// 時回傳 null。
   Future<({int fromAccountId, int toAccountId})?> getLastTransferAccounts({
     required int ledgerId,
+  });
+
+  /// 該帳本最近一筆「轉入到 [toAccountId] 這個帳戶」的轉帳交易所使用的來源
+  /// 帳戶，用於信用卡繳費等已知目的帳戶、只缺來源帳戶的情境──依「這張卡」
+  /// 而非全帳本最近一筆轉帳來預帶，避免不同信用卡之間互相污染彼此的繳費
+  /// 帳戶記憶(不排除信用卡繳款備註，因為這正是要找的對象)。沒有歷史紀錄
+  /// 時回傳 null。
+  Future<int?> getLastFromAccountForToAccount({
+    required int ledgerId,
+    required int toAccountId,
   });
 
   /// 根据ID获取单条交易

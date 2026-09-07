@@ -59,6 +59,8 @@ abstract class AccountRepository {
     String? parentAccountId,
     String? avatarPath,
     bool includeInTotal = true,
+    bool autoPayEnabled = false,
+    String? autoPayFromAccountId,
   });
 
   /// 按 name 取账户(name 全局唯一,账户跨账本可用);不存在则建一条。
@@ -76,9 +78,11 @@ abstract class AccountRepository {
 
   /// 更新账户
   ///
-  /// [hidden]、[includeInTotal] 为 null 表示不改动(见 [setAccountHidden] 便捷
-  /// 法)。true/false 显式传入才会写库,配合同步 apply 的「缺键保留」语义
-  /// (账户隐藏 #240;不納入總餘額同理)。
+  /// [hidden]、[includeInTotal]、[autoPayEnabled] 为 null 表示不改动(见
+  /// [setAccountHidden] 便捷法)。true/false 显式传入才会写库,配合同步 apply
+  /// 的「缺键保留」语义(账户隐藏 #240;不納入總餘額同理)。[autoPayFromAccountId]
+  /// 跟 [parentAccountId] 同款:传值即更新,[clearAutoPayFromAccountId] 才会
+  /// 清空。
   Future<void> updateAccount(
     int id, {
     String? name,
@@ -101,6 +105,9 @@ abstract class AccountRepository {
     bool? includeInTotal,
     String? swipesmartCardId,
     bool clearSwipesmartCardId = false,
+    bool? autoPayEnabled,
+    String? autoPayFromAccountId,
+    bool clearAutoPayFromAccountId = false,
   });
 
   /// 隐藏 / 恢复账户(账户隐藏 #240)。内部走 [updateAccount] → 记

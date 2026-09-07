@@ -181,6 +181,13 @@ class EntitySerializer {
       // 不納入總餘額。对齐 server `include_in_total`(正极性,默认 true),
       // 无条件发送(同 hidden 的模式)。
       'includeInTotal': account.includeInTotal,
+      // 信用卡到期自動扣繳(對齊 server `auto_pay_enabled`/
+      // `auto_pay_from_account_id`)。autoPayEnabled 跟 hidden 同款無條件
+      // bool 發送;autoPayFromAccountId 跟 parentAccountId 同款「無條件發送
+      // + 空字串清空」約定 —— 使用者關掉開關時要能把來源帳戶清掉,省略/null
+      // 都會被 server 當「不更新」。
+      'autoPayEnabled': account.autoPayEnabled,
+      'autoPayFromAccountId': account.autoPayFromAccountId ?? '',
     };
   }
 

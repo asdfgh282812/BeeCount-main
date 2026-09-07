@@ -103,6 +103,8 @@ class LocalAccountRepository implements AccountRepository {
     String? parentAccountId,
     String? avatarPath,
     bool includeInTotal = true,
+    bool autoPayEnabled = false,
+    String? autoPayFromAccountId,
   }) async {
     // 撞同名抛 DuplicateNameException(name 全局唯一)。静默路径(import /
     // app-link 等)请改用 [upsertAccount]。
@@ -142,6 +144,8 @@ class LocalAccountRepository implements AccountRepository {
         parentAccountId: d.Value(parentAccountId),
         avatarPath: d.Value(avatarPath),
         includeInTotal: d.Value(includeInTotal),
+        autoPayEnabled: d.Value(autoPayEnabled),
+        autoPayFromAccountId: d.Value(autoPayFromAccountId),
       );
 
       final id = await db.into(db.accounts).insert(companion);
@@ -199,6 +203,9 @@ class LocalAccountRepository implements AccountRepository {
     bool? includeInTotal,
     String? swipesmartCardId,
     bool clearSwipesmartCardId = false,
+    bool? autoPayEnabled,
+    String? autoPayFromAccountId,
+    bool clearAutoPayFromAccountId = false,
   }) async {
     await (db.update(db.accounts)..where((a) => a.id.equals(id))).write(
       AccountsCompanion(
@@ -253,6 +260,19 @@ class LocalAccountRepository implements AccountRepository {
             : (swipesmartCardId != null
                 ? d.Value(swipesmartCardId)
                 : const d.Value.absent()),
+        // 自動扣繳只在額度/帳單日/還款日還在時才有意義,跟著
+        // clearCreditCardFields 一起清空(切換出信用卡/主帳戶類型時)。
+        autoPayEnabled: clearCreditCardFields
+            ? const d.Value(false)
+            : (autoPayEnabled != null
+                ? d.Value(autoPayEnabled)
+                : const d.Value.absent()),
+        autoPayFromAccountId:
+            (clearCreditCardFields || clearAutoPayFromAccountId)
+                ? const d.Value(null)
+                : (autoPayFromAccountId != null
+                    ? d.Value(autoPayFromAccountId)
+                    : const d.Value.absent()),
       ),
     );
   }
@@ -927,8 +947,7 @@ class LocalAccountRepository implements AccountRepository {
     final where = switch (flow) {
       'expense' => "account_id IN ($idPlaceholders) AND type = 'expense'",
       'income' => "account_id IN ($idPlaceholders) AND type = 'income'",
-      'transfer_out' =>
-        "account_id IN ($idPlaceholders) AND type = 'transfer'",
+      'transfer_out' => "account_id IN ($idPlaceholders) AND type = 'transfer'",
       'transfer_in' =>
         "to_account_id IN ($idPlaceholders) AND type = 'transfer'",
       _ =>

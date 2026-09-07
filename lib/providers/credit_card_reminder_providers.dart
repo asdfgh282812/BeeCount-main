@@ -148,8 +148,8 @@ class CreditCardReminderService {
 
       await notificationUtil.scheduleOnceReminder(
         id: notificationId,
-        title: '$accountName还款日即将到来',
-        body: '还款日为每月$paymentDueDay日，请及时还款',
+        title: '$accountName還款日即將到來',
+        body: '還款日為每月$paymentDueDay日，請及時還款',
         scheduledDate: scheduledDate,
       );
 

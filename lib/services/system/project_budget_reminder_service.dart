@@ -36,8 +36,8 @@ class ProjectBudgetReminderService {
 
       await NotificationFactory.getInstance().showNotification(
         id: _notificationId(project.id),
-        title: '${project.name}预算提醒',
-        body: '这期预算已使用 ${rate.toStringAsFixed(0)}%',
+        title: '${project.name}預算提醒',
+        body: '這期預算已使用 ${rate.toStringAsFixed(0)}%',
       );
       await repo.updateProjectReminderNotifiedKey(project.id, periodKey);
       logger.info('ProjectBudgetReminder',

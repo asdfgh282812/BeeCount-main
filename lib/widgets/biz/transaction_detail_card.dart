@@ -955,11 +955,14 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
           BuildContext context, AppLocalizations l10n) =>
       buildFeeDiscountSubtitle(context, l10n, widget.transaction);
 
-  Widget _detailItem(BuildContext context, IconData icon, String text) {
+  Widget _tertiaryIcon(BuildContext context, IconData icon) =>
+      Icon(icon, size: 16, color: BeeTokens.iconTertiary(context));
+
+  Widget _detailItem(BuildContext context, Widget icon, String text) {
     return Expanded(
       child: Row(
         children: [
-          Icon(icon, size: 16, color: BeeTokens.iconTertiary(context)),
+          icon,
           const SizedBox(width: 6),
           Expanded(
             child: Text(
@@ -1020,8 +1023,12 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
                       ),
                     )
                   : _detailItem(
-                      context, Icons.account_balance_wallet_outlined, '—'),
-              _detailItem(context, Icons.sell_outlined, firstTagName),
+                      context,
+                      _tertiaryIcon(
+                          context, Icons.account_balance_wallet_outlined),
+                      '—'),
+              _detailItem(context, _tertiaryIcon(context, Icons.sell_outlined),
+                  firstTagName),
             ],
           ),
           if (project != null) ...[
@@ -1030,7 +1037,11 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
               children: [
                 _detailItem(
                   context,
-                  CategoryService.getCategoryIcon(project.icon),
+                  CategoryService.iconOrEmojiWidget(
+                    icon: project.icon,
+                    color: BeeTokens.iconTertiary(context),
+                    size: 16,
+                  ),
                   project.name,
                 ),
               ],
@@ -1039,15 +1050,21 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
           const SizedBox(height: 10),
           Row(
             children: [
-              _detailItem(context, Icons.storefront_outlined, merchant),
-              _detailItem(context, Icons.event_repeat, repeatText),
+              _detailItem(context,
+                  _tertiaryIcon(context, Icons.storefront_outlined), merchant),
+              _detailItem(context, _tertiaryIcon(context, Icons.event_repeat),
+                  repeatText),
             ],
           ),
           const SizedBox(height: 10),
           Row(
             children: [
-              _detailItem(context, Icons.calendar_today_outlined, dateText),
-              _detailItem(context, Icons.access_time, timeText),
+              _detailItem(
+                  context,
+                  _tertiaryIcon(context, Icons.calendar_today_outlined),
+                  dateText),
+              _detailItem(
+                  context, _tertiaryIcon(context, Icons.access_time), timeText),
             ],
           ),
         ],

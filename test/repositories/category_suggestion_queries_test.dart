@@ -1,13 +1,16 @@
 /// 「建議」分頁 + 智慧預設用的 3 個新 repository 查詢:
 /// - getCategoryUsageSignals:建議分頁排序演算法的原始訊號來源。
 /// - getMostUsedAccountForCategory:依類別靜默代入常用帳戶。
-/// - getLastTransferAccounts:轉帳分頁預帶最近用過的兩個帳戶。
+/// - getLastTransferAccounts:轉帳分頁預帶最近用過的兩個帳戶(排除信用卡繳款)。
+/// - getLastFromAccountForToAccount:依轉入帳戶預帶最近用過的來源帳戶,信用卡
+///   繳費入口用這個依「這張卡」而非全帳本最近一筆轉帳來預帶。
 import 'package:flutter_test/flutter_test.dart';
 import 'package:drift/native.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:beecount/data/db.dart';
 import 'package:beecount/data/repositories/local/local_repository.dart';
+import 'package:beecount/utils/credit_card_payment.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -186,6 +189,91 @@ void main() {
     test('沒有轉帳紀錄時回傳 null', () async {
       final lid = await repo.createLedger(name: 'L');
       final result = await repo.getLastTransferAccounts(ledgerId: lid);
+      expect(result, isNull);
+    });
+
+    test('排除信用卡繳款轉帳,回傳更早一筆一般轉帳', () async {
+      final lid = await repo.createLedger(name: 'L');
+      final a = await repo.createAccount(ledgerId: lid, name: 'A');
+      final b = await repo.createAccount(ledgerId: lid, name: 'B');
+      final card = await repo.createAccount(
+          ledgerId: lid, name: 'Card', type: 'credit_card');
+
+      await repo.addTransaction(
+        ledgerId: lid,
+        type: 'transfer',
+        amount: 100,
+        accountId: a,
+        toAccountId: b,
+        happenedAt: DateTime(2026, 1, 1),
+      );
+      // 最近一筆是信用卡繳款,不該被主頁「新增轉帳」拿去預帶。
+      await repo.addTransaction(
+        ledgerId: lid,
+        type: 'transfer',
+        amount: 500,
+        accountId: b,
+        toAccountId: card,
+        note: creditCardPaymentNote(billingDay: 5),
+        happenedAt: DateTime(2026, 1, 10),
+      );
+
+      final result = await repo.getLastTransferAccounts(ledgerId: lid);
+
+      expect(result?.fromAccountId, a);
+      expect(result?.toAccountId, b);
+    });
+  });
+
+  group('getLastFromAccountForToAccount', () {
+    test('依轉入帳戶查最近一次轉進它的來源帳戶,不同轉入帳戶互不干擾', () async {
+      final lid = await repo.createLedger(name: 'L');
+      final yushan = await repo.createAccount(ledgerId: lid, name: '永豐銀行');
+      final taishin = await repo.createAccount(ledgerId: lid, name: '台新銀行');
+      final yushanCard = await repo.createAccount(
+          ledgerId: lid, name: '永豐信用卡', type: 'credit_card');
+      final taishinCard = await repo.createAccount(
+          ledgerId: lid, name: '台新信用卡', type: 'credit_card');
+
+      // 8/7 用台新銀行繳台新信用卡。
+      await repo.addTransaction(
+        ledgerId: lid,
+        type: 'transfer',
+        amount: 1000,
+        accountId: taishin,
+        toAccountId: taishinCard,
+        note: creditCardPaymentNote(billingDay: 5),
+        happenedAt: DateTime(2026, 8, 7),
+      );
+      // 9/5 用永豐銀行繳永豐信用卡——時間更晚,但轉入帳戶不同。
+      await repo.addTransaction(
+        ledgerId: lid,
+        type: 'transfer',
+        amount: 2000,
+        accountId: yushan,
+        toAccountId: yushanCard,
+        note: creditCardPaymentNote(billingDay: 10),
+        happenedAt: DateTime(2026, 9, 5),
+      );
+
+      // 9/7 準備繳台新信用卡:應該拿回 8/7 用過的台新銀行,而不是全帳本
+      // 最近一筆轉帳(永豐銀行)。
+      final result = await repo.getLastFromAccountForToAccount(
+        ledgerId: lid,
+        toAccountId: taishinCard,
+      );
+
+      expect(result, taishin);
+    });
+
+    test('沒有轉進過這個帳戶時回傳 null', () async {
+      final lid = await repo.createLedger(name: 'L');
+      final card = await repo.createAccount(
+          ledgerId: lid, name: 'Card', type: 'credit_card');
+      final result = await repo.getLastFromAccountForToAccount(
+        ledgerId: lid,
+        toAccountId: card,
+      );
       expect(result, isNull);
     });
   });

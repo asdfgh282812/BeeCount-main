@@ -1158,6 +1158,16 @@ class LocalRepository extends BaseRepository {
       _transactionRepo.getLastTransferAccounts(ledgerId: ledgerId);
 
   @override
+  Future<int?> getLastFromAccountForToAccount({
+    required int ledgerId,
+    required int toAccountId,
+  }) =>
+      _transactionRepo.getLastFromAccountForToAccount(
+        ledgerId: ledgerId,
+        toAccountId: toAccountId,
+      );
+
+  @override
   Future<
       List<
           ({
@@ -2234,6 +2244,8 @@ class LocalRepository extends BaseRepository {
     String? parentAccountId,
     String? avatarPath,
     bool includeInTotal = true,
+    bool autoPayEnabled = false,
+    String? autoPayFromAccountId,
   }) async {
     final id = await _accountRepo.createAccount(
       ledgerId: ledgerId,
@@ -2251,6 +2263,8 @@ class LocalRepository extends BaseRepository {
       parentAccountId: parentAccountId,
       avatarPath: avatarPath,
       includeInTotal: includeInTotal,
+      autoPayEnabled: autoPayEnabled,
+      autoPayFromAccountId: autoPayFromAccountId,
     );
     if (changeTracker != null) {
       final account = await _accountRepo.getAccount(id);
@@ -2311,6 +2325,9 @@ class LocalRepository extends BaseRepository {
     bool? includeInTotal,
     String? swipesmartCardId,
     bool clearSwipesmartCardId = false,
+    bool? autoPayEnabled,
+    String? autoPayFromAccountId,
+    bool clearAutoPayFromAccountId = false,
   }) async {
     final account =
         changeTracker != null ? await _accountRepo.getAccount(id) : null;
@@ -2336,6 +2353,9 @@ class LocalRepository extends BaseRepository {
       includeInTotal: includeInTotal,
       swipesmartCardId: swipesmartCardId,
       clearSwipesmartCardId: clearSwipesmartCardId,
+      autoPayEnabled: autoPayEnabled,
+      autoPayFromAccountId: autoPayFromAccountId,
+      clearAutoPayFromAccountId: clearAutoPayFromAccountId,
     );
     if (account?.syncId != null) {
       await changeTracker!.recordUserGlobalChange(

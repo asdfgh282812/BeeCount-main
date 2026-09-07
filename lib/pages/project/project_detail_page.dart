@@ -209,8 +209,13 @@ class _ProjectDetailBody extends ConsumerWidget {
                       .withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(CategoryService.getCategoryIcon(project.icon),
-                    color: Theme.of(context).colorScheme.primary),
+                child: Center(
+                  child: CategoryService.iconOrEmojiWidget(
+                    icon: project.icon,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 24,
+                  ),
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(

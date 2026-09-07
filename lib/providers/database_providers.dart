@@ -132,9 +132,8 @@ final transferCategoryProvider = FutureProvider<Category>((ref) async {
 // 週期性收支規則Provider（按账本过滤）。v36 起对齐 BeeCount Cloud
 // recurring_rule,取代旧版不限账本的 allRecurringTransactionsProvider(規則是
 // ledger-scoped,旧的"不限账本"用法本来就不对齐新模型,且无任何调用点)。
-final recurringRulesProvider =
-    StreamProvider.autoDispose.family<List<RecurringTransaction>, int>(
-        (ref, ledgerId) {
+final recurringRulesProvider = StreamProvider.autoDispose
+    .family<List<RecurringTransaction>, int>((ref, ledgerId) {
   final repo = ref.watch(repositoryProvider);
   return repo.watchRulesByLedger(ledgerId);
 });
@@ -192,11 +191,12 @@ final accountForTxProvider =
     cardLastFour: shared.cardLastFour,
     note: shared.note,
     syncId: shared.syncId,
-    // SharedLedgerAccounts 镜像表没有 hidden/includeInTotal 概念(这些都是
-    // Owner 侧个人状态,不随共享账本镜像同步),synthetic 账户固定按
-    // 「未隐藏、納入總餘額」处理。
+    // SharedLedgerAccounts 镜像表没有 hidden/includeInTotal/autoPay 概念
+    // (这些都是 Owner 侧个人状态,不随共享账本镜像同步),synthetic 账户固定按
+    // 「未隐藏、納入總餘額、未開自動扣繳」处理。
     hidden: false,
     includeInTotal: true,
+    autoPayEnabled: false,
   );
 });
 

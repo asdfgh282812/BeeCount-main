@@ -156,11 +156,14 @@ class _ProjectEditPageState extends ConsumerState<ProjectEditPage> {
                                         .withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
-                                  child: Icon(
-                                    CategoryService.getCategoryIcon(
-                                        _selectedIcon),
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
+                                  child: Center(
+                                    child: CategoryService.iconOrEmojiWidget(
+                                      icon: _selectedIcon,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primary,
+                                      size: 24,
+                                    ),
                                   ),
                                 ),
                                 Positioned(

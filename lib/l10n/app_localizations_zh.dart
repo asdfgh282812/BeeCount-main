@@ -6765,6 +6765,23 @@ class AppLocalizationsZh extends AppLocalizations {
   String get accountGoToParentSettings => 'Go to Settings';
 
   @override
+  String get accountAutoPayToggleLabel => 'Auto-pay';
+
+  @override
+  String get accountAutoPayToggleHint =>
+      'On the payment due date, automatically transfer from the selected account to pay off the amount due (that account needs sufficient balance).';
+
+  @override
+  String get accountAutoPaySourceLabel => 'Source Account';
+
+  @override
+  String get accountAutoPaySourcePlaceholder => 'Select a source account';
+
+  @override
+  String get accountAutoPaySourceRequired =>
+      'Please select a source account for auto-pay';
+
+  @override
   String get accountMetaInfo => '账户信息';
 
   @override
@@ -16329,6 +16346,21 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get accountGoToParentSettings => '前往設定';
+
+  @override
+  String get accountAutoPayToggleLabel => '自動扣繳';
+
+  @override
+  String get accountAutoPayToggleHint => '到了繳款截止日,自動從指定帳戶轉帳繳清應繳金額(該帳戶需有足夠餘額)。';
+
+  @override
+  String get accountAutoPaySourceLabel => '扣款來源帳戶';
+
+  @override
+  String get accountAutoPaySourcePlaceholder => '請選擇扣款來源帳戶';
+
+  @override
+  String get accountAutoPaySourceRequired => '請選擇自動扣繳的來源帳戶';
 
   @override
   String get accountMetaInfo => '帳戶資訊';

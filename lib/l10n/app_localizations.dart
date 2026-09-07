@@ -12762,6 +12762,36 @@ abstract class AppLocalizations {
   /// **'Go to Settings'**
   String get accountGoToParentSettings;
 
+  /// No description provided for @accountAutoPayToggleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-pay'**
+  String get accountAutoPayToggleLabel;
+
+  /// No description provided for @accountAutoPayToggleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'On the payment due date, automatically transfer from the selected account to pay off the amount due (that account needs sufficient balance).'**
+  String get accountAutoPayToggleHint;
+
+  /// No description provided for @accountAutoPaySourceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Source Account'**
+  String get accountAutoPaySourceLabel;
+
+  /// No description provided for @accountAutoPaySourcePlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a source account'**
+  String get accountAutoPaySourcePlaceholder;
+
+  /// No description provided for @accountAutoPaySourceRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a source account for auto-pay'**
+  String get accountAutoPaySourceRequired;
+
   /// No description provided for @accountMetaInfo.
   ///
   /// In en, this message translates to:

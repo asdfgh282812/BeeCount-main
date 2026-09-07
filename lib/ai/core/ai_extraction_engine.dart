@@ -80,7 +80,7 @@ class DefaultAiExtractionEngine implements AiExtractionEngine {
     try {
       final prompt = _promptBuilder.build(
         context: context,
-        inputSource: '从以下支付账单文本中',
+        inputSource: '從以下支付帳單文字中',
         billGuard: billGuard,
         ocrText: text,
       );
@@ -115,7 +115,7 @@ class DefaultAiExtractionEngine implements AiExtractionEngine {
     try {
       final prompt = _promptBuilder.build(
         context: context,
-        inputSource: '分析支付账单截图，从中',
+        inputSource: '分析支付帳單截圖，從中',
         billGuard: billGuard,
       );
       logger.debug(_tag, '图片 prompt 长度: ${prompt.length}');

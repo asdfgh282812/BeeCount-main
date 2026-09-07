@@ -145,8 +145,7 @@ void main() {
     await tester.pump(const Duration(seconds: 10)); // 排干一次性定时器
   });
 
-  testWidgets('DashboardView 真实 gather 数据 + harness 包裹:不抛异常',
-      (tester) async {
+  testWidgets('DashboardView 真实 gather 数据 + harness 包裹:不抛异常', (tester) async {
     late final DashboardWidgetData data;
     late final String currency;
     await tester.runAsync(() async {
@@ -174,8 +173,7 @@ void main() {
     await tester.pump(const Duration(seconds: 10)); // 排干一次性定时器
   });
 
-  testWidgets('全新空账本(无交易/无账户/无预算):recent/dashboard 均不抛异常',
-      (tester) async {
+  testWidgets('全新空账本(无交易/无账户/无预算):recent/dashboard 均不抛异常', (tester) async {
     late final List<RecentTransactionItem> items;
     late final DashboardWidgetData data;
     await tester.runAsync(() async {
@@ -213,8 +211,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('结构断言:所有小组件视图树内禁用 Scrollable(离屏树无 View 会炸,红屏根因)',
-      (tester) async {
+  testWidgets('结构断言:所有小组件视图树内禁用 Scrollable(离屏树无 View 会炸,红屏根因)', (tester) async {
     // ScrollableState.didChangeDependencies 会调 View.of(context),而
     // home_widget renderFlutterWidget 的离屏树没有 View 祖先 → 必抛
     // "View.of() was called with a context that does not contain a View"
@@ -238,11 +235,24 @@ void main() {
           needsAccountAssignment: false,
         );
     const cat = Category(
-        id: 1, name: '餐饮', kind: 'expense', icon: 'restaurant',
-        sortOrder: 1, level: 1, iconType: 'material');
+        id: 1,
+        name: '餐饮',
+        kind: 'expense',
+        icon: 'restaurant',
+        sortOrder: 1,
+        level: 1,
+        iconType: 'material');
     const acc = Account(
-        id: 1, ledgerId: 1, name: '招商银行', type: 'bank', currency: 'CNY',
-        initialBalance: 0, sortOrder: 1, hidden: false, includeInTotal: true);
+        id: 1,
+        ledgerId: 1,
+        name: '招商银行',
+        type: 'bank',
+        currency: 'CNY',
+        initialBalance: 0,
+        sortOrder: 1,
+        hidden: false,
+        includeInTotal: true,
+        autoPayEnabled: false);
     final items = [
       for (var i = 1; i <= 6; i++)
         RecentTransactionItem(transaction: tx(i), category: cat, account: acc),
@@ -257,55 +267,101 @@ void main() {
         ),
     ];
     final quickAdd = const [
-      QuickAddCategoryItem(categoryId: 1, name: '餐饮', icon: 'restaurant', total: 10),
-      QuickAddCategoryItem(categoryId: 2, name: '交通', icon: 'directions_car', total: 8),
-      QuickAddCategoryItem(categoryId: 3, name: '购物', icon: 'shopping_cart', total: 6),
+      QuickAddCategoryItem(
+          categoryId: 1, name: '餐饮', icon: 'restaurant', total: 10),
+      QuickAddCategoryItem(
+          categoryId: 2, name: '交通', icon: 'directions_car', total: 8),
+      QuickAddCategoryItem(
+          categoryId: 3, name: '购物', icon: 'shopping_cart', total: 6),
     ];
 
     final views = <String, Widget>{
       'GlanceView.medium': const GlanceView.medium(
-        todayExpense: '¥1', todayIncome: '¥2', monthExpense: '¥3',
-        monthIncome: '¥4', themeColor: honey, redForIncome: true, dark: false,
-        titleLabel: 'B', monthSuffix: '月', todayExpenseLabel: 'a',
-        todayIncomeLabel: 'b', monthExpenseLabel: 'c', monthIncomeLabel: 'd',
-        width: 364, height: 169,
+        todayExpense: '¥1',
+        todayIncome: '¥2',
+        monthExpense: '¥3',
+        monthIncome: '¥4',
+        themeColor: honey,
+        redForIncome: true,
+        dark: false,
+        titleLabel: 'B',
+        monthSuffix: '月',
+        todayExpenseLabel: 'a',
+        todayIncomeLabel: 'b',
+        monthExpenseLabel: 'c',
+        monthIncomeLabel: 'd',
+        width: 364,
+        height: 169,
       ),
       'NetWorthView.large(含账户明细)': NetWorthView(
-        size: HWSize.large, netWorth: 900, totalAssets: 1000,
-        totalLiabilities: 100, baseCurrency: 'CNY', trend: trend,
+        size: HWSize.large,
+        netWorth: 900,
+        totalAssets: 1000,
+        totalLiabilities: 100,
+        baseCurrency: 'CNY',
+        trend: trend,
         topAccounts: [
-          const NetWorthAccountItem(account: acc, balance: 10, convertedBalance: 10),
+          const NetWorthAccountItem(
+              account: acc, balance: 10, convertedBalance: 10),
         ],
-        themeColor: honey, redForIncome: true, dark: false,
-        netWorthLabel: 'n', totalAssetsLabel: 'a', totalLiabilitiesLabel: 'l',
-        width: 364, height: 382,
+        themeColor: honey,
+        redForIncome: true,
+        dark: false,
+        netWorthLabel: 'n',
+        totalAssetsLabel: 'a',
+        totalLiabilitiesLabel: 'l',
+        width: 364,
+        height: 382,
       ),
       'QuickAddView.small': QuickAddView(
-        size: HWSize.small, categories: quickAdd, themeColor: honey,
-        dark: false, addLabel: '+', width: 155, height: 155,
+        size: HWSize.small,
+        categories: quickAdd,
+        themeColor: honey,
+        dark: false,
+        addLabel: '+',
+        width: 155,
+        height: 155,
       ),
       'BudgetView.medium': BudgetView(
         size: HWSize.medium,
         overview: BudgetOverview(
             totalBudget: BudgetUsage(used: 5, budget: 10),
-            categoryBudgets: const [], daysRemaining: 1, dailyAvailable: 1),
-        currencyCode: 'CNY', themeColor: honey, redForIncome: true,
-        dark: false, width: 364, height: 169,
+            categoryBudgets: const [],
+            daysRemaining: 1,
+            dailyAvailable: 1),
+        currencyCode: 'CNY',
+        themeColor: honey,
+        redForIncome: true,
+        dark: false,
+        width: 364,
+        height: 169,
       ),
       'RecentView.large(6 行)': RecentView(
-        size: HWSize.large, items: items, defaultCurrency: 'CNY',
-        themeColor: honey, redForIncome: true, dark: false,
-        width: 364, height: 382,
+        size: HWSize.large,
+        items: items,
+        defaultCurrency: 'CNY',
+        themeColor: honey,
+        redForIncome: true,
+        dark: false,
+        width: 364,
+        height: 382,
       ),
       'DashboardView': DashboardView(
         data: DashboardWidgetData(
             glance: const GlanceWidgetData(
-                todayExpenseTotal: 1, todayIncomeTotal: 2,
-                monthExpenseTotal: 3, monthIncomeTotal: 4),
-            netWorthTrend: trend, recent: items.take(2).toList(),
+                todayExpenseTotal: 1,
+                todayIncomeTotal: 2,
+                monthExpenseTotal: 3,
+                monthIncomeTotal: 4),
+            netWorthTrend: trend,
+            recent: items.take(2).toList(),
             quickAdd: quickAdd),
-        defaultCurrency: 'CNY', themeColor: honey, redForIncome: true,
-        dark: false, width: 364, height: 382,
+        defaultCurrency: 'CNY',
+        themeColor: honey,
+        redForIncome: true,
+        dark: false,
+        width: 364,
+        height: 382,
       ),
     };
 

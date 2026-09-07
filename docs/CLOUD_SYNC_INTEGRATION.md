@@ -109,6 +109,35 @@ camelCase `includeInTotal`（Cloud web REST API 走另一條 snake_case
   正常出現在清單/選擇器，可正常記帳，收支統計不受影響（跟 `hidden` 是獨立
   維度，兩者可以任意組合）
 
+### 1.4 `account.autoPayEnabled` / `account.autoPayFromAccountId`（信用卡到期自動扣繳，v58 新增，2026-09-07）
+
+對齊 Cloud 的 `accounts.auto_pay_enabled`（bool，預設 `false`）+
+`accounts.auto_pay_from_account_id`（另一個帳戶的 sync_id，null = 未選擇）。
+Wire key 是 `autoPayEnabled` / `autoPayFromAccountId`
+（`BeeCount-Cloud/src/sync_applier.py:152-153` 的
+`_USER_MERGE_SPECS["account"]`）。
+
+- 本地 Drift 欄位：`Accounts.autoPayEnabled` / `Accounts.autoPayFromAccountId`
+  （`lib/data/db.dart`，v58 migration）
+- Push：`entity_serializer.dart` `serializeAccount` ——
+  `autoPayEnabled` 跟 `hidden` 同款無條件 bool 送出；
+  `autoPayFromAccountId` 跟 `parentAccountId`/`swipesmartCardId` 同款
+  「無條件送出 + 空字串清空」約定（使用者關掉開關時要能把來源帳戶清掉）
+- Pull：`sync_engine_apply.dart` `_applyAccountChange` ——
+  `autoPayEnabled` 用 D6 缺鍵保留語義（跟 `hidden` 一致，insert 缺鍵預設
+  `false`）；`autoPayFromAccountId` 用 containsKey 缺鍵保護 + 空字串清空
+  （跟 `parentAccountId` 一致）
+- **範圍刻意縮小**：只在 `account_edit_page.dart` 提供設定欄位（開關 +
+  來源帳戶選擇器），只對 account_group（主帳戶）或沒有掛靠任何群組的獨立
+  信用卡顯示，跟 `creditLimit`/`billingDay` 同款「掛靠子卡欄位隱藏、跟著
+  主帳戶走」語意。**App 端不實作到期實際扣款的本地執行邏輯**——那仍是
+  Cloud 端 `services/credit_card_autopay.py` 排程執行；App 離線時不會在
+  本地產生扣款交易，只負責讓這兩個設定欄位能跨裝置同步顯示。詳見
+  `docs/changes/2026-09-07-credit-card-auto-pay-fields.md`。
+- 不出現在 `SharedLedgerAccounts` 鏡像表（`sync_engine_realtime.dart`）——
+  跟 `parentAccountId`/`swipesmartCardId`/`hidden`/`includeInTotal` 同樣是
+  Owner 側個人狀態，不隨共享帳本鏡像同步，鏡像表本來就沒收這幾個欄位。
+
 ---
 
 ## 2. Scope 契約：user-global vs ledger-scoped（兩邊命名必須一致）

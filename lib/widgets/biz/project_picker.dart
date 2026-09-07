@@ -139,7 +139,8 @@ class _ProjectPickerSheetState extends ConsumerState<_ProjectPickerSheet> {
                             child: Material(
                               color: Colors.transparent,
                               child: _ProjectRow(
-                                icon: Icons.block_outlined,
+                                icon: Icon(Icons.block_outlined,
+                                    size: 16, color: primaryColor),
                                 label: l10n.projectPickerNone,
                                 isSelected:
                                     widget.selectedProjectSyncId == null,
@@ -174,8 +175,11 @@ class _ProjectPickerSheetState extends ConsumerState<_ProjectPickerSheet> {
                                                   context),
                                         ),
                                       _ProjectRow(
-                                        icon: CategoryService.getCategoryIcon(
-                                            entry.$2.project.icon),
+                                        icon: CategoryService.iconOrEmojiWidget(
+                                          icon: entry.$2.project.icon,
+                                          color: primaryColor,
+                                          size: 16,
+                                        ),
                                         label: entry.$2.project.name,
                                         quotaText: _quotaText(l10n,
                                             entry.$2.usage, currencySymbol),
@@ -232,7 +236,7 @@ class _ProjectPickerSheetState extends ConsumerState<_ProjectPickerSheet> {
 }
 
 class _ProjectRow extends StatelessWidget {
-  final IconData icon;
+  final Widget icon;
   final String label;
   final String? quotaText;
   final Color? quotaColor;
@@ -265,9 +269,7 @@ class _ProjectRow extends StatelessWidget {
                 shape: BoxShape.circle,
                 color: primaryColor.withValues(alpha: 0.12),
               ),
-              child: Center(
-                child: Icon(icon, size: 16, color: primaryColor),
-              ),
+              child: Center(child: icon),
             ),
             const SizedBox(width: 10),
             Expanded(

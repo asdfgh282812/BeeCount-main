@@ -2942,6 +2942,11 @@
     }
   },
   "accountGoToParentSettings": "Go to Settings",
+  "accountAutoPayToggleLabel": "Auto-pay",
+  "accountAutoPayToggleHint": "On the payment due date, automatically transfer from the selected account to pay off the amount due (that account needs sufficient balance).",
+  "accountAutoPaySourceLabel": "Source Account",
+  "accountAutoPaySourcePlaceholder": "Select a source account",
+  "accountAutoPaySourceRequired": "Please select a source account for auto-pay",
   "accountMetaInfo": "Account Info",
   "accountBalanceTrend": "Balance Trend",
   "accountCategoryBreakdown": "Category Breakdown",

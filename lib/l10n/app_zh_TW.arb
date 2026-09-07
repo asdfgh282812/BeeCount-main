@@ -2659,6 +2659,11 @@
     }
   },
   "accountGoToParentSettings": "前往設定",
+  "accountAutoPayToggleLabel": "自動扣繳",
+  "accountAutoPayToggleHint": "到了繳款截止日,自動從指定帳戶轉帳繳清應繳金額(該帳戶需有足夠餘額)。",
+  "accountAutoPaySourceLabel": "扣款來源帳戶",
+  "accountAutoPaySourcePlaceholder": "請選擇扣款來源帳戶",
+  "accountAutoPaySourceRequired": "請選擇自動扣繳的來源帳戶",
   "accountMetaInfo": "帳戶資訊",
   "accountBalanceTrend": "餘額趨勢",
   "accountCategoryBreakdown": "分類統計",

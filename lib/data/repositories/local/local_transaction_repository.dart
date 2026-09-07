@@ -15,6 +15,7 @@ import '../../../models/merchant_history.dart';
 import '../../../models/category_suggestion.dart';
 import '../transaction_repository.dart';
 import '../../../services/system/logger_service.dart';
+import '../../../utils/credit_card_payment.dart' show cardPaymentNotePrefix;
 
 /// 本地交易Repository实现
 /// 基于 Drift 数据库实现
@@ -318,11 +319,13 @@ class LocalTransactionRepository implements TransactionRepository {
       cardLastFour: s.cardLastFour,
       note: s.note,
       syncId: s.syncId,
-      // SharedLedgerAccounts 镜像表没有 hidden/includeInTotal 概念(这些都是
-      // Owner 侧个人状态,不随共享账本镜像同步),synthetic 账户固定按
-      // 「未隐藏、納入總餘額」处理。
+      // SharedLedgerAccounts 镜像表没有 hidden/includeInTotal/autoPay 概念
+      // (这些都是 Owner 侧个人状态,不随共享账本镜像同步),synthetic 账户固定按
+      // 「未隐藏、納入總餘額、未開自動扣繳」处理。
       hidden: false,
       includeInTotal: true,
+      autoPayEnabled: false,
+      autoPayFromAccountId: null,
     );
   }
 
@@ -1167,10 +1170,14 @@ class LocalTransactionRepository implements TransactionRepository {
       FROM transactions
       WHERE ledger_id = ? AND type = 'transfer'
         AND account_id IS NOT NULL AND to_account_id IS NOT NULL
+        AND (note IS NULL OR note NOT LIKE ?)
       ORDER BY happened_at DESC
       LIMIT 1
       ''',
-      variables: [d.Variable.withInt(ledgerId)],
+      variables: [
+        d.Variable.withInt(ledgerId),
+        d.Variable.withString('$cardPaymentNotePrefix%'),
+      ],
       readsFrom: {db.transactions},
     ).getSingleOrNull();
 
@@ -1179,6 +1186,30 @@ class LocalTransactionRepository implements TransactionRepository {
     final toId = row.readNullable<int>('to_account_id');
     if (fromId == null || toId == null) return null;
     return (fromAccountId: fromId, toAccountId: toId);
+  }
+
+  @override
+  Future<int?> getLastFromAccountForToAccount({
+    required int ledgerId,
+    required int toAccountId,
+  }) async {
+    final row = await db.customSelect(
+      '''
+      SELECT account_id
+      FROM transactions
+      WHERE ledger_id = ? AND type = 'transfer'
+        AND to_account_id = ? AND account_id IS NOT NULL
+      ORDER BY happened_at DESC
+      LIMIT 1
+      ''',
+      variables: [
+        d.Variable.withInt(ledgerId),
+        d.Variable.withInt(toAccountId),
+      ],
+      readsFrom: {db.transactions},
+    ).getSingleOrNull();
+
+    return row?.readNullable<int>('account_id');
   }
 
   @override
@@ -1726,11 +1757,13 @@ class LocalTransactionRepository implements TransactionRepository {
               createdAt: DateTime.now(),
               updatedAt: DateTime.now(),
               syncId: s.syncId,
-              // SharedLedgerAccounts 镜像表没有 hidden/includeInTotal 概念
-              // (这些都是 Owner 侧个人状态,不随共享账本镜像同步),synthetic
-              // 账户固定按「未隐藏、納入總餘額」处理。
+              // SharedLedgerAccounts 镜像表没有 hidden/includeInTotal/autoPay
+              // 概念(这些都是 Owner 侧个人状态,不随共享账本镜像同步),
+              // synthetic 账户固定按「未隐藏、納入總餘額、未開自動扣繳」处理。
               hidden: false,
               includeInTotal: true,
+              autoPayEnabled: false,
+              autoPayFromAccountId: null,
             );
           }
         }

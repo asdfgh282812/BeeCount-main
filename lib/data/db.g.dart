@@ -682,6 +682,22 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
       defaultConstraints: GeneratedColumn.constraintIsAlways(
           'CHECK ("include_in_total" IN (0, 1))'),
       defaultValue: const Constant(true));
+  static const VerificationMeta _autoPayEnabledMeta =
+      const VerificationMeta('autoPayEnabled');
+  @override
+  late final GeneratedColumn<bool> autoPayEnabled = GeneratedColumn<bool>(
+      'auto_pay_enabled', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("auto_pay_enabled" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _autoPayFromAccountIdMeta =
+      const VerificationMeta('autoPayFromAccountId');
+  @override
+  late final GeneratedColumn<String> autoPayFromAccountId =
+      GeneratedColumn<String>('auto_pay_from_account_id', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -704,7 +720,9 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         parentAccountId,
         swipesmartCardId,
         avatarPath,
-        includeInTotal
+        includeInTotal,
+        autoPayEnabled,
+        autoPayFromAccountId
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -821,6 +839,18 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
           includeInTotal.isAcceptableOrUnknown(
               data['include_in_total']!, _includeInTotalMeta));
     }
+    if (data.containsKey('auto_pay_enabled')) {
+      context.handle(
+          _autoPayEnabledMeta,
+          autoPayEnabled.isAcceptableOrUnknown(
+              data['auto_pay_enabled']!, _autoPayEnabledMeta));
+    }
+    if (data.containsKey('auto_pay_from_account_id')) {
+      context.handle(
+          _autoPayFromAccountIdMeta,
+          autoPayFromAccountId.isAcceptableOrUnknown(
+              data['auto_pay_from_account_id']!, _autoPayFromAccountIdMeta));
+    }
     return context;
   }
 
@@ -872,6 +902,11 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
           .read(DriftSqlType.string, data['${effectivePrefix}avatar_path']),
       includeInTotal: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}include_in_total'])!,
+      autoPayEnabled: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}auto_pay_enabled'])!,
+      autoPayFromAccountId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}auto_pay_from_account_id']),
     );
   }
 
@@ -926,6 +961,21 @@ class Account extends DataClass implements Insertable<Account> {
   /// 兩個獨立維度,見 lib/data/db.dart 的 hidden 註解與
   /// Debts.excludedFromTotal 的先例)。
   final bool includeInTotal;
+
+  /// v58 信用卡到期自動扣繳開關(對齊 BeeCount Cloud `accounts.
+  /// auto_pay_enabled`)。只對 account_group(主帳戶)或沒有掛靠任何群組的
+  /// 獨立信用卡有意義,子卡欄位隱藏、跟著主帳戶走(跟 creditLimit/
+  /// billingDay 同款「移交主帳戶管理」語意,見 account_edit_page.dart)。
+  /// **注意**:App 端只存這個開關供跨裝置同步顯示,到期實際扣款交易仍是
+  /// Cloud 端 `services/credit_card_autopay.py` 排程執行——App 離線時不會
+  /// 在本地產生扣款交易,這是刻意縮小的範圍(docs/changes/
+  /// 2026-09-07-credit-card-auto-pay-fields.md)。
+  final bool autoPayEnabled;
+
+  /// 自動扣繳來源帳戶的 syncId(對齊 BeeCount Cloud `accounts.
+  /// auto_pay_from_account_id`):另一個帳戶,不可以是 account_group 類型或
+  /// 自己,null = 未選擇。跟 parentAccountId 同款用 syncId 做跨裝置穩定引用。
+  final String? autoPayFromAccountId;
   const Account(
       {required this.id,
       required this.ledgerId,
@@ -947,7 +997,9 @@ class Account extends DataClass implements Insertable<Account> {
       this.parentAccountId,
       this.swipesmartCardId,
       this.avatarPath,
-      required this.includeInTotal});
+      required this.includeInTotal,
+      required this.autoPayEnabled,
+      this.autoPayFromAccountId});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -996,6 +1048,10 @@ class Account extends DataClass implements Insertable<Account> {
       map['avatar_path'] = Variable<String>(avatarPath);
     }
     map['include_in_total'] = Variable<bool>(includeInTotal);
+    map['auto_pay_enabled'] = Variable<bool>(autoPayEnabled);
+    if (!nullToAbsent || autoPayFromAccountId != null) {
+      map['auto_pay_from_account_id'] = Variable<String>(autoPayFromAccountId);
+    }
     return map;
   }
 
@@ -1043,6 +1099,10 @@ class Account extends DataClass implements Insertable<Account> {
           ? const Value.absent()
           : Value(avatarPath),
       includeInTotal: Value(includeInTotal),
+      autoPayEnabled: Value(autoPayEnabled),
+      autoPayFromAccountId: autoPayFromAccountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(autoPayFromAccountId),
     );
   }
 
@@ -1071,6 +1131,9 @@ class Account extends DataClass implements Insertable<Account> {
       swipesmartCardId: serializer.fromJson<String?>(json['swipesmartCardId']),
       avatarPath: serializer.fromJson<String?>(json['avatarPath']),
       includeInTotal: serializer.fromJson<bool>(json['includeInTotal']),
+      autoPayEnabled: serializer.fromJson<bool>(json['autoPayEnabled']),
+      autoPayFromAccountId:
+          serializer.fromJson<String?>(json['autoPayFromAccountId']),
     );
   }
   @override
@@ -1098,6 +1161,8 @@ class Account extends DataClass implements Insertable<Account> {
       'swipesmartCardId': serializer.toJson<String?>(swipesmartCardId),
       'avatarPath': serializer.toJson<String?>(avatarPath),
       'includeInTotal': serializer.toJson<bool>(includeInTotal),
+      'autoPayEnabled': serializer.toJson<bool>(autoPayEnabled),
+      'autoPayFromAccountId': serializer.toJson<String?>(autoPayFromAccountId),
     };
   }
 
@@ -1122,7 +1187,9 @@ class Account extends DataClass implements Insertable<Account> {
           Value<String?> parentAccountId = const Value.absent(),
           Value<String?> swipesmartCardId = const Value.absent(),
           Value<String?> avatarPath = const Value.absent(),
-          bool? includeInTotal}) =>
+          bool? includeInTotal,
+          bool? autoPayEnabled,
+          Value<String?> autoPayFromAccountId = const Value.absent()}) =>
       Account(
         id: id ?? this.id,
         ledgerId: ledgerId ?? this.ledgerId,
@@ -1151,6 +1218,10 @@ class Account extends DataClass implements Insertable<Account> {
             : this.swipesmartCardId,
         avatarPath: avatarPath.present ? avatarPath.value : this.avatarPath,
         includeInTotal: includeInTotal ?? this.includeInTotal,
+        autoPayEnabled: autoPayEnabled ?? this.autoPayEnabled,
+        autoPayFromAccountId: autoPayFromAccountId.present
+            ? autoPayFromAccountId.value
+            : this.autoPayFromAccountId,
       );
   Account copyWithCompanion(AccountsCompanion data) {
     return Account(
@@ -1190,6 +1261,12 @@ class Account extends DataClass implements Insertable<Account> {
       includeInTotal: data.includeInTotal.present
           ? data.includeInTotal.value
           : this.includeInTotal,
+      autoPayEnabled: data.autoPayEnabled.present
+          ? data.autoPayEnabled.value
+          : this.autoPayEnabled,
+      autoPayFromAccountId: data.autoPayFromAccountId.present
+          ? data.autoPayFromAccountId.value
+          : this.autoPayFromAccountId,
     );
   }
 
@@ -1216,7 +1293,9 @@ class Account extends DataClass implements Insertable<Account> {
           ..write('parentAccountId: $parentAccountId, ')
           ..write('swipesmartCardId: $swipesmartCardId, ')
           ..write('avatarPath: $avatarPath, ')
-          ..write('includeInTotal: $includeInTotal')
+          ..write('includeInTotal: $includeInTotal, ')
+          ..write('autoPayEnabled: $autoPayEnabled, ')
+          ..write('autoPayFromAccountId: $autoPayFromAccountId')
           ..write(')'))
         .toString();
   }
@@ -1243,7 +1322,9 @@ class Account extends DataClass implements Insertable<Account> {
         parentAccountId,
         swipesmartCardId,
         avatarPath,
-        includeInTotal
+        includeInTotal,
+        autoPayEnabled,
+        autoPayFromAccountId
       ]);
   @override
   bool operator ==(Object other) =>
@@ -1269,7 +1350,9 @@ class Account extends DataClass implements Insertable<Account> {
           other.parentAccountId == this.parentAccountId &&
           other.swipesmartCardId == this.swipesmartCardId &&
           other.avatarPath == this.avatarPath &&
-          other.includeInTotal == this.includeInTotal);
+          other.includeInTotal == this.includeInTotal &&
+          other.autoPayEnabled == this.autoPayEnabled &&
+          other.autoPayFromAccountId == this.autoPayFromAccountId);
 }
 
 class AccountsCompanion extends UpdateCompanion<Account> {
@@ -1294,6 +1377,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<String?> swipesmartCardId;
   final Value<String?> avatarPath;
   final Value<bool> includeInTotal;
+  final Value<bool> autoPayEnabled;
+  final Value<String?> autoPayFromAccountId;
   const AccountsCompanion({
     this.id = const Value.absent(),
     this.ledgerId = const Value.absent(),
@@ -1316,6 +1401,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.swipesmartCardId = const Value.absent(),
     this.avatarPath = const Value.absent(),
     this.includeInTotal = const Value.absent(),
+    this.autoPayEnabled = const Value.absent(),
+    this.autoPayFromAccountId = const Value.absent(),
   });
   AccountsCompanion.insert({
     this.id = const Value.absent(),
@@ -1339,6 +1426,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.swipesmartCardId = const Value.absent(),
     this.avatarPath = const Value.absent(),
     this.includeInTotal = const Value.absent(),
+    this.autoPayEnabled = const Value.absent(),
+    this.autoPayFromAccountId = const Value.absent(),
   })  : ledgerId = Value(ledgerId),
         name = Value(name);
   static Insertable<Account> custom({
@@ -1363,6 +1452,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Expression<String>? swipesmartCardId,
     Expression<String>? avatarPath,
     Expression<bool>? includeInTotal,
+    Expression<bool>? autoPayEnabled,
+    Expression<String>? autoPayFromAccountId,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1386,6 +1477,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       if (swipesmartCardId != null) 'swipesmart_card_id': swipesmartCardId,
       if (avatarPath != null) 'avatar_path': avatarPath,
       if (includeInTotal != null) 'include_in_total': includeInTotal,
+      if (autoPayEnabled != null) 'auto_pay_enabled': autoPayEnabled,
+      if (autoPayFromAccountId != null)
+        'auto_pay_from_account_id': autoPayFromAccountId,
     });
   }
 
@@ -1410,7 +1504,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       Value<String?>? parentAccountId,
       Value<String?>? swipesmartCardId,
       Value<String?>? avatarPath,
-      Value<bool>? includeInTotal}) {
+      Value<bool>? includeInTotal,
+      Value<bool>? autoPayEnabled,
+      Value<String?>? autoPayFromAccountId}) {
     return AccountsCompanion(
       id: id ?? this.id,
       ledgerId: ledgerId ?? this.ledgerId,
@@ -1433,6 +1529,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       swipesmartCardId: swipesmartCardId ?? this.swipesmartCardId,
       avatarPath: avatarPath ?? this.avatarPath,
       includeInTotal: includeInTotal ?? this.includeInTotal,
+      autoPayEnabled: autoPayEnabled ?? this.autoPayEnabled,
+      autoPayFromAccountId: autoPayFromAccountId ?? this.autoPayFromAccountId,
     );
   }
 
@@ -1502,6 +1600,13 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     if (includeInTotal.present) {
       map['include_in_total'] = Variable<bool>(includeInTotal.value);
     }
+    if (autoPayEnabled.present) {
+      map['auto_pay_enabled'] = Variable<bool>(autoPayEnabled.value);
+    }
+    if (autoPayFromAccountId.present) {
+      map['auto_pay_from_account_id'] =
+          Variable<String>(autoPayFromAccountId.value);
+    }
     return map;
   }
 
@@ -1528,7 +1633,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
           ..write('parentAccountId: $parentAccountId, ')
           ..write('swipesmartCardId: $swipesmartCardId, ')
           ..write('avatarPath: $avatarPath, ')
-          ..write('includeInTotal: $includeInTotal')
+          ..write('includeInTotal: $includeInTotal, ')
+          ..write('autoPayEnabled: $autoPayEnabled, ')
+          ..write('autoPayFromAccountId: $autoPayFromAccountId')
           ..write(')'))
         .toString();
   }
@@ -18302,6 +18409,8 @@ typedef $$AccountsTableCreateCompanionBuilder = AccountsCompanion Function({
   Value<String?> swipesmartCardId,
   Value<String?> avatarPath,
   Value<bool> includeInTotal,
+  Value<bool> autoPayEnabled,
+  Value<String?> autoPayFromAccountId,
 });
 typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<int> id,
@@ -18325,6 +18434,8 @@ typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<String?> swipesmartCardId,
   Value<String?> avatarPath,
   Value<bool> includeInTotal,
+  Value<bool> autoPayEnabled,
+  Value<String?> autoPayFromAccountId,
 });
 
 class $$AccountsTableFilterComposer
@@ -18401,6 +18512,14 @@ class $$AccountsTableFilterComposer
 
   ColumnFilters<bool> get includeInTotal => $composableBuilder(
       column: $table.includeInTotal,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get autoPayEnabled => $composableBuilder(
+      column: $table.autoPayEnabled,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get autoPayFromAccountId => $composableBuilder(
+      column: $table.autoPayFromAccountId,
       builder: (column) => ColumnFilters(column));
 }
 
@@ -18481,6 +18600,14 @@ class $$AccountsTableOrderingComposer
   ColumnOrderings<bool> get includeInTotal => $composableBuilder(
       column: $table.includeInTotal,
       builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get autoPayEnabled => $composableBuilder(
+      column: $table.autoPayEnabled,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get autoPayFromAccountId => $composableBuilder(
+      column: $table.autoPayFromAccountId,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$AccountsTableAnnotationComposer
@@ -18554,6 +18681,12 @@ class $$AccountsTableAnnotationComposer
 
   GeneratedColumn<bool> get includeInTotal => $composableBuilder(
       column: $table.includeInTotal, builder: (column) => column);
+
+  GeneratedColumn<bool> get autoPayEnabled => $composableBuilder(
+      column: $table.autoPayEnabled, builder: (column) => column);
+
+  GeneratedColumn<String> get autoPayFromAccountId => $composableBuilder(
+      column: $table.autoPayFromAccountId, builder: (column) => column);
 }
 
 class $$AccountsTableTableManager extends RootTableManager<
@@ -18600,6 +18733,8 @@ class $$AccountsTableTableManager extends RootTableManager<
             Value<String?> swipesmartCardId = const Value.absent(),
             Value<String?> avatarPath = const Value.absent(),
             Value<bool> includeInTotal = const Value.absent(),
+            Value<bool> autoPayEnabled = const Value.absent(),
+            Value<String?> autoPayFromAccountId = const Value.absent(),
           }) =>
               AccountsCompanion(
             id: id,
@@ -18623,6 +18758,8 @@ class $$AccountsTableTableManager extends RootTableManager<
             swipesmartCardId: swipesmartCardId,
             avatarPath: avatarPath,
             includeInTotal: includeInTotal,
+            autoPayEnabled: autoPayEnabled,
+            autoPayFromAccountId: autoPayFromAccountId,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
@@ -18646,6 +18783,8 @@ class $$AccountsTableTableManager extends RootTableManager<
             Value<String?> swipesmartCardId = const Value.absent(),
             Value<String?> avatarPath = const Value.absent(),
             Value<bool> includeInTotal = const Value.absent(),
+            Value<bool> autoPayEnabled = const Value.absent(),
+            Value<String?> autoPayFromAccountId = const Value.absent(),
           }) =>
               AccountsCompanion.insert(
             id: id,
@@ -18669,6 +18808,8 @@ class $$AccountsTableTableManager extends RootTableManager<
             swipesmartCardId: swipesmartCardId,
             avatarPath: avatarPath,
             includeInTotal: includeInTotal,
+            autoPayEnabled: autoPayEnabled,
+            autoPayFromAccountId: autoPayFromAccountId,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

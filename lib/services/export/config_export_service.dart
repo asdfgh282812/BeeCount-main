@@ -1949,7 +1949,7 @@ class ConfigExportService {
       if (settings.containsKey('reminder_enabled') ||
           settings.containsKey('reminder_hour') ||
           settings.containsKey('reminder_minute')) {
-        buffer.writeln('  # 记账提醒');
+        buffer.writeln('  # 記帳提醒');
         if (settings.containsKey('reminder_enabled')) {
           buffer.writeln('  reminder_enabled: ${settings['reminder_enabled']}');
         }

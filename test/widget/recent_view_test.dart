@@ -9,7 +9,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:beecount/data/db.dart' show Account, Category, Transaction;
 import 'package:beecount/widget/views/recent_view.dart';
-import 'package:beecount/widget/widget_data_service.dart' show RecentTransactionItem;
+import 'package:beecount/widget/widget_data_service.dart'
+    show RecentTransactionItem;
 import 'package:beecount/widget/widget_spec.dart' show HWSize;
 
 void main() {
@@ -71,6 +72,7 @@ void main() {
       sortOrder: id,
       hidden: false,
       includeInTotal: true,
+      autoPayEnabled: false,
     );
   }
 

@@ -335,8 +335,13 @@ class _ProjectCard extends StatelessWidget {
                           .withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(CategoryService.getCategoryIcon(project.icon),
-                        color: Theme.of(context).colorScheme.primary, size: 18),
+                    child: Center(
+                      child: CategoryService.iconOrEmojiWidget(
+                        icon: project.icon,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 18,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(

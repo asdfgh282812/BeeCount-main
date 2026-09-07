@@ -102,8 +102,8 @@ class ReminderSettingsNotifier extends StateNotifier<ReminderSettings> {
     if (enabled) {
       await notificationUtil.scheduleDailyReminder(
         id: 1001,
-        title: '记账提醒',
-        body: '别忘了记录今天的收支哦 💰',
+        title: '記帳提醒',
+        body: '別忘了記錄今天的收支喔 💰',
         hour: state.hour,
         minute: state.minute,
       );
@@ -122,8 +122,8 @@ class ReminderSettingsNotifier extends StateNotifier<ReminderSettings> {
       final notificationUtil = NotificationFactory.getInstance();
       await notificationUtil.scheduleDailyReminder(
         id: 1001,
-        title: '记账提醒',
-        body: '别忘了记录今天的收支哦 💰',
+        title: '記帳提醒',
+        body: '別忘了記錄今天的收支喔 💰',
         hour: hour,
         minute: minute,
       );
@@ -139,8 +139,8 @@ class ReminderSettingsNotifier extends StateNotifier<ReminderSettings> {
     if (settings.isEnabled) {
       await notificationUtil.scheduleDailyReminder(
         id: 1001,
-        title: '记账提醒',
-        body: '别忘了记录今天的收支哦 💰',
+        title: '記帳提醒',
+        body: '別忘了記錄今天的收支喔 💰',
         hour: settings.hour,
         minute: settings.minute,
       );

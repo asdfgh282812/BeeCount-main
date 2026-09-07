@@ -6843,6 +6843,23 @@ class AppLocalizationsKo extends AppLocalizations {
   String get accountGoToParentSettings => 'Go to Settings';
 
   @override
+  String get accountAutoPayToggleLabel => 'Auto-pay';
+
+  @override
+  String get accountAutoPayToggleHint =>
+      'On the payment due date, automatically transfer from the selected account to pay off the amount due (that account needs sufficient balance).';
+
+  @override
+  String get accountAutoPaySourceLabel => 'Source Account';
+
+  @override
+  String get accountAutoPaySourcePlaceholder => 'Select a source account';
+
+  @override
+  String get accountAutoPaySourceRequired =>
+      'Please select a source account for auto-pay';
+
+  @override
   String get accountMetaInfo => '계정 정보';
 
   @override

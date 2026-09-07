@@ -46,52 +46,52 @@ class PromptBuilder {
   /// 调用方可通过 [build] 的 [billGuard] 参数决定是否注入前置过滤段
   /// （如 `[billGuardForImage]`），避免误伤聊天记账等主动输入路径。
   static const String defaultTemplate =
-      '''{{BILL_GUARD}}{{INPUT_SOURCE}}提取记账信息，返回JSON数组。
+      '''{{BILL_GUARD}}{{INPUT_SOURCE}}擷取記帳資訊，回傳JSON陣列。
 
-当前时间：{{CURRENT_TIME}}
+目前時間：{{CURRENT_TIME}}
 
 {{OCR_TEXT}}
 
 {{CATEGORIES}}{{ACCOUNTS}}{{CURRENCIES}}
 
-输出格式：
-- 始终返回 JSON 数组，即使只有一笔，也包成 [{...}]
-- 识别到多笔独立消费/收入/转账时，数组中每笔一个对象，按时间先后顺序排列
-- 「拆开 AA」「拆开报销」「拼单」等场景，每个独立支付/收款都算一笔
-- 同一商家的多件商品如果是一次性支付，合并为一笔
+輸出格式：
+- 一律回傳 JSON 陣列，即使只有一筆，也包成 [{...}]
+- 辨識到多筆獨立消費/收入/轉帳時，陣列中每筆一個物件，依時間先後順序排列
+- 「拆開 AA」「拆開報銷」「合購」等情境，每筆獨立支付/收款都算一筆
+- 同一商家的多件商品如果是一次付清，合併為一筆
 
-字段说明：
-1. amount: 金额（支出负数，收入正数）
-2. time: ISO8601格式，尽量推断时间：
-   - 明确时间（如"14:30"、"2025-11-25"）→直接使用
-   - 相对日期（昨天、前天、上周）→推算具体日期
-   - 时间段（早上、中午、晚上）→使用合理时刻（早上09:00、中午12:00、晚上19:00）
-   - 完全没提时间→使用当前时间
-3. note: 备注（必须≤15字，超过则精简），提取优先级：
-   - 商家/店铺名（如"星巴克"、"肯德基"）
-   - 商品名称（长标题需简化，如"2025春季新款黑色斜纹格纹半身裙"→"黑色半身裙"）
-   - 用户描述（如"给女儿买"）
-   - 没有则留空
-4. category: 从分类列表选择（转账可填"转账"）
+欄位說明：
+1. amount: 金額（支出為負數，收入為正數）
+2. time: ISO8601 格式，盡量推斷時間：
+   - 明確時間（如"14:30"、"2025-11-25"）→直接使用
+   - 相對日期（昨天、前天、上週）→推算具體日期
+   - 時間段（早上、中午、晚上）→使用合理時刻（早上09:00、中午12:00、晚上19:00）
+   - 完全沒提到時間→使用目前時間
+3. note: 備註（必須≤15字，超過則精簡），擷取優先順序：
+   - 商家/店名（如"星巴克"、"肯德基"）
+   - 商品名稱（長標題需簡化，如"2025春季新款黑色斜紋格紋半身裙"→"黑色半身裙"）
+   - 使用者描述（如"給女兒買"）
+   - 沒有則留空
+4. category: 從分類清單選擇（轉帳可填"轉帳"）
 5. type: income、expense 或 transfer
-6. account: 支付账户（收入/支出可用）
-7. from_account: 转出账户（仅转账可用）
-8. to_account: 转入账户（仅转账可用）
-9. tag/tags: 标签（可选，单个字符串或字符串数组）
+6. account: 支付帳戶（收入/支出可用）
+7. from_account: 轉出帳戶（僅轉帳可用）
+8. to_account: 轉入帳戶（僅轉帳可用）
+9. tag/tags: 標籤（可選，單一字串或字串陣列）
 $_currencyFieldSpec
 
-示例：
-单笔"昨天中午吃饭50" → [{"amount":-50,"time":"2025-11-24T12:00:00","category":"餐饮","type":"expense"}]
-单笔"早上在星巴克买咖啡30" → [{"amount":-30,"time":"{{CURRENT_DATE}}T09:00:00","note":"星巴克","category":"咖啡","type":"expense"}]
-单笔"商品:2025春季新款黑色半身裙 金额:￥299" → [{"amount":-299,"note":"黑色半身裙","category":"服装","type":"expense"}]
-转账"从建行转800到零钱包" → [{"amount":800,"category":"转账","type":"transfer","from_account":"建行","to_account":"零钱包","tag":"自己"}]
-外币"花了45美元" → [{"amount":-45,"currency":"USD","type":"expense"}]
-外币"在东京吃拉面1200日元" → [{"amount":-1200,"currency":"JPY","note":"拉面","category":"餐饮","type":"expense"}]
-外币"星巴克 \$6.5" → [{"amount":-6.5,"currency":"USD","note":"星巴克","category":"咖啡","type":"expense"}]
-外币"房租 1200 欧" → [{"amount":-1200,"currency":"EUR","note":"房租","category":"居家","type":"expense"}]
-多笔"早上地铁5元，中午吃饭40元，晚上买水果35元" → [{"amount":-5,"time":"{{CURRENT_DATE}}T09:00:00","note":"地铁","category":"交通","type":"expense"},{"amount":-40,"time":"{{CURRENT_DATE}}T12:00:00","category":"餐饮","type":"expense"},{"amount":-35,"time":"{{CURRENT_DATE}}T19:00:00","note":"水果","category":"购物","type":"expense"}]
+範例：
+單筆"昨天中午吃飯50" → [{"amount":-50,"time":"2025-11-24T12:00:00","category":"餐飲","type":"expense"}]
+單筆"早上在星巴克買咖啡30" → [{"amount":-30,"time":"{{CURRENT_DATE}}T09:00:00","note":"星巴克","category":"咖啡","type":"expense"}]
+單筆"商品:2025春季新款黑色半身裙 金額:NT\$299" → [{"amount":-299,"note":"黑色半身裙","category":"服裝","type":"expense"}]
+轉帳"從台新轉800到街口" → [{"amount":800,"category":"轉帳","type":"transfer","from_account":"台新","to_account":"街口","tag":"自己"}]
+外幣"花了45美元" → [{"amount":-45,"currency":"USD","type":"expense"}]
+外幣"在東京吃拉麵1200日圓" → [{"amount":-1200,"currency":"JPY","note":"拉麵","category":"餐飲","type":"expense"}]
+外幣"星巴克 \$6.5" → [{"amount":-6.5,"currency":"USD","note":"星巴克","category":"咖啡","type":"expense"}]
+外幣"房租 1200 歐" → [{"amount":-1200,"currency":"EUR","note":"房租","category":"居家","type":"expense"}]
+多筆"早上捷運5元，中午吃飯40元，晚上買水果35元" → [{"amount":-5,"time":"{{CURRENT_DATE}}T09:00:00","note":"捷運","category":"交通","type":"expense"},{"amount":-40,"time":"{{CURRENT_DATE}}T12:00:00","category":"餐飲","type":"expense"},{"amount":-35,"time":"{{CURRENT_DATE}}T19:00:00","note":"水果","category":"購物","type":"expense"}]
 
-注意：只返回 JSON 数组（即使只有一笔也用数组包裹），尽量推断时间不要返回 null，note 必须 ≤15 字（长标题要精简）。外币的 currency 一律填 ISO 代码（USD，不是 \$ 或"美元"）''';
+注意：只回傳 JSON 陣列（即使只有一筆也用陣列包裹），盡量推斷時間不要回傳 null，note 必須 ≤15 字（長標題要精簡）。外幣的 currency 一律填 ISO 代碼（USD，不是 \$ 或"美元"）''';
 
   /// 币种字段说明。**默认模板与「插入币种段落」补丁共用同一份**,避免两处漂移。
   ///
@@ -103,11 +103,11 @@ $_currencyFieldSpec
   /// 3. 强调"出现任何外币说法都要填",对冲其余示例(都没有 currency)带来的
   ///    few-shot 偏置
   static const String _currencyFieldSpec =
-      '''10. currency: 币种，必须是 3 位大写 ISO 4217 代码，**不要填货币符号，也不要填中文名**
-    - 中文说法与代码的对应见上面的「币种对照」；符号同样算外币说法：
+      '''10. currency: 幣別，必須是 3 位大寫 ISO 4217 代碼，**不要填貨幣符號，也不要填中文名稱**
+    - 中文說法與代碼的對應見上面的「幣別對照」；符號同樣算外幣說法：
       \$ → USD，€ → EUR，£ → GBP，₩ → KRW，฿ → THB
-    - 与账本主币种相同时**省略此字段**（主币种是 CNY 时，"花了50元"不要填 currency）
-    - 原文出现任何外币说法（中文名、符号、代码都算）就必须填，别漏''';
+    - 與帳本主要幣別相同時**省略此欄位**（主要幣別是 TWD 時，"花了50元"不要填 currency）
+    - 原文出現任何外幣說法（中文名稱、符號、代碼都算）就必須填，別漏''';
 
   /// 币种段落(A7)。给**自定义模板用户**的「插入币种段落」一键补丁用 ——
   /// 我们不覆盖用户模板(方案 a),但让他们一次点击就能把这个能力补进自己的
@@ -155,20 +155,20 @@ $_currencyFieldSpec
   ///
   /// 拼在默认模板最前面，让 AI 先判断输入是否为真实账单，非账单直接返回 []。
   /// 聊天记账、语音记账等主动输入路径不应注入此段（传空字符串即可）。
-  static const String billGuardForImage = '请先判断输入图片是否为账单。'
-      '以下情况通常不属于账单（仅供参考，不仅限于此）：\n'
-      '- 电脑/手机桌面截图\n'
-      '- 聊天记录、朋友圈、微博等社交页面\n'
-      '- 新闻、文章、网页浏览页\n'
-      '- 照片、自拍、风景图\n'
-      '- 应用主界面、设置页面\n'
+  static const String billGuardForImage = '請先判斷輸入圖片是否為帳單。'
+      '以下情況通常不屬於帳單（僅供參考，不僅限於此）：\n'
+      '- 電腦/手機桌面截圖\n'
+      '- 聊天紀錄、社群動態、社群網站等頁面\n'
+      '- 新聞、文章、網頁瀏覽頁\n'
+      '- 照片、自拍、風景圖\n'
+      '- 應用程式主畫面、設定頁面\n'
       '\n'
-      '判断后，不是账单则返回JSON空数组[]，是账单则继续。\n';
+      '判斷後，不是帳單則回傳JSON空陣列[]，是帳單則繼續。\n';
 
   /// Hardcoded fallback 分类(context 不提供时使用)
-  static const String _hardcodedCategoryHint = '分类列表：\n'
-      '支出：餐饮、交通、购物、娱乐、居家、通讯、水电、医疗、教育\n'
-      '收入：工资、理财、红包、奖金、报销、兼职';
+  static const String _hardcodedCategoryHint = '分類清單：\n'
+      '支出：餐飲、交通、購物、娛樂、居家、通訊、水電、醫療、教育\n'
+      '收入：工資、理財、收紅包、獎金、報銷、兼職';
 
   /// 拼装最终 prompt。
   ///
@@ -214,7 +214,7 @@ $_currencyFieldSpec
     if (ctx.incomeCategories.isNotEmpty) {
       parts.add('收入：${ctx.incomeCategories.join('、')}');
     }
-    return '分类列表：\n${parts.join('\n')}';
+    return '分類清單：\n${parts.join('\n')}';
   }
 
   /// 账户清单。**只有币种 ≠ 账本本位币的账户才标注币种** —— 单币种账本渲染出
@@ -226,7 +226,7 @@ $_currencyFieldSpec
       final code = a.currency.toUpperCase();
       return (code.isEmpty || code == base) ? a.name : '${a.name}($code)';
     });
-    return '\n账户列表：${parts.join('、')}';
+    return '\n帳戶清單：${parts.join('、')}';
   }
 
   /// 币种提示 = 主币种 + 账本内的外币账户币种 + **「中文说法 → ISO 代码」对照表**。
@@ -247,9 +247,9 @@ $_currencyFieldSpec
         .toList()
       ..sort();
 
-    final buf = StringBuffer('\n账本主币种：$base');
+    final buf = StringBuffer('\n帳本主要幣別：$base');
     if (ledgerOthers.isNotEmpty) {
-      buf.write('；账本内已有外币账户：${ledgerOthers.join('、')}');
+      buf.write('；帳本內已有外幣帳戶：${ledgerOthers.join('、')}');
     }
 
     // 账本在用的排前面(更相关),再补常用币种;主币种不需要(相同就省略字段)
@@ -266,7 +266,7 @@ $_currencyFieldSpec
       rows.add(names.isEmpty ? code : '${names.first}=$code');
     }
     if (rows.isNotEmpty) {
-      buf.write('\n币种对照（原文出现左边说法时，currency 填右边代码）：'
+      buf.write('\n幣別對照（原文出現左邊說法時，currency 填右邊代碼）：'
           '${rows.join('、')}');
     }
     return buf.toString();

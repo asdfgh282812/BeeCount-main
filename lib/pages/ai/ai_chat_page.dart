@@ -237,7 +237,7 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
                     }
 
                     if (messages.isEmpty) {
-                      return const Center(child: Text('暂无消息'));
+                      return const Center(child: Text('沒有訊息記錄'));
                     }
 
                     return ListView.builder(
