@@ -1246,9 +1246,12 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
   }
 }
 
-/// 交易列表/對帳清單皆可共用的手續費/折扣小字提示,格式:「(內含 手續費
-/// NT$36)」。抽成頂層函式讓 `account_reconciliation_page.dart` 的對帳
-/// 清單列也能直接引用,不用重複這段組字邏輯。
+/// 交易列表/對帳清單皆可共用的手續費/折扣小字提示,格式:「(原始金額
+/// NT$2,407 + 手續費 NT$36)」——同時把原始金額(v51 [Transaction.baseAmount])
+/// 帶出來,讓使用者能直接核對「原始金額 + 手續費 − 折扣 = 淨額」這條算式
+/// 對帳(單看淨額看不出來裡面含了多少手續費/折扣,得自己心算原始金額)。抽成
+/// 頂層函式讓 `account_reconciliation_page.dart` 的對帳清單列也能直接引用,
+/// 不用重複這段組字邏輯。
 Widget buildFeeDiscountSubtitle(
     BuildContext context, AppLocalizations l10n, Transaction tx) {
   final feeAmount = tx.feeAmount ?? 0;
@@ -1260,25 +1263,33 @@ Widget buildFeeDiscountSubtitle(
     color: BeeTokens.textTertiary(context),
   );
 
+  Widget amountText(double amount) => AmountText(
+        value: amount,
+        signed: false,
+        currencyCode: tx.currencyCode,
+        showCurrency: tx.currencyCode != null,
+        decimals: 2,
+        style: subtitleStyle,
+      );
+
   final segments = <Widget>[];
-  void addSegment(String label, double amount) {
-    if (segments.isNotEmpty) {
-      segments
-          .add(Text(l10n.txDetailFeeDiscountSeparator, style: subtitleStyle));
+  void addSegment(String? connector, String label, double amount) {
+    if (connector != null) {
+      segments.add(Text(' $connector ', style: subtitleStyle));
     }
     segments.add(Text('$label ', style: subtitleStyle));
-    segments.add(AmountText(
-      value: amount,
-      signed: false,
-      currencyCode: tx.currencyCode,
-      showCurrency: tx.currencyCode != null,
-      decimals: 2,
-      style: subtitleStyle,
-    ));
+    segments.add(amountText(amount));
   }
 
+  final baseAmount = tx.baseAmount;
+  if (baseAmount != null) {
+    segments.add(
+        Text('${l10n.txDetailOriginalAmountLabel} ', style: subtitleStyle));
+    segments.add(amountText(baseAmount));
+  }
   if (feeAmount != 0) {
     addSegment(
+      segments.isEmpty ? null : '+',
       (tx.feeLabel != null && tx.feeLabel!.isNotEmpty)
           ? tx.feeLabel!
           : l10n.transactionFeeLabelHint,
@@ -1287,6 +1298,7 @@ Widget buildFeeDiscountSubtitle(
   }
   if (discountAmount != 0) {
     addSegment(
+      segments.isEmpty ? null : '−',
       (tx.discountLabel != null && tx.discountLabel!.isNotEmpty)
           ? tx.discountLabel!
           : l10n.transactionDiscountLabelHint,
@@ -1299,7 +1311,7 @@ Widget buildFeeDiscountSubtitle(
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text('(${l10n.txDetailFeeDiscountPrefix} ', style: subtitleStyle),
+        Text('(', style: subtitleStyle),
         ...segments,
         Text(')', style: subtitleStyle),
       ],

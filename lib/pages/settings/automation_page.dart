@@ -5,6 +5,7 @@ import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/biz.dart';
 import '../../styles/tokens.dart';
 import '../settings/reminder_settings_page.dart';
+import '../settings/credit_card_reminder_overview_page.dart';
 import '../transaction/recurring_rule_list_page.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -46,6 +47,26 @@ class AutomationPage extends ConsumerWidget {
                           );
                         },
                       ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 8),
+                  child: Text(
+                    AppLocalizations.of(context)
+                        .automationNotificationSectionTitle,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: BeeTokens.textPrimary(context),
+                    ),
+                  ),
+                ),
+                SectionCard(
+                  margin: EdgeInsets.zero,
+                  child: Column(
+                    children: [
                       // 记账提醒
                       AppListTile(
                         leading: Icons.notifications_outlined,
@@ -57,6 +78,22 @@ class AutomationPage extends ConsumerWidget {
                           await Navigator.of(context).push(
                             MaterialPageRoute(
                                 builder: (_) => const ReminderSettingsPage()),
+                          );
+                        },
+                      ),
+                      // 信用卡繳費提醒(②帳單結算/③到期連續/①提前提醒三合一,
+                      // 見 docs/superpowers/specs/2026-09-07-credit-card-notifications-badge-fix-design.md)
+                      AppListTile(
+                        leading: Icons.credit_card_outlined,
+                        title: AppLocalizations.of(context)
+                            .automationCreditCardReminderTile,
+                        subtitle: AppLocalizations.of(context)
+                            .automationCreditCardReminderTileSubtitle,
+                        onTap: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) =>
+                                    const CreditCardReminderOverviewPage()),
                           );
                         },
                       ),

@@ -6649,6 +6649,9 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get creditCardReminderTimeTitle => 'Reminder Time';
+
+  @override
   String get creditCardReminderTitle => '还款提醒';
 
   @override
@@ -6657,6 +6660,25 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String creditCardReminderDaysBefore(int days) {
     return '提前$days天提醒';
+  }
+
+  @override
+  String get creditCardBillingReminderTitle => 'Billing Statement Reminder';
+
+  @override
+  String get creditCardBillingReminderDesc =>
+      'Notify once on the billing day with the amount due';
+
+  @override
+  String get creditCardDueReminderTitle => 'Due Date Reminder';
+
+  @override
+  String get creditCardDueReminderDesc =>
+      'Remind daily starting on the due date until paid off';
+
+  @override
+  String creditCardDueReminderMaxDays(int days) {
+    return 'Up to $days days';
   }
 
   @override
@@ -7569,10 +7591,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get txCurrencyLabel => '币种';
 
   @override
-  String get txDetailFeeDiscountPrefix => 'Includes';
-
-  @override
-  String get txDetailFeeDiscountSeparator => ', ';
+  String get txDetailOriginalAmountLabel => 'Original amount';
 
   @override
   String get txRateLabel => '汇率';
@@ -8373,6 +8392,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String cardRewardRuleCappedHint(String ruleLabel, String amount) {
+    return '$ruleLabel has reached its cap — this transaction can only earn $amount';
+  }
+
+  @override
   String get cardRewardRuleCopy => '复制';
 
   @override
@@ -8667,6 +8691,28 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get automationRecurringTileSubtitle =>
       'Manage recurring income, expenses and transfers';
+
+  @override
+  String get automationNotificationSectionTitle => 'Notifications';
+
+  @override
+  String get automationCreditCardReminderTile =>
+      'Credit Card Payment Reminders';
+
+  @override
+  String get automationCreditCardReminderTileSubtitle =>
+      'Billing statement, due date and advance reminders';
+
+  @override
+  String get creditCardReminderOverviewTitle => 'Credit Card Payment Reminders';
+
+  @override
+  String get creditCardReminderOverviewEmpty => 'No credit card accounts yet';
+
+  @override
+  String creditCardReminderAppliesToCount(int count) {
+    return 'Applies to $count credit card accounts';
+  }
 
   @override
   String get notificationsTitle => 'Notifications';
@@ -16173,6 +16219,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   }
 
   @override
+  String get creditCardReminderTimeTitle => '提醒時間';
+
+  @override
   String get creditCardReminderTitle => '還款提醒';
 
   @override
@@ -16181,6 +16230,23 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   @override
   String creditCardReminderDaysBefore(int days) {
     return '提前$days天提醒';
+  }
+
+  @override
+  String get creditCardBillingReminderTitle => '帳單結算提醒';
+
+  @override
+  String get creditCardBillingReminderDesc => '帳單結算日當天提醒，並顯示應繳金額';
+
+  @override
+  String get creditCardDueReminderTitle => '到期連續提醒';
+
+  @override
+  String get creditCardDueReminderDesc => '從還款日起每天提醒，直到繳清為止';
+
+  @override
+  String creditCardDueReminderMaxDays(int days) {
+    return '最長$days天';
   }
 
   @override
@@ -17089,10 +17155,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get txCurrencyLabel => '幣種';
 
   @override
-  String get txDetailFeeDiscountPrefix => '內含';
-
-  @override
-  String get txDetailFeeDiscountSeparator => '、';
+  String get txDetailOriginalAmountLabel => '原始金額';
 
   @override
   String get txRateLabel => '匯率';
@@ -17889,6 +17952,11 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   }
 
   @override
+  String cardRewardRuleCappedHint(String ruleLabel, String amount) {
+    return '$ruleLabel 已達上限,本筆僅能獲得 $amount';
+  }
+
+  @override
   String get cardRewardRuleCopy => '複製';
 
   @override
@@ -18176,6 +18244,26 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get automationRecurringTileSubtitle => '管理定期收支與轉帳規則';
+
+  @override
+  String get automationNotificationSectionTitle => '通知';
+
+  @override
+  String get automationCreditCardReminderTile => '信用卡繳費提醒';
+
+  @override
+  String get automationCreditCardReminderTileSubtitle => '帳單結算、到期連續與提前提醒';
+
+  @override
+  String get creditCardReminderOverviewTitle => '信用卡繳費提醒';
+
+  @override
+  String get creditCardReminderOverviewEmpty => '尚無信用卡帳戶';
+
+  @override
+  String creditCardReminderAppliesToCount(int count) {
+    return '套用於 $count 張信用卡帳戶';
+  }
 
   @override
   String get notificationsTitle => '通知';

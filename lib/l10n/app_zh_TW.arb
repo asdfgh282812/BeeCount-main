@@ -2601,10 +2601,23 @@
       }
     }
   },
+  "creditCardReminderTimeTitle": "提醒時間",
   "creditCardReminderTitle": "還款提醒",
   "creditCardReminderDesc": "在還款日前提醒還款",
   "creditCardReminderDaysBefore": "提前{days}天提醒",
   "@creditCardReminderDaysBefore": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "creditCardBillingReminderTitle": "帳單結算提醒",
+  "creditCardBillingReminderDesc": "帳單結算日當天提醒，並顯示應繳金額",
+  "creditCardDueReminderTitle": "到期連續提醒",
+  "creditCardDueReminderDesc": "從還款日起每天提醒，直到繳清為止",
+  "creditCardDueReminderMaxDays": "最長{days}天",
+  "@creditCardDueReminderMaxDays": {
     "placeholders": {
       "days": {
         "type": "int"
@@ -2937,8 +2950,7 @@
   "txDetailRewardSectionTitle": "紅利回饋：",
   "txDetailRewardCapped": "已達上限",
   "txCurrencyLabel": "幣種",
-  "txDetailFeeDiscountPrefix": "內含",
-  "txDetailFeeDiscountSeparator": "、",
+  "txDetailOriginalAmountLabel": "原始金額",
   "txRateLabel": "匯率",
   "txConvertedPreview": "≈ {amount} {currency}",
   "@txConvertedPreview": { "placeholders": { "amount": {}, "currency": {} } },
@@ -3251,6 +3263,7 @@
   "cardRewardRuleSelectorTitle": "選擇紅利回饋",
   "cardRewardRuleSelectorEmpty": "這個帳戶目前沒有生效中的回饋規則",
   "cardRewardRuleEstimatedReward": "預計可獲得回饋:{amount}",
+  "cardRewardRuleCappedHint": "{ruleLabel} 已達上限,本筆僅能獲得 {amount}",
   "cardRewardRuleCopy": "複製",
   "cardRewardRuleDelete": "刪除",
   "cardRewardRuleCopyLabel": "{name}(複製)",
@@ -3413,6 +3426,19 @@
   "recurringRuleOccurrencesEmpty": "尚未生成任何交易",
   "automationRecurringTile": "週期記帳",
   "automationRecurringTileSubtitle": "管理定期收支與轉帳規則",
+  "automationNotificationSectionTitle": "通知",
+  "automationCreditCardReminderTile": "信用卡繳費提醒",
+  "automationCreditCardReminderTileSubtitle": "帳單結算、到期連續與提前提醒",
+  "creditCardReminderOverviewTitle": "信用卡繳費提醒",
+  "creditCardReminderOverviewEmpty": "尚無信用卡帳戶",
+  "creditCardReminderAppliesToCount": "套用於 {count} 張信用卡帳戶",
+  "@creditCardReminderAppliesToCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "notificationsTitle": "通知",
   "notificationsEmpty": "目前沒有通知",
   "notificationsMarkAllRead": "全部標為已讀",

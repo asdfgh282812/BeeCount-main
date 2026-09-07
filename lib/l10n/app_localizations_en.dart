@@ -6932,6 +6932,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get creditCardReminderTimeTitle => 'Reminder Time';
+
+  @override
   String get creditCardReminderTitle => 'Payment Reminder';
 
   @override
@@ -6940,6 +6943,25 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String creditCardReminderDaysBefore(int days) {
     return '$days days before';
+  }
+
+  @override
+  String get creditCardBillingReminderTitle => 'Billing Statement Reminder';
+
+  @override
+  String get creditCardBillingReminderDesc =>
+      'Notify once on the billing day with the amount due';
+
+  @override
+  String get creditCardDueReminderTitle => 'Due Date Reminder';
+
+  @override
+  String get creditCardDueReminderDesc =>
+      'Remind daily starting on the due date until paid off';
+
+  @override
+  String creditCardDueReminderMaxDays(int days) {
+    return 'Up to $days days';
   }
 
   @override
@@ -7873,10 +7895,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get txCurrencyLabel => 'Currency';
 
   @override
-  String get txDetailFeeDiscountPrefix => 'Includes';
-
-  @override
-  String get txDetailFeeDiscountSeparator => ', ';
+  String get txDetailOriginalAmountLabel => 'Original amount';
 
   @override
   String get txRateLabel => 'Rate';
@@ -8689,6 +8708,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String cardRewardRuleCappedHint(String ruleLabel, String amount) {
+    return '$ruleLabel has reached its cap — this transaction can only earn $amount';
+  }
+
+  @override
   String get cardRewardRuleCopy => 'Duplicate';
 
   @override
@@ -8986,6 +9010,28 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get automationRecurringTileSubtitle =>
       'Manage recurring income, expenses and transfers';
+
+  @override
+  String get automationNotificationSectionTitle => 'Notifications';
+
+  @override
+  String get automationCreditCardReminderTile =>
+      'Credit Card Payment Reminders';
+
+  @override
+  String get automationCreditCardReminderTileSubtitle =>
+      'Billing statement, due date and advance reminders';
+
+  @override
+  String get creditCardReminderOverviewTitle => 'Credit Card Payment Reminders';
+
+  @override
+  String get creditCardReminderOverviewEmpty => 'No credit card accounts yet';
+
+  @override
+  String creditCardReminderAppliesToCount(int count) {
+    return 'Applies to $count credit card accounts';
+  }
 
   @override
   String get notificationsTitle => 'Notifications';

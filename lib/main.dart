@@ -102,17 +102,18 @@ Future<void> main() async {
   // 周期交易生成已移至 appSplashInitProvider 中（等待数据库完全初始化后执行）
   // await _generatePendingRecurringTransactions(container);
 
-  // 恢复信用卡还款提醒。BeeCount Cloud 已激活时跳过本地排程,交给 Cloud 端
-  // card_due 通知(通知中心)覆盖 —— 见 CreditCardReminderService.
-  // restoreAllReminders 的 skipIfCloudActive 说明。用同步读取(跟
-  // repositoryProvider 读 activeCloudConfigProvider.valueOrNull 一致的
+  // 恢复信用卡通知(①提前提醒/②帳單結算提醒/③到期連續提醒,全域設定,見
+  // credit_card_reminder_reevaluation.dart 开头 docstring)。BeeCount Cloud
+  // 已激活时跳过本地排程,交给 Cloud 端 card_due 通知(通知中心)覆盖。用同步
+  // 读取(跟 repositoryProvider 读 activeCloudConfigProvider.valueOrNull 一致的
   // 写法),不 await 这个 FutureProvider,避免给每次启动都加上网络等待。
   try {
     final repo = container.read(repositoryProvider);
     final cloudActive =
         container.read(beecountCloudProviderInstance).valueOrNull != null;
-    await CreditCardReminderService.restoreAllReminders(
-      getCreditCardAccounts: () => repo.getCreditCardAccounts(),
+    await reevaluateAllCreditCardReminders(
+      repo: repo,
+      creditCardAccounts: await repo.getCreditCardAccounts(),
       skipIfCloudActive: cloudActive,
     );
   } catch (e) {

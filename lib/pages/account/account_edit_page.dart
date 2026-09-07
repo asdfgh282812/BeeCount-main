@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../providers.dart';
 import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/section_card.dart';
@@ -46,8 +45,6 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
   late String _selectedCurrency;
   int? _billingDay;
   int? _paymentDueDay;
-  bool _reminderEnabled = false;
-  int _reminderDaysBefore = 3;
   bool _saving = false;
   bool _isNameDuplicate = false;
   String? _nameErrorText;
@@ -119,7 +116,6 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     _avatarPath = widget.account?.avatarPath;
     _includeInTotal = widget.account?.includeInTotal ?? true;
     _typeTab = valuationAccountTypes.contains(_selectedType) ? 1 : 0;
-    _loadReminderSettings();
     _loadParentCandidates();
   }
 
@@ -347,22 +343,6 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     );
   }
 
-  Future<void> _loadReminderSettings() async {
-    if (widget.account != null) {
-      final prefs = await SharedPreferences.getInstance();
-      final enabled =
-          prefs.getBool('cc_reminder_enabled_${widget.account!.id}') ?? false;
-      final daysBefore =
-          prefs.getInt('cc_reminder_days_${widget.account!.id}') ?? 3;
-      if (mounted) {
-        setState(() {
-          _reminderEnabled = enabled;
-          _reminderDaysBefore = daysBefore;
-        });
-      }
-    }
-  }
-
   @override
   void dispose() {
     _nameController.dispose();
@@ -436,7 +416,6 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         _creditLimitController.clear();
         _billingDay = null;
         _paymentDueDay = null;
-        _reminderEnabled = false;
       }
       final wasBankOrCredit =
           oldType == 'bank_card' || oldType == 'credit_card';
@@ -889,59 +868,6 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                                 ),
                               ],
                             ),
-                            SizedBox(height: 4.0.scaled(context, ref)),
-                            Divider(color: BeeTokens.divider(context)),
-                            // 还款提醒
-                            SwitchListTile(
-                              dense: true,
-                              contentPadding: EdgeInsets.zero,
-                              title: Text(
-                                l10n.creditCardReminderTitle,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: BeeTokens.textPrimary(context),
-                                ),
-                              ),
-                              subtitle: Text(
-                                l10n.creditCardReminderDesc,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: BeeTokens.textTertiary(context),
-                                ),
-                              ),
-                              value: _reminderEnabled,
-                              activeColor: primaryColor,
-                              onChanged: (value) =>
-                                  setState(() => _reminderEnabled = value),
-                            ),
-                            if (_reminderEnabled) ...[
-                              SizedBox(height: 4.0.scaled(context, ref)),
-                              Wrap(
-                                spacing: 8.0.scaled(context, ref),
-                                children: [1, 3, 5, 7].map((days) {
-                                  final isSelected =
-                                      _reminderDaysBefore == days;
-                                  return ChoiceChip(
-                                    label: Text(l10n
-                                        .creditCardReminderDaysBefore(days)),
-                                    selected: isSelected,
-                                    selectedColor:
-                                        primaryColor.withValues(alpha: 0.15),
-                                    labelStyle: TextStyle(
-                                      fontSize: 12,
-                                      color: isSelected
-                                          ? primaryColor
-                                          : BeeTokens.textSecondary(context),
-                                      fontWeight: isSelected
-                                          ? FontWeight.w600
-                                          : FontWeight.normal,
-                                    ),
-                                    onSelected: (_) => setState(
-                                        () => _reminderDaysBefore = days),
-                                  );
-                                }).toList(),
-                              ),
-                            ],
                           ],
                         ),
                       ),
@@ -1357,11 +1283,6 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           clearAvatar: _avatarPath == null,
           includeInTotal: _includeInTotal,
         );
-
-        // 保存还款提醒设置
-        if (isCreditCard) {
-          await _saveReminderSettings(widget.account!.id);
-        }
       } else {
         final isBankOrCredit =
             _selectedType == 'bank_card' || _selectedType == 'credit_card';
@@ -1401,11 +1322,6 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           } catch (e, st) {
             logger.error('AccountEditPage', '新建账户保存头像失败', e, st);
           }
-        }
-
-        // 保存还款提醒设置
-        if (isCreditCard) {
-          await _saveReminderSettings(id);
         }
       }
 
@@ -1610,28 +1526,6 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
       if (mounted) showToast(context, '${l10n.commonError}: $e');
     } finally {
       if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  Future<void> _saveReminderSettings(int accountId) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('cc_reminder_enabled_$accountId', _reminderEnabled);
-    await prefs.setInt('cc_reminder_days_$accountId', _reminderDaysBefore);
-
-    // 调度或取消提醒。BeeCount Cloud 已激活时,信用卡繳款提醒改由 Cloud 端
-    // card_due 通知(通知中心)覆盖,本地不再重复排程,见
-    // CreditCardReminderService.scheduleReminder 的 skipIfCloudActive 说明。
-    final cloudActive =
-        ref.read(beecountCloudProviderInstance).valueOrNull != null;
-    if (_reminderEnabled && _paymentDueDay != null && !cloudActive) {
-      await CreditCardReminderService.scheduleReminder(
-        accountId: accountId,
-        accountName: _nameController.text.trim(),
-        paymentDueDay: _paymentDueDay!,
-        daysBefore: _reminderDaysBefore,
-      );
-    } else {
-      await CreditCardReminderService.cancelReminder(accountId);
     }
   }
 

@@ -12558,6 +12558,12 @@ abstract class AppLocalizations {
   /// **'{day}th of each month'**
   String dayOfMonth(int day);
 
+  /// No description provided for @creditCardReminderTimeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder Time'**
+  String get creditCardReminderTimeTitle;
+
   /// No description provided for @creditCardReminderTitle.
   ///
   /// In en, this message translates to:
@@ -12575,6 +12581,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{days} days before'**
   String creditCardReminderDaysBefore(int days);
+
+  /// No description provided for @creditCardBillingReminderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Billing Statement Reminder'**
+  String get creditCardBillingReminderTitle;
+
+  /// No description provided for @creditCardBillingReminderDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Notify once on the billing day with the amount due'**
+  String get creditCardBillingReminderDesc;
+
+  /// No description provided for @creditCardDueReminderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Due Date Reminder'**
+  String get creditCardDueReminderTitle;
+
+  /// No description provided for @creditCardDueReminderDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Remind daily starting on the due date until paid off'**
+  String get creditCardDueReminderDesc;
+
+  /// No description provided for @creditCardDueReminderMaxDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to {days} days'**
+  String creditCardDueReminderMaxDays(int days);
 
   /// No description provided for @creditCardInitialBalanceHint.
   ///
@@ -14160,17 +14196,11 @@ abstract class AppLocalizations {
   /// **'Currency'**
   String get txCurrencyLabel;
 
-  /// No description provided for @txDetailFeeDiscountPrefix.
+  /// No description provided for @txDetailOriginalAmountLabel.
   ///
   /// In en, this message translates to:
-  /// **'Includes'**
-  String get txDetailFeeDiscountPrefix;
-
-  /// No description provided for @txDetailFeeDiscountSeparator.
-  ///
-  /// In en, this message translates to:
-  /// **', '**
-  String get txDetailFeeDiscountSeparator;
+  /// **'Original amount'**
+  String get txDetailOriginalAmountLabel;
 
   /// No description provided for @txRateLabel.
   ///
@@ -15684,6 +15714,12 @@ abstract class AppLocalizations {
   /// **'Estimated reward: {amount}'**
   String cardRewardRuleEstimatedReward(String amount);
 
+  /// No description provided for @cardRewardRuleCappedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'{ruleLabel} has reached its cap — this transaction can only earn {amount}'**
+  String cardRewardRuleCappedHint(String ruleLabel, String amount);
+
   /// No description provided for @cardRewardRuleCopy.
   ///
   /// In en, this message translates to:
@@ -16211,6 +16247,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Manage recurring income, expenses and transfers'**
   String get automationRecurringTileSubtitle;
+
+  /// No description provided for @automationNotificationSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get automationNotificationSectionTitle;
+
+  /// No description provided for @automationCreditCardReminderTile.
+  ///
+  /// In en, this message translates to:
+  /// **'Credit Card Payment Reminders'**
+  String get automationCreditCardReminderTile;
+
+  /// No description provided for @automationCreditCardReminderTileSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Billing statement, due date and advance reminders'**
+  String get automationCreditCardReminderTileSubtitle;
+
+  /// No description provided for @creditCardReminderOverviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Credit Card Payment Reminders'**
+  String get creditCardReminderOverviewTitle;
+
+  /// No description provided for @creditCardReminderOverviewEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No credit card accounts yet'**
+  String get creditCardReminderOverviewEmpty;
+
+  /// No description provided for @creditCardReminderAppliesToCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Applies to {count} credit card accounts'**
+  String creditCardReminderAppliesToCount(int count);
 
   /// No description provided for @notificationsTitle.
   ///

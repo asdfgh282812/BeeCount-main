@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/db.dart' as db;
 import '../utils/card_reward_period.dart';
 import 'database_providers.dart';
+import 'statistics_providers.dart';
 import 'sync_providers.dart';
 
 typedef ReconciliationCycleParams = ({
@@ -30,6 +31,17 @@ final accountStatementTransactionsProvider = FutureProvider.family
     // reconciledAt 寫進本地 Drift,這個 FutureProvider 不會自動重跑,UI
     // 仍顯示 pull 之前的舊快取(2026-08-18 修正)。
     ref.watch(syncGenerationProvider);
+    // 2026-09-07 修正:本機編輯這期帳單裡的交易(對帳模式列表點鉛筆)時,
+    // `account_reconciliation_page.dart` 的 `onEdit` 會先開啟一張「交易詳情
+    // 卡片」,卡片內鉛筆再 push 完整編輯器——卡片在 push 編輯器*之前*就會把
+    // 自己 pop 掉,導致 `onEdit` 裡 `await showTransactionDetailCard(...)`
+    // 的 Future 在編輯器打開的當下就已經 resolve,呼叫端的
+    // `_invalidate()` 等於在使用者真正按下儲存*之前*就白跑了一次,儲存
+    // 之後沒有任何程式碼再通知這個 provider。改成額外 watch 這顆「任一
+    // 交易寫入」全域 tick(`TransactionEditorPage._handleSubmit` 等所有寫入
+    // 路徑都會 bump,同 `account_period_providers.dart` 既有慣例),不論呼叫
+    // 端的 Navigator pop/push 時機多脆弱,存檔後都能可靠重算。
+    ref.watch(statsRefreshProvider);
     final repo = ref.watch(repositoryProvider);
     final extraIds = params.extraIdsKey.isEmpty
         ? const <int>[]

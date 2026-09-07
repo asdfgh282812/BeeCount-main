@@ -2664,13 +2664,49 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   /// 純前端估算,不 call server——真正入帳金額仍由 BeeCount Cloud 排程計算
   /// (門檻/上限/共同上限群組等跨交易邏輯只有 server 端看得到完整資料)。
   /// 這裡只是金額輸入當下的即時提示,幫使用者判斷「大概能拿多少」。
-  double _estimatedReward() {
-    final rules = _selectedRewardRules();
-    if (rules.isEmpty) return 0;
-    final amount = _op == null
+  double _draftRewardAmount() {
+    return _op == null
         ? _parsedAmount()
         : computeAmountOp(_acc, _op!, _parsedAmount());
-    return estimateCardRewardTotal(rules, amount);
+  }
+
+  /// 逐條規則檢查:這筆草稿交易所屬帳單週期若已經被同週期其他交易吃掉部分
+  /// 額度,單筆估算(未考慮週期內其他交易)就會比實際能拿到的高,在下方列出
+  /// 「哪一條規則已達上限、這筆最多只能拿到多少」,對齊交易詳情卡
+  /// [_RewardRuleRow] 的提示邏輯(見 transaction_detail_card.dart),只是草稿還
+  /// 沒存檔、改用 [cardRewardForDraftProvider]。編輯既有交易時排除自己,避免
+  /// 自己的舊金額被算兩次。
+  List<Widget> _buildCappedRewardHints(double amount, String currency) {
+    if (amount.abs() <= 0 || _selectedAccountId == null) return const [];
+    final l10n = AppLocalizations.of(context);
+    final hints = <Widget>[];
+    for (final rule in _selectedRewardRules()) {
+      final naive = estimateCardRewardForRule(rule, amount);
+      if (naive <= 0) continue;
+      final cappedAsync = ref.watch(cardRewardForDraftProvider((
+        rule: rule,
+        accountId: _selectedAccountId!,
+        happenedAt: _date,
+        amount: amount,
+        excludeTransactionId: widget.editingTransactionId,
+      )));
+      final capped = cappedAsync.valueOrNull;
+      if (capped == null || capped >= naive - 0.005) continue;
+      final cappedStr =
+          '${getCurrencySymbol(currency)}${capped.toStringAsFixed(2)}';
+      hints.add(Padding(
+        padding: const EdgeInsets.only(top: 2),
+        child: Text(
+          l10n.cardRewardRuleCappedHint(rule.label, cappedStr),
+          style: TextStyle(
+            fontSize: 11.5,
+            color: BeeTokens.warning(context),
+          ),
+          textAlign: TextAlign.right,
+        ),
+      ));
+    }
+    return hints;
   }
 
   Widget _buildEstimatedRewardRow() {
@@ -2678,21 +2714,25 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
       return const SizedBox.shrink();
     }
     final l10n = AppLocalizations.of(context);
-    final estimated = _estimatedReward();
+    final amount = _draftRewardAmount();
     final currency = _txCurrency();
+    final estimated = estimateCardRewardTotal(_selectedRewardRules(), amount);
     final amountStr =
         '${getCurrencySymbol(currency)}${estimated.toStringAsFixed(2)}';
     return Padding(
       padding: const EdgeInsets.only(top: 4, bottom: 2),
-      child: Align(
-        alignment: Alignment.centerRight,
-        child: Text(
-          l10n.cardRewardRuleEstimatedReward(amountStr),
-          style: TextStyle(
-            fontSize: 12.5,
-            color: BeeTokens.textSecondary(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            l10n.cardRewardRuleEstimatedReward(amountStr),
+            style: TextStyle(
+              fontSize: 12.5,
+              color: BeeTokens.textSecondary(context),
+            ),
           ),
-        ),
+          ..._buildCappedRewardHints(amount, currency),
+        ],
       ),
     );
   }

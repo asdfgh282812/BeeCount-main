@@ -1,8 +1,13 @@
-/// 交易明細卡「(內含手續費 $X)」小字提示測試。
+/// 交易明細卡「(原始金額 $X + 手續費 $Y)」小字提示測試。
 ///
 /// 使用者反馈:BeeCount Cloud 網頁端「更新交易」對話框在金額下方標了
 /// (內含手續費 $40)這種小字提示,App 端明細卡只顯示總額,看不出裡面含了
 /// 多少手續費/折扣。見 transaction_detail_card.dart::_buildFeeDiscountSubtitle。
+///
+/// 2026-09-07:對帳模式列表使用者反馈,只顯示手續費不夠對帳——加上原始金額
+/// (v51 [Transaction.baseAmount])讓「原始金額 + 手續費 − 折扣 = 淨額」這條
+/// 算式可以直接核對,不用自己心算,格式從「(內含 手續費 $40)」改成
+/// 「(原始金額 $2,651 + 手續費 $40)」。
 import 'package:drift/drift.dart' as d;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -75,7 +80,8 @@ void main() {
     );
   }
 
-  testWidgets(r'支出帶手續費 → 顯示「(內含手續費 $40)」', (tester) async {
+  testWidgets(r'支出帶手續費 → 顯示「(原始金額 $2,651 + 手續費 $40)」',
+      (tester) async {
     final txId = await repo.addTransaction(
       ledgerId: ledgerId,
       type: 'expense',
@@ -92,10 +98,11 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    // 「(內含 」「手續費 」「$40」「)」目前是各自獨立的 Text/AmountText
-    // widget(AmountText 才能繼承隱藏金額開關+币种格式化),所以分開斷言,
-    // 不找連在一起的完整字串。
-    expect(find.textContaining('內含'), findsOneWidget);
+    // 「(」「原始金額 」「$2,651」「+」「手續費 」「$40」「)」目前是各自
+    // 獨立的 Text/AmountText widget(AmountText 才能繼承隱藏金額開關+币种
+    // 格式化),所以分開斷言,不找連在一起的完整字串。
+    expect(find.textContaining('原始金額'), findsOneWidget);
+    expect(find.textContaining('2,651'), findsWidgets);
     expect(find.textContaining('手續費'), findsWidgets);
     expect(find.textContaining('40'), findsWidgets);
 
@@ -141,7 +148,7 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('內含'), findsNothing);
+    expect(find.textContaining('原始金額'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 10));
@@ -167,7 +174,7 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('內含'), findsNothing);
+    expect(find.textContaining('原始金額'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 10));

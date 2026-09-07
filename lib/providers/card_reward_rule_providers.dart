@@ -251,3 +251,49 @@ final cardRewardForTransactionProvider = FutureProvider.family
     return summary.rewardByTransactionId[tx.id] ?? fallback;
   },
 );
+
+/// 記帳表單(尚未存檔的草稿)用:給定帳戶/發生時間/金額 + 勾選的某條規則,
+/// 回傳這筆草稿交易在「所屬帳單週期」內套用該規則、且已跟同週期其他交易
+/// 共用 [CardRewardRule.capAmount] 扣減額度後的估算回饋金——邏輯跟
+/// [cardRewardForTransactionProvider] 相同,只是草稿還沒存檔、沒有 [Transaction]
+/// 物件可傳,改用 accountId/happenedAt/amount 這三個表單當下就有的值。編輯既有
+/// 交易時要傳 [excludeTransactionId](該交易的本機 id),把它自己已經算進週期
+/// 彙總的舊金額扣掉,不然會把自己算兩次、誤判成已達上限。
+final cardRewardForDraftProvider = FutureProvider.family.autoDispose<
+    double,
+    ({
+      CardRewardRule rule,
+      int accountId,
+      DateTime happenedAt,
+      double amount,
+      int? excludeTransactionId
+    })>(
+  (ref, params) async {
+    final repo = ref.watch(repositoryProvider);
+    final fallback = estimateCardRewardForRule(params.rule, params.amount);
+    if (params.rule.capAmount == null) return fallback;
+
+    final context = await _resolveRewardAccountContext(repo, params.accountId);
+    final offset =
+        billingCycleOffsetForDate(context.billingDay, params.happenedAt);
+    if (offset == null) return fallback;
+
+    final summary = await _summarizeRuleWindow(
+      repo,
+      params.rule,
+      context.accountId,
+      context.extraIds,
+      context.billingDay,
+      offset,
+    );
+
+    var alreadyUsed = summary.totalReward;
+    if (params.excludeTransactionId != null) {
+      alreadyUsed -=
+          summary.rewardByTransactionId[params.excludeTransactionId!] ?? 0;
+    }
+    final remaining = params.rule.capAmount! - alreadyUsed;
+    if (remaining <= 0) return 0;
+    return fallback > remaining ? remaining : fallback;
+  },
+);

@@ -2884,10 +2884,23 @@
       }
     }
   },
+  "creditCardReminderTimeTitle": "Reminder Time",
   "creditCardReminderTitle": "Payment Reminder",
   "creditCardReminderDesc": "Remind before payment due date",
   "creditCardReminderDaysBefore": "{days} days before",
   "@creditCardReminderDaysBefore": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "creditCardBillingReminderTitle": "Billing Statement Reminder",
+  "creditCardBillingReminderDesc": "Notify once on the billing day with the amount due",
+  "creditCardDueReminderTitle": "Due Date Reminder",
+  "creditCardDueReminderDesc": "Remind daily starting on the due date until paid off",
+  "creditCardDueReminderMaxDays": "Up to {days} days",
+  "@creditCardDueReminderMaxDays": {
     "placeholders": {
       "days": {
         "type": "int"
@@ -3309,8 +3322,7 @@
   "txDetailRewardSectionTitle": "Bonus reward:",
   "txDetailRewardCapped": "Cap reached",
   "txCurrencyLabel": "Currency",
-  "txDetailFeeDiscountPrefix": "Includes",
-  "txDetailFeeDiscountSeparator": ", ",
+  "txDetailOriginalAmountLabel": "Original amount",
   "txRateLabel": "Rate",
   "txConvertedPreview": "≈ {amount} {currency}",
   "@txConvertedPreview": { "placeholders": { "amount": {}, "currency": {} } },
@@ -3665,6 +3677,17 @@
       }
     }
   },
+  "cardRewardRuleCappedHint": "{ruleLabel} has reached its cap — this transaction can only earn {amount}",
+  "@cardRewardRuleCappedHint": {
+    "placeholders": {
+      "ruleLabel": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "cardRewardRuleCopy": "Duplicate",
   "cardRewardRuleDelete": "Delete",
   "cardRewardRuleCopyLabel": "{name} (Copy)",
@@ -3834,6 +3857,19 @@
   "recurringRuleOccurrencesEmpty": "No transactions generated yet",
   "automationRecurringTile": "Recurring Transactions",
   "automationRecurringTileSubtitle": "Manage recurring income, expenses and transfers",
+  "automationNotificationSectionTitle": "Notifications",
+  "automationCreditCardReminderTile": "Credit Card Payment Reminders",
+  "automationCreditCardReminderTileSubtitle": "Billing statement, due date and advance reminders",
+  "creditCardReminderOverviewTitle": "Credit Card Payment Reminders",
+  "creditCardReminderOverviewEmpty": "No credit card accounts yet",
+  "creditCardReminderAppliesToCount": "Applies to {count} credit card accounts",
+  "@creditCardReminderAppliesToCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "notificationsTitle": "Notifications",
   "notificationsEmpty": "No notifications yet",
   "notificationsMarkAllRead": "Mark all read",

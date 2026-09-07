@@ -36,6 +36,7 @@ import 'styles/tokens.dart';
 import 'styles/header_skins.dart';
 import 'providers/avatar_providers.dart';
 import 'widgets/cloud/cloud_login_reminder_dialog.dart';
+import 'utils/ios_badge_util.dart';
 
 class BeeApp extends ConsumerStatefulWidget {
   const BeeApp({super.key});
@@ -864,6 +865,30 @@ class _BeeAppState extends ConsumerState<BeeApp>
       _drainPendingDeepLink(trigger: 'resumed');
       // 回到前景時重新檢查雲端同步登入狀態,未登入且未勾選「不再提示」則提醒
       _checkCloudLoginReminder();
+      // 回到前景時重新評估信用卡①②③通知(偵測到已繳清就取消剩餘排程),見
+      // credit_card_reminder_reevaluation.dart 開頭 docstring。
+      _reevaluateCreditCardReminders();
+      // 清除 iOS App 圖示右上角通知徽章(小紅點)——回到前景視為使用者已經
+      // 看過所有待處理通知,清零後系統徽章才會消失(Android 無此問題,
+      // clearAppIconBadge 在非 iOS 平台是 no-op)。
+      clearAppIconBadge();
+    }
+  }
+
+  /// 見上方 [didChangeAppLifecycleState] resumed 分支的呼叫說明。跟
+  /// `main.dart` 啟動時的呼叫共用同一顆 [reevaluateAllCreditCardReminders]。
+  Future<void> _reevaluateCreditCardReminders() async {
+    try {
+      final repo = ref.read(repositoryProvider);
+      final cloudActive =
+          ref.read(beecountCloudProviderInstance).valueOrNull != null;
+      await reevaluateAllCreditCardReminders(
+        repo: repo,
+        creditCardAccounts: await repo.getCreditCardAccounts(),
+        skipIfCloudActive: cloudActive,
+      );
+    } catch (e, stack) {
+      logger.error('App', '回到前景重新評估信用卡通知失敗', e, stack);
     }
   }
 
