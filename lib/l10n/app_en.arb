@@ -27,6 +27,7 @@
   "commonEdit": "Edit",
   "commonMore": "More",
   "commonOk": "OK",
+  "commonLoadMore": "Load More",
   "commonNow": "Now",
   "commonKnow": "Got it",
   "commonNo": "No",
@@ -3451,6 +3452,8 @@
   "currencyMRU": "Mauritanian Ouguiya",
   "accountDetailTabTransactions": "Transactions",
   "accountDetailTabInfo": "Account Info",
+  "accountFlowTransferOut": "Transfer Out",
+  "accountFlowTransferIn": "Transfer In",
   "accountSubAccountsLabel": "Sub-accounts",
   "accountSubAccountsCount": "{count} accounts",
   "@accountSubAccountsCount": {

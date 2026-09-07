@@ -1102,6 +1102,7 @@
   "transactionFeeDiscountTotalLabel": "總額",
   "commonNotice": "提示",
   "commonOk": "確定",
+  "commonLoadMore": "載入更多",
   "commonNow": "現在",
   "commonPressAgainToExit": "再按一次退出應用程式",
   "commonPrevious": "上一步",
@@ -3079,6 +3080,8 @@
   "currencyMRU": "毛里塔尼亞烏吉亞",
   "accountDetailTabTransactions": "交易明細",
   "accountDetailTabInfo": "帳戶資訊",
+  "accountFlowTransferOut": "轉出",
+  "accountFlowTransferIn": "轉入",
   "accountSubAccountsLabel": "子帳戶",
   "accountSubAccountsCount": "{count}組帳戶",
   "@accountSubAccountsCount": {

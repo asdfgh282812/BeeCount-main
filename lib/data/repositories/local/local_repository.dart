@@ -15,6 +15,7 @@ import '../../../services/system/logger_service.dart';
 import '../../../models/note_history.dart';
 import '../../../models/merchant_history.dart';
 import '../../../models/category_suggestion.dart';
+import '../account_repository.dart' show AccountPeriodSummary;
 import '../base_repository.dart';
 import '../budget_repository.dart';
 import '../recurring_rule_repository.dart';
@@ -2559,6 +2560,7 @@ class LocalRepository extends BaseRepository {
     List<int>? extraAccountIds,
     DateTime? startDate,
     DateTime? endDate,
+    bool ascending = false,
   }) =>
       _accountRepo.getAccountTransactions(
         accountId,
@@ -2566,6 +2568,19 @@ class LocalRepository extends BaseRepository {
         offset: offset,
         flow: flow,
         extraAccountIds: extraAccountIds,
+        startDate: startDate,
+        endDate: endDate,
+        ascending: ascending,
+      );
+
+  @override
+  Future<AccountPeriodSummary> getAccountPeriodSummary(
+    int accountId, {
+    required DateTime startDate,
+    required DateTime endDate,
+  }) =>
+      _accountRepo.getAccountPeriodSummary(
+        accountId,
         startDate: startDate,
         endDate: endDate,
       );

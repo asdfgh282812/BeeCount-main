@@ -83,6 +83,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get commonOk => '确定';
 
   @override
+  String get commonLoadMore => 'Load More';
+
+  @override
   String get commonNow => '现在';
 
   @override
@@ -7994,6 +7997,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get accountDetailTabInfo => '账户信息';
 
   @override
+  String get accountFlowTransferOut => 'Transfer Out';
+
+  @override
+  String get accountFlowTransferIn => 'Transfer In';
+
+  @override
   String get accountSubAccountsLabel => '子账户';
 
   @override
@@ -9609,6 +9618,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get commonOk => '確定';
+
+  @override
+  String get commonLoadMore => '載入更多';
 
   @override
   String get commonNow => '現在';
@@ -17500,6 +17512,12 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get accountDetailTabInfo => '帳戶資訊';
+
+  @override
+  String get accountFlowTransferOut => '轉出';
+
+  @override
+  String get accountFlowTransferIn => '轉入';
 
   @override
   String get accountSubAccountsLabel => '子帳戶';

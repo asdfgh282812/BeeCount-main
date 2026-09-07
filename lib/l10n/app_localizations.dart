@@ -245,6 +245,12 @@ abstract class AppLocalizations {
   /// **'OK'**
   String get commonOk;
 
+  /// No description provided for @commonLoadMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Load More'**
+  String get commonLoadMore;
+
   /// No description provided for @commonNow.
   ///
   /// In en, this message translates to:
@@ -14987,6 +14993,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Account Info'**
   String get accountDetailTabInfo;
+
+  /// No description provided for @accountFlowTransferOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer Out'**
+  String get accountFlowTransferOut;
+
+  /// No description provided for @accountFlowTransferIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer In'**
+  String get accountFlowTransferIn;
 
   /// No description provided for @accountSubAccountsLabel.
   ///

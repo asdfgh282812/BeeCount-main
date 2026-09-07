@@ -1,5 +1,18 @@
 import '../db.dart';
 
+/// 一般帳戶明細頁「日期區間」摘要(依 type/轉帳方向分四類加總+計數),見
+/// [AccountRepository.getAccountPeriodSummary]。
+typedef AccountPeriodSummary = ({
+  double expenseTotal,
+  int expenseCount,
+  double incomeTotal,
+  int incomeCount,
+  double transferOutTotal,
+  int transferOutCount,
+  double transferInTotal,
+  int transferInCount,
+});
+
 /// 账户Repository接口
 /// 定义账户相关的所有数据操作
 abstract class AccountRepository {
@@ -233,20 +246,27 @@ abstract class AccountRepository {
 
   /// 分页获取账户交易
   ///
-  /// [flow] 按资金流向过滤:
-  /// - 'expense':支出 + 转出(资金流出该账户)
-  /// - 'income':收入 + 转入(资金流入该账户)
-  /// - null:全部交易
+  /// [flow] 按资金流向过滤(四類互斥,不像早期版本那樣把轉帳疊加進支出/收入——
+  /// 一般帳戶明細頁「支出/收入/轉出/轉入」四分頁各自對應一個值,同一筆轉帳
+  /// 交易只會出現在轉出或轉入其中一頁,不會同時出現在支出/收入頁):
+  /// - 'expense':純支出(type='expense')
+  /// - 'income':純收入(type='income')
+  /// - 'transfer_out':這個帳戶轉出的轉帳(account_id=該帳戶)
+  /// - 'transfer_in':這個帳戶轉入的轉帳(to_account_id=該帳戶)
+  /// - null:全部交易(含支出/收入/轉出/轉入)
   ///
   /// [extraAccountIds] 主帳戶(合併帳單分組)聚合視圖用:非空時把這些子帳戶的
   /// 交易也一併拉出來(跟 accountId 合併按 account_id IN (...) 查),用於帳戶
   /// 詳情頁「交易明細」tab 顯示主卡+所有子卡的合併流水。
   ///
-  /// [startDate]/[endDate] 帳單週期篩選(信用卡「交易明細」tab 按帳單日切期
-  /// 用),含端點所在的整個自然日(endDate 當天 23:59:59 前都算,不用調用方
-  /// 自己補時分秒),null 代表不限制。比對的是原始發生日 `happened_at`——
-  /// 信用卡帳單彙總卡片下方的交易列表改用「入帳歸屬日」口徑時請改呼叫
-  /// [getAccountStatementTransactions],不要在這裡加參數分岔。
+  /// [startDate]/[endDate] 帳單週期篩選(信用卡「交易明細」tab 按帳單日切期;
+  /// 一般帳戶明細頁按帳本 monthStartDay 切月用),含端點所在的整個自然日
+  /// (endDate 當天 23:59:59 前都算,不用調用方自己補時分秒),null 代表不限制。
+  /// 比對的是原始發生日 `happened_at`——信用卡帳單彙總卡片下方的交易列表改用
+  /// 「入帳歸屬日」口徑時請改呼叫 [getAccountStatementTransactions],不要在
+  /// 這裡加參數分岔。
+  ///
+  /// [ascending] 排序:false(預設,不變)= 依發生日新→舊;true = 舊→新。
   Future<List<Transaction>> getAccountTransactions(
     int accountId, {
     int limit = 50,
@@ -255,6 +275,19 @@ abstract class AccountRepository {
     List<int>? extraAccountIds,
     DateTime? startDate,
     DateTime? endDate,
+    bool ascending = false,
+  });
+
+  /// 一般帳戶明細頁「日期區間」摘要:[startDate]~[endDate](含端點整個自然日)
+  /// 內,依「純支出/純收入/轉出/轉入」四類分別加總金額+計數——跟
+  /// [getAccountTransactions] 的 `flow` 四值是同一套互斥分類,只是這裡回傳
+  /// 彙總數字,不回傳明細列。用途:一般帳戶明細頁摘要卡(轉出/轉入/總計橫條,
+  /// 比照 moze)。口徑跟 [getAccountExpense]/[getAccountIncome] 一致,排除
+  /// `excludeFromStats` 交易與共享帳本(對齐既有「支出/收入」統計定義)。
+  Future<AccountPeriodSummary> getAccountPeriodSummary(
+    int accountId, {
+    required DateTime startDate,
+    required DateTime endDate,
   });
 
   /// 對帳模式(§2.10 MOZE_FEATURE_GAP_SD.md)專用:依「入帳歸屬日」

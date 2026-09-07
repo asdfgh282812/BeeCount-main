@@ -654,6 +654,72 @@ class LocalAccountRepository implements AccountRepository {
   }
 
   @override
+  Future<AccountPeriodSummary> getAccountPeriodSummary(
+    int accountId, {
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    final endOfDay =
+        DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
+    final sharedIds = await _sharedLedgerIds();
+
+    double expenseTotal = 0, incomeTotal = 0;
+    double transferOutTotal = 0, transferInTotal = 0;
+    int expenseCount = 0, incomeCount = 0;
+    int transferOutCount = 0, transferInCount = 0;
+
+    // 純支出/純收入/轉出:都是「這個帳戶自己是 account_id」的交易,一次查出來
+    // 依 type 分桶(跟 getAccountTransactions 的 flow 四值同一套互斥分類)。
+    final asMainAccount = await (db.select(db.transactions)
+          ..where((t) =>
+              t.accountId.equals(accountId) &
+              t.ledgerId.isNotIn(sharedIds) &
+              t.excludeFromStats.equals(false) &
+              t.happenedAt.isBiggerOrEqualValue(startDate) &
+              t.happenedAt.isSmallerOrEqualValue(endOfDay)))
+        .get();
+    for (final t in asMainAccount) {
+      switch (t.type) {
+        case 'expense':
+          expenseTotal += t.amount;
+          expenseCount++;
+        case 'income':
+          incomeTotal += t.amount;
+          incomeCount++;
+        case 'transfer':
+          transferOutTotal += _transferOutEffect(t);
+          transferOutCount++;
+      }
+    }
+
+    // 轉入:這個帳戶是 to_account_id 的轉帳。
+    final asTransferInAccount = await (db.select(db.transactions)
+          ..where((t) =>
+              t.toAccountId.equals(accountId) &
+              t.type.equals('transfer') &
+              t.ledgerId.isNotIn(sharedIds) &
+              t.excludeFromStats.equals(false) &
+              t.happenedAt.isBiggerOrEqualValue(startDate) &
+              t.happenedAt.isSmallerOrEqualValue(endOfDay)))
+        .get();
+    for (final t in asTransferInAccount) {
+      transferInTotal += _transferInEffect(t);
+      transferInCount++;
+    }
+
+    return (
+      expenseTotal: expenseTotal,
+      expenseCount: expenseCount,
+      incomeTotal: incomeTotal,
+      incomeCount: incomeCount,
+      transferOutTotal: transferOutTotal,
+      transferOutCount: transferOutCount,
+      transferInTotal: transferInTotal,
+      transferInCount: transferInCount,
+    );
+  }
+
+  @override
   Future<({double balance, double expense, double income})> getAccountStats(
       int accountId) async {
     final balance = await getAccountBalance(accountId);
@@ -849,18 +915,22 @@ class LocalAccountRepository implements AccountRepository {
     List<int>? extraAccountIds,
     DateTime? startDate,
     DateTime? endDate,
+    bool ascending = false,
   }) async {
     // 主帳戶(合併帳單分組)聚合視圖:accountId + extraAccountIds 一起按
     // IN (...) 查,跟单账户走同一条 SQL,只是集合大小不同。
     final ids = [accountId, ...?extraAccountIds];
     final idPlaceholders =
         List.generate(ids.length, (i) => '?${i + 1}').join(', ');
-    // flow 过滤按资金流向:支出视图含转出,收入视图含转入,null 为全部
+    // flow 四值互斥(一般帳戶明細頁支出/收入/轉出/轉入四分頁各自對應一個
+    // 值,不再像舊版那樣把轉帳疊加進支出/收入),null 為全部。
     final where = switch (flow) {
-      'expense' =>
-        "account_id IN ($idPlaceholders) AND type IN ('expense', 'transfer')",
-      'income' =>
-        "(type = 'income' AND account_id IN ($idPlaceholders)) OR (type = 'transfer' AND to_account_id IN ($idPlaceholders))",
+      'expense' => "account_id IN ($idPlaceholders) AND type = 'expense'",
+      'income' => "account_id IN ($idPlaceholders) AND type = 'income'",
+      'transfer_out' =>
+        "account_id IN ($idPlaceholders) AND type = 'transfer'",
+      'transfer_in' =>
+        "to_account_id IN ($idPlaceholders) AND type = 'transfer'",
       _ =>
         'account_id IN ($idPlaceholders) OR to_account_id IN ($idPlaceholders)',
     };
@@ -896,7 +966,7 @@ class LocalAccountRepository implements AccountRepository {
       '''
       SELECT * FROM transactions
       WHERE ($where) AND $_kExcludeJoinedSharedLedgerSql$dateWhere
-      ORDER BY happened_at DESC
+      ORDER BY happened_at ${ascending ? 'ASC' : 'DESC'}
       LIMIT ?$limitIndex OFFSET ?$offsetIndex
       ''',
       variables: [

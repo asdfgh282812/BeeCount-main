@@ -83,6 +83,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonOk => 'OK';
 
   @override
+  String get commonLoadMore => 'Load More';
+
+  @override
   String get commonNow => 'Now';
 
   @override
@@ -8300,6 +8303,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get accountDetailTabInfo => 'Account Info';
+
+  @override
+  String get accountFlowTransferOut => 'Transfer Out';
+
+  @override
+  String get accountFlowTransferIn => 'Transfer In';
 
   @override
   String get accountSubAccountsLabel => 'Sub-accounts';

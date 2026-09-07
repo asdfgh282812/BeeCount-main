@@ -83,6 +83,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get commonOk => '확인';
 
   @override
+  String get commonLoadMore => 'Load More';
+
+  @override
   String get commonNow => '지금';
 
   @override
@@ -8080,6 +8083,12 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get accountDetailTabInfo => '계좌 정보';
+
+  @override
+  String get accountFlowTransferOut => 'Transfer Out';
+
+  @override
+  String get accountFlowTransferIn => 'Transfer In';
 
   @override
   String get accountSubAccountsLabel => '하위 계좌';

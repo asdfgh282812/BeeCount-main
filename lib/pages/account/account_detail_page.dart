@@ -10,7 +10,6 @@ import '../../l10n/app_localizations.dart';
 import '../../utils/ui_scale_extensions.dart';
 import '../../widgets/category_icon.dart';
 import '../../utils/account_type_utils.dart';
-import '../../widgets/charts/account_category_pie_chart.dart';
 import '../../utils/card_reward_period.dart';
 import '../../utils/credit_card_payment.dart';
 import '../../utils/reconciliation.dart';
@@ -21,6 +20,7 @@ import 'account_edit_page.dart';
 import 'card_reward_detail_page.dart';
 import 'card_reward_rule_list_page.dart';
 import 'credit_card_group_payment_page.dart';
+import 'general_account_period_view.dart';
 
 // ============================================
 // Providers
@@ -56,15 +56,24 @@ class AccountTransactionsPaginationNotifier
   final Ref ref;
   final int accountId;
 
-  /// 资金流向过滤:'expense'=支出+转出,'income'=收入+转入,null=全部
+  /// 资金流向过滤:'expense'/'income'/'transfer_out'/'transfer_in'/null=全部,
+  /// 四值互斥(不再疊加轉帳,見 `AccountRepository.getAccountTransactions`)。
   final String? flow;
 
   /// 主帳戶(合併帳單分組)聚合視圖:一併拉取這些子帳戶的交易。
   final List<int> extraAccountIds;
+
+  /// 一般帳戶明細頁「日期區間」篩選:綁定帳本 monthStartDay 的月週期,
+  /// null=不限制(信用卡分支目前不用這兩個欄位)。
+  final DateTime? startDate;
+  final DateTime? endDate;
+
+  /// 一般帳戶明細頁清單排序圖示:false=新→舊(預設),true=舊→新。
+  final bool ascending;
   static const _pageSize = 50;
 
-  AccountTransactionsPaginationNotifier(
-      this.ref, this.accountId, this.flow, this.extraAccountIds)
+  AccountTransactionsPaginationNotifier(this.ref, this.accountId, this.flow,
+      this.extraAccountIds, this.startDate, this.endDate, this.ascending)
       : super(const AccountTransactionsPaginationState()) {
     _loadInitial();
   }
@@ -79,6 +88,9 @@ class AccountTransactionsPaginationNotifier
         offset: 0,
         flow: flow,
         extraAccountIds: extraAccountIds.isEmpty ? null : extraAccountIds,
+        startDate: startDate,
+        endDate: endDate,
+        ascending: ascending,
       );
       state = AccountTransactionsPaginationState(
         transactions: transactions,
@@ -101,6 +113,9 @@ class AccountTransactionsPaginationNotifier
         offset: state.transactions.length,
         flow: flow,
         extraAccountIds: extraAccountIds.isEmpty ? null : extraAccountIds,
+        startDate: startDate,
+        endDate: endDate,
+        ascending: ascending,
       );
       state = state.copyWith(
         transactions: [...state.transactions, ...transactions],
@@ -122,6 +137,9 @@ class AccountTransactionsPaginationNotifier
         offset: 0,
         flow: flow,
         extraAccountIds: extraAccountIds.isEmpty ? null : extraAccountIds,
+        startDate: startDate,
+        endDate: endDate,
+        ascending: ascending,
       );
       state = AccountTransactionsPaginationState(
         transactions: transactions,
@@ -136,28 +154,36 @@ class AccountTransactionsPaginationNotifier
 
 /// [extraIdsKey]:主帳戶聚合視圖的子帳戶 id 清單,逗號分隔且已排序(空字串
 /// = 沒有子帳戶),用字串而非 List 是因為 Riverpod family key 需要值相等,
-/// List 沒有結構相等會導致每次都判定成新 key、緩存失效。
-final accountTransactionsPaginatedProvider = StateNotifierProvider.family
-    .autoDispose<
+/// List 沒有結構相等會導致每次都判定成新 key、緩存失效。[startDate]/
+/// [endDate]/[ascending]:一般帳戶明細頁的日期區間+排序,見
+/// `AccountTransactionsPaginationNotifier` 同名欄位;信用卡分支不使用這幾個
+/// (維持預設 null/false)。
+final accountTransactionsPaginatedProvider =
+    StateNotifierProvider.family.autoDispose<
         AccountTransactionsPaginationNotifier,
         AccountTransactionsPaginationState,
-        ({int accountId, String? flow, String extraIdsKey})>(
+        ({
+          int accountId,
+          String? flow,
+          String extraIdsKey,
+          DateTime? startDate,
+          DateTime? endDate,
+          bool ascending
+        })>(
   (ref, params) {
     final extraIds = params.extraIdsKey.isEmpty
         ? const <int>[]
         : params.extraIdsKey.split(',').map(int.parse).toList();
     return AccountTransactionsPaginationNotifier(
-        ref, params.accountId, params.flow, extraIds);
+        ref,
+        params.accountId,
+        params.flow,
+        extraIds,
+        params.startDate,
+        params.endDate,
+        params.ascending);
   },
 );
-
-/// 分类统计 Provider
-final accountCategoryStatsProvider = FutureProvider.family.autoDispose<
-    List<({int? id, String name, String? icon, double total})>,
-    ({int accountId, String type})>((ref, params) async {
-  final repo = ref.watch(repositoryProvider);
-  return repo.getAccountCategoryStats(params.accountId, type: params.type);
-});
 
 // ============================================
 // Page
@@ -178,11 +204,7 @@ class AccountDetailPage extends ConsumerStatefulWidget {
 
 class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     with SingleTickerProviderStateMixin {
-  final ScrollController _scrollController = ScrollController();
   late final TabController _tabController;
-
-  /// 详情页图表 tab: 0=支出分布, 1=收入分布
-  int _detailChartTab = 0;
 
   /// 帳單週期導航偏移(信用卡「交易明細」tab):0=本期,負數=更早的週期。
   /// 初值 0 只是佔位——[_billingPeriodOffsetResolved] 為 false 時畫面顯示
@@ -194,23 +216,13 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_onScroll);
     _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
   void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
     _tabController.dispose();
     super.dispose();
-  }
-
-  /// 列表的资金流向过滤,跟随图表 tab:支出=支出+转出,收入=收入+转入。
-  /// 信用卡没有 tab 切换,保持展示全部交易(消费+还款转账)。
-  String? get _listFlow {
-    if (widget.account.type == 'credit_card') return null;
-    return _detailChartTab == 0 ? 'expense' : 'income';
   }
 
   /// 主帳戶(合併帳單分組)的子帳戶清單:同幣種與否都算,只要 parentAccountId
@@ -250,21 +262,6 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
       if (mounted) {
         showToast(context, '${AppLocalizations.of(context).commonError}: $e');
       }
-    }
-  }
-
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
-      final allAccounts =
-          ref.read(allAccountsStreamProvider).valueOrNull ?? const [];
-      ref
-          .read(accountTransactionsPaginatedProvider((
-            accountId: widget.account.id,
-            flow: _listFlow,
-            extraIdsKey: _extraIdsKey(_children(allAccounts)),
-          )).notifier)
-          .loadMore();
     }
   }
 
@@ -374,7 +371,6 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     AppLocalizations l10n,
   ) {
     final primaryColor = ref.watch(primaryColorProvider);
-    final statsAsync = ref.watch(accountStatsProvider(account.id));
     final currencyCode = account.currency;
     final categoriesAsync = ref.watch(categoriesProvider);
     final typeColor = getColorForAccountType(account.type, primaryColor);
@@ -448,55 +444,12 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
       );
     }
 
-    final expenseStatsAsync = ref.watch(
-        accountCategoryStatsProvider((accountId: account.id, type: 'expense')));
-    final incomeStatsAsync = ref.watch(
-        accountCategoryStatsProvider((accountId: account.id, type: 'income')));
-    final paginationState = ref.watch(accountTransactionsPaginatedProvider((
-      accountId: account.id,
-      flow: _listFlow,
-      extraIdsKey: '',
-    )));
-
-    return ListView(
-      controller: _scrollController,
-      padding: EdgeInsets.symmetric(vertical: 8.0.scaled(context, ref)),
-      children: [
-        _buildStatsCard(context, ref, account, statsAsync, currencyCode, l10n),
-        SizedBox(height: 4.0.scaled(context, ref)),
-        _buildOverviewCard(
-          context,
-          ref,
-          account,
-          statsAsync,
-          currencyCode,
-          primaryColor,
-          typeColor,
-          l10n,
-        ),
-        SizedBox(height: 8.0.scaled(context, ref)),
-        _buildDetailChartSection(
-          context,
-          ref,
-          l10n,
-          primaryColor,
-          expenseStatsAsync,
-          incomeStatsAsync,
-          typeColor,
-          isCreditCard: false,
-        ),
-        SizedBox(height: 12.0.scaled(context, ref)),
-        _buildTransactionList(
-          context,
-          paginationState,
-          currencyCode,
-          primaryColor,
-          categoriesAsync.asData?.value ?? [],
-          l10n,
-          typeColor,
-          accountNameById: const {},
-        ),
-      ],
+    // 非信用卡帳戶(現金/銀行卡/房產/車輛/投資/保險/公積金/貸款):日期區間
+    // 綁定帳本 monthStartDay(比照專案)+ moze 風格摘要/趨勢/四分頁,見
+    // `general_account_period_view.dart`。
+    return GeneralAccountPeriodView(
+      account: account,
+      categories: categoriesAsync.asData?.value ?? const [],
     );
   }
 
@@ -532,64 +485,6 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
         ],
         _buildInfoFieldsCard(context, account, children, l10n),
       ],
-    );
-  }
-
-  /// 余额/收入/支出统计卡片
-  Widget _buildStatsCard(
-    BuildContext context,
-    WidgetRef ref,
-    db.Account account,
-    AsyncValue<({double balance, double income, double expense})> statsAsync,
-    String currencyCode,
-    AppLocalizations l10n,
-  ) {
-    return SectionCard(
-      margin: EdgeInsets.symmetric(horizontal: 12.0.scaled(context, ref)),
-      child: statsAsync.when(
-        data: (stats) => Row(
-          children: [
-            Expanded(
-              child: _DetailStatCell(
-                label: account.type == 'credit_card'
-                    ? l10n.creditCardOwed
-                    : l10n.accountBalance,
-                value: stats.balance,
-                currencyCode: currencyCode,
-              ),
-            ),
-            Container(
-              width: 1,
-              height: 36.0.scaled(context, ref),
-              color: BeeTokens.divider(context),
-            ),
-            Expanded(
-              child: _DetailStatCell(
-                label: l10n.homeIncome,
-                value: stats.income,
-                currencyCode: currencyCode,
-              ),
-            ),
-            Container(
-              width: 1,
-              height: 36.0.scaled(context, ref),
-              color: BeeTokens.divider(context),
-            ),
-            Expanded(
-              child: _DetailStatCell(
-                label: l10n.homeExpense,
-                value: stats.expense,
-                currencyCode: currencyCode,
-              ),
-            ),
-          ],
-        ),
-        loading: () => SizedBox(
-          height: 60.0.scaled(context, ref),
-          child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-        ),
-        error: (_, __) => const SizedBox.shrink(),
-      ),
     );
   }
 
@@ -869,113 +764,6 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     return const SizedBox.shrink();
   }
 
-  /// 详情页图表区域（支出分布/收入分布 切换）
-  Widget _buildDetailChartSection(
-    BuildContext context,
-    WidgetRef ref,
-    AppLocalizations l10n,
-    Color primaryColor,
-    AsyncValue<List<({int? id, String name, String? icon, double total})>>
-        expenseStatsAsync,
-    AsyncValue<List<({int? id, String name, String? icon, double total})>>
-        incomeStatsAsync,
-    Color typeColor, {
-    required bool isCreditCard,
-  }) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 12.0.scaled(context, ref)),
-      child: SectionCard(
-        margin: EdgeInsets.zero,
-        child: Padding(
-          padding: EdgeInsets.all(12.0.scaled(context, ref)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 分段切换器
-              Row(
-                children: [
-                  _DetailChartTab(
-                    label: l10n.homeExpense,
-                    isSelected: isCreditCard || _detailChartTab == 0,
-                    primaryColor: primaryColor,
-                    onTap: () => setState(() => _detailChartTab = 0),
-                  ),
-                  if (!isCreditCard) ...[
-                    SizedBox(width: 6.0.scaled(context, ref)),
-                    _DetailChartTab(
-                      label: l10n.homeIncome,
-                      isSelected: _detailChartTab == 1,
-                      primaryColor: primaryColor,
-                      onTap: () => setState(() => _detailChartTab = 1),
-                    ),
-                  ],
-                ],
-              ),
-              SizedBox(height: 12.0.scaled(context, ref)),
-              // 图表内容
-              if (isCreditCard || _detailChartTab == 0)
-                expenseStatsAsync.when(
-                  data: (data) {
-                    if (data.isEmpty) {
-                      return SizedBox(
-                        height: 180,
-                        child: Center(
-                          child: Text('-',
-                              style: TextStyle(
-                                  color: BeeTokens.textTertiary(context))),
-                        ),
-                      );
-                    }
-                    return AccountCategoryPieChart(
-                      expenseData: data,
-                      incomeData: const [],
-                      accentColor: primaryColor,
-                      embedded: true,
-                      type: 'expense',
-                    );
-                  },
-                  loading: () => const SizedBox(
-                    height: 180,
-                    child: Center(
-                        child: CircularProgressIndicator(strokeWidth: 2)),
-                  ),
-                  error: (_, __) => const SizedBox(height: 180),
-                )
-              else
-                incomeStatsAsync.when(
-                  data: (data) {
-                    if (data.isEmpty) {
-                      return SizedBox(
-                        height: 180,
-                        child: Center(
-                          child: Text('-',
-                              style: TextStyle(
-                                  color: BeeTokens.textTertiary(context))),
-                        ),
-                      );
-                    }
-                    return AccountCategoryPieChart(
-                      expenseData: const [],
-                      incomeData: data,
-                      accentColor: primaryColor,
-                      embedded: true,
-                      type: 'income',
-                    );
-                  },
-                  loading: () => const SizedBox(
-                    height: 180,
-                    child: Center(
-                        child: CircularProgressIndicator(strokeWidth: 2)),
-                  ),
-                  error: (_, __) => const SizedBox(height: 180),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   bool _hasMetadata(db.Account account) {
     return (account.bankName != null && account.bankName!.isNotEmpty) ||
         (account.cardLastFour != null && account.cardLastFour!.isNotEmpty) ||
@@ -986,16 +774,32 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
   // 帳單週期(信用卡「交易明細」/「帳戶資訊」tab 共用)
   // ============================================
 
-  /// 帳單週期實際要用的結帳日:真的信用卡(有設 billingDay)用卡片本身的
-  /// 結帳日;沒設時(例如合併帳單主帳戶/一般帳戶群組當「彙總檢視」容器用,
-  /// 本身不是真的信用卡)不要退化寫死成「每月 1 號」,改對齊帳本的
-  /// `monthStartDay`——不然週期起訖會跟使用者在帳本設定的月結日對不上
-  /// (2026-09-06 使用者回報)。只有「應繳日期」「紅利回饋規則」這類真的需要
-  /// 銀行實際結帳日的欄位才維持原本的 `account.billingDay`(null 就不顯示/
-  /// 不適用),不套用這個退化規則。
-  int? _effectiveBillingDay(db.Account account) =>
-      account.billingDay ??
-      ref.read(currentLedgerProvider).asData?.value?.monthStartDay;
+  /// 帳單週期實際要用的結帳日,依序:
+  /// 1. 帳戶自己的 `billingDay`(真的信用卡子帳戶通常不會自己設,見下一步)。
+  /// 2. 合併帳單子帳戶(`parentAccountId` 指向主帳戶群組)沒有自己的
+  ///    `billingDay` 時,結帳日是整組共用的,要跟主帳戶群組的 `billingDay`
+  ///    一致——不然子帳戶頁面顯示的帳單週期會跟主帳戶對不上(2026-09-07
+  ///    使用者回報:主帳戶結帳日 11 號,子帳戶卻顯示成帳本的月結日)。
+  /// 3. 兩者都沒設時(例如帳戶群組本身當「彙總檢視」容器用,不是真的信用卡)
+  ///    不要退化寫死成「每月 1 號」,改對齊帳本的 `monthStartDay`——不然週期
+  ///    起訖會跟使用者在帳本設定的月結日對不上(2026-09-06 使用者回報)。
+  /// 只有「應繳日期」「紅利回饋規則」這類真的需要銀行實際結帳日的欄位才維持
+  /// 原本的 `account.billingDay`(null 就不顯示/不適用),不套用這個退化規則。
+  int? _effectiveBillingDay(db.Account account) {
+    if (account.billingDay != null) return account.billingDay;
+    final parentId = account.parentAccountId;
+    if (parentId != null && parentId.isNotEmpty) {
+      final allAccounts = ref.read(allAccountsStreamProvider).valueOrNull ??
+          const <db.Account>[];
+      for (final a in allAccounts) {
+        if (a.syncId == parentId) {
+          if (a.billingDay != null) return a.billingDay;
+          break;
+        }
+      }
+    }
+    return ref.read(currentLedgerProvider).asData?.value?.monthStartDay;
+  }
 
   /// 帳單週期起訖:[offset]=0 為涵蓋今天的本期,負數往前推一期一期算。
   ({DateTime start, DateTime end}) _billingPeriod(
@@ -1706,30 +1510,6 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     );
   }
 
-  Widget _buildTransactionList(
-    BuildContext context,
-    AccountTransactionsPaginationState state,
-    String currencyCode,
-    Color primaryColor,
-    List<db.Category> categories,
-    AppLocalizations l10n,
-    Color typeColor, {
-    required Map<int, String> accountNameById,
-  }) {
-    final transactions = state.transactions;
-    return _buildTransactionListBody(
-      context,
-      transactions,
-      state.isLoading,
-      state.hasMore,
-      currencyCode,
-      primaryColor,
-      categories,
-      l10n,
-      accountNameById,
-    );
-  }
-
   /// 帳單週期彙總視圖(信用卡「交易明細」tab)專用:「一般記錄」還是從
   /// [transactions](鏡射 Cloud `get_account_statement` 篩選口徑的這個帳期
   /// 窗口內交易,見 [accountStatementTransactionsProvider])用「轉入這張卡/
@@ -1866,7 +1646,7 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
               return Column(
                 children: [
                   if (index > 0) BeeTokens.cardDivider(context),
-                  _TransactionTile(
+                  TransactionTile(
                     transaction: tx,
                     currencyCode: currencyCode,
                     primaryColor: primaryColor,
@@ -2002,139 +1782,6 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     ref.read(statsRefreshProvider.notifier).state++;
   }
 
-  Widget _buildTransactionListBody(
-    BuildContext context,
-    List<db.Transaction> transactions,
-    bool isLoading,
-    bool hasMore,
-    String currencyCode,
-    Color primaryColor,
-    List<db.Category> categories,
-    AppLocalizations l10n,
-    Map<int, String> accountNameById,
-  ) {
-    // 沿用旧的局部变量名,方便复用下面原封不动的渲染逻辑。
-    final state = AccountTransactionsPaginationState(
-        transactions: transactions, isLoading: isLoading, hasMore: hasMore);
-
-    if (transactions.isEmpty && !state.isLoading) {
-      return SectionCard(
-        child: Padding(
-          padding: EdgeInsets.all(32.0.scaled(context, ref)),
-          child: Center(
-            child: Column(
-              children: [
-                Icon(
-                  Icons.receipt_long_outlined,
-                  size: 48.0.scaled(context, ref),
-                  color: BeeTokens.textTertiary(context),
-                ),
-                SizedBox(height: 8.0.scaled(context, ref)),
-                Text(
-                  l10n.accountNoTransactions,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: BeeTokens.textSecondary(context),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    return SectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: EdgeInsets.all(12.0.scaled(context, ref)),
-            child: Row(
-              children: [
-                Text(
-                  l10n.accountTransactionHistory,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: BeeTokens.textPrimary(context),
-                  ),
-                ),
-                const Spacer(),
-                if (transactions.isNotEmpty)
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 8.0.scaled(context, ref),
-                      vertical: 2.0.scaled(context, ref),
-                    ),
-                    decoration: BoxDecoration(
-                      color: primaryColor.withValues(alpha: 0.1),
-                      borderRadius:
-                          BorderRadius.circular(10.0.scaled(context, ref)),
-                    ),
-                    child: Text(
-                      '${transactions.length}${state.hasMore ? '+' : ''}',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: primaryColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          ...transactions.asMap().entries.map((entry) {
-            final index = entry.key;
-            final tx = entry.value;
-
-            return Column(
-              children: [
-                if (index > 0) BeeTokens.cardDivider(context),
-                _TransactionTile(
-                  transaction: tx,
-                  currencyCode: currencyCode,
-                  primaryColor: primaryColor,
-                  ledgers: ref.watch(ledgersStreamProvider).asData?.value ?? [],
-                  categories: categories,
-                  currentAccountId: widget.account.id,
-                  accountTagName: accountNameById[tx.accountId],
-                  onTap: (category) =>
-                      _openTransactionDetail(context, ref, tx, category),
-                ),
-              ],
-            );
-          }),
-          // 加载指示器
-          if (state.isLoading)
-            Padding(
-              padding: EdgeInsets.all(16.0.scaled(context, ref)),
-              child: const Center(
-                child: SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
-            )
-          else if (!state.hasMore && transactions.isNotEmpty)
-            Padding(
-              padding: EdgeInsets.all(12.0.scaled(context, ref)),
-              child: Center(
-                child: Text(
-                  l10n.accountNoMoreData,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: BeeTokens.textTertiary(context),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
   /// 交易明細列表點擊:彈出唯讀詳情卡(比照首頁),而非直接跳編輯頁——編輯
   /// 只能透過卡片右上角的編輯圖示進入,見 [showTransactionDetailCard]。
   Future<void> _openTransactionDetail(BuildContext context, WidgetRef ref,
@@ -2142,23 +1789,12 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     await showTransactionDetailCard(context, ref, tx, category);
     if (!context.mounted) return;
 
-    // 刷新数据
+    // 刷新数据(這個方法現在只被信用卡帳單彙總卡片的「繳款/一般記錄」清單
+    // 呼叫,一般帳戶明細頁改走 `GeneralAccountPeriodView` 自己的
+    // `_openTransactionDetail`,不共用這份)。
     ref.invalidate(accountStatsProvider(widget.account.id));
-    final allAccounts =
-        ref.read(allAccountsStreamProvider).valueOrNull ?? const [];
-    ref
-        .read(accountTransactionsPaginatedProvider((
-          accountId: widget.account.id,
-          flow: _listFlow,
-          extraIdsKey: _extraIdsKey(_children(allAccounts)),
-        )).notifier)
-        .refresh();
     // 帳單週期彙總視圖(信用卡):整個 family 一起失效,不用逐一算週期 key。
     ref.invalidate(accountStatementTransactionsProvider);
-    ref.invalidate(accountCategoryStatsProvider(
-        (accountId: widget.account.id, type: 'expense')));
-    ref.invalidate(accountCategoryStatsProvider(
-        (accountId: widget.account.id, type: 'income')));
     // 紅利回饋彙總卡片:交易可能在詳情卡的編輯流程裡改了勾選的規則。
     ref.invalidate(cardRewardAccountSummaryProvider);
   }
@@ -2301,103 +1937,10 @@ class _OverviewStatCell extends ConsumerWidget {
 }
 
 // ============================================
-// 详情页图表 Tab 切换按钮
-// ============================================
-
-class _DetailChartTab extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final Color primaryColor;
-  final VoidCallback onTap;
-
-  const _DetailChartTab({
-    required this.label,
-    required this.isSelected,
-    required this.primaryColor,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? primaryColor.withValues(alpha: 0.15)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isSelected ? primaryColor : BeeTokens.border(context),
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: isSelected ? primaryColor : BeeTokens.textSecondary(context),
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ============================================
-// 时段切换芯片
-// ============================================
-
-// ============================================
-// Hero 统计单元格（头部用，白色文字）
-// ============================================
-
-class _DetailStatCell extends ConsumerWidget {
-  final String label;
-  final double value;
-  final String currencyCode;
-
-  const _DetailStatCell({
-    required this.label,
-    required this.value,
-    required this.currencyCode,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            color: BeeTokens.textTertiary(context),
-          ),
-        ),
-        SizedBox(height: 4.0.scaled(context, ref)),
-        AmountText(
-          value: value,
-          signed: false,
-          showCurrency: true,
-          useCompactFormat: ref.watch(compactAmountProvider),
-          currencyCode: currencyCode,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: BeeTokens.textPrimary(context),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ============================================
 // 交易列表项
 // ============================================
 
-class _TransactionTile extends ConsumerWidget {
+class TransactionTile extends ConsumerWidget {
   final db.Transaction transaction;
   final String currencyCode;
   final Color primaryColor;
@@ -2410,7 +1953,8 @@ class _TransactionTile extends ConsumerWidget {
   /// 在分类/账本标签旁多渲染一个帐户名标签(参照範例圖「永豐 Sport 卡」)。
   final String? accountTagName;
 
-  const _TransactionTile({
+  const TransactionTile({
+    super.key,
     required this.transaction,
     required this.currencyCode,
     required this.primaryColor,
