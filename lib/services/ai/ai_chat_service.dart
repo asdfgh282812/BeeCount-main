@@ -8,24 +8,29 @@ import '../data/tag_seed_service.dart';
 import '../system/logger_service.dart';
 import '../billing/bill_creation_service.dart';
 import 'ai_bookkeeper.dart';
+import 'free_chat_router.dart';
 
 /// AI 对话服务
 ///
 /// 两种模式:
 /// 1. **对话记账** —— 委托给 [AiBookkeeper.fromText],返回带卡片的 AIResponse
-/// 2. **自由对话** —— 直接调 [AIProviderFactory.chat]
+/// 2. **自由对话** —— 委托给 [FreeChatRouter],可回答統計/預算/交易明細/週期
+///    交易查詢,答不出來或非查詢意圖時降級成一般聊天
 ///
 /// 这个 service 现在只剩**意图判定 + 调用编排**,真正的提取/落库逻辑全在
 /// [AiBookkeeper] 里。
 class AIChatService {
   final BaseRepository _repo;
   final AiBookkeeper _bookkeeper;
+  final FreeChatRouter _freeChatRouter;
 
   AIChatService({
     required BaseRepository repo,
     required AiBookkeeper bookkeeper,
+    FreeChatRouter? freeChatRouter,
   })  : _repo = repo,
-        _bookkeeper = bookkeeper;
+        _bookkeeper = bookkeeper,
+        _freeChatRouter = freeChatRouter ?? FreeChatRouter(repo: repo);
 
   /// 验证 AI 配置是否存在(仅本地配置,不发网络请求)
   static Future<AIConfigValidationResult> validateApiKey() async {
@@ -50,6 +55,7 @@ class AIChatService {
     required int ledgerId,
     String? languageCode,
     bool forceChat = false,
+    int? conversationId,
     AppLocalizations? l10n,
     ResolveMissingAccount? resolveMissingAccount,
   }) async {
@@ -63,7 +69,12 @@ class AIChatService {
           resolveMissingAccount: resolveMissingAccount,
         );
       }
-      return await _handleFreeChat(userInput, languageCode: languageCode);
+      return await _handleFreeChat(
+        userInput,
+        ledgerId: ledgerId,
+        languageCode: languageCode,
+        conversationId: conversationId,
+      );
     } catch (e, st) {
       logger.error('AIChat', '处理失败', e, st);
       return AIResponse.error('抱歉,处理失败,请重试');
@@ -121,20 +132,18 @@ class AIChatService {
 
     logger.info('AIChat', '账单提取成功: ${result.savedCount} 笔');
     // 多币种降级提示(A5):缺汇率时已按 1:1 暂记,告诉用户去统计页补折算
-    final rateMissingHint =
-        (result.unconvertedCurrencies.isEmpty || l10n == null)
-            ? null
-            : l10n.aiBillingRateMissingHint(
-                result.unconvertedCurrencies.join('、'));
+    final rateMissingHint = (result.unconvertedCurrencies.isEmpty ||
+            l10n == null)
+        ? null
+        : l10n.aiBillingRateMissingHint(result.unconvertedCurrencies.join('、'));
     // 缺帳戶且使用者取消選擇時被主動略過的筆數
-    final accountSkippedHint =
-        (result.skippedForMissingAccountCount <= 0 || l10n == null)
-            ? null
-            : l10n.aiBillingAccountSkippedHint(
-                result.skippedForMissingAccountCount);
-    final note = [rateMissingHint, accountSkippedHint]
-        .whereType<String>()
-        .join('\n');
+    final accountSkippedHint = (result.skippedForMissingAccountCount <= 0 ||
+            l10n == null)
+        ? null
+        : l10n
+            .aiBillingAccountSkippedHint(result.skippedForMissingAccountCount);
+    final note =
+        [rateMissingHint, accountSkippedHint].whereType<String>().join('\n');
     return AIResponse.billCards(
       result.savedBills,
       result.transactionIds,
@@ -144,22 +153,17 @@ class AIChatService {
 
   Future<AIResponse> _handleFreeChat(
     String input, {
+    required int ledgerId,
     String? languageCode,
+    int? conversationId,
   }) async {
     logger.info('AIChat', '开始自由对话 (语言: ${languageCode ?? "默认"})');
     try {
-      final systemPrompt = languageCode == 'en'
-          ? "You are BeeCount's AI assistant, mainly helping users with bookkeeping. "
-              'If users ask about statistics, queries and other functions, please inform them that they are not supported yet and guide them to use the bookkeeping function. '
-              'Please respond in English.'
-          : '你是蜜蜂記帳的AI助手,主要幫助使用者記帳。'
-              '如果使用者詢問統計、查詢等功能,請告知暫不支援,引導使用者使用記帳功能。'
-              '請用繁體中文回覆。';
-
-      final response = await AIProviderFactory.chat(
+      final response = await _freeChatRouter.route(
         input,
-        systemPrompt: systemPrompt,
-        logTag: 'AIChat',
+        ledgerId: ledgerId,
+        conversationId: conversationId,
+        languageCode: languageCode,
       );
       logger.info('AIChat', '对话响应成功');
       return AIResponse.text(response);
@@ -222,8 +226,7 @@ class AIResponse {
   int? get transactionId =>
       transactionIds.isNotEmpty ? transactionIds.first : null;
 
-  factory AIResponse.text(String text) =>
-      AIResponse(type: 'text', text: text);
+  factory AIResponse.text(String text) => AIResponse(type: 'text', text: text);
 
   /// 多笔/单笔统一入口。bills 与 txIds 必须等长且非空。
   ///

@@ -3437,6 +3437,11 @@ class LocalRepository extends BaseRepository {
   Future<Message?> getMessageByTransactionId(int transactionId) =>
       _aiRepo.getMessageByTransactionId(transactionId);
 
+  @override
+  Future<List<Message>> getRecentMessages(int conversationId,
+          {int limit = 10}) =>
+      _aiRepo.getRecentMessages(conversationId, limit: limit);
+
   // ============================================
   // TagRepository 接口实现 - 委托给 LocalTagRepository
   // ============================================

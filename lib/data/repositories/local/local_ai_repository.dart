@@ -20,8 +20,7 @@ class LocalAIRepository implements AIRepository {
 
   @override
   Future<Conversation?> getConversationById(int id) async {
-    return await (db.select(db.conversations)
-          ..where((c) => c.id.equals(id)))
+    return await (db.select(db.conversations)..where((c) => c.id.equals(id)))
         .getSingleOrNull();
   }
 
@@ -81,5 +80,16 @@ class LocalAIRepository implements AIRepository {
     return await (db.select(db.messages)
           ..where((m) => m.transactionId.equals(transactionId)))
         .getSingleOrNull();
+  }
+
+  @override
+  Future<List<Message>> getRecentMessages(int conversationId,
+      {int limit = 10}) async {
+    final rows = await (db.select(db.messages)
+          ..where((m) => m.conversationId.equals(conversationId))
+          ..orderBy([(m) => d.OrderingTerm.desc(m.createdAt)])
+          ..limit(limit))
+        .get();
+    return rows.reversed.toList();
   }
 }

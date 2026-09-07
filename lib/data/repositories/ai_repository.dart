@@ -45,4 +45,7 @@ abstract class AIRepository {
 
   /// 根据交易ID获取消息
   Future<Message?> getMessageByTransactionId(int transactionId);
+
+  /// 依 `createdAt` 升冪回傳會話最近 [limit] 則訊息(自由對話多輪上下文用)。
+  Future<List<Message>> getRecentMessages(int conversationId, {int limit = 10});
 }

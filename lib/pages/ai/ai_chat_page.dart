@@ -660,6 +660,7 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
         ledgerId: ledgerId,
         languageCode: currentLocale.languageCode,
         forceChat: forceChat, // 快捷指令强制为自由对话
+        conversationId: _conversationId,
         l10n: l10n,
         resolveMissingAccount: (bill) async {
           if (!mounted) return null;
