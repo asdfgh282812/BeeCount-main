@@ -276,12 +276,21 @@ class _AccountTypeSectionState extends State<_AccountTypeSection> {
 
   List<Account> _sorted() {
     final list = [...widget.accounts];
+    // widget.accounts 本身已是 getAllAccounts() 回傳的 type→sortOrder 順序
+    // (跟資產頁一致),兩個都沒被 LRU 記錄到的帳戶要照這個原始順序排,不能讓
+    // sort 的比較器對它們回傳 0 ——Dart List.sort 不保證穩定,回傳 0 會讓
+    // 這些帳戶的相對順序變成不可預期,跟資產頁看起來對不起來。
+    final originalIndex = <int, int>{
+      for (final e in widget.accounts.indexed) e.$2.id: e.$1,
+    };
     list.sort((a, b) {
       if (a.id == widget.selectedAccountId) return -1;
       if (b.id == widget.selectedAccountId) return 1;
       final ai = _lruOrder.indexOf(a.id);
       final bi = _lruOrder.indexOf(b.id);
-      if (ai == -1 && bi == -1) return 0;
+      if (ai == -1 && bi == -1) {
+        return originalIndex[a.id]!.compareTo(originalIndex[b.id]!);
+      }
       if (ai == -1) return 1;
       if (bi == -1) return -1;
       return ai.compareTo(bi);

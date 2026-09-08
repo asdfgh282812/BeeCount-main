@@ -2410,6 +2410,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get appearanceColorSchemeOffDesc => '빨강은 지출을, 초록은 수입을 나타냅니다';
 
   @override
+  String get appearanceFirstDayOfWeek => 'Week Starts On';
+
+  @override
   String fontSettingsCurrentScale(Object scale) {
     return '현재 배율: x$scale';
   }

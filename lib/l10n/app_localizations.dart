@@ -4537,6 +4537,12 @@ abstract class AppLocalizations {
   /// **'Red represents expense, green represents income'**
   String get appearanceColorSchemeOffDesc;
 
+  /// No description provided for @appearanceFirstDayOfWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Week Starts On'**
+  String get appearanceFirstDayOfWeek;
+
   /// No description provided for @fontSettingsCurrentScale.
   ///
   /// In en, this message translates to:

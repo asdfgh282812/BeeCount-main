@@ -2475,6 +2475,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Red represents expense, green represents income';
 
   @override
+  String get appearanceFirstDayOfWeek => 'Week Starts On';
+
+  @override
   String fontSettingsCurrentScale(Object scale) {
     return 'Current scale: x$scale';
   }

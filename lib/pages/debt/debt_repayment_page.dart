@@ -147,8 +147,8 @@ class _DebtRepaymentPageState extends ConsumerState<DebtRepaymentPage> {
                       SizedBox(height: 12.0.scaled(context, ref)),
                       TextField(
                         controller: _amountController,
-                        keyboardType:
-                            const TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
                         inputFormatters: [
                           FilteringTextInputFormatter.allow(
                               RegExp(r'^\d+\.?\d{0,2}')),
@@ -321,7 +321,8 @@ class _DebtRepaymentPageState extends ConsumerState<DebtRepaymentPage> {
                       TextField(
                         controller: _noteController,
                         style: TextStyle(
-                            fontSize: 15, color: BeeTokens.textPrimary(context)),
+                            fontSize: 15,
+                            color: BeeTokens.textPrimary(context)),
                         decoration: InputDecoration(
                           hintText: l10n.commonNoteHint,
                           hintStyle:
@@ -372,11 +373,11 @@ class _DebtRepaymentPageState extends ConsumerState<DebtRepaymentPage> {
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _happenedAt,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
+    final picked = await showAppDatePicker(
+      context,
+      initial: _happenedAt,
+      minDate: DateTime(2000),
+      maxDate: DateTime(2100),
     );
     if (picked != null) {
       setState(() => _happenedAt = DateTime(

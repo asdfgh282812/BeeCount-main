@@ -576,7 +576,7 @@ class TransferFormState extends ConsumerState<TransferForm>
 
     // 日期/時間拆成兩個獨立欄位各自喚起專屬選擇器,見
     // transaction_entry_form.dart 同名方法(這裡是複製改寫的轉帳版)。
-    final res = await showTransactionDatePicker(context, initial: _date);
+    final res = await showAppDatePicker(context, initial: _date);
     if (res == null || !mounted) return;
     setState(() {
       _date = DateTime(
@@ -922,13 +922,12 @@ class TransferFormState extends ConsumerState<TransferForm>
                           // 讓轉帳跟收支的金額/打勾確認版面對齊一致。
                           Expanded(
                             child: Container(
-                              constraints:
-                                  const BoxConstraints(minHeight: 44),
+                              constraints: const BoxConstraints(minHeight: 44),
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 14, vertical: 6),
                               decoration: BoxDecoration(
-                                border:
-                                    Border.all(color: BeeTokens.border(context)),
+                                border: Border.all(
+                                    color: BeeTokens.border(context)),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Row(

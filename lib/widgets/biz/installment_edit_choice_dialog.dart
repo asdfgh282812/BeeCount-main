@@ -5,7 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../../styles/tokens.dart';
 import 'installment_action_sheets.dart'
     show SheetScaffold, sheetLabel, formatSheetDate;
-import '../ui/ui.dart' show showToast;
+import '../ui/ui.dart' show showToast, showAppDatePicker;
 
 /// 子專案 3(見設計文件 §5.3):交易明細頁點擊「編輯」時,若這筆交易
 /// `installmentPlanSyncId != null`,彈出這個四選一對話框,取代子專案 1 的
@@ -278,11 +278,11 @@ class _InstallmentPeriodRefundSheetBodyState
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _happenedAt,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
+    final picked = await showAppDatePicker(
+      context,
+      initial: _happenedAt,
+      minDate: DateTime(2000),
+      maxDate: DateTime(2100),
     );
     if (picked != null) setState(() => _happenedAt = picked);
   }

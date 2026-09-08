@@ -1543,7 +1543,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
 
     // 日期/時間拆成兩個獨立欄位各自喚起專屬選擇器(月曆網格/HH:mm wheel),
     // 不再是合併的兩步 wheel 流程;不再限制只能选今天以前(可选未来日期)。
-    final res = await showTransactionDatePicker(context, initial: _date);
+    final res = await showAppDatePicker(context, initial: _date);
     if (res == null || !mounted) return;
     setState(() {
       _date = DateTime(

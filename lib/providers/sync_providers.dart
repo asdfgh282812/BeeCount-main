@@ -313,8 +313,7 @@ final syncServiceProvider = Provider<SyncService>((ref) {
           await cloud.updateMyProfileAiConfig(aiConfig: snapshot);
           logger.info('CloudSync', 'AI 配置已推送到 server');
         } catch (e, st) {
-          logger.warning(
-              'CloudSync', 'AI 配置推送失败 (non-blocking): $e', st);
+          logger.warning('CloudSync', 'AI 配置推送失败 (non-blocking): $e', st);
         }
       }());
     };
@@ -391,6 +390,7 @@ final syncServiceProvider = Provider<SyncService>((ref) {
         currentHeaderStyle: ref.read(headerDecorationStyleProvider),
         currentCompactAmount: ref.read(compactAmountProvider),
         currentShowTransactionTime: ref.read(showTransactionTimeProvider),
+        currentWeekStartsOnMonday: ref.read(weekStartsOnMondayProvider),
         currentDisplayName: ref.read(displayNameProvider),
         currentHeaderSkin: ref.read(headerSkinProvider),
         currentNoteDisplayMode: ref.read(noteDisplayModeProvider),
@@ -417,12 +417,10 @@ final syncServiceProvider = Provider<SyncService>((ref) {
             newLedgerCount = await engine.syncLedgersFromServer();
             if (newLedgerCount > 0) {
               ref.read(ledgerListRefreshProvider.notifier).state++;
-              logger.info(
-                  'SyncProvider', '从 server 拉回 $newLedgerCount 个新账本');
+              logger.info('SyncProvider', '从 server 拉回 $newLedgerCount 个新账本');
             }
           } catch (e, st) {
-            logger.warning(
-                'SyncProvider', 'syncLedgersFromServer 失败: $e', st);
+            logger.warning('SyncProvider', 'syncLedgersFromServer 失败: $e', st);
           }
 
           // Step 1.5: 如果有新账本插进来，要从 cursor=0 把 sync_changes 重放
@@ -433,22 +431,22 @@ final syncServiceProvider = Provider<SyncService>((ref) {
           if (newLedgerCount > 0) {
             try {
               final replayed = await engine.replayAllChanges();
-              logger.info(
-                  'SyncProvider', '重放 sync_changes 应用 $replayed 条历史变更');
+              logger.info('SyncProvider', '重放 sync_changes 应用 $replayed 条历史变更');
             } catch (e, st) {
-              logger.warning(
-                  'SyncProvider', 'replayAllChanges 失败: $e', st);
+              logger.warning('SyncProvider', 'replayAllChanges 失败: $e', st);
             }
           }
 
           // Step 2: 账本就绪后再跑全量同步。sync() 的 pull 里每条 tx change
           // 都能按 ledger_sync_id / 本地 id fallback 正确映射。
           logger.info('SyncProvider', '开始自动同步 ledger=$currentLedgerId');
-          final result = await engine.sync(ledgerId: currentLedgerId.toString());
+          final result =
+              await engine.sync(ledgerId: currentLedgerId.toString());
           if (result.hasError) {
             logger.error('SyncProvider', '自动同步返回错误: ${result.error}');
           } else {
-            logger.info('SyncProvider', '自动同步成功: pushed=${result.pushed}, pulled=${result.pulled}');
+            logger.info('SyncProvider',
+                '自动同步成功: pushed=${result.pushed}, pulled=${result.pulled}');
           }
           ref.read(syncStatusRefreshProvider.notifier).state++;
           ref.read(ledgerListRefreshProvider.notifier).state++;
@@ -481,8 +479,7 @@ final syncServiceProvider = Provider<SyncService>((ref) {
             logger.info('SyncProvider', '从 server 拉回 $inserted 个新账本');
           }
         } catch (e, st) {
-          logger.warning(
-              'SyncProvider', 'syncLedgersFromServer 失败: $e', st);
+          logger.warning('SyncProvider', 'syncLedgersFromServer 失败: $e', st);
         }
       });
     }
@@ -534,7 +531,8 @@ final beecountCloudProviderInstance =
       try {
         final user = await services.auth!.currentUser;
         if (user != null) {
-          logger.info('CloudSync', 'BeeCount Cloud session ready: ${user.email}');
+          logger.info(
+              'CloudSync', 'BeeCount Cloud session ready: ${user.email}');
         } else if (email != null && email.isNotEmpty) {
           logger.info('CloudSync', 'BeeCount Cloud 未登录,等首次 API 触发恢复');
         }
@@ -557,8 +555,7 @@ final beecountCloudProviderInstance =
 /// 不需要重登/手动到云配置页点确认,下一次同步触发后版本号就更新了。
 ///
 /// /version 是个轻量 endpoint,跟着每次 sync 多发一次 HTTP 请求开销可忽略。
-final beecountCloudServerVersionProvider =
-    FutureProvider<String?>((ref) async {
+final beecountCloudServerVersionProvider = FutureProvider<String?>((ref) async {
   // server 升级后用户在 app 内做任何会触发同步的操作(加交易 / 切账本 / 进
   // Mine 页面 bump refresh 等)都能让版本号刷新。
   ref.watch(syncStatusRefreshProvider);
@@ -619,6 +616,7 @@ Future<void> reconcileProfileToServer({
   required String currentHeaderStyle,
   required bool currentCompactAmount,
   required bool currentShowTransactionTime,
+  required bool currentWeekStartsOnMonday,
   required String currentDisplayName,
   required String currentHeaderSkin,
   required String currentNoteDisplayMode,
@@ -650,8 +648,8 @@ Future<void> reconcileProfileToServer({
       try {
         await cloud.updateMyProfileIncomeColorScheme(
             incomeIsRed: currentIncomeIsRed);
-        logger.info('CloudSync',
-            'reconcile: pushed income_is_red=$currentIncomeIsRed');
+        logger.info(
+            'CloudSync', 'reconcile: pushed income_is_red=$currentIncomeIsRed');
       } catch (e, st) {
         logger.warning('CloudSync', 'reconcile income 推送失败: $e', st);
       }
@@ -664,6 +662,7 @@ Future<void> reconcileProfileToServer({
           'header_decoration_style': currentHeaderStyle,
           'compact_amount': currentCompactAmount,
           'show_transaction_time': currentShowTransactionTime,
+          'week_starts_monday': currentWeekStartsOnMonday,
           'header_skin': currentHeaderSkin,
           'note_display_mode': currentNoteDisplayMode,
           'note_history_scope': currentNoteHistoryScope,
@@ -698,8 +697,8 @@ Future<void> reconcileProfileToServer({
         // 只在本地有实际内容时推 —— 新用户 providers 里只有默认 GLM 且
         // apiKey 为空,推上去也是空壳子,跳过避免污染。
         final providers = snapshot['providers'] as List? ?? const [];
-        final hasAnyValidProvider = providers.any((p) =>
-            p is Map && (p['apiKey'] as String?)?.isNotEmpty == true);
+        final hasAnyValidProvider = providers.any(
+            (p) => p is Map && (p['apiKey'] as String?)?.isNotEmpty == true);
         if (hasAnyValidProvider) {
           await cloud.updateMyProfileAiConfig(aiConfig: snapshot);
           logger.info('CloudSync',
@@ -841,9 +840,10 @@ void _applyThemeColorFromServer(Ref ref, String hex) {
 void _applyIncomeColorFromServer(Ref ref, bool incomeIsRed) {
   final current = ref.read(incomeExpenseColorSchemeProvider);
   if (current == incomeIsRed) return;
-  runApplyingFromServer(
-      () => ref.read(incomeExpenseColorSchemeProvider.notifier).state = incomeIsRed);
-  logger.info('profile_sync', 'applied income_is_red from server: $incomeIsRed');
+  runApplyingFromServer(() =>
+      ref.read(incomeExpenseColorSchemeProvider.notifier).state = incomeIsRed);
+  logger.info(
+      'profile_sync', 'applied income_is_red from server: $incomeIsRed');
 }
 
 void _applyDisplayNameFromServer(Ref ref, String name) {
@@ -870,7 +870,8 @@ Future<void> _applyBaseCurrencyFromServer(Ref ref, String code) async {
         () => ref.read(baseCurrencyProvider.notifier).state = normalized);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('baseCurrency', normalized);
-    logger.info('profile_sync', 'applied primary_currency from server: $normalized');
+    logger.info(
+        'profile_sync', 'applied primary_currency from server: $normalized');
   } catch (e, st) {
     logger.warning('profile_sync', 'apply primary currency failed: $e', st);
   }
@@ -918,6 +919,13 @@ void _applyAppearanceFields(Ref ref, Map<String, dynamic> appearance) {
       ref.read(showTransactionTimeProvider.notifier).state = showTime;
     }
   }
+  final weekStartsMonday = appearance['week_starts_monday'] as bool?;
+  if (weekStartsMonday != null) {
+    final current = ref.read(weekStartsOnMondayProvider);
+    if (current != weekStartsMonday) {
+      ref.read(weekStartsOnMondayProvider.notifier).state = weekStartsMonday;
+    }
+  }
   final skin = appearance['header_skin'] as String?;
   if (skin != null && skin.isNotEmpty) {
     final current = ref.read(headerSkinProvider);
@@ -925,7 +933,8 @@ void _applyAppearanceFields(Ref ref, Map<String, dynamic> appearance) {
     // 推的)。认不出来就当没收到:写进去只会让本地又回到失效状态,和启动校正
     // 的降级来回打架 —— 本地降级成 none 推上去、server 又把旧 id 推下来。
     if (skin != kHeaderSkinNone && headerSkinById(skin) == null) {
-      logger.info('profile_sync', 'ignore unknown header_skin from server: $skin');
+      logger.info(
+          'profile_sync', 'ignore unknown header_skin from server: $skin');
     } else if (current != skin) {
       // 这里**只换皮肤 + 登记颜色意图**,颜色本身交给 _scheduleThemeSettle
       // 统一结算 —— 直接调 applyHeaderSkinWith 会和同批的 theme_color 事件
@@ -1135,7 +1144,8 @@ final remoteLedgersProvider =
     }
     return out;
   } catch (e, st) {
-    logger.warning('SyncProvider', 'remoteLedgersProvider: readLedgers 失败: $e', st);
+    logger.warning(
+        'SyncProvider', 'remoteLedgersProvider: readLedgers 失败: $e', st);
     return const [];
   }
 });

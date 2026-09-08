@@ -499,8 +499,8 @@ class _RecurringRuleAdvancedSheetBodyState
         ),
         const SizedBox(height: 8),
         InkWell(
-          onTap: () => setState(
-              () => _installmentAdvancedExpanded = !_installmentAdvancedExpanded),
+          onTap: () => setState(() =>
+              _installmentAdvancedExpanded = !_installmentAdvancedExpanded),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Row(
@@ -548,8 +548,7 @@ class _RecurringRuleAdvancedSheetBodyState
                   style: TextStyle(color: BeeTokens.textPrimary(context))),
               Switch(
                 value: _installmentRoundAmounts,
-                onChanged: (v) =>
-                    setState(() => _installmentRoundAmounts = v),
+                onChanged: (v) => setState(() => _installmentRoundAmounts = v),
               ),
             ],
           ),
@@ -737,8 +736,7 @@ class _RecurringRuleAdvancedSheetBodyState
             ChoiceChip(
               label: Text(l10n.recurringCountUnlimited),
               selected: _endMode == _EndMode.unlimited,
-              onSelected: (_) =>
-                  setState(() => _endMode = _EndMode.unlimited),
+              onSelected: (_) => setState(() => _endMode = _EndMode.unlimited),
             ),
             ChoiceChip(
               label: Text(l10n.recurringCountFixed),
@@ -789,8 +787,7 @@ class _RecurringRuleAdvancedSheetBodyState
             borderRadius: BorderRadius.circular(10),
             onTap: _pickSpecificEndDate,
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: BeeTokens.surfaceInput(context),
                 borderRadius: BorderRadius.circular(10),
@@ -848,7 +845,7 @@ class _RecurringRuleAdvancedSheetBodyState
   }
 
   Future<void> _pickSpecificEndDate() async {
-    final res = await showTransactionDatePicker(
+    final res = await showAppDatePicker(
       context,
       initial: _specificEndDate,
       minDate: widget.anchorDate,

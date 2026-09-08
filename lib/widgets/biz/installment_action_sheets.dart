@@ -6,7 +6,7 @@ import '../../data/db.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers.dart';
 import '../../styles/tokens.dart';
-import '../ui/ui.dart' show showToast;
+import '../ui/ui.dart' show showToast, showAppDatePicker;
 import 'account_card_picker.dart';
 
 /// 子專案 2 狀態變更操作的輸入表單(彈窗),角色對齐
@@ -92,11 +92,11 @@ class _PeriodOverrideSheetBodyState extends State<_PeriodOverrideSheetBody> {
   }
 
   Future<void> _pickDueAt() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _dueAt,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
+    final picked = await showAppDatePicker(
+      context,
+      initial: _dueAt,
+      minDate: DateTime(2000),
+      maxDate: DateTime(2100),
     );
     if (picked != null) setState(() => _dueAt = picked);
   }
@@ -362,11 +362,11 @@ class _EarlyRepayPrincipalSheetBodyState
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _happenedAt,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
+    final picked = await showAppDatePicker(
+      context,
+      initial: _happenedAt,
+      minDate: DateTime(2000),
+      maxDate: DateTime(2100),
     );
     if (picked != null) setState(() => _happenedAt = picked);
   }
@@ -514,11 +514,11 @@ class _PayoffSheetBodyState extends ConsumerState<_PayoffSheetBody> {
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _happenedAt,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
+    final picked = await showAppDatePicker(
+      context,
+      initial: _happenedAt,
+      minDate: DateTime(2000),
+      maxDate: DateTime(2100),
     );
     if (picked != null) setState(() => _happenedAt = picked);
   }

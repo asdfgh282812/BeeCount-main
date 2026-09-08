@@ -265,6 +265,17 @@ class _AppearanceSettingsPageState
                             : l10n.appearanceColorSchemeOff,
                         onTap: () => _showColorSchemeDialog(context, ref, l10n),
                       ),
+                      BeeTokens.cardDivider(context),
+                      // 每周起始日:影响所有日历/日期选择器的周起始位置
+                      AppListTile(
+                        leading: Icons.view_week_outlined,
+                        title: l10n.appearanceFirstDayOfWeek,
+                        subtitle: ref.watch(weekStartsOnMondayProvider)
+                            ? l10n.commonWeekdayMonday
+                            : l10n.commonWeekdaySunday,
+                        onTap: () =>
+                            _showFirstDayOfWeekDialog(context, ref, l10n),
+                      ),
                     ],
                   ),
                 ),
@@ -637,6 +648,71 @@ class _AppearanceSettingsPageState
       trailing: isSelected ? Icon(Icons.check, color: primaryColor) : null,
       onTap: () {
         ref.read(noteDisplayModeProvider.notifier).state = value;
+        Navigator.pop(context);
+      },
+    );
+  }
+
+  /// 显示每周起始日选择对话框(周一/周日),影响所有日历与日期选择器。
+  void _showFirstDayOfWeekDialog(
+      BuildContext context, WidgetRef ref, AppLocalizations l10n) {
+    final current = ref.read(weekStartsOnMondayProvider);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: BeeTokens.surfaceElevated(context),
+        title: Text(
+          l10n.appearanceFirstDayOfWeek,
+          style: TextStyle(color: BeeTokens.textPrimary(context)),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildFirstDayOfWeekOption(
+              context,
+              ref,
+              title: l10n.commonWeekdayMonday,
+              value: true,
+              currentValue: current,
+              icon: Icons.view_week_outlined,
+            ),
+            _buildFirstDayOfWeekOption(
+              context,
+              ref,
+              title: l10n.commonWeekdaySunday,
+              value: false,
+              currentValue: current,
+              icon: Icons.view_week_outlined,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFirstDayOfWeekOption(
+    BuildContext context,
+    WidgetRef ref, {
+    required String title,
+    required bool value,
+    required bool currentValue,
+    required IconData icon,
+  }) {
+    final isSelected = value == currentValue;
+    final primaryColor = ref.watch(primaryColorProvider);
+    return ListTile(
+      leading: Icon(icon,
+          color: isSelected ? primaryColor : BeeTokens.iconSecondary(context)),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: isSelected ? primaryColor : BeeTokens.textPrimary(context),
+          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+        ),
+      ),
+      trailing: isSelected ? Icon(Icons.check, color: primaryColor) : null,
+      onTap: () {
+        ref.read(weekStartsOnMondayProvider.notifier).state = value;
         Navigator.pop(context);
       },
     );

@@ -1,25 +1,30 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../providers/theme_providers.dart';
 import '../../styles/tokens.dart';
 
-/// 交易表单「日期/時間」欄位專用的一對選擇器——取代舊版
-/// `wheel_date_picker.dart` 裡合併日期+時間的 wheel 兩步流程。日期/時間在
-/// 表單上已拆成兩個獨立欄位,各自喚起這裡的其中一個 sheet。
+/// App 內通用的日期/時間選擇器 sheet——原本專供交易表單「日期/時間」欄位
+/// 使用(取代舊版 `wheel_date_picker.dart` 裡合併日期+時間的 wheel 兩步流程),
+/// 現已通用化為 [showAppDatePicker],供所有需要單一日期選擇的頁面呼叫
+/// (取代 Flutter 原生 `showDatePicker`,因為原生版本的週起始日綁死在
+/// `MaterialLocalizations`,無法套用 App 自己的「每週起始日」設定)。
 ///
-/// 兩者共用同一套 chrome:左上角鍵盤圖示(展開/收起 MMdd 或 HHmm 快速跳轉
-/// 輸入框)、置中標題、右上角快速操作(日期是「今天」,時間是「現在」),
-/// 下方是月曆網格/時分 wheel,再下方是取消/確定兩個 pill 按鈕。
+/// 日期/時間兩個 sheet 共用同一套 chrome:左上角鍵盤圖示(展開/收起 MMdd 或
+/// HHmm 快速跳轉輸入框)、置中標題、右上角快速操作(日期是「今天」,時間是
+/// 「現在」),下方是月曆網格/時分 wheel,再下方是取消/確定兩個 pill 按鈕。
 ///
 /// 這裡刻意不動 `wheel_date_picker.dart` 裡既有的 `showWheelDatePicker` /
 /// `showWheelDateTimePicker`——那些仍給行事曆表頭年月跳轉等其它入口用。
 
 /// 月曆網格日期選擇器。預設不限制上界(可選未來日期),下界固定
-/// 2000-01-01,與 App 內其它日期選擇器的慣例一致。
-Future<DateTime?> showTransactionDatePicker(
+/// 2000-01-01,與 App 內其它日期選擇器的慣例一致。週起始日跟隨
+/// [weekStartsOnMondayProvider]。
+Future<DateTime?> showAppDatePicker(
   BuildContext context, {
   required DateTime initial,
   DateTime? minDate,
@@ -204,7 +209,7 @@ class _PickerBottomActions extends StatelessWidget {
   }
 }
 
-class _TransactionDatePickerSheet extends StatefulWidget {
+class _TransactionDatePickerSheet extends ConsumerStatefulWidget {
   final DateTime initial;
   final DateTime minDate;
   final DateTime maxDate;
@@ -216,12 +221,12 @@ class _TransactionDatePickerSheet extends StatefulWidget {
   });
 
   @override
-  State<_TransactionDatePickerSheet> createState() =>
+  ConsumerState<_TransactionDatePickerSheet> createState() =>
       _TransactionDatePickerSheetState();
 }
 
 class _TransactionDatePickerSheetState
-    extends State<_TransactionDatePickerSheet> {
+    extends ConsumerState<_TransactionDatePickerSheet> {
   late DateTime _focusedMonth;
   late DateTime _selectedDay;
   bool _jumpOpen = false;
@@ -341,7 +346,9 @@ class _TransactionDatePickerSheetState
             },
             calendarFormat: CalendarFormat.month,
             availableCalendarFormats: const {CalendarFormat.month: ''},
-            startingDayOfWeek: StartingDayOfWeek.monday,
+            startingDayOfWeek: ref.watch(weekStartsOnMondayProvider)
+                ? StartingDayOfWeek.monday
+                : StartingDayOfWeek.sunday,
             availableGestures: AvailableGestures.horizontalSwipe,
             headerStyle: HeaderStyle(
               formatButtonVisible: false,

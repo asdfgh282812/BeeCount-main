@@ -240,11 +240,11 @@ class DebtEntryFormState extends ConsumerState<DebtEntryForm> {
   }
 
   Future<void> _pickDueDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _dueAt ?? DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
+    final picked = await showAppDatePicker(
+      context,
+      initial: _dueAt ?? DateTime.now(),
+      minDate: DateTime(2000),
+      maxDate: DateTime(2100),
     );
     if (picked != null) setState(() => _dueAt = picked);
   }
@@ -325,7 +325,9 @@ class DebtEntryFormState extends ConsumerState<DebtEntryForm> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? primary.withValues(alpha: 0.1) : BeeTokens.surface(context),
+          color: isSelected
+              ? primary.withValues(alpha: 0.1)
+              : BeeTokens.surface(context),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? primary : BeeTokens.border(context),
@@ -334,7 +336,9 @@ class DebtEntryFormState extends ConsumerState<DebtEntryForm> {
         ),
         child: Column(
           children: [
-            Icon(icon, size: 28, color: isSelected ? primary : BeeTokens.iconSecondary(context)),
+            Icon(icon,
+                size: 28,
+                color: isSelected ? primary : BeeTokens.iconSecondary(context)),
             const SizedBox(height: 8),
             Text(
               label,
@@ -380,17 +384,26 @@ class DebtEntryFormState extends ConsumerState<DebtEntryForm> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(l10n.debtDirectionLabel,
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: BeeTokens.textSecondary(context))),
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: BeeTokens.textSecondary(context))),
                       const SizedBox(height: 12),
                       Row(
                         children: [
                           Expanded(
-                              child: _buildDirectionOption(context, l10n.debtDirectionPayableLabel,
-                                  kDebtDirectionPayable, Icons.arrow_upward)),
+                              child: _buildDirectionOption(
+                                  context,
+                                  l10n.debtDirectionPayableLabel,
+                                  kDebtDirectionPayable,
+                                  Icons.arrow_upward)),
                           const SizedBox(width: 12),
                           Expanded(
-                              child: _buildDirectionOption(context, l10n.debtDirectionReceivableLabel,
-                                  kDebtDirectionReceivable, Icons.arrow_downward)),
+                              child: _buildDirectionOption(
+                                  context,
+                                  l10n.debtDirectionReceivableLabel,
+                                  kDebtDirectionReceivable,
+                                  Icons.arrow_downward)),
                         ],
                       ),
                     ],
@@ -402,15 +415,21 @@ class DebtEntryFormState extends ConsumerState<DebtEntryForm> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(l10n.debtCounterpartyLabel,
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: BeeTokens.textSecondary(context))),
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: BeeTokens.textSecondary(context))),
                       const SizedBox(height: 12),
                       TextField(
                         controller: _counterpartyController,
                         focusNode: _counterpartyFocus,
-                        style: TextStyle(fontSize: 16, color: BeeTokens.textPrimary(context)),
+                        style: TextStyle(
+                            fontSize: 16,
+                            color: BeeTokens.textPrimary(context)),
                         decoration: InputDecoration(
                           hintText: l10n.debtCounterpartyHint,
-                          hintStyle: TextStyle(color: BeeTokens.textTertiary(context)),
+                          hintStyle:
+                              TextStyle(color: BeeTokens.textTertiary(context)),
                           border: InputBorder.none,
                         ),
                       ),
@@ -430,7 +449,10 @@ class DebtEntryFormState extends ConsumerState<DebtEntryForm> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(l10n.debtPrincipalAmountLabel,
-                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: BeeTokens.textSecondary(context))),
+                            style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: BeeTokens.textSecondary(context))),
                         const SizedBox(height: 12),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
@@ -444,21 +466,29 @@ class DebtEntryFormState extends ConsumerState<DebtEntryForm> {
                                 ),
                               ),
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 8),
                                 child: Text(
                                   amountOpGlyph(_op!),
                                   style: text.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.w600, color: primary),
+                                      fontWeight: FontWeight.w600,
+                                      color: primary),
                                 ),
                               ),
                             ],
                             Text(
                               '$currencySymbol ',
-                              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: BeeTokens.textPrimary(context)),
+                              style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w600,
+                                  color: BeeTokens.textPrimary(context)),
                             ),
                             Text(
                               _amountStr,
-                              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: BeeTokens.textPrimary(context)),
+                              style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w600,
+                                  color: BeeTokens.textPrimary(context)),
                             ),
                           ],
                         ),
@@ -469,9 +499,12 @@ class DebtEntryFormState extends ConsumerState<DebtEntryForm> {
                             children: [
                               Text('= ',
                                   style: text.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.w500, color: BeeTokens.textTertiary(context))),
+                                      fontWeight: FontWeight.w500,
+                                      color: BeeTokens.textTertiary(context))),
                               Text(_fmtAbs(total),
-                                  style: text.titleMedium?.copyWith(fontWeight: FontWeight.w600, color: primary)),
+                                  style: text.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: primary)),
                             ],
                           ),
                         ],
@@ -485,15 +518,18 @@ class DebtEntryFormState extends ConsumerState<DebtEntryForm> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(l10n.debtRepaymentAccountLabel,
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: BeeTokens.textSecondary(context))),
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: BeeTokens.textSecondary(context))),
                       const SizedBox(height: 12),
                       InkWell(
                         borderRadius: BorderRadius.circular(12),
                         onTap: _pickAccount,
                         child: Container(
                           width: double.infinity,
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
                             color: BeeTokens.surfaceInput(context),
                             borderRadius: BorderRadius.circular(12),
@@ -501,11 +537,13 @@ class DebtEntryFormState extends ConsumerState<DebtEntryForm> {
                           child: Row(
                             children: [
                               Icon(Icons.credit_card,
-                                  size: 18, color: BeeTokens.iconSecondary(context)),
+                                  size: 18,
+                                  color: BeeTokens.iconSecondary(context)),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  _account?.name ?? l10n.debtRepaymentAccountLabel,
+                                  _account?.name ??
+                                      l10n.debtRepaymentAccountLabel,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
@@ -514,7 +552,8 @@ class DebtEntryFormState extends ConsumerState<DebtEntryForm> {
                                 ),
                               ),
                               Icon(Icons.chevron_right,
-                                  size: 18, color: BeeTokens.iconTertiary(context)),
+                                  size: 18,
+                                  color: BeeTokens.iconTertiary(context)),
                             ],
                           ),
                         ),
@@ -533,13 +572,20 @@ class DebtEntryFormState extends ConsumerState<DebtEntryForm> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(l10n.debtDueDateLabel,
-                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: BeeTokens.textSecondary(context))),
+                                  style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: BeeTokens.textSecondary(context))),
                               const SizedBox(height: 6),
                               Text(
-                                _dueAt != null ? _formatDate(_dueAt!) : l10n.debtDueDateNone,
+                                _dueAt != null
+                                    ? _formatDate(_dueAt!)
+                                    : l10n.debtDueDateNone,
                                 style: TextStyle(
                                     fontSize: 16,
-                                    color: _dueAt != null ? BeeTokens.textPrimary(context) : BeeTokens.textTertiary(context)),
+                                    color: _dueAt != null
+                                        ? BeeTokens.textPrimary(context)
+                                        : BeeTokens.textTertiary(context)),
                               ),
                             ],
                           ),
@@ -547,11 +593,13 @@ class DebtEntryFormState extends ConsumerState<DebtEntryForm> {
                         if (_dueAt != null)
                           IconButton(
                             onPressed: () => setState(() => _dueAt = null),
-                            icon: Icon(Icons.close, color: BeeTokens.iconTertiary(context)),
+                            icon: Icon(Icons.close,
+                                color: BeeTokens.iconTertiary(context)),
                             tooltip: l10n.debtDueDateClear,
                           )
                         else
-                          Icon(Icons.chevron_right, color: BeeTokens.iconTertiary(context)),
+                          Icon(Icons.chevron_right,
+                              color: BeeTokens.iconTertiary(context)),
                       ],
                     ),
                   ),
@@ -605,16 +653,22 @@ class DebtEntryFormState extends ConsumerState<DebtEntryForm> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(l10n.debtNoteLabel,
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: BeeTokens.textSecondary(context))),
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: BeeTokens.textSecondary(context))),
                       const SizedBox(height: 12),
                       TextField(
                         controller: _noteController,
                         focusNode: _noteFocus,
                         maxLines: 3,
-                        style: TextStyle(fontSize: 15, color: BeeTokens.textPrimary(context)),
+                        style: TextStyle(
+                            fontSize: 15,
+                            color: BeeTokens.textPrimary(context)),
                         decoration: InputDecoration(
                           hintText: l10n.commonNoteHint,
-                          hintStyle: TextStyle(color: BeeTokens.textTertiary(context)),
+                          hintStyle:
+                              TextStyle(color: BeeTokens.textTertiary(context)),
                           border: InputBorder.none,
                         ),
                       ),
@@ -632,19 +686,25 @@ class DebtEntryFormState extends ConsumerState<DebtEntryForm> {
                           children: [
                             Text(
                               l10n.debtExcludedFromTotalLabel,
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: BeeTokens.textPrimary(context)),
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: BeeTokens.textPrimary(context)),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               l10n.debtExcludedFromTotalHint,
-                              style: TextStyle(fontSize: 12, color: BeeTokens.textTertiary(context)),
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: BeeTokens.textTertiary(context)),
                             ),
                           ],
                         ),
                       ),
                       Switch(
                         value: _excludedFromTotal,
-                        onChanged: (v) => setState(() => _excludedFromTotal = v),
+                        onChanged: (v) =>
+                            setState(() => _excludedFromTotal = v),
                       ),
                     ],
                   ),

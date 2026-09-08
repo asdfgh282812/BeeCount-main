@@ -171,7 +171,8 @@ class _DebtEditorPageState extends ConsumerState<DebtEditorPage> {
                       TextField(
                         controller: _counterpartyController,
                         style: TextStyle(
-                            fontSize: 16, color: BeeTokens.textPrimary(context)),
+                            fontSize: 16,
+                            color: BeeTokens.textPrimary(context)),
                         decoration: InputDecoration(
                           hintText: l10n.debtCounterpartyHint,
                           hintStyle:
@@ -209,8 +210,8 @@ class _DebtEditorPageState extends ConsumerState<DebtEditorPage> {
                       TextField(
                         controller: _principalController,
                         enabled: !_isEditing,
-                        keyboardType:
-                            const TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
                         inputFormatters: [
                           FilteringTextInputFormatter.allow(
                               RegExp(r'^\d+\.?\d{0,2}')),
@@ -231,7 +232,8 @@ class _DebtEditorPageState extends ConsumerState<DebtEditorPage> {
                           ),
                           hintText: l10n.debtPrincipalAmountHint,
                           hintStyle: TextStyle(
-                              fontSize: 24, color: BeeTokens.textTertiary(context)),
+                              fontSize: 24,
+                              color: BeeTokens.textTertiary(context)),
                           border: InputBorder.none,
                         ),
                       ),
@@ -404,7 +406,8 @@ class _DebtEditorPageState extends ConsumerState<DebtEditorPage> {
                         controller: _noteController,
                         maxLines: 3,
                         style: TextStyle(
-                            fontSize: 15, color: BeeTokens.textPrimary(context)),
+                            fontSize: 15,
+                            color: BeeTokens.textPrimary(context)),
                         decoration: InputDecoration(
                           hintText: l10n.commonNoteHint,
                           hintStyle:
@@ -445,7 +448,8 @@ class _DebtEditorPageState extends ConsumerState<DebtEditorPage> {
                       ),
                       Switch(
                         value: _excludedFromTotal,
-                        onChanged: (v) => setState(() => _excludedFromTotal = v),
+                        onChanged: (v) =>
+                            setState(() => _excludedFromTotal = v),
                       ),
                     ],
                   ),
@@ -527,7 +531,9 @@ class _DebtEditorPageState extends ConsumerState<DebtEditorPage> {
         child: Container(
           padding: EdgeInsets.all(16.0.scaled(context, ref)),
           decoration: BoxDecoration(
-            color: isSelected ? primary.withValues(alpha: 0.1) : BeeTokens.surface(context),
+            color: isSelected
+                ? primary.withValues(alpha: 0.1)
+                : BeeTokens.surface(context),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isSelected ? primary : BeeTokens.border(context),
@@ -538,14 +544,16 @@ class _DebtEditorPageState extends ConsumerState<DebtEditorPage> {
             children: [
               Icon(icon,
                   size: 28.0.scaled(context, ref),
-                  color: isSelected ? primary : BeeTokens.iconSecondary(context)),
+                  color:
+                      isSelected ? primary : BeeTokens.iconSecondary(context)),
               SizedBox(height: 8.0.scaled(context, ref)),
               Text(
                 label,
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                  color: isSelected ? primary : BeeTokens.textSecondary(context),
+                  color:
+                      isSelected ? primary : BeeTokens.textSecondary(context),
                 ),
               ),
             ],
@@ -556,11 +564,11 @@ class _DebtEditorPageState extends ConsumerState<DebtEditorPage> {
   }
 
   Future<void> _pickDueDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _dueAt ?? DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
+    final picked = await showAppDatePicker(
+      context,
+      initial: _dueAt ?? DateTime.now(),
+      minDate: DateTime(2000),
+      maxDate: DateTime(2100),
     );
     if (picked != null) {
       setState(() => _dueAt = picked);

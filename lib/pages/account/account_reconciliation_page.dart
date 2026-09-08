@@ -586,11 +586,11 @@ class _StatementRow extends ConsumerWidget {
                 : () async {
                     final defaultDate =
                         defaultDeferredPostingDate(billingDay, cycleOffset);
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: defaultDate,
-                      firstDate: DateTime(2000),
-                      lastDate:
+                    final picked = await showAppDatePicker(
+                      context,
+                      initial: defaultDate,
+                      minDate: DateTime(2000),
+                      maxDate:
                           DateTime.now().add(const Duration(days: 365 * 3)),
                     );
                     // 延後入帳是「純日期」欄位:showDatePicker 回傳的

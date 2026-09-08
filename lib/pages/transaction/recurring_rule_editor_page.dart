@@ -501,13 +501,12 @@ class _RecurringRuleEditorPageState
                 fontSize: 13, color: BeeTokens.textSecondary(context))),
         IconButton(
           icon: const Icon(Icons.remove_circle_outline),
-          onPressed: _interval > 1
-              ? () => setState(() => _interval -= 1)
-              : null,
+          onPressed:
+              _interval > 1 ? () => setState(() => _interval -= 1) : null,
         ),
         Text('$_interval',
-            style: TextStyle(
-                fontSize: 16, color: BeeTokens.textPrimary(context))),
+            style:
+                TextStyle(fontSize: 16, color: BeeTokens.textPrimary(context))),
         IconButton(
           icon: const Icon(Icons.add_circle_outline),
           onPressed: () => setState(() => _interval += 1),
@@ -552,12 +551,10 @@ class _RecurringRuleEditorPageState
     final result = await AccountCardPicker.show(
       context,
       ledgerId: ledgerId,
-      selectedAccountId: _isTransfer
-          ? (isFrom ? _fromAccountId : _toAccountId)
-          : _accountId,
-      excludeAccountId: _isTransfer
-          ? (isFrom ? _toAccountId : _fromAccountId)
-          : null,
+      selectedAccountId:
+          _isTransfer ? (isFrom ? _fromAccountId : _toAccountId) : _accountId,
+      excludeAccountId:
+          _isTransfer ? (isFrom ? _toAccountId : _fromAccountId) : null,
     );
     if (result == null || !mounted) return;
     final id = result.accountId;
@@ -586,7 +583,8 @@ class _RecurringRuleEditorPageState
   }
 
   Future<void> _selectTags() async {
-    final result = await TagSelector.show(context, selectedTagIds: _selectedTagIds);
+    final result =
+        await TagSelector.show(context, selectedTagIds: _selectedTagIds);
     if (result != null) setState(() => _selectedTagIds = result);
   }
 
@@ -601,13 +599,12 @@ class _RecurringRuleEditorPageState
   }
 
   Future<void> _pickNextRunAt() async {
-    final res =
-        await showTransactionDatePicker(context, initial: _nextRunAt);
+    final res = await showAppDatePicker(context, initial: _nextRunAt);
     if (res != null) setState(() => _nextRunAt = res);
   }
 
   Future<void> _pickEndAt() async {
-    final res = await showTransactionDatePicker(
+    final res = await showAppDatePicker(
       context,
       initial: _endAt ?? _nextRunAt,
       minDate: _nextRunAt,

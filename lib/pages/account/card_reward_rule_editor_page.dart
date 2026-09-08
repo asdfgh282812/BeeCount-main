@@ -721,11 +721,11 @@ class _CardRewardRuleEditorPageState
     return InkWell(
       borderRadius: BorderRadius.circular(8),
       onTap: () async {
-        final picked = await showDatePicker(
-          context: context,
-          initialDate: value ?? DateTime.now(),
-          firstDate: DateTime(2000),
-          lastDate: DateTime(2100),
+        final picked = await showAppDatePicker(
+          context,
+          initial: value ?? DateTime.now(),
+          minDate: DateTime(2000),
+          maxDate: DateTime(2100),
         );
         if (picked != null) onPicked(picked);
       },

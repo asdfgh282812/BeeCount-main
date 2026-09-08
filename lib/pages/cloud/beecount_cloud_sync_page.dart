@@ -72,6 +72,7 @@ class _BeeCountCloudSyncPageState extends ConsumerState<BeeCountCloudSyncPage> {
         currentHeaderStyle: ref.read(headerDecorationStyleProvider),
         currentCompactAmount: ref.read(compactAmountProvider),
         currentShowTransactionTime: ref.read(showTransactionTimeProvider),
+        currentWeekStartsOnMonday: ref.read(weekStartsOnMondayProvider),
         currentDisplayName: ref.read(displayNameProvider),
         currentHeaderSkin: ref.read(headerSkinProvider),
         currentNoteDisplayMode: ref.read(noteDisplayModeProvider),

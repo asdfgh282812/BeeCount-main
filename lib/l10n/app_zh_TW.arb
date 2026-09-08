@@ -473,6 +473,7 @@
   "appearanceColorSchemeOff": "紅色支出 · 綠色收入",
   "appearanceColorSchemeOnDesc": "紅色表示收入，綠色表示支出",
   "appearanceColorSchemeOffDesc": "紅色表示支出，綠色表示收入",
+  "appearanceFirstDayOfWeek": "每週起始日",
   "appearanceThemeMode": "外觀模式",
   "appearanceThemeModeDark": "暗黑模式",
   "appearanceThemeModeLight": "亮色模式",

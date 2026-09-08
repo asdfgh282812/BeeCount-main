@@ -159,9 +159,8 @@ class _ProjectEditPageState extends ConsumerState<ProjectEditPage> {
                                   child: Center(
                                     child: CategoryService.iconOrEmojiWidget(
                                       icon: _selectedIcon,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .primary,
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
                                       size: 24,
                                     ),
                                   ),
@@ -550,11 +549,11 @@ class _ProjectEditPageState extends ConsumerState<ProjectEditPage> {
 
   Future<void> _pickDate({required bool isStart}) async {
     final initial = (isStart ? _periodStart : _periodEnd) ?? DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
+    final picked = await showAppDatePicker(
+      context,
+      initial: initial,
+      minDate: DateTime(2000),
+      maxDate: DateTime(2100),
     );
     if (picked == null) return;
     setState(() {

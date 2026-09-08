@@ -294,7 +294,9 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
           setState(() => _calendarFormat = format);
         }
       },
-      startingDayOfWeek: StartingDayOfWeek.monday,
+      startingDayOfWeek: ref.watch(weekStartsOnMondayProvider)
+          ? StartingDayOfWeek.monday
+          : StartingDayOfWeek.sunday,
       // all = 横滑翻页 + 纵滑切换 月/週 格式（原先只开横滑，纵滑收起成一週的
       // 功能一直没接上手势，现补上）。
       availableGestures: AvailableGestures.all,

@@ -12,6 +12,7 @@
 /// - 「指定次數」模式下點次數數字叫出鍵盤輸入(取代原本只能 +/- 調整)。
 /// - 新增「截止日期」結束方式,預設帶入 anchorDate。
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:table_calendar/table_calendar.dart';
 
@@ -21,24 +22,26 @@ import 'package:beecount/widgets/biz/recurring_rule_advanced_sheet.dart';
 void main() {
   Widget host(void Function(AdvancedScheduleResult? result) onResult,
       {DateTime? anchorDate, bool installmentAvailable = false}) {
-    return MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      locale: const Locale('zh', 'TW'),
-      home: Scaffold(
-        body: Builder(builder: (context) {
-          return ElevatedButton(
-            onPressed: () async {
-              final result = await RecurringRuleAdvancedSheet.show(
-                context,
-                anchorDate: anchorDate ?? DateTime(2026, 3, 10),
-                installmentAvailable: installmentAvailable,
-              );
-              onResult(result);
-            },
-            child: const Text('open'),
-          );
-        }),
+    return ProviderScope(
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: const Locale('zh', 'TW'),
+        home: Scaffold(
+          body: Builder(builder: (context) {
+            return ElevatedButton(
+              onPressed: () async {
+                final result = await RecurringRuleAdvancedSheet.show(
+                  context,
+                  anchorDate: anchorDate ?? DateTime(2026, 3, 10),
+                  installmentAvailable: installmentAvailable,
+                );
+                onResult(result);
+              },
+              child: const Text('open'),
+            );
+          }),
+        ),
       ),
     );
   }
@@ -196,7 +199,8 @@ void main() {
   testWidgets('installmentAvailable=true 時切到「分期」tab,確定後回傳 InstallmentDraft',
       (tester) async {
     AdvancedScheduleResult? result;
-    await tester.pumpWidget(host((r) => result = r, installmentAvailable: true));
+    await tester
+        .pumpWidget(host((r) => result = r, installmentAvailable: true));
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 

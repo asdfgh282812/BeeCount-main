@@ -81,7 +81,10 @@ final primaryColorInitProvider = FutureProvider<void>((ref) async {
 Future<void> _persistAndPushPrimary(
     Ref ref, SharedPreferences prefs, Color next, bool fromServer) async {
   {
-    final colorValue = (next.a * 255).toInt() << 24 | (next.r * 255).toInt() << 16 | (next.g * 255).toInt() << 8 | (next.b * 255).toInt();
+    final colorValue = (next.a * 255).toInt() << 24 |
+        (next.r * 255).toInt() << 16 |
+        (next.g * 255).toInt() << 8 |
+        (next.b * 255).toInt();
     await prefs.setInt('primaryColor', colorValue);
     // Update widget with new theme color
     try {
@@ -348,6 +351,24 @@ final showTransactionTimeInitProvider = FutureProvider<void>((ref) async {
   });
 });
 
+// 每周起始日 Provider(默认周一,与历史行为一致)
+// true  = 周一为一周的第一天
+// false = 周日为一周的第一天
+final weekStartsOnMondayProvider = StateProvider<bool>((ref) => true);
+
+// 每周起始日持久化初始化
+final weekStartsOnMondayInitProvider = FutureProvider<void>((ref) async {
+  final prefs = await SharedPreferences.getInstance();
+  final saved = prefs.getBool('weekStartsOnMonday');
+  if (saved != null) {
+    ref.read(weekStartsOnMondayProvider.notifier).state = saved;
+  }
+  ref.listen<bool>(weekStartsOnMondayProvider, (prev, next) async {
+    await prefs.setBool('weekStartsOnMonday', next);
+    _pushAppearanceToCloud(ref);
+  });
+});
+
 // 备注显示方式 Provider(默认分类优先)
 // 'category' = 分类名为主,备注挂括号小灰字(当前样式)
 // 'note'     = 备注优先,有备注显示备注、无备注显示分类名
@@ -597,6 +618,7 @@ void _pushAppearanceToCloud(Ref ref) {
         'skin_animation': ref.read(skinAnimationEnabledProvider),
         'reduce_motion': ref.read(reduceMotionProvider),
         'show_transaction_time': ref.read(showTransactionTimeProvider),
+        'week_starts_monday': ref.read(weekStartsOnMondayProvider),
         'header_skin': ref.read(headerSkinProvider),
         'note_display_mode': ref.read(noteDisplayModeProvider),
         'note_history_scope': ref.read(noteHistoryScopeProvider).name,
@@ -705,8 +727,8 @@ void _pushDisplayNameToCloud(Ref ref, String name) {
       await cloudProvider.updateMyProfileDisplayName(displayName: trimmed);
       logger.info('theme_providers', 'display name pushed to server: $trimmed');
     } catch (e, st) {
-      logger.warning('theme_providers',
-          'push display name failed (non-blocking): $e', st);
+      logger.warning(
+          'theme_providers', 'push display name failed (non-blocking): $e', st);
     }
   }());
 }

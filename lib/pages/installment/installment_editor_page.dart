@@ -722,11 +722,11 @@ class _InstallmentEditorPageState extends ConsumerState<InstallmentEditorPage> {
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   Future<void> _pickFirstPeriodDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _firstPeriodAt,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
+    final picked = await showAppDatePicker(
+      context,
+      initial: _firstPeriodAt,
+      minDate: DateTime(2000),
+      maxDate: DateTime(2100),
     );
     if (picked != null) {
       setState(() => _firstPeriodAt = picked);

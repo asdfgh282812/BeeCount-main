@@ -2399,6 +2399,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appearanceColorSchemeOffDesc => '红色表示支出，绿色表示收入';
 
   @override
+  String get appearanceFirstDayOfWeek => 'Week Starts On';
+
+  @override
   String fontSettingsCurrentScale(Object scale) {
     return '当前缩放：x$scale';
   }
@@ -12001,6 +12004,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get appearanceColorSchemeOffDesc => '紅色表示支出，綠色表示收入';
+
+  @override
+  String get appearanceFirstDayOfWeek => '每週起始日';
 
   @override
   String fontSettingsCurrentScale(Object scale) {
