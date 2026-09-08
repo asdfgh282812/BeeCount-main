@@ -7,6 +7,20 @@
   "cloudLoginReminderDontShowAgain": "不再提示",
   "cloudLoginReminderDismiss": "關閉",
   "cloudLoginReminderGoLogin": "去登入",
+  "appUpdateReminderTitle": "有新版本可用",
+  "appUpdateReminderBody": "目前版本 {current},新版本 {latest} 已發布,請至你原本取得安裝檔的管道下載更新。",
+  "@appUpdateReminderBody": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "latest": {
+        "type": "String"
+      }
+    }
+  },
+  "appUpdateReminderDontShowAgain": "不再提示此版本",
+  "appUpdateReminderDismiss": "知道了",
   "aboutPrivacyPolicy": "隱私政策",
   "aboutChangelog": "更新日誌",
   "about": "關於",

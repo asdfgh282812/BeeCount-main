@@ -470,6 +470,15 @@ class BeeCountCloudProvider implements CloudProvider {
     return storage.revokeDevice(deviceId: deviceId);
   }
 
+  Future<void> reportAppVersion({required String appVersion}) async {
+    final storage = _storage;
+    if (storage == null) {
+      throw CloudConfigurationException(
+          'BeeCount Cloud storage is not initialized.');
+    }
+    return storage.reportAppVersion(appVersion: appVersion);
+  }
+
   /// 通知中心(user-global,非 sync 实体) —— App 只负责拉取/已读标记,不做任何
   /// 本地通知规则计算,内容全部由 server 端 cron/写入侧生成。
   Future<BeeCountCloudNotificationPage> fetchNotifications({
@@ -608,6 +617,18 @@ class BeeCountCloudProvider implements CloudProvider {
           'BeeCount Cloud storage is not initialized.');
     }
     return storage.fetchServerVersion();
+  }
+
+  /// App 端新版本提醒(公开端点,不需要 token)。管理者在 BeeCount Cloud
+  /// 后台手动填/自动侦测出来的"目前最新版本号"。失败抛,调用方自己 swallow
+  /// (见 `maybeShowAppUpdateReminder`,网络失败视同这次跳过检查)。
+  Future<BeeCountCloudLatestAppVersion> fetchLatestAppVersion() async {
+    final storage = _storage;
+    if (storage == null) {
+      throw CloudConfigurationException(
+          'BeeCount Cloud storage is not initialized.');
+    }
+    return storage.fetchLatestAppVersion();
   }
 
   // ===========================================================================
@@ -2754,6 +2775,31 @@ class BeeCountCloudStorageService implements CloudStorageService {
     }
   }
 
+  /// 把当前设备的最新 app_version 推给 server。
+  ///
+  /// login/register/sso/2fa 都会顺带 upsert app_version(见 `_loadDeviceMetadata`
+  /// 在这些请求里带的 device 参数),但 access token 靠 refresh token 续期时
+  /// 不会重新走这些端点 —— 用户升级 app 之后如果没有重新登录,server 上的
+  /// app_version 就会一直停在上次登录时的旧版本。这个方法给调用方(app 层的
+  /// 版本比对逻辑)一个显式补推的入口。
+  Future<void> reportAppVersion({required String appVersion}) async {
+    await auth.requireAccessToken();
+    final deviceId = auth.currentDeviceId;
+    if (deviceId == null || deviceId.isEmpty) {
+      throw CloudNotAuthenticatedException(
+          'Missing device id, please login again.');
+    }
+    final response = await _authedRequest(
+      method: 'POST',
+      path: '/devices/$deviceId/report-version',
+      body: {'app_version': appVersion},
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw CloudStorageException(
+          'Report device version failed: ${_extractErrorMessage(response)}');
+    }
+  }
+
   Future<BeeCountCloudNotificationPage> fetchNotifications({
     int limit = 50,
     int offset = 0,
@@ -2952,6 +2998,19 @@ class BeeCountCloudStorageService implements CloudStorageService {
     }
     final payload = _decodeJsonObject(response.body);
     return BeeCountCloudServerVersion.fromJson(payload);
+  }
+
+  /// 拉 server 公开 /app-version/latest。绕开 auth token —— 版本号不敏感,
+  /// App 端新版本提醒不需要使用者登入就能查。
+  Future<BeeCountCloudLatestAppVersion> fetchLatestAppVersion() async {
+    final uri = Uri.parse('$baseUrl$apiPrefix/app-version/latest');
+    final response = await _httpClient.get(uri);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw CloudStorageException(
+          'Fetch latest app version failed: ${_extractErrorMessage(response)}');
+    }
+    final payload = _decodeJsonObject(response.body);
+    return BeeCountCloudLatestAppVersion.fromJson(payload);
   }
 
   // ===========================================================================
@@ -4187,6 +4246,21 @@ class BeeCountCloudServerVersion {
     return BeeCountCloudServerVersion(
       name: (json['name'] as String?)?.trim() ?? 'BeeCount Cloud',
       version: (json['version'] as String?)?.trim() ?? '',
+    );
+  }
+}
+
+/// `GET /app-version/latest` 的回應。`version` 可能是 null(server 從未設定
+/// 過/從未偵測成功過),App 端看到 null 就跳過提醒。
+class BeeCountCloudLatestAppVersion {
+  const BeeCountCloudLatestAppVersion({this.version});
+
+  final String? version;
+
+  factory BeeCountCloudLatestAppVersion.fromJson(Map<String, dynamic> json) {
+    final raw = (json['version'] as String?)?.trim();
+    return BeeCountCloudLatestAppVersion(
+      version: raw == null || raw.isEmpty ? null : raw,
     );
   }
 }

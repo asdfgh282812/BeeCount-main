@@ -149,6 +149,30 @@ abstract class AppLocalizations {
   /// **'Sign in'**
   String get cloudLoginReminderGoLogin;
 
+  /// No description provided for @appUpdateReminderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'A new version is available'**
+  String get appUpdateReminderTitle;
+
+  /// No description provided for @appUpdateReminderBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Current version {current}, new version {latest} has been released. Please download the update from where you originally got the app.'**
+  String appUpdateReminderBody(String current, String latest);
+
+  /// No description provided for @appUpdateReminderDontShowAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t show this again for this version'**
+  String get appUpdateReminderDontShowAgain;
+
+  /// No description provided for @appUpdateReminderDismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get appUpdateReminderDismiss;
+
   /// No description provided for @aboutPrivacyPolicy.
   ///
   /// In en, this message translates to:

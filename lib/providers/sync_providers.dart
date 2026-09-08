@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_cloud_sync/flutter_cloud_sync.dart' hide SyncStatus;
 import '../cloud/sync_service.dart';
@@ -320,6 +321,13 @@ final syncServiceProvider = Provider<SyncService>((ref) {
 
     engine.startListeningRealtime();
 
+    // 升级检测:login/register/sso/2fa 才会顺带把 app_version 推给 server,
+    // 但 session 平时靠 refresh token 续期,不会重新走这些端点。这里在每次
+    // SyncEngine 就绪时比对"当前运行的版本"跟"上次成功报给 server 的版本"
+    // (存本地 SharedPreferences,不是 server 回执,避免网络失败也标记为已上报),
+    // 不一样就补推一次。
+    unawaited(reportAppVersionIfChanged(cloudProvider));
+
     // §7 共享账本兜底:切账本时(尤其是切回共享账本时)触发一次 sync。
     // 用户报告"切到自己账本再切回来 WS 不同步" — 实际可能 WS 还在但
     // pull 漏了或某次 ws 推送漏了。这里 ref.listen 切账本就主动同步,
@@ -564,6 +572,32 @@ final beecountCloudServerVersionProvider =
     return null;
   }
 });
+
+const _lastReportedAppVersionKey = 'last_reported_app_version';
+
+/// 把"当前运行的 app 版本"跟"上次成功报给 server 的版本"比对,不一样就调
+/// `POST /devices/{id}/report-version` 补推一次,并把新值写回本地。
+///
+/// 只在本地判断"版本变了"才发请求 —— 不是每次 SyncEngine 就绪都打一次 API。
+/// 存本地而不是读 server 当前值,是因为读 server 需要多一次往返,而且网络失败
+/// 时不该反复重试到成功为止(下次冷启动/切账本触发 SyncEngine 重建时自然会
+/// 再比对一次,失败了也不会永久卡住)。
+Future<void> reportAppVersionIfChanged(BeeCountCloudProvider cloud) async {
+  try {
+    final info = await PackageInfo.fromPlatform();
+    final currentVersion = '${info.version}+${info.buildNumber}';
+
+    final prefs = await SharedPreferences.getInstance();
+    final lastReported = prefs.getString(_lastReportedAppVersionKey);
+    if (lastReported == currentVersion) return;
+
+    await cloud.reportAppVersion(appVersion: currentVersion);
+    await prefs.setString(_lastReportedAppVersionKey, currentVersion);
+    logger.info('SyncProvider', 'app_version 已同步到 server: $currentVersion');
+  } catch (e, st) {
+    logger.warning('SyncProvider', 'app_version 上报失败 (non-blocking): $e', st);
+  }
+}
 
 /// 双向对齐 profile:server 上缺失但本地有的字段,把本地推上去。
 /// 解决"用户一直在用 A,但 AI 配置 / 主题 / 外观早就设好了,server 从未收到过"

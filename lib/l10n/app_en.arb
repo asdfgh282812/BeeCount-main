@@ -8,6 +8,20 @@
   "cloudLoginReminderDontShowAgain": "Don't show this again",
   "cloudLoginReminderDismiss": "Close",
   "cloudLoginReminderGoLogin": "Sign in",
+  "appUpdateReminderTitle": "A new version is available",
+  "appUpdateReminderBody": "Current version {current}, new version {latest} has been released. Please download the update from where you originally got the app.",
+  "@appUpdateReminderBody": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "latest": {
+        "type": "String"
+      }
+    }
+  },
+  "appUpdateReminderDontShowAgain": "Don't show this again for this version",
+  "appUpdateReminderDismiss": "Got it",
   "aboutPrivacyPolicy": "Privacy Policy",
   "aboutChangelog": "Changelog",
   "appTitle": "Bee Accounting",

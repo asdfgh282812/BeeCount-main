@@ -35,6 +35,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudLoginReminderGoLogin => 'Sign in';
 
   @override
+  String get appUpdateReminderTitle => 'A new version is available';
+
+  @override
+  String appUpdateReminderBody(String current, String latest) {
+    return 'Current version $current, new version $latest has been released. Please download the update from where you originally got the app.';
+  }
+
+  @override
+  String get appUpdateReminderDontShowAgain =>
+      'Don\'t show this again for this version';
+
+  @override
+  String get appUpdateReminderDismiss => 'Got it';
+
+  @override
   String get aboutPrivacyPolicy => 'Privacy Policy';
 
   @override

@@ -35,6 +35,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudLoginReminderGoLogin => 'Sign in';
 
   @override
+  String get appUpdateReminderTitle => 'A new version is available';
+
+  @override
+  String appUpdateReminderBody(String current, String latest) {
+    return 'Current version $current, new version $latest has been released. Please download the update from where you originally got the app.';
+  }
+
+  @override
+  String get appUpdateReminderDontShowAgain =>
+      'Don\'t show this again for this version';
+
+  @override
+  String get appUpdateReminderDismiss => 'Got it';
+
+  @override
   String get aboutPrivacyPolicy => '隐私政策';
 
   @override
@@ -9633,6 +9648,20 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get cloudLoginReminderGoLogin => '去登入';
+
+  @override
+  String get appUpdateReminderTitle => '有新版本可用';
+
+  @override
+  String appUpdateReminderBody(String current, String latest) {
+    return '目前版本 $current,新版本 $latest 已發布,請至你原本取得安裝檔的管道下載更新。';
+  }
+
+  @override
+  String get appUpdateReminderDontShowAgain => '不再提示此版本';
+
+  @override
+  String get appUpdateReminderDismiss => '知道了';
 
   @override
   String get aboutPrivacyPolicy => '隱私政策';
