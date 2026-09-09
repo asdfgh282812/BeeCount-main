@@ -6446,6 +6446,12 @@ class AppLocalizationsKo extends AppLocalizations {
   String get aiProviderBasicInfo => '기본 정보';
 
   @override
+  String get aiProviderFamilyOpenAI => 'OpenAI';
+
+  @override
+  String get aiProviderFamilyGemini => 'Gemini 네이티브';
+
+  @override
   String get aiProviderName => '제공업체 이름';
 
   @override

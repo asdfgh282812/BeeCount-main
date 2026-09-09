@@ -18,7 +18,8 @@ import '../../utils/website_urls.dart';
 final aiProviderListRefreshProvider = StateProvider<int>((ref) => 0);
 
 /// AI 服务商列表 Provider
-final aiProvidersProvider = FutureProvider<List<AIServiceProviderConfig>>((ref) async {
+final aiProvidersProvider =
+    FutureProvider<List<AIServiceProviderConfig>>((ref) async {
   ref.watch(aiProviderListRefreshProvider);
   return AIProviderManager.getProviders();
 });
@@ -28,7 +29,8 @@ class AIProviderManagePage extends ConsumerStatefulWidget {
   const AIProviderManagePage({super.key});
 
   @override
-  ConsumerState<AIProviderManagePage> createState() => _AIProviderManagePageState();
+  ConsumerState<AIProviderManagePage> createState() =>
+      _AIProviderManagePageState();
 }
 
 class _AIProviderManagePageState extends ConsumerState<AIProviderManagePage> {
@@ -123,7 +125,9 @@ class _AIProviderManagePageState extends ConsumerState<AIProviderManagePage> {
                 children: [
                   Icon(
                     provider.isBuiltIn ? Icons.verified : Icons.cloud_outlined,
-                    color: provider.isBuiltIn ? primaryColor : BeeTokens.textSecondary(context),
+                    color: provider.isBuiltIn
+                        ? primaryColor
+                        : BeeTokens.textSecondary(context),
                     size: 20,
                   ),
                   const SizedBox(width: 8),
@@ -138,7 +142,8 @@ class _AIProviderManagePageState extends ConsumerState<AIProviderManagePage> {
                   ),
                   if (provider.isBuiltIn)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: primaryColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
@@ -197,11 +202,13 @@ class _AIProviderManagePageState extends ConsumerState<AIProviderManagePage> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.warning_amber, size: 16, color: Colors.orange[700]),
+                      Icon(Icons.warning_amber,
+                          size: 16, color: Colors.orange[700]),
                       const SizedBox(width: 6),
                       Text(
                         l10n.aiProviderNoApiKey,
-                        style: TextStyle(fontSize: 12, color: Colors.orange[700]),
+                        style:
+                            TextStyle(fontSize: 12, color: Colors.orange[700]),
                       ),
                     ],
                   ),
@@ -279,7 +286,8 @@ class _AIProviderManagePageState extends ConsumerState<AIProviderManagePage> {
     }
   }
 
-  Future<void> _editProvider(BuildContext context, AIServiceProviderConfig provider) async {
+  Future<void> _editProvider(
+      BuildContext context, AIServiceProviderConfig provider) async {
     final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
@@ -292,7 +300,8 @@ class _AIProviderManagePageState extends ConsumerState<AIProviderManagePage> {
     }
   }
 
-  Future<void> _deleteProvider(BuildContext context, AIServiceProviderConfig provider) async {
+  Future<void> _deleteProvider(
+      BuildContext context, AIServiceProviderConfig provider) async {
     final l10n = AppLocalizations.of(context);
 
     final confirmed = await showDialog<bool>(
@@ -347,6 +356,7 @@ class _AIProviderEditPageState extends ConsumerState<AIProviderEditPage> {
   late final TextEditingController _textModelController;
   late final TextEditingController _visionModelController;
   late final TextEditingController _audioModelController;
+  late String _apiFamily;
 
   bool _obscureApiKey = true;
   bool _saving = false;
@@ -376,6 +386,7 @@ class _AIProviderEditPageState extends ConsumerState<AIProviderEditPage> {
     _textModelController = TextEditingController(text: p?.textModel ?? '');
     _visionModelController = TextEditingController(text: p?.visionModel ?? '');
     _audioModelController = TextEditingController(text: p?.audioModel ?? '');
+    _apiFamily = p?.apiFamily ?? 'openai';
   }
 
   @override
@@ -399,7 +410,8 @@ class _AIProviderEditPageState extends ConsumerState<AIProviderEditPage> {
       body: Column(
         children: [
           PrimaryHeader(
-            title: _isEditing ? l10n.aiProviderEditTitle : l10n.aiProviderAddTitle,
+            title:
+                _isEditing ? l10n.aiProviderEditTitle : l10n.aiProviderAddTitle,
             showBack: true,
             actions: [
               TextButton(
@@ -457,11 +469,48 @@ class _AIProviderEditPageState extends ConsumerState<AIProviderEditPage> {
                             border: const OutlineInputBorder(),
                             isDense: true,
                             focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: primaryColor, width: 2),
+                              borderSide:
+                                  BorderSide(color: primaryColor, width: 2),
                             ),
                           ),
                         ),
                         const SizedBox(height: 16),
+
+                        if (!_isBuiltIn) ...[
+                          SegmentedButton<String>(
+                            segments: [
+                              ButtonSegment(
+                                  value: 'openai',
+                                  label: Text(l10n.aiProviderFamilyOpenAI)),
+                              ButtonSegment(
+                                  value: 'gemini',
+                                  label: Text(l10n.aiProviderFamilyGemini)),
+                            ],
+                            selected: {_apiFamily},
+                            onSelectionChanged: _saving || _isTesting
+                                ? null
+                                : (selection) {
+                                    setState(() {
+                                      _apiFamily = selection.first;
+                                      _textTestStatus = TestStatus.idle;
+                                      _visionTestStatus = TestStatus.idle;
+                                      _speechTestStatus = TestStatus.idle;
+                                      _textTestError = null;
+                                      _visionTestError = null;
+                                      _speechTestError = null;
+                                      if (_apiFamily == 'gemini') {
+                                        if (_baseUrlController.text
+                                            .trim()
+                                            .isEmpty) {
+                                          _baseUrlController.text =
+                                              'https://generativelanguage.googleapis.com/v1beta';
+                                        }
+                                      }
+                                    });
+                                  },
+                          ),
+                          const SizedBox(height: 16),
+                        ],
 
                         // Base URL（内置服务商不可编辑）
                         TextField(
@@ -469,12 +518,17 @@ class _AIProviderEditPageState extends ConsumerState<AIProviderEditPage> {
                           enabled: !_isBuiltIn,
                           decoration: InputDecoration(
                             labelText: 'Base URL',
-                            hintText: 'https://api.example.com/v1',
-                            helperText: _isBuiltIn ? null : l10n.aiCustomBaseUrlHelper,
+                            hintText: _apiFamily == 'gemini'
+                                ? 'https://generativelanguage.googleapis.com/v1beta'
+                                : 'https://api.example.com/v1',
+                            helperText: _isBuiltIn || _apiFamily == 'gemini'
+                                ? null
+                                : l10n.aiCustomBaseUrlHelper,
                             border: const OutlineInputBorder(),
                             isDense: true,
                             focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: primaryColor, width: 2),
+                              borderSide:
+                                  BorderSide(color: primaryColor, width: 2),
                             ),
                           ),
                         ),
@@ -485,7 +539,8 @@ class _AIProviderEditPageState extends ConsumerState<AIProviderEditPage> {
                           children: [
                             const Text(
                               'API Key',
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                              style: TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.w500),
                             ),
                             const Spacer(),
                             _buildInlineTestButton(
@@ -504,22 +559,27 @@ class _AIProviderEditPageState extends ConsumerState<AIProviderEditPage> {
                             border: const OutlineInputBorder(),
                             isDense: true,
                             focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: primaryColor, width: 2),
+                              borderSide:
+                                  BorderSide(color: primaryColor, width: 2),
                             ),
                             suffixIcon: IconButton(
                               icon: Icon(
-                                _obscureApiKey ? Icons.visibility_off : Icons.visibility,
+                                _obscureApiKey
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
                                 size: 20,
                               ),
                               onPressed: () {
-                                setState(() => _obscureApiKey = !_obscureApiKey);
+                                setState(
+                                    () => _obscureApiKey = !_obscureApiKey);
                               },
                             ),
                           ),
                         ),
 
                         // 文本测试错误信息
-                        if (_textTestStatus == TestStatus.failed && _textTestError != null) ...[
+                        if (_textTestStatus == TestStatus.failed &&
+                            _textTestError != null) ...[
                           const SizedBox(height: 8),
                           Container(
                             width: double.infinity,
@@ -530,7 +590,8 @@ class _AIProviderEditPageState extends ConsumerState<AIProviderEditPage> {
                             ),
                             child: Text(
                               _textTestError!,
-                              style: const TextStyle(fontSize: 12, color: Colors.red),
+                              style: const TextStyle(
+                                  fontSize: 12, color: Colors.red),
                             ),
                           ),
                         ],
@@ -555,7 +616,8 @@ class _AIProviderEditPageState extends ConsumerState<AIProviderEditPage> {
                                 style: TextButton.styleFrom(
                                   foregroundColor: primaryColor,
                                   textStyle: const TextStyle(fontSize: 13),
-                                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 4),
                                 ),
                               ),
                               const Spacer(),
@@ -566,7 +628,8 @@ class _AIProviderEditPageState extends ConsumerState<AIProviderEditPage> {
                                 style: TextButton.styleFrom(
                                   foregroundColor: primaryColor,
                                   textStyle: const TextStyle(fontSize: 13),
-                                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 4),
                                 ),
                               ),
                             ],
@@ -608,7 +671,11 @@ class _AIProviderEditPageState extends ConsumerState<AIProviderEditPage> {
                         _buildModelInputWithTest(
                           controller: _textModelController,
                           label: l10n.aiTextModelTitle,
-                          hintText: _isBuiltIn ? AIConstants.defaultGlmModel : 'gpt-4o-mini',
+                          hintText: _isBuiltIn
+                              ? AIConstants.defaultGlmModel
+                              : _apiFamily == 'gemini'
+                                  ? 'gemini-3.5-flash'
+                                  : 'gpt-4o-mini',
                           testStatus: _textTestStatus,
                           testError: _textTestError,
                           onTest: _testTextCapability,
@@ -619,7 +686,11 @@ class _AIProviderEditPageState extends ConsumerState<AIProviderEditPage> {
                         _buildModelInputWithTest(
                           controller: _visionModelController,
                           label: l10n.aiVisionModelTitle,
-                          hintText: _isBuiltIn ? AIConstants.defaultGlmVisionModel : 'gpt-4o',
+                          hintText: _isBuiltIn
+                              ? AIConstants.defaultGlmVisionModel
+                              : _apiFamily == 'gemini'
+                                  ? 'gemini-3.5-flash'
+                                  : 'gpt-4o',
                           testStatus: _visionTestStatus,
                           testError: _visionTestError,
                           onTest: _testVisionCapability,
@@ -630,7 +701,11 @@ class _AIProviderEditPageState extends ConsumerState<AIProviderEditPage> {
                         _buildModelInputWithTest(
                           controller: _audioModelController,
                           label: l10n.aiAudioModelTitle,
-                          hintText: _isBuiltIn ? AIConstants.defaultGlmAudioModel : 'whisper-1',
+                          hintText: _isBuiltIn
+                              ? AIConstants.defaultGlmAudioModel
+                              : _apiFamily == 'gemini'
+                                  ? 'gemini-3.5-flash'
+                                  : 'whisper-1',
                           testStatus: _speechTestStatus,
                           testError: _speechTestError,
                           onTest: _testSpeechCapability,
@@ -661,6 +736,7 @@ class _AIProviderEditPageState extends ConsumerState<AIProviderEditPage> {
       isBuiltIn: _isBuiltIn,
       apiKey: _apiKeyController.text,
       baseUrl: _baseUrlController.text,
+      apiFamily: _apiFamily,
       textModel: _textModelController.text,
       visionModel: _visionModelController.text,
       audioModel: _audioModelController.text,
@@ -684,7 +760,8 @@ class _AIProviderEditPageState extends ConsumerState<AIProviderEditPage> {
 
     try {
       final config = _getCurrentConfig();
-      final (success, error) = await AIProviderFactory.validateTextCapability(config);
+      final (success, error) =
+          await AIProviderFactory.validateTextCapability(config);
 
       if (mounted) {
         setState(() {
@@ -718,7 +795,8 @@ class _AIProviderEditPageState extends ConsumerState<AIProviderEditPage> {
 
     try {
       final config = _getCurrentConfig();
-      final (success, error) = await AIProviderFactory.validateVisionCapability(config);
+      final (success, error) =
+          await AIProviderFactory.validateVisionCapability(config);
 
       if (mounted) {
         setState(() {
@@ -752,7 +830,8 @@ class _AIProviderEditPageState extends ConsumerState<AIProviderEditPage> {
 
     try {
       final config = _getCurrentConfig();
-      final (success, error) = await AIProviderFactory.validateSpeechCapability(config);
+      final (success, error) =
+          await AIProviderFactory.validateSpeechCapability(config);
 
       if (mounted) {
         setState(() {
@@ -794,6 +873,7 @@ class _AIProviderEditPageState extends ConsumerState<AIProviderEditPage> {
           name: _isBuiltIn ? null : _nameController.text.trim(),
           apiKey: _apiKeyController.text.trim(),
           baseUrl: _isBuiltIn ? null : _baseUrlController.text.trim(),
+          apiFamily: _isBuiltIn ? null : _apiFamily,
           textModel: _textModelController.text.trim(),
           visionModel: _visionModelController.text.trim(),
           audioModel: _audioModelController.text.trim(),
@@ -805,6 +885,7 @@ class _AIProviderEditPageState extends ConsumerState<AIProviderEditPage> {
           name: _nameController.text.trim(),
           apiKey: _apiKeyController.text.trim(),
           baseUrl: _baseUrlController.text.trim(),
+          apiFamily: _apiFamily,
           textModel: _textModelController.text.trim(),
           visionModel: _visionModelController.text.trim(),
           audioModel: _audioModelController.text.trim(),
@@ -852,7 +933,8 @@ class _AIProviderEditPageState extends ConsumerState<AIProviderEditPage> {
             _buildInlineTestButton(
               status: testStatus,
               onTest: onTest,
-              enabled: _apiKeyController.text.isNotEmpty && controller.text.isNotEmpty,
+              enabled: _apiKeyController.text.isNotEmpty &&
+                  controller.text.isNotEmpty,
             ),
           ],
         ),
@@ -862,7 +944,8 @@ class _AIProviderEditPageState extends ConsumerState<AIProviderEditPage> {
           controller: controller,
           decoration: InputDecoration(
             hintText: hintText,
-            helperText: controller.text.isEmpty ? l10n.aiModelInputHelper : null,
+            helperText:
+                controller.text.isEmpty ? l10n.aiModelInputHelper : null,
             border: const OutlineInputBorder(),
             isDense: true,
             focusedBorder: OutlineInputBorder(
@@ -1007,7 +1090,8 @@ class _AIProviderEditPageState extends ConsumerState<AIProviderEditPage> {
           ? SizedBox(
               width: 14,
               height: 14,
-              child: CircularProgressIndicator(strokeWidth: 2, color: primaryColor),
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: primaryColor),
             )
           : Icon(
               status == TestStatus.success
@@ -1029,7 +1113,8 @@ class _AIProviderEditPageState extends ConsumerState<AIProviderEditPage> {
 
   /// 打开智谱 GLM 网站
   Future<void> _openGlmWebsite() async {
-    final uri = Uri.parse('https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys');
+    final uri =
+        Uri.parse('https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }

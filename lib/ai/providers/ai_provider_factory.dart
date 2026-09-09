@@ -67,6 +67,8 @@ class AIProviderFactory {
 
     if (config.isBuiltIn) {
       return _chatZhipu(config, prompt, systemPrompt, temperature);
+    } else if (config.apiFamily == 'gemini') {
+      return _chatGemini(config, prompt, systemPrompt, temperature);
     } else {
       return _chatOpenAI(config, prompt, systemPrompt, temperature);
     }
@@ -101,6 +103,8 @@ class AIProviderFactory {
 
     if (config.isBuiltIn) {
       return _visionZhipu(config, image, prompt);
+    } else if (config.apiFamily == 'gemini') {
+      return _visionGemini(config, image, prompt);
     } else {
       return _visionOpenAI(config, image, prompt);
     }
@@ -133,6 +137,8 @@ class AIProviderFactory {
 
     if (config.isBuiltIn) {
       return _speechToTextZhipu(config, audio);
+    } else if (config.apiFamily == 'gemini') {
+      return _speechToTextGemini(config, audio);
     } else {
       return _speechToTextOpenAI(config, audio);
     }
@@ -168,7 +174,6 @@ class AIProviderFactory {
   }) async {
     final tag = logTag ?? 'AIFactory';
     logger.info(tag, '验证文本能力: ${config.name}');
-    logger.debug(tag, '  Base URL: ${config.baseUrl}');
     logger.debug(tag, '  模型: ${config.textModel}');
 
     if (!config.isValid) {
@@ -183,6 +188,8 @@ class AIProviderFactory {
       String response;
       if (config.isBuiltIn) {
         response = await _chatZhipu(config, 'hi', null, 0.7);
+      } else if (config.apiFamily == 'gemini') {
+        response = await _chatGemini(config, 'hi', null, 0.7);
       } else {
         response = await _chatOpenAI(config, 'hi', null, 0.7);
       }
@@ -209,7 +216,6 @@ class AIProviderFactory {
   }) async {
     final tag = logTag ?? 'AIFactory';
     logger.info(tag, '验证视觉能力: ${config.name}');
-    logger.debug(tag, '  Base URL: ${config.baseUrl}');
     logger.debug(tag, '  模型: ${config.visionModel}');
 
     if (!config.isValid) {
@@ -231,6 +237,8 @@ class AIProviderFactory {
         String response;
         if (config.isBuiltIn) {
           response = await _visionZhipu(config, testImage, '描述这张图片');
+        } else if (config.apiFamily == 'gemini') {
+          response = await _visionGemini(config, testImage, '描述这张图片');
         } else {
           response = await _visionOpenAI(config, testImage, '描述这张图片');
         }
@@ -263,7 +271,6 @@ class AIProviderFactory {
   }) async {
     final tag = logTag ?? 'AIFactory';
     logger.info(tag, '验证语音能力: ${config.name}');
-    logger.debug(tag, '  Base URL: ${config.baseUrl}');
     logger.debug(tag, '  模型: ${config.audioModel}');
 
     if (!config.isValid) {
@@ -284,6 +291,8 @@ class AIProviderFactory {
       try {
         if (config.isBuiltIn) {
           await _speechToTextZhipu(config, testAudio);
+        } else if (config.apiFamily == 'gemini') {
+          await _speechToTextGemini(config, testAudio);
         } else {
           await _speechToTextOpenAI(config, testAudio);
         }
@@ -611,6 +620,191 @@ class AIProviderFactory {
     }
   }
 
+  static String _buildGeminiUrl(
+    AIServiceProviderConfig config,
+    String model,
+  ) {
+    final base = Uri.parse(config.baseUrl.trim());
+    if (!base.hasAuthority || !{'http', 'https'}.contains(base.scheme)) {
+      throw AIException('Gemini Base URL 无效');
+    }
+    final segments =
+        base.pathSegments.where((part) => part.isNotEmpty).toList();
+    if (segments.isNotEmpty && segments.last == 'openai') {
+      segments.removeLast();
+    }
+    if (segments.isNotEmpty && segments.last == 'models') {
+      segments.removeLast();
+    }
+    if (segments.isEmpty) segments.add('v1beta');
+    final modelName = model.trim().replaceFirst(RegExp(r'^models/'), '');
+    return Uri(
+      scheme: base.scheme,
+      host: base.host,
+      port: base.hasPort ? base.port : null,
+      pathSegments: [...segments, 'models', '$modelName:generateContent'],
+    ).toString();
+  }
+
+  static Dio _getGeminiDio(AIServiceProviderConfig config) {
+    return Dio(BaseOptions(
+      connectTimeout: const Duration(seconds: 60),
+      receiveTimeout: const Duration(seconds: 120),
+      sendTimeout: const Duration(seconds: 120),
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': config.apiKey,
+      },
+    ));
+  }
+
+  static Future<String> _generateGemini(
+    AIServiceProviderConfig config,
+    String model,
+    List<Map<String, dynamic>> parts, {
+    String? systemPrompt,
+    required double temperature,
+    bool allowEmpty = false,
+  }) async {
+    final url = _buildGeminiUrl(config, model);
+    final dio = _getGeminiDio(config);
+    logger.debug('AIFactory', '请求: $url');
+    try {
+      final response = await dio.post(url, data: {
+        'contents': [
+          {'role': 'user', 'parts': parts},
+        ],
+        if (systemPrompt != null && systemPrompt.isNotEmpty)
+          'systemInstruction': {
+            'parts': [
+              {'text': systemPrompt},
+            ],
+          },
+        'generationConfig': {'temperature': temperature},
+      });
+      return _extractGeminiText(response.data, allowEmpty: allowEmpty);
+    } on DioException catch (e) {
+      throw AIException(_extractDioError(e));
+    } finally {
+      dio.close();
+    }
+  }
+
+  static String _extractGeminiText(dynamic data, {required bool allowEmpty}) {
+    if (data is! Map) throw AIException('Gemini API 返回无效响应');
+    final feedback = data['promptFeedback'];
+    if (feedback is Map &&
+        feedback['blockReason'] != null &&
+        feedback['blockReason'] != 'BLOCK_REASON_UNSPECIFIED') {
+      throw AIException('Gemini 请求被拦截: ${feedback['blockReason']}');
+    }
+    final candidates = data['candidates'];
+    if (candidates is! List) throw AIException('Gemini API 返回无效响应');
+    var text = '';
+    if (candidates.isNotEmpty) {
+      final candidate = candidates.first;
+      if (candidate is! Map) throw AIException('Gemini API 返回无效响应');
+      final reason = candidate['finishReason'];
+      if (reason != null && !{'STOP', 'MAX_TOKENS'}.contains(reason)) {
+        throw AIException('Gemini 生成未完成: $reason');
+      }
+      final content = candidate['content'];
+      final parts = content is Map ? content['parts'] : null;
+      if (parts is List) {
+        text = parts
+            .whereType<Map>()
+            .where((part) => part['thought'] != true && part['text'] is String)
+            .map((part) => part['text'] as String)
+            .join();
+      }
+    }
+    if (text.trim().isEmpty && !allowEmpty) {
+      throw AIException('Gemini API 返回空响应');
+    }
+    return text;
+  }
+
+  static Future<String> _chatGemini(
+    AIServiceProviderConfig config,
+    String prompt,
+    String? systemPrompt,
+    double temperature,
+  ) {
+    return _generateGemini(
+      config,
+      config.textModel,
+      [
+        {'text': prompt}
+      ],
+      systemPrompt: systemPrompt,
+      temperature: temperature,
+    );
+  }
+
+  static Future<String> _visionGemini(
+    AIServiceProviderConfig config,
+    File image,
+    String prompt,
+  ) async {
+    final extension = image.path.split('.').last.toLowerCase();
+    final mimeType = switch (extension) {
+      'png' => 'image/png',
+      'webp' => 'image/webp',
+      'heic' => 'image/heic',
+      'heif' => 'image/heif',
+      _ => 'image/jpeg',
+    };
+    return _generateGemini(
+      config,
+      config.visionModel,
+      [
+        {'text': prompt},
+        {
+          'inlineData': {
+            'mimeType': mimeType,
+            'data': base64Encode(await image.readAsBytes()),
+          },
+        },
+      ],
+      temperature: 0.3,
+    );
+  }
+
+  static Future<String> _speechToTextGemini(
+    AIServiceProviderConfig config,
+    File audio,
+  ) async {
+    final extension = audio.path.split('.').last.toLowerCase();
+    final mimeType = switch (extension) {
+      'mp3' => 'audio/mpeg',
+      'm4a' || 'mp4' => 'audio/mp4',
+      'aac' => 'audio/aac',
+      'ogg' => 'audio/ogg',
+      'flac' => 'audio/flac',
+      'aiff' || 'aif' => 'audio/aiff',
+      _ => 'audio/wav',
+    };
+    final text = await _generateGemini(
+      config,
+      config.audioModel,
+      [
+        {
+          'text':
+              '请将这段语音音频内容精确转换为纯文字，只输出识别到的内容，不要添加任何解释、格式标记或标点。如果是纯静音或无法识别，直接输出空字符串。',
+        },
+        {
+          'inlineData': {
+            'mimeType': mimeType,
+            'data': base64Encode(await audio.readAsBytes()),
+          },
+        },
+      ],
+      temperature: 0.0,
+      allowEmpty: true,
+    );
+    return text.trim();
+  }
+
   /// 提取 Dio 错误信息
   static String _extractDioError(DioException e, {String? logTag}) {
     final tag = logTag ?? 'AIFactory';
@@ -631,7 +825,9 @@ class AIProviderFactory {
       if (data['error'] is Map) {
         final error = data['error'] as Map;
         final message = error['message'] ?? error['msg'] ?? 'API调用失败';
-        return '[$statusCode] $message';
+        final status = error['status'];
+        final code = error['code'] ?? statusCode;
+        return '[$code] ${status == null ? '' : '$status: '}$message';
       }
       // 其他格式: {"message": "..."} 或 {"msg": "..."}
       if (data['message'] != null) {

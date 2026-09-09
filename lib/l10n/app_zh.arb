@@ -2212,6 +2212,8 @@
   "aiProviderEditTitle": "编辑服务商",
   "aiProviderAddTitle": "添加服务商",
   "aiProviderBasicInfo": "基本信息",
+  "aiProviderFamilyOpenAI": "OpenAI 体系",
+  "aiProviderFamilyGemini": "Gemini 原生体系",
   "aiProviderName": "服务商名称",
   "aiProviderNameHint": "如：硅基流动、DeepSeek",
   "aiProviderNameRequired": "请输入服务商名称",

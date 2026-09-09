@@ -6643,6 +6643,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiProviderBasicInfo => 'Basic Info';
 
   @override
+  String get aiProviderFamilyOpenAI => 'OpenAI';
+
+  @override
+  String get aiProviderFamilyGemini => 'Gemini Native';
+
+  @override
   String get aiProviderName => 'Provider Name';
 
   @override

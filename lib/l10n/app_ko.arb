@@ -1864,6 +1864,8 @@
   "aiProviderEditTitle": "제공업체 편집",
   "aiProviderAddTitle": "제공업체 추가",
   "aiProviderBasicInfo": "기본 정보",
+  "aiProviderFamilyOpenAI": "OpenAI",
+  "aiProviderFamilyGemini": "Gemini 네이티브",
   "aiProviderName": "제공업체 이름",
   "aiProviderNameHint": "예: SiliconFlow, DeepSeek",
   "aiProviderNameRequired": "제공업체 이름을 입력해 주세요",

@@ -17,6 +17,9 @@ class AIServiceProviderConfig {
   /// Base URL（自定义服务商必填）
   final String baseUrl;
 
+  /// API 家族（openai 或 gemini）
+  final String apiFamily;
+
   /// 文本模型
   final String textModel;
 
@@ -35,6 +38,7 @@ class AIServiceProviderConfig {
     this.isBuiltIn = false,
     this.apiKey = '',
     this.baseUrl = '',
+    this.apiFamily = 'openai',
     this.textModel = '',
     this.visionModel = '',
     this.audioModel = '',
@@ -47,6 +51,7 @@ class AIServiceProviderConfig {
         name: '智谱GLM',
         isBuiltIn: true,
         baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+        apiFamily: 'openai',
         textModel: 'glm-4-flash',
         visionModel: 'glm-4v-flash',
         audioModel: 'glm-4-voice',
@@ -72,6 +77,7 @@ class AIServiceProviderConfig {
     bool? isBuiltIn,
     String? apiKey,
     String? baseUrl,
+    String? apiFamily,
     String? textModel,
     String? visionModel,
     String? audioModel,
@@ -83,6 +89,7 @@ class AIServiceProviderConfig {
       isBuiltIn: isBuiltIn ?? this.isBuiltIn,
       apiKey: apiKey ?? this.apiKey,
       baseUrl: baseUrl ?? this.baseUrl,
+      apiFamily: apiFamily ?? this.apiFamily,
       textModel: textModel ?? this.textModel,
       visionModel: visionModel ?? this.visionModel,
       audioModel: audioModel ?? this.audioModel,
@@ -98,6 +105,7 @@ class AIServiceProviderConfig {
       isBuiltIn: json['isBuiltIn'] as bool? ?? false,
       apiKey: json['apiKey'] as String? ?? '',
       baseUrl: json['baseUrl'] as String? ?? '',
+      apiFamily: json['apiFamily'] as String? ?? 'openai',
       textModel: json['textModel'] as String? ?? '',
       visionModel: json['visionModel'] as String? ?? '',
       audioModel: json['audioModel'] as String? ?? '',
@@ -115,6 +123,7 @@ class AIServiceProviderConfig {
       'isBuiltIn': isBuiltIn,
       'apiKey': apiKey,
       'baseUrl': baseUrl,
+      'apiFamily': apiFamily,
       'textModel': textModel,
       'visionModel': visionModel,
       'audioModel': audioModel,

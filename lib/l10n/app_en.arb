@@ -2765,6 +2765,8 @@
   "aiProviderEditTitle": "Edit Provider",
   "aiProviderAddTitle": "Add Provider",
   "aiProviderBasicInfo": "Basic Info",
+  "aiProviderFamilyOpenAI": "OpenAI",
+  "aiProviderFamilyGemini": "Gemini Native",
   "aiProviderName": "Provider Name",
   "aiProviderNameHint": "e.g., SiliconFlow, DeepSeek",
   "aiProviderNameRequired": "Please enter provider name",

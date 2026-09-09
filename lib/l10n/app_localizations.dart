@@ -12036,6 +12036,18 @@ abstract class AppLocalizations {
   /// **'Basic Info'**
   String get aiProviderBasicInfo;
 
+  /// No description provided for @aiProviderFamilyOpenAI.
+  ///
+  /// In en, this message translates to:
+  /// **'OpenAI'**
+  String get aiProviderFamilyOpenAI;
+
+  /// No description provided for @aiProviderFamilyGemini.
+  ///
+  /// In en, this message translates to:
+  /// **'Gemini Native'**
+  String get aiProviderFamilyGemini;
+
   /// No description provided for @aiProviderName.
   ///
   /// In en, this message translates to:

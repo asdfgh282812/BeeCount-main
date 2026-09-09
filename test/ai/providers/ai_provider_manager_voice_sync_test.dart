@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:beecount/ai/providers/ai_constants.dart';
+import 'package:beecount/ai/providers/ai_provider_config.dart';
 import 'package:beecount/ai/providers/ai_provider_manager.dart';
 
 /// #252：语音设置随 AI 配置多设备同步
@@ -9,6 +10,21 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('AIProviderManager 语音设置同步', () {
+    test('服务商 API 家族可序列化，旧配置默认 OpenAI', () {
+      final legacyConfig = AIServiceProviderConfig.fromJson({
+        'id': 'legacy',
+        'name': '旧服务商',
+      });
+      final geminiConfig = legacyConfig.copyWith(apiFamily: 'gemini');
+
+      expect(legacyConfig.apiFamily, 'openai');
+      expect(geminiConfig.toJson()['apiFamily'], 'gemini');
+      expect(
+        AIServiceProviderConfig.fromJson(geminiConfig.toJson()).apiFamily,
+        'gemini',
+      );
+    });
+
     test('snapshotForSync 带上 voice_trigger_mode / voice_silence_timeout_ms',
         () async {
       SharedPreferences.setMockInitialValues({

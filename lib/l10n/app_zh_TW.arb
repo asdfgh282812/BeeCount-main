@@ -2500,6 +2500,8 @@
   "aiProviderEditTitle": "編輯服務商",
   "aiProviderAddTitle": "新增服務商",
   "aiProviderBasicInfo": "基本資訊",
+  "aiProviderFamilyOpenAI": "OpenAI 體系",
+  "aiProviderFamilyGemini": "Gemini 原生體系",
   "aiProviderName": "服務商名稱",
   "aiProviderNameHint": "如：矽基流動、DeepSeek",
   "aiProviderNameRequired": "請輸入服務商名稱",

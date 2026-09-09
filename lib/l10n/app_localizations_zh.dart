@@ -6376,6 +6376,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiProviderBasicInfo => '基本信息';
 
   @override
+  String get aiProviderFamilyOpenAI => 'OpenAI 体系';
+
+  @override
+  String get aiProviderFamilyGemini => 'Gemini 原生体系';
+
+  @override
   String get aiProviderName => '服务商名称';
 
   @override
@@ -15978,6 +15984,12 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get aiProviderBasicInfo => '基本資訊';
+
+  @override
+  String get aiProviderFamilyOpenAI => 'OpenAI 體系';
+
+  @override
+  String get aiProviderFamilyGemini => 'Gemini 原生體系';
 
   @override
   String get aiProviderName => '服務商名稱';
