@@ -76,6 +76,10 @@ class AiExtractionContext {
       // 币种匹配下沉到 BillCreationService,按这笔交易的币种去筛。
       for (final a in allAccounts) {
         if (a.hidden) continue;
+        // 主帳戶(合併帳單分組,type=='account_group')是純管理容器,不是真實可
+        // 入帳的帳戶,不該出現在餵給 AI 的候選清單裡——與手動選擇器
+        // (account_card_picker.dart)一致,子帳戶各自有自己的真實 type,照常出現。
+        if (a.type == 'account_group') continue;
         final code =
             (a.currency.isNotEmpty ? a.currency : ledgerCurrency).toUpperCase();
         accountRefs.add((name: a.name, currency: code));

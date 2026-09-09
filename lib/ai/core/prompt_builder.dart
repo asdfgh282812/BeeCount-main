@@ -64,6 +64,7 @@ class PromptBuilder {
 1. amount: 金額（支出為負數，收入為正數）
 2. time: ISO8601 格式，盡量推斷時間：
    - 明確時間（如"14:30"、"2025-11-25"）→直接使用
+   - 民國年（如台灣發票、收據常見的"115/09/20"、"民國115年9月20日"）→加1911換算為西元年（115+1911=2026，轉為"2026-09-20T12:00:00"）
    - 相對日期（昨天、前天、上週）→推算具體日期
    - 時間段（早上、中午、晚上）→使用合理時刻（早上09:00、中午12:00、晚上19:00）
    - 完全沒提到時間→使用目前時間
@@ -89,6 +90,7 @@ $_currencyFieldSpec
 外幣"在東京吃拉麵1200日圓" → [{"amount":-1200,"currency":"JPY","note":"拉麵","category":"餐飲","type":"expense"}]
 外幣"星巴克 \$6.5" → [{"amount":-6.5,"currency":"USD","note":"星巴克","category":"咖啡","type":"expense"}]
 外幣"房租 1200 歐" → [{"amount":-1200,"currency":"EUR","note":"房租","category":"居家","type":"expense"}]
+發票"統一發票 115/09/20 全聯 250元" → [{"amount":-250,"time":"2026-09-20T12:00:00","note":"全聯","category":"購物","type":"expense"}]
 多筆"早上捷運5元，中午吃飯40元，晚上買水果35元" → [{"amount":-5,"time":"{{CURRENT_DATE}}T09:00:00","note":"捷運","category":"交通","type":"expense"},{"amount":-40,"time":"{{CURRENT_DATE}}T12:00:00","category":"餐飲","type":"expense"},{"amount":-35,"time":"{{CURRENT_DATE}}T19:00:00","note":"水果","category":"購物","type":"expense"}]
 
 注意：只回傳 JSON 陣列（即使只有一筆也用陣列包裹），盡量推斷時間不要回傳 null，note 必須 ≤15 字（長標題要精簡）。外幣的 currency 一律填 ISO 代碼（USD，不是 \$ 或"美元"）''';

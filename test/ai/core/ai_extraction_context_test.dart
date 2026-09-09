@@ -118,6 +118,23 @@ void main() {
     expect(ctx.accounts.map((a) => a.name), isNot(contains('已隐藏')));
   });
 
+  test('合并账单主账户(account_group)被排除,不喂给 AI 作候选', () async {
+    final ledgerId = await repo.createLedger(name: '人民币', currency: 'CNY');
+    await repo.createAccount(
+      ledgerId: ledgerId,
+      name: '星展信用卡',
+      type: 'account_group',
+      currency: 'CNY',
+    );
+
+    final ctx = await AiExtractionContext.forLedger(
+      repository: repo,
+      ledgerId: ledgerId,
+    );
+
+    expect(ctx.accounts.map((a) => a.name), isNot(contains('星展信用卡')));
+  });
+
   test('ledgerCurrency / availableCurrencies 反映账本与账户币种', () async {
     final ledgerId = await repo.createLedger(name: '人民币', currency: 'CNY');
     await repo.createAccount(

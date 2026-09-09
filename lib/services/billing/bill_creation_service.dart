@@ -366,6 +366,10 @@ class BillCreationService {
     final pool = allAccounts
         .where((a) =>
             !a.hidden &&
+            // 主帳戶(合併帳單分組,type=='account_group')是純管理容器,不能直接
+            // 入帳——即使 AI 提示詞候選清單已排除,自訂模板/幻覺仍可能回傳其
+            // 名稱,這裡是最後一道防線,與手動選擇器一致。
+            a.type != 'account_group' &&
             (wanted == null || a.currency.toUpperCase() == wanted))
         .toList();
     final target = accountName.toLowerCase().trim();

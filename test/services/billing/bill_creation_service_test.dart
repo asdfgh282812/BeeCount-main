@@ -391,6 +391,30 @@ void main() {
       final tx = await repo.getTransactionById(txId!);
       expect(tx?.accountId, isNull);
     });
+
+    test('AI 账户名命中合并账单主账户(account_group) → 不匹配,不落到主账户上',
+        () async {
+      // 主账户是纯管理容器(不可直接入账),即使名称完全相等也不能命中——
+      // 否则交易会挂在不该入账的分组账户上而系统不拦截。
+      await repo.createAccount(
+        ledgerId: ledgerId,
+        name: '星展信用卡',
+        type: 'account_group',
+        currency: 'CNY',
+      );
+      final txId = await service.createFromBill(
+        bill: BillInfo(
+          amount: -30,
+          time: DateTime(2026, 5, 26),
+          category: '餐饮',
+          account: '星展信用卡',
+          type: BillType.expense,
+        ),
+        ledgerId: ledgerId,
+      );
+      final tx = await repo.getTransactionById(txId!);
+      expect(tx?.accountId, isNull);
+    });
   });
 
   // ============================================================
