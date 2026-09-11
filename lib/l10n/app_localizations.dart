@@ -18002,6 +18002,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Fixed {count} account(s) out of sync with server'**
   String accountBalanceReconciled(int count);
+
+  /// No description provided for @whatsNewDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s New!'**
+  String get whatsNewDialogTitle;
+
+  /// No description provided for @whatsNewDialogGotIt.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get whatsNewDialogGotIt;
+
+  /// No description provided for @whatsNewMenuTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s New!'**
+  String get whatsNewMenuTitle;
+
+  /// No description provided for @whatsNew330GeminiTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Native Gemini support'**
+  String get whatsNew330GeminiTitle;
+
+  /// No description provided for @whatsNew330GeminiDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Gemini custom providers now use Google\'s native API for text, vision, and voice recognition, for faster and more accurate AI bookkeeping.'**
+  String get whatsNew330GeminiDesc;
+
+  /// No description provided for @whatsNew330AiProjectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI bookkeeping can now assign projects'**
+  String get whatsNew330AiProjectTitle;
+
+  /// No description provided for @whatsNew330AiProjectDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on \"AI decides\" or \"ask me\" in AI settings, and AI-created transactions (chat, photo, voice) can be tagged with a project automatically or by asking you.'**
+  String get whatsNew330AiProjectDesc;
+
+  /// No description provided for @whatsNew330FirstDayOfWeekTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose your week\'s first day'**
+  String get whatsNew330FirstDayOfWeekTitle;
+
+  /// No description provided for @whatsNew330FirstDayOfWeekDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Calendar and weekly statistics now follow your chosen first day of the week, Monday or Sunday.'**
+  String get whatsNew330FirstDayOfWeekDesc;
 }
 
 class _AppLocalizationsDelegate

@@ -141,10 +141,13 @@ class _BeeAppState extends ConsumerState<BeeApp>
   ///    影響資料同步正確性。
   /// 2. 若第 1 步沒有顯示對話框,才呼叫 App 新版本提醒
   ///    ([maybeShowAppUpdateReminder])。
+  /// 3. 新功能公告([maybeShowWhatsNewOnStartup])——優先權最低,單純告知性質,
+  ///    不像前兩者影響資料正確性或提醒使用者升級,因此不比照第 2 步用回傳值
+  ///    互相 gate,一律接在第 2 步後面呼叫。
   ///
-  /// 兩者共用這顆「檢查中」旗標,避免冷啟動 + 回到前景短時間內重複觸發、
-  /// 也避免兩個提醒對話框疊在一起(第 1 步顯示對話框期間這顆旗標一直是
-  /// true,直到使用者關閉對話框、`maybeShowCloudLoginReminder` 回傳為止)。
+  /// 三者共用這顆「檢查中」旗標,避免冷啟動 + 回到前景短時間內重複觸發;
+  /// 也不會有多個提醒對話框疊在一起——任一步顯示對話框時,`await showDialog`
+  /// 會擋住後續步驟,直到使用者關閉對話框才會繼續執行下一步。
   void _checkStartupReminders() {
     if (_startupReminderCheckInProgress) return;
     _startupReminderCheckInProgress = true;
@@ -155,6 +158,9 @@ class _BeeAppState extends ConsumerState<BeeApp>
             await maybeShowCloudLoginReminder(context, ref);
         if (!loginReminderShown && mounted) {
           await maybeShowAppUpdateReminder(context, ref);
+        }
+        if (mounted) {
+          await maybeShowWhatsNewOnStartup(context, ref);
         }
       } catch (e) {
         // 静默失败,不影响 App 使用

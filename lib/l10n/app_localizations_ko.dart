@@ -9758,4 +9758,35 @@ class AppLocalizationsKo extends AppLocalizations {
   String accountBalanceReconciled(int count) {
     return 'Fixed $count account(s) out of sync with server';
   }
+
+  @override
+  String get whatsNewDialogTitle => 'What\'s New!';
+
+  @override
+  String get whatsNewDialogGotIt => 'Got it';
+
+  @override
+  String get whatsNewMenuTitle => 'What\'s New!';
+
+  @override
+  String get whatsNew330GeminiTitle => 'Native Gemini support';
+
+  @override
+  String get whatsNew330GeminiDesc =>
+      'Gemini custom providers now use Google\'s native API for text, vision, and voice recognition, for faster and more accurate AI bookkeeping.';
+
+  @override
+  String get whatsNew330AiProjectTitle =>
+      'AI bookkeeping can now assign projects';
+
+  @override
+  String get whatsNew330AiProjectDesc =>
+      'Turn on \"AI decides\" or \"ask me\" in AI settings, and AI-created transactions (chat, photo, voice) can be tagged with a project automatically or by asking you.';
+
+  @override
+  String get whatsNew330FirstDayOfWeekTitle => 'Choose your week\'s first day';
+
+  @override
+  String get whatsNew330FirstDayOfWeekDesc =>
+      'Calendar and weekly statistics now follow your chosen first day of the week, Monday or Sunday.';
 }

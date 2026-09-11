@@ -3823,5 +3823,14 @@
     "placeholders": {
       "count": { "type": "int" }
     }
-  }
+  },
+  "whatsNewDialogTitle": "新功能！",
+  "whatsNewDialogGotIt": "知道了",
+  "whatsNewMenuTitle": "新功能！",
+  "whatsNew330GeminiTitle": "原生支援 Gemini 模型",
+  "whatsNew330GeminiDesc": "Gemini 自訂供應商現在改走 Google 原生 API 處理文字、圖片與語音辨識,AI 記帳的速度與準確度都更好。",
+  "whatsNew330AiProjectTitle": "AI 記帳可以指定專案了",
+  "whatsNew330AiProjectDesc": "在 AI 設定中開啟「AI 自行判斷」或「詢問我」,對話、拍照、語音記帳時就能自動或由你指定要歸到哪個專案。",
+  "whatsNew330FirstDayOfWeekTitle": "可自訂每週起始日",
+  "whatsNew330FirstDayOfWeekDesc": "行事曆與週統計現在可以依你的設定,從週一或週日開始計算。"
 }

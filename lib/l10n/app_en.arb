@@ -4286,5 +4286,14 @@
     "placeholders": {
       "count": { "type": "int" }
     }
-  }
+  },
+  "whatsNewDialogTitle": "What's New!",
+  "whatsNewDialogGotIt": "Got it",
+  "whatsNewMenuTitle": "What's New!",
+  "whatsNew330GeminiTitle": "Native Gemini support",
+  "whatsNew330GeminiDesc": "Gemini custom providers now use Google's native API for text, vision, and voice recognition, for faster and more accurate AI bookkeeping.",
+  "whatsNew330AiProjectTitle": "AI bookkeeping can now assign projects",
+  "whatsNew330AiProjectDesc": "Turn on \"AI decides\" or \"ask me\" in AI settings, and AI-created transactions (chat, photo, voice) can be tagged with a project automatically or by asking you.",
+  "whatsNew330FirstDayOfWeekTitle": "Choose your week's first day",
+  "whatsNew330FirstDayOfWeekDesc": "Calendar and weekly statistics now follow your chosen first day of the week, Monday or Sunday."
 }

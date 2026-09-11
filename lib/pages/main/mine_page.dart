@@ -36,6 +36,7 @@ import '../settings/smart_billing_page.dart';
 import '../settings/automation_page.dart';
 import '../settings/about_page.dart';
 import '../report/annual_report_page.dart';
+import '../../whats_new/whats_new_content.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/system/update_service.dart';
@@ -371,6 +372,32 @@ class MinePage extends ConsumerWidget {
                       12.0.scaled(context, ref), 0),
                   child: Column(
                     children: [
+                      // 新功能！——只有目前版本在 kWhatsNewContent 有登記內容
+                      // 時才出現,完全由內容表決定是否啟用(見
+                      // lib/whats_new/whats_new_content.dart)。
+                      Consumer(builder: (sectionContext, sectionRef, _) {
+                        final currentVersion = sectionRef
+                            .watch(currentAppVersionProvider)
+                            .valueOrNull;
+                        final items = currentVersion == null
+                            ? null
+                            : kWhatsNewContent[currentVersion];
+                        if (items == null || items.isEmpty) {
+                          return const SizedBox.shrink();
+                        }
+                        return Column(
+                          children: [
+                            AppListTile(
+                              leading: Icons.auto_awesome,
+                              title: AppLocalizations.of(sectionContext)
+                                  .whatsNewMenuTitle,
+                              onTap: () => showWhatsNewForCurrentVersion(
+                                  sectionContext, sectionRef),
+                            ),
+                            BeeTokens.cardDivider(sectionContext),
+                          ],
+                        );
+                      }),
                       AppListTile(
                         leading: Icons.info_outline,
                         title: AppLocalizations.of(context).about,

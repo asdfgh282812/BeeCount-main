@@ -9666,6 +9666,37 @@ class AppLocalizationsZh extends AppLocalizations {
   String accountBalanceReconciled(int count) {
     return 'Fixed $count account(s) out of sync with server';
   }
+
+  @override
+  String get whatsNewDialogTitle => 'What\'s New!';
+
+  @override
+  String get whatsNewDialogGotIt => 'Got it';
+
+  @override
+  String get whatsNewMenuTitle => 'What\'s New!';
+
+  @override
+  String get whatsNew330GeminiTitle => 'Native Gemini support';
+
+  @override
+  String get whatsNew330GeminiDesc =>
+      'Gemini custom providers now use Google\'s native API for text, vision, and voice recognition, for faster and more accurate AI bookkeeping.';
+
+  @override
+  String get whatsNew330AiProjectTitle =>
+      'AI bookkeeping can now assign projects';
+
+  @override
+  String get whatsNew330AiProjectDesc =>
+      'Turn on \"AI decides\" or \"ask me\" in AI settings, and AI-created transactions (chat, photo, voice) can be tagged with a project automatically or by asking you.';
+
+  @override
+  String get whatsNew330FirstDayOfWeekTitle => 'Choose your week\'s first day';
+
+  @override
+  String get whatsNew330FirstDayOfWeekDesc =>
+      'Calendar and weekly statistics now follow your chosen first day of the week, Monday or Sunday.';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -14509,13 +14540,13 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get aiProjectAssignModeNone => '不帶入專案';
 
   @override
-  String get aiProjectAssignModeNoneDesc => 'AI 記帳建立的交易不會帶專案(目前行為)';
+  String get aiProjectAssignModeNoneDesc => 'AI 記帳建立的交易不會帶專案';
 
   @override
   String get aiProjectAssignModeAsk => '詢問使用者要用哪個專案';
 
   @override
-  String get aiProjectAssignModeAskDesc => '新增交易時跳出專案選擇器讓你選';
+  String get aiProjectAssignModeAskDesc => '新增交易時跳出專案讓你選';
 
   @override
   String get aiProjectAssignModeAiDecide => '由 AI 自動判斷';
@@ -19257,4 +19288,33 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String accountBalanceReconciled(int count) {
     return '已修正 $count 個與伺服器不同步的帳戶';
   }
+
+  @override
+  String get whatsNewDialogTitle => '新功能！';
+
+  @override
+  String get whatsNewDialogGotIt => '知道了';
+
+  @override
+  String get whatsNewMenuTitle => '新功能！';
+
+  @override
+  String get whatsNew330GeminiTitle => '原生支援 Gemini 模型';
+
+  @override
+  String get whatsNew330GeminiDesc =>
+      'Gemini 自訂供應商現在改走 Google 原生 API 處理文字、圖片與語音辨識,AI 記帳的速度與準確度都更好。';
+
+  @override
+  String get whatsNew330AiProjectTitle => 'AI 記帳可以指定專案了';
+
+  @override
+  String get whatsNew330AiProjectDesc =>
+      '在 AI 設定中開啟「AI 自行判斷」或「詢問我」,對話、拍照、語音記帳時就能自動或由你指定要歸到哪個專案。';
+
+  @override
+  String get whatsNew330FirstDayOfWeekTitle => '可自訂每週起始日';
+
+  @override
+  String get whatsNew330FirstDayOfWeekDesc => '行事曆與週統計現在可以依你的設定,從週一或週日開始計算。';
 }

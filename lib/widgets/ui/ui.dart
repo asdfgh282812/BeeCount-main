@@ -13,3 +13,4 @@ export 'bee_popup_menu.dart';
 export 'skeleton.dart';
 export 'bee_pressable.dart';
 export 'period_range_selector.dart';
+export 'whats_new_dialog.dart';
