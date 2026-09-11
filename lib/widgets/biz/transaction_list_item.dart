@@ -16,9 +16,11 @@ class TransactionListItem extends ConsumerWidget {
   final db.Category? category; // 可选的分类对象，用于显示自定义图标
   final String title;
   final double amount;
+
   /// v30 多币种:交易原币种(null/等于账本本位币 → 维持无符号纯数字;
   /// 外币 → 金额前显示其币种符号,如 JP¥/US$,一眼区分原币)。
   final String? currencyCode;
+
   /// v30 多币种:折账本本位币快照。外币交易在金额右下角显示 ≈ 折算小字(反馈13)。
   final double? nativeAmount;
   final bool isExpense; // 决定正负号
@@ -43,6 +45,9 @@ class TransactionListItem extends ConsumerWidget {
   final List<({int id, String name, String? color})>? tags; // 关联的标签
   final void Function(int tagId, String tagName)? onTagTap; // 点击标签回调
 
+  // 专案相关（一笔交易最多关联一个专案，显示在金额下方原标签的位置）
+  final db.Project? project;
+
   // 附件相关
   final int attachmentCount; // 附件数量
   final VoidCallback? onAttachmentTap; // 点击附件图标回调
@@ -56,37 +61,37 @@ class TransactionListItem extends ConsumerWidget {
   final bool hasSplits;
 
   const TransactionListItem({
-      super.key,
-      required this.icon,
-      this.category,
-      required this.title,
-      required this.amount,
-      this.currencyCode,
-      this.nativeAmount,
-      required this.isExpense,
-      this.isTransfer = false,
-      this.isAdjustment = false,
-      this.hide,
-      this.onTap,
-      this.onCategoryTap,
-      this.categoryName,
-      this.ledgerName,
-      this.onDelete,
-      this.accountName,
-      this.happenedAt,
-      this.isSelectionMode = false,
-      this.isSelected = false,
-      this.onSelectionChanged,
-      this.showFullDate = false,
-      this.tags,
-      this.onTagTap,
-      this.attachmentCount = 0,
-      this.onAttachmentTap,
-      this.excludeFromStats = false,
-      this.excludeFromBudget = false,
-      this.hasSplits = false,
+    super.key,
+    required this.icon,
+    this.category,
+    required this.title,
+    required this.amount,
+    this.currencyCode,
+    this.nativeAmount,
+    required this.isExpense,
+    this.isTransfer = false,
+    this.isAdjustment = false,
+    this.hide,
+    this.onTap,
+    this.onCategoryTap,
+    this.categoryName,
+    this.ledgerName,
+    this.onDelete,
+    this.accountName,
+    this.happenedAt,
+    this.isSelectionMode = false,
+    this.isSelected = false,
+    this.onSelectionChanged,
+    this.showFullDate = false,
+    this.tags,
+    this.onTagTap,
+    this.project,
+    this.attachmentCount = 0,
+    this.onAttachmentTap,
+    this.excludeFromStats = false,
+    this.excludeFromBudget = false,
+    this.hasSplits = false,
   });
-
 
   /// 检查是否有次要信息需要显示（时间、账户或附件）
   bool _hasSecondaryInfo(WidgetRef ref) {
@@ -96,7 +101,9 @@ class TransactionListItem extends ConsumerWidget {
     // 显示时间（设置开启 + 有数据 + 不是00:00:00）
     final showTime = ref.watch(showTransactionTimeProvider) &&
         happenedAt != null &&
-        (happenedAt!.hour != 0 || happenedAt!.minute != 0 || happenedAt!.second != 0);
+        (happenedAt!.hour != 0 ||
+            happenedAt!.minute != 0 ||
+            happenedAt!.second != 0);
 
     return showTime ||
         accountName != null ||
@@ -126,6 +133,28 @@ class TransactionListItem extends ConsumerWidget {
     );
   }
 
+  /// 专案 pill（一笔交易最多一个专案，视觉上与账本名 pill 一致：主题色 10% 底）
+  Widget _buildProjectChip(BuildContext context, WidgetRef ref, db.Project p) {
+    final color = ref.watch(primaryColorProvider);
+    final label =
+        (p.icon != null && p.icon!.isNotEmpty) ? '${p.icon} ${p.name}' : p.name;
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 120),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: BeeTokens.isDark(context) ? 0.15 : 0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        label,
+        style:
+            TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w500),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
   /// 构建次要信息小部件（时间 · 账户 + 附件图标）
   Widget _buildSecondaryInfo(BuildContext context, WidgetRef ref) {
     final parts = <String>[];
@@ -139,7 +168,9 @@ class TransactionListItem extends ConsumerWidget {
           '${happenedAt!.hour.toString().padLeft(2, '0')}:${happenedAt!.minute.toString().padLeft(2, '0')}',
         );
       } else if (ref.watch(showTransactionTimeProvider) &&
-          (happenedAt!.hour != 0 || happenedAt!.minute != 0 || happenedAt!.second != 0)) {
+          (happenedAt!.hour != 0 ||
+              happenedAt!.minute != 0 ||
+              happenedAt!.second != 0)) {
         // 完整时间模式（HH:mm:ss）
         parts.add(
           '${happenedAt!.hour.toString().padLeft(2, '0')}:${happenedAt!.minute.toString().padLeft(2, '0')}:${happenedAt!.second.toString().padLeft(2, '0')}',
@@ -153,9 +184,9 @@ class TransactionListItem extends ConsumerWidget {
     }
 
     final textStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
-      color: BeeTokens.textTertiary(context),
-      fontSize: 11,
-    );
+          color: BeeTokens.textTertiary(context),
+          fontSize: 11,
+        );
 
     // 构建附件图标部件（可点击）
     Widget buildAttachmentWidget() {
@@ -190,7 +221,8 @@ class TransactionListItem extends ConsumerWidget {
       if (excludeFromStats)
         _flagChip(context, AppLocalizations.of(context).txFlagExcludedTag),
       if (excludeFromBudget)
-        _flagChip(context, AppLocalizations.of(context).txFlagBudgetExcludedTag),
+        _flagChip(
+            context, AppLocalizations.of(context).txFlagBudgetExcludedTag),
     ];
 
     // 如果只有附件 / 标签，没有时间·账户文字
@@ -244,180 +276,202 @@ class TransactionListItem extends ConsumerWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(
             horizontal: 12, vertical: BeeDimens.listRowVertical),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // 选择模式下显示复选框，否则显示分类图标
-            if (isSelectionMode)
-              Checkbox(
-                value: isSelected,
-                onChanged: (_) => onSelectionChanged?.call(),
-                activeColor: Theme.of(context).colorScheme.primary,
-              )
-            else
-              // 分类图标，支持点击跳转
-              GestureDetector(
-                onTap: onCategoryTap,
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .primary
-                        .withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
+            Row(
+              children: [
+                // 选择模式下显示复选框，否则显示分类图标
+                if (isSelectionMode)
+                  Checkbox(
+                    value: isSelected,
+                    onChanged: (_) => onSelectionChanged?.call(),
+                    activeColor: Theme.of(context).colorScheme.primary,
+                  )
+                else
+                  // 分类图标，支持点击跳转
+                  GestureDetector(
+                    onTap: onCategoryTap,
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: hasSplits
+                          ? Icon(Icons.apps,
+                              size: 18, color: BeeTokens.iconSecondary(context))
+                          : CategoryIconWidget(
+                              category: category,
+                              size: 18,
+                            ),
+                    ),
                   ),
-                  child: hasSplits
-                      ? Icon(Icons.apps,
-                          size: 18, color: BeeTokens.iconSecondary(context))
-                      : CategoryIconWidget(
-                          category: category,
-                          size: 18,
+                const SizedBox(width: 12),
+                // 左侧：分类名称 + 备注 + 时间·账户
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // 第一行：分类名（常驻）+ 备注接在后面（括号、次要色、整体单行省略，对齐 web 端）
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Consumer(builder: (context, ref, _) {
+                                final composed = composeTransactionRowTitle(
+                                  mode: ref.watch(noteDisplayModeProvider),
+                                  categoryName: hasSplits
+                                      ? AppLocalizations.of(context)
+                                          .txSplitAggregateLabel
+                                      : categoryName,
+                                  title: title,
+                                );
+                                return Text.rich(
+                                  TextSpan(
+                                    text: composed.primary,
+                                    style: BeeTextTokens.title(context),
+                                    children: [
+                                      if (composed.parenNote != null)
+                                        TextSpan(
+                                          text: '  (${composed.parenNote})',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.copyWith(
+                                                color: BeeTokens.textSecondary(
+                                                    context),
+                                              ),
+                                        ),
+                                    ],
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                );
+                              }),
+                            ),
+                            // 全部账本模式：展示账本名标签（参考账户详情页）
+                            if (ledgerName != null &&
+                                ledgerName!.isNotEmpty) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: ref
+                                      .watch(primaryColorProvider)
+                                      .withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  ledgerName!,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: ref.watch(primaryColorProvider),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
+                        // 第三行：时间 · 账户 · 附件
+                        if (_hasSecondaryInfo(ref))
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: _buildSecondaryInfo(context, ref),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            const SizedBox(width: 12),
-            // 左侧：分类名称 + 备注 + 时间·账户
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                // 右侧：金额 + 标签
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // 第一行：分类名（常驻）+ 备注接在后面（括号、次要色、整体单行省略，对齐 web 端）
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Consumer(builder: (context, ref, _) {
-                            final composed = composeTransactionRowTitle(
-                              mode: ref.watch(noteDisplayModeProvider),
-                              categoryName: hasSplits
-                                  ? AppLocalizations.of(context)
-                                      .txSplitAggregateLabel
-                                  : categoryName,
-                              title: title,
-                            );
-                            return Text.rich(
-                              TextSpan(
-                                text: composed.primary,
-                                style: BeeTextTokens.title(context),
-                                children: [
-                                  if (composed.parenNote != null)
-                                    TextSpan(
-                                      text: '  (${composed.parenNote})',
-                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: BeeTokens.textSecondary(context),
-                                      ),
-                                    ),
-                                ],
+                    // 金额（转账不显示正负号）
+                    AmountText(
+                        value: isAdjustment
+                            ? amount // adjustment 直接显示原始值（含正负）
+                            : isExpense
+                                ? -amount
+                                : amount,
+                        hide: hide,
+                        signed: !isTransfer, // 转账不显示正负号
+                        // v30:外币交易显示其币种符号(原币语义);本位币维持纯数字
+                        showCurrency: _isForeign(ref),
+                        currencyCode: currencyCode,
+                        decimals: 2,
+                        style: BeeTextTokens.title(context).copyWith(
+                          color: isAdjustment
+                              ? (amount >= 0
+                                  ? BeeTokens.incomeColor(context, ref)
+                                  : BeeTokens.expenseColor(context, ref))
+                              : isTransfer
+                                  ? BeeTokens.textPrimary(context)
+                                  : isExpense
+                                      ? BeeTokens.expenseColor(context, ref)
+                                      : BeeTokens.incomeColor(context, ref),
+                        )),
+                    // 专案 pill(唯一,占用原标签的位置)+ ≈折算小字,同一行;
+                    // 无专案时折算独占该行。隐藏金额开关开启时折算同样遮蔽。
+                    Builder(builder: (context) {
+                      final showConverted = _isForeign(ref) &&
+                          nativeAmount != null &&
+                          nativeAmount != amount &&
+                          hide != true;
+                      final hasProject = project != null;
+                      if (!showConverted && !hasProject) {
+                        return const SizedBox.shrink();
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (hasProject)
+                              _buildProjectChip(context, ref, project!),
+                            if (hasProject && showConverted)
+                              const SizedBox(width: 6),
+                            if (showConverted)
+                              Text(
+                                '≈${nativeAmount!.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: BeeTokens.textTertiary(context),
+                                ),
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            );
-                          }),
+                          ],
                         ),
-                        // 全部账本模式：展示账本名标签（参考账户详情页）
-                        if (ledgerName != null && ledgerName!.isNotEmpty) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: ref.watch(primaryColorProvider).withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              ledgerName!,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: ref.watch(primaryColorProvider),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    // 第三行：时间 · 账户 · 附件
-                    if (_hasSecondaryInfo(ref))
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: _buildSecondaryInfo(context, ref),
-                      ),
+                      );
+                    }),
                   ],
                 ),
-              ),
-            ),
-            // 右侧：金额 + 标签
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 金额（转账不显示正负号）
-                AmountText(
-                    value: isAdjustment
-                        ? amount // adjustment 直接显示原始值（含正负）
-                        : isExpense ? -amount : amount,
-                    hide: hide,
-                    signed: !isTransfer, // 转账不显示正负号
-                    // v30:外币交易显示其币种符号(原币语义);本位币维持纯数字
-                    showCurrency: _isForeign(ref),
-                    currencyCode: currencyCode,
-                    decimals: 2,
-                    style: BeeTextTokens.title(context).copyWith(
-                      color: isAdjustment
-                          ? (amount >= 0
-                              ? BeeTokens.incomeColor(context, ref)
-                              : BeeTokens.expenseColor(context, ref))
-                          : isTransfer
-                              ? BeeTokens.textPrimary(context)
-                              : isExpense
-                                  ? BeeTokens.expenseColor(context, ref)
-                                  : BeeTokens.incomeColor(context, ref),
-                    )),
-                // 标签行 + ≈折算小字(反馈15:折算放标签右边,同一行;无标签时
-                // 折算独占该行)。隐藏金额开关开启时折算同样遮蔽。
-                // 反馈16:有折算时标签最多展示 1 个(挤位),无折算保持 2 个。
-                Builder(builder: (context) {
-                  final showConverted = _isForeign(ref) &&
-                      nativeAmount != null &&
-                      nativeAmount != amount &&
-                      hide != true;
-                  final hasTags = tags != null && tags!.isNotEmpty;
-                  if (!showConverted && !hasTags) {
-                    return const SizedBox.shrink();
-                  }
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (hasTags)
-                          TagChipList(
-                            tags: tags!,
-                            maxDisplay: showConverted ? 1 : 2,
-                            size: TagChipSize.small,
-                            spacing: 4,
-                            onTagTap: onTagTap,
-                          ),
-                        if (hasTags && showConverted)
-                          const SizedBox(width: 6),
-                        if (showConverted)
-                          Text(
-                            '≈${nativeAmount!.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: BeeTokens.textTertiary(context),
-                            ),
-                          ),
-                      ],
-                    ),
-                  );
-                }),
               ],
             ),
+            // 标签行:独立占一整行(避免标签一多挤压金额/专案列),
+            // 左侧对齐分类图标右边的文字起点(图标宽 32 + 间距 12)。
+            if (tags != null && tags!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6, left: 44),
+                child: TagChipList(
+                  tags: tags!,
+                  maxDisplay: tags!.length,
+                  size: TagChipSize.small,
+                  spacing: 4,
+                  onTagTap: onTagTap,
+                ),
+              ),
           ],
         ),
       ),
@@ -441,10 +495,11 @@ class TransactionListItem extends ConsumerWidget {
         confirmDismiss: (direction) async {
           // 显示确认对话框
           return await AppDialog.confirm<bool>(
-            context,
-            title: '确认删除',
-            message: '确定要删除这笔交易吗？此操作无法撤销。',
-          ) ?? false;
+                context,
+                title: '确认删除',
+                message: '确定要删除这笔交易吗？此操作无法撤销。',
+              ) ??
+              false;
         },
         onDismissed: (direction) {
           onDelete!();

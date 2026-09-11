@@ -515,7 +515,7 @@ abstract class TransactionRepository {
     required DateTime month,
   });
 
-  /// 获取指定日期的所有交易（含分类、标签、附件、账户）
+  /// 获取指定日期的所有交易（含分类、标签、附件、账户、专案）
   Future<
       List<
           ({
@@ -524,6 +524,7 @@ abstract class TransactionRepository {
             List<Tag> tags,
             List<TransactionAttachment> attachments,
             Account? account,
+            Project? project,
           })>> getTransactionsByDate({
     required int ledgerId,
     required DateTime date,
@@ -538,6 +539,7 @@ abstract class TransactionRepository {
             List<Tag> tags,
             List<TransactionAttachment> attachments,
             Account? account,
+            Project? project,
           })>> getTransactionsByDateRange({
     required int ledgerId,
     required DateTime startDate,

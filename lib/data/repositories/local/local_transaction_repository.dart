@@ -1519,6 +1519,7 @@ class LocalTransactionRepository implements TransactionRepository {
             List<Tag> tags,
             List<TransactionAttachment> attachments,
             Account? account,
+            Project? project,
           })>> getTransactionsByDate({
     required int ledgerId,
     required DateTime date,
@@ -1603,6 +1604,24 @@ class LocalTransactionRepository implements TransactionRepository {
       }
     }
 
+    // 批量查询专案（按 projectSyncId,专案是账本内 sync 实体,没有本地 int FK）
+    final projectSyncIds = transactions
+        .map((t) => t.projectSyncId)
+        .whereType<String>()
+        .where((s) => s.isNotEmpty)
+        .toSet();
+    final projectsBySyncId = <String, Project>{};
+    if (projectSyncIds.isNotEmpty) {
+      final projects = await (db.select(db.projects)
+            ..where((p) => p.syncId.isIn(projectSyncIds.toList())))
+          .get();
+      for (final project in projects) {
+        if (project.syncId != null) {
+          projectsBySyncId[project.syncId!] = project;
+        }
+      }
+    }
+
     // 组装结果
     final raw = transactions.map((tx) {
       return (
@@ -1611,6 +1630,9 @@ class LocalTransactionRepository implements TransactionRepository {
         tags: tagsMap[tx.id] ?? [],
         attachments: attachmentsMap[tx.id] ?? [],
         account: tx.accountId != null ? accountsMap[tx.accountId] : null,
+        project: tx.projectSyncId != null
+            ? projectsBySyncId[tx.projectSyncId]
+            : null,
       );
     }).toList();
     return _hydrateSharedOverridesFull(raw);
@@ -1635,6 +1657,7 @@ class LocalTransactionRepository implements TransactionRepository {
             List<Tag> tags,
             List<TransactionAttachment> attachments,
             Account? account,
+            Project? project,
           })>> _hydrateSharedOverridesFull(
     List<
             ({
@@ -1643,6 +1666,7 @@ class LocalTransactionRepository implements TransactionRepository {
               List<Tag> tags,
               List<TransactionAttachment> attachments,
               Account? account,
+              Project? project,
             })>
         rows,
   ) async {
@@ -1794,6 +1818,7 @@ class LocalTransactionRepository implements TransactionRepository {
         tags: tags,
         attachments: r.attachments,
         account: account,
+        project: r.project,
       );
     }).toList();
   }
@@ -1807,6 +1832,7 @@ class LocalTransactionRepository implements TransactionRepository {
             List<Tag> tags,
             List<TransactionAttachment> attachments,
             Account? account,
+            Project? project,
           })>> getTransactionsByDateRange({
     required int ledgerId,
     required DateTime startDate,
@@ -1825,13 +1851,14 @@ class LocalTransactionRepository implements TransactionRepository {
           ]))
         .get();
 
-    // 批量获取所有相关的 category, tags, attachments, account
+    // 批量获取所有相关的 category, tags, attachments, account, project
     final result = <({
       Transaction t,
       Category? category,
       List<Tag> tags,
       List<TransactionAttachment> attachments,
       Account? account,
+      Project? project,
     })>[];
 
     for (final transaction in transactions) {
@@ -1869,12 +1896,22 @@ class LocalTransactionRepository implements TransactionRepository {
             .getSingleOrNull();
       }
 
+      // 获取专案
+      Project? project;
+      final projectSyncId = transaction.projectSyncId;
+      if (projectSyncId != null && projectSyncId.isNotEmpty) {
+        project = await (db.select(db.projects)
+              ..where((p) => p.syncId.equals(projectSyncId)))
+            .getSingleOrNull();
+      }
+
       result.add((
         t: transaction,
         category: category,
         tags: tags,
         attachments: attachments,
         account: account,
+        project: project,
       ));
     }
 

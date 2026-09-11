@@ -30,13 +30,15 @@ final dailyTotalsByMonthProvider = FutureProvider.autoDispose
 /// 获取选中日期的交易详情
 /// 参数: (ledgerId, date)
 final transactionsByDateProvider = FutureProvider.autoDispose.family<
-    List<({
-      Transaction t,
-      Category? category,
-      List<Tag> tags,
-      List<TransactionAttachment> attachments,
-      Account? account,
-    })>,
+    List<
+        ({
+          Transaction t,
+          Category? category,
+          List<Tag> tags,
+          List<TransactionAttachment> attachments,
+          Account? account,
+          Project? project,
+        })>,
     ({int ledgerId, DateTime date})>(
   (ref, params) async {
     // 监听刷新触发器

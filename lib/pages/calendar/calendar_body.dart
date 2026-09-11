@@ -603,6 +603,7 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
                 hasSplits: item.t.hasSplits,
                 accountName: item.account?.name,
                 tags: tagsList.isNotEmpty ? tagsList : null,
+                project: item.project,
                 attachmentCount: item.attachments.length,
                 onTap: () async {
                   await showTransactionDetailCard(
