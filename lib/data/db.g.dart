@@ -2442,6 +2442,16 @@ class $TransactionsTable extends Transactions
           defaultConstraints: GeneratedColumn.constraintIsAlways(
               'CHECK ("needs_account_assignment" IN (0, 1))'),
           defaultValue: const Constant(false));
+  static const VerificationMeta _needsProjectAssignmentMeta =
+      const VerificationMeta('needsProjectAssignment');
+  @override
+  late final GeneratedColumn<bool> needsProjectAssignment =
+      GeneratedColumn<bool>('needs_project_assignment', aliasedName, false,
+          type: DriftSqlType.bool,
+          requiredDuringInsert: false,
+          defaultConstraints: GeneratedColumn.constraintIsAlways(
+              'CHECK ("needs_project_assignment" IN (0, 1))'),
+          defaultValue: const Constant(false));
   static const VerificationMeta _feeAmountMeta =
       const VerificationMeta('feeAmount');
   @override
@@ -2507,6 +2517,7 @@ class $TransactionsTable extends Transactions
         toAmount,
         projectSyncId,
         needsAccountAssignment,
+        needsProjectAssignment,
         feeAmount,
         feeLabel,
         discountAmount,
@@ -2708,6 +2719,12 @@ class $TransactionsTable extends Transactions
           needsAccountAssignment.isAcceptableOrUnknown(
               data['needs_account_assignment']!, _needsAccountAssignmentMeta));
     }
+    if (data.containsKey('needs_project_assignment')) {
+      context.handle(
+          _needsProjectAssignmentMeta,
+          needsProjectAssignment.isAcceptableOrUnknown(
+              data['needs_project_assignment']!, _needsProjectAssignmentMeta));
+    }
     if (data.containsKey('fee_amount')) {
       context.handle(_feeAmountMeta,
           feeAmount.isAcceptableOrUnknown(data['fee_amount']!, _feeAmountMeta));
@@ -2815,6 +2832,9 @@ class $TransactionsTable extends Transactions
       needsAccountAssignment: attachedDatabase.typeMapping.read(
           DriftSqlType.bool,
           data['${effectivePrefix}needs_account_assignment'])!,
+      needsProjectAssignment: attachedDatabase.typeMapping.read(
+          DriftSqlType.bool,
+          data['${effectivePrefix}needs_project_assignment'])!,
       feeAmount: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}fee_amount']),
       feeLabel: attachedDatabase.typeMapping
@@ -2972,6 +2992,15 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   /// 交易。
   final bool needsAccountAssignment;
 
+  /// v59:待確認專案(對齊 [needsAccountAssignment] 的姊妹旗標,design
+  /// 2026-09-11 AI 記帳專案指定邏輯):AI 記帳在「詢問使用者」/「AI 自行判斷」
+  /// 模式下,這筆找不到(或沒配對到)專案、且當下沒有 UI 可以攔截使用者選
+  /// (背景截圖/通知監聽)時,交易仍照常建立(projectSyncId 保持
+  /// null),但打這個旗標讓使用者能在「待確認專案」列表裡事後補選。有 UI 可
+  /// 攔截的路徑(AI 對話/照片/語音)不會用到這個旗標。純本地 UI 狀態,不
+  /// 需要同步(同 needsAccountAssignment)。
+  final bool needsProjectAssignment;
+
   /// v46 轉帳手續費/折損(對齐 BeeCount Cloud `read_tx_projection.fee_amount`
   /// / `fee_label` / `discount_amount` / `discount_label`,`0039_tx_fee_
   /// discount.py`——Cloud 該組欄位本來就存在,只是原本只放行
@@ -3033,6 +3062,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       this.toAmount,
       this.projectSyncId,
       required this.needsAccountAssignment,
+      required this.needsProjectAssignment,
       this.feeAmount,
       this.feeLabel,
       this.discountAmount,
@@ -3123,6 +3153,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       map['project_sync_id'] = Variable<String>(projectSyncId);
     }
     map['needs_account_assignment'] = Variable<bool>(needsAccountAssignment);
+    map['needs_project_assignment'] = Variable<bool>(needsProjectAssignment);
     if (!nullToAbsent || feeAmount != null) {
       map['fee_amount'] = Variable<double>(feeAmount);
     }
@@ -3219,6 +3250,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ? const Value.absent()
           : Value(projectSyncId),
       needsAccountAssignment: Value(needsAccountAssignment),
+      needsProjectAssignment: Value(needsProjectAssignment),
       feeAmount: feeAmount == null && nullToAbsent
           ? const Value.absent()
           : Value(feeAmount),
@@ -3284,6 +3316,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       projectSyncId: serializer.fromJson<String?>(json['projectSyncId']),
       needsAccountAssignment:
           serializer.fromJson<bool>(json['needsAccountAssignment']),
+      needsProjectAssignment:
+          serializer.fromJson<bool>(json['needsProjectAssignment']),
       feeAmount: serializer.fromJson<double?>(json['feeAmount']),
       feeLabel: serializer.fromJson<String?>(json['feeLabel']),
       discountAmount: serializer.fromJson<double?>(json['discountAmount']),
@@ -3333,6 +3367,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'toAmount': serializer.toJson<double?>(toAmount),
       'projectSyncId': serializer.toJson<String?>(projectSyncId),
       'needsAccountAssignment': serializer.toJson<bool>(needsAccountAssignment),
+      'needsProjectAssignment': serializer.toJson<bool>(needsProjectAssignment),
       'feeAmount': serializer.toJson<double?>(feeAmount),
       'feeLabel': serializer.toJson<String?>(feeLabel),
       'discountAmount': serializer.toJson<double?>(discountAmount),
@@ -3375,6 +3410,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           Value<double?> toAmount = const Value.absent(),
           Value<String?> projectSyncId = const Value.absent(),
           bool? needsAccountAssignment,
+          bool? needsProjectAssignment,
           Value<double?> feeAmount = const Value.absent(),
           Value<String?> feeLabel = const Value.absent(),
           Value<double?> discountAmount = const Value.absent(),
@@ -3441,6 +3477,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
             projectSyncId.present ? projectSyncId.value : this.projectSyncId,
         needsAccountAssignment:
             needsAccountAssignment ?? this.needsAccountAssignment,
+        needsProjectAssignment:
+            needsProjectAssignment ?? this.needsProjectAssignment,
         feeAmount: feeAmount.present ? feeAmount.value : this.feeAmount,
         feeLabel: feeLabel.present ? feeLabel.value : this.feeLabel,
         discountAmount:
@@ -3526,6 +3564,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       needsAccountAssignment: data.needsAccountAssignment.present
           ? data.needsAccountAssignment.value
           : this.needsAccountAssignment,
+      needsProjectAssignment: data.needsProjectAssignment.present
+          ? data.needsProjectAssignment.value
+          : this.needsProjectAssignment,
       feeAmount: data.feeAmount.present ? data.feeAmount.value : this.feeAmount,
       feeLabel: data.feeLabel.present ? data.feeLabel.value : this.feeLabel,
       discountAmount: data.discountAmount.present
@@ -3576,6 +3617,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('toAmount: $toAmount, ')
           ..write('projectSyncId: $projectSyncId, ')
           ..write('needsAccountAssignment: $needsAccountAssignment, ')
+          ..write('needsProjectAssignment: $needsProjectAssignment, ')
           ..write('feeAmount: $feeAmount, ')
           ..write('feeLabel: $feeLabel, ')
           ..write('discountAmount: $discountAmount, ')
@@ -3620,6 +3662,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         toAmount,
         projectSyncId,
         needsAccountAssignment,
+        needsProjectAssignment,
         feeAmount,
         feeLabel,
         discountAmount,
@@ -3664,6 +3707,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.toAmount == this.toAmount &&
           other.projectSyncId == this.projectSyncId &&
           other.needsAccountAssignment == this.needsAccountAssignment &&
+          other.needsProjectAssignment == this.needsProjectAssignment &&
           other.feeAmount == this.feeAmount &&
           other.feeLabel == this.feeLabel &&
           other.discountAmount == this.discountAmount &&
@@ -3705,6 +3749,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<double?> toAmount;
   final Value<String?> projectSyncId;
   final Value<bool> needsAccountAssignment;
+  final Value<bool> needsProjectAssignment;
   final Value<double?> feeAmount;
   final Value<String?> feeLabel;
   final Value<double?> discountAmount;
@@ -3744,6 +3789,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.toAmount = const Value.absent(),
     this.projectSyncId = const Value.absent(),
     this.needsAccountAssignment = const Value.absent(),
+    this.needsProjectAssignment = const Value.absent(),
     this.feeAmount = const Value.absent(),
     this.feeLabel = const Value.absent(),
     this.discountAmount = const Value.absent(),
@@ -3784,6 +3830,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.toAmount = const Value.absent(),
     this.projectSyncId = const Value.absent(),
     this.needsAccountAssignment = const Value.absent(),
+    this.needsProjectAssignment = const Value.absent(),
     this.feeAmount = const Value.absent(),
     this.feeLabel = const Value.absent(),
     this.discountAmount = const Value.absent(),
@@ -3826,6 +3873,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<double>? toAmount,
     Expression<String>? projectSyncId,
     Expression<bool>? needsAccountAssignment,
+    Expression<bool>? needsProjectAssignment,
     Expression<double>? feeAmount,
     Expression<String>? feeLabel,
     Expression<double>? discountAmount,
@@ -3874,6 +3922,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (projectSyncId != null) 'project_sync_id': projectSyncId,
       if (needsAccountAssignment != null)
         'needs_account_assignment': needsAccountAssignment,
+      if (needsProjectAssignment != null)
+        'needs_project_assignment': needsProjectAssignment,
       if (feeAmount != null) 'fee_amount': feeAmount,
       if (feeLabel != null) 'fee_label': feeLabel,
       if (discountAmount != null) 'discount_amount': discountAmount,
@@ -3916,6 +3966,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       Value<double?>? toAmount,
       Value<String?>? projectSyncId,
       Value<bool>? needsAccountAssignment,
+      Value<bool>? needsProjectAssignment,
       Value<double?>? feeAmount,
       Value<String?>? feeLabel,
       Value<double?>? discountAmount,
@@ -3961,6 +4012,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       projectSyncId: projectSyncId ?? this.projectSyncId,
       needsAccountAssignment:
           needsAccountAssignment ?? this.needsAccountAssignment,
+      needsProjectAssignment:
+          needsProjectAssignment ?? this.needsProjectAssignment,
       feeAmount: feeAmount ?? this.feeAmount,
       feeLabel: feeLabel ?? this.feeLabel,
       discountAmount: discountAmount ?? this.discountAmount,
@@ -4078,6 +4131,10 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       map['needs_account_assignment'] =
           Variable<bool>(needsAccountAssignment.value);
     }
+    if (needsProjectAssignment.present) {
+      map['needs_project_assignment'] =
+          Variable<bool>(needsProjectAssignment.value);
+    }
     if (feeAmount.present) {
       map['fee_amount'] = Variable<double>(feeAmount.value);
     }
@@ -4133,6 +4190,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('toAmount: $toAmount, ')
           ..write('projectSyncId: $projectSyncId, ')
           ..write('needsAccountAssignment: $needsAccountAssignment, ')
+          ..write('needsProjectAssignment: $needsProjectAssignment, ')
           ..write('feeAmount: $feeAmount, ')
           ..write('feeLabel: $feeLabel, ')
           ..write('discountAmount: $discountAmount, ')
@@ -19133,6 +19191,7 @@ typedef $$TransactionsTableCreateCompanionBuilder = TransactionsCompanion
   Value<double?> toAmount,
   Value<String?> projectSyncId,
   Value<bool> needsAccountAssignment,
+  Value<bool> needsProjectAssignment,
   Value<double?> feeAmount,
   Value<String?> feeLabel,
   Value<double?> discountAmount,
@@ -19174,6 +19233,7 @@ typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
   Value<double?> toAmount,
   Value<String?> projectSyncId,
   Value<bool> needsAccountAssignment,
+  Value<bool> needsProjectAssignment,
   Value<double?> feeAmount,
   Value<String?> feeLabel,
   Value<double?> discountAmount,
@@ -19302,6 +19362,10 @@ class $$TransactionsTableFilterComposer
 
   ColumnFilters<bool> get needsAccountAssignment => $composableBuilder(
       column: $table.needsAccountAssignment,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get needsProjectAssignment => $composableBuilder(
+      column: $table.needsProjectAssignment,
       builder: (column) => ColumnFilters(column));
 
   ColumnFilters<double> get feeAmount => $composableBuilder(
@@ -19448,6 +19512,10 @@ class $$TransactionsTableOrderingComposer
       column: $table.needsAccountAssignment,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get needsProjectAssignment => $composableBuilder(
+      column: $table.needsProjectAssignment,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<double> get feeAmount => $composableBuilder(
       column: $table.feeAmount, builder: (column) => ColumnOrderings(column));
 
@@ -19575,6 +19643,9 @@ class $$TransactionsTableAnnotationComposer
   GeneratedColumn<bool> get needsAccountAssignment => $composableBuilder(
       column: $table.needsAccountAssignment, builder: (column) => column);
 
+  GeneratedColumn<bool> get needsProjectAssignment => $composableBuilder(
+      column: $table.needsProjectAssignment, builder: (column) => column);
+
   GeneratedColumn<double> get feeAmount =>
       $composableBuilder(column: $table.feeAmount, builder: (column) => column);
 
@@ -19650,6 +19721,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<double?> toAmount = const Value.absent(),
             Value<String?> projectSyncId = const Value.absent(),
             Value<bool> needsAccountAssignment = const Value.absent(),
+            Value<bool> needsProjectAssignment = const Value.absent(),
             Value<double?> feeAmount = const Value.absent(),
             Value<String?> feeLabel = const Value.absent(),
             Value<double?> discountAmount = const Value.absent(),
@@ -19690,6 +19762,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             toAmount: toAmount,
             projectSyncId: projectSyncId,
             needsAccountAssignment: needsAccountAssignment,
+            needsProjectAssignment: needsProjectAssignment,
             feeAmount: feeAmount,
             feeLabel: feeLabel,
             discountAmount: discountAmount,
@@ -19730,6 +19803,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<double?> toAmount = const Value.absent(),
             Value<String?> projectSyncId = const Value.absent(),
             Value<bool> needsAccountAssignment = const Value.absent(),
+            Value<bool> needsProjectAssignment = const Value.absent(),
             Value<double?> feeAmount = const Value.absent(),
             Value<String?> feeLabel = const Value.absent(),
             Value<double?> discountAmount = const Value.absent(),
@@ -19770,6 +19844,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             toAmount: toAmount,
             projectSyncId: projectSyncId,
             needsAccountAssignment: needsAccountAssignment,
+            needsProjectAssignment: needsProjectAssignment,
             feeAmount: feeAmount,
             feeLabel: feeLabel,
             discountAmount: discountAmount,

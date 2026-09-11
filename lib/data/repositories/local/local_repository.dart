@@ -462,6 +462,7 @@ class LocalRepository extends BaseRepository {
     String? debtSyncId,
     String? projectSyncId,
     bool needsAccountAssignment = false,
+    bool needsProjectAssignment = false,
     double? toAmount,
     double? feeAmount,
     String? feeLabel,
@@ -503,6 +504,7 @@ class LocalRepository extends BaseRepository {
       debtSyncId: debtSyncId,
       projectSyncId: projectSyncId,
       needsAccountAssignment: needsAccountAssignment,
+      needsProjectAssignment: needsProjectAssignment,
       toAmount: toAmount,
       feeAmount: feeAmount,
       feeLabel: feeLabel,
@@ -1355,6 +1357,34 @@ class LocalRepository extends BaseRepository {
         ledgerId: old.ledgerId,
         action: 'update',
       );
+    }
+  }
+
+  @override
+  Future<List<Transaction>> getTransactionsNeedingProjectAssignment(
+          int ledgerId) =>
+      _transactionRepo.getTransactionsNeedingProjectAssignment(ledgerId);
+
+  @override
+  Future<void> setTransactionProjectAssignment({
+    required int id,
+    String? projectSyncId,
+  }) async {
+    final old = await _transactionRepo.getTransactionById(id);
+    await _transactionRepo.setTransactionProjectAssignment(
+        id: id, projectSyncId: projectSyncId);
+    if (changeTracker != null && old?.syncId != null) {
+      await changeTracker!.recordLedgerChange(
+        entityType: 'transaction',
+        entityId: id,
+        entitySyncId: old!.syncId!,
+        ledgerId: old.ledgerId,
+        action: 'update',
+      );
+    }
+    if (projectSyncId != null) {
+      unawaited(
+          ProjectBudgetReminderService.checkAndNotify(this, projectSyncId));
     }
   }
 

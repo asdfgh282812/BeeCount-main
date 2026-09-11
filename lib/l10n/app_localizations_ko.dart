@@ -4909,6 +4909,30 @@ class AppLocalizationsKo extends AppLocalizations {
       '사진으로 기록할 때 원본 이미지를 자동으로 첨부파일로 추가합니다';
 
   @override
+  String get smartBillingProjectAssignMode => 'AI Project Assignment';
+
+  @override
+  String get aiProjectAssignModeNone => 'Don\'t assign a project';
+
+  @override
+  String get aiProjectAssignModeNoneDesc =>
+      'AI-created transactions won\'t have a project (current behavior)';
+
+  @override
+  String get aiProjectAssignModeAsk => 'Ask me each time';
+
+  @override
+  String get aiProjectAssignModeAskDesc =>
+      'Show a project picker when a new transaction is created';
+
+  @override
+  String get aiProjectAssignModeAiDecide => 'Let AI decide';
+
+  @override
+  String get aiProjectAssignModeAiDecideDesc =>
+      'AI picks the best matching project automatically; asks when unsure';
+
+  @override
   String get autoScreenshotBillingIosTitle => '자동 기록';
 
   @override
@@ -9070,6 +9094,18 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get pendingAccountAssignSuccess => 'Account set';
+
+  @override
+  String get pendingProjectPageTitle => 'Projects to Confirm';
+
+  @override
+  String get pendingProjectEmptyMessage => 'Nothing to confirm';
+
+  @override
+  String get pendingProjectEntryCardTitle => 'Projects to Confirm';
+
+  @override
+  String get pendingProjectAssignSuccess => 'Project set';
 
   @override
   String get accountsDebtEntryTitle => 'Debts';

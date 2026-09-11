@@ -58,6 +58,7 @@ class AIChatService {
     int? conversationId,
     AppLocalizations? l10n,
     ResolveMissingAccount? resolveMissingAccount,
+    ResolveMissingProject? resolveMissingProject,
   }) async {
     logger.info('AIChat', '收到消息: $userInput (forceChat: $forceChat)');
     try {
@@ -67,6 +68,7 @@ class AIChatService {
           ledgerId: ledgerId,
           l10n: l10n,
           resolveMissingAccount: resolveMissingAccount,
+          resolveMissingProject: resolveMissingProject,
         );
       }
       return await _handleFreeChat(
@@ -109,6 +111,7 @@ class AIChatService {
     required int ledgerId,
     AppLocalizations? l10n,
     ResolveMissingAccount? resolveMissingAccount,
+    ResolveMissingProject? resolveMissingProject,
   }) async {
     logger.debug('AIChat', '识别为记账意图');
     final result = await _bookkeeper.fromText(
@@ -117,6 +120,7 @@ class AIChatService {
       billingTypes: [TagSeedService.billingTypeAi],
       l10n: l10n,
       resolveMissingAccount: resolveMissingAccount,
+      resolveMissingProject: resolveMissingProject,
     );
 
     if (!result.success) {

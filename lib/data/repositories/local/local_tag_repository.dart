@@ -689,6 +689,8 @@ class LocalTagRepository implements TagRepository {
           hasSplits: row.read<bool>('has_splits'),
           needsAccountAssignment:
               row.read<bool>('needs_account_assignment'),
+          needsProjectAssignment:
+              row.read<bool>('needs_project_assignment'),
         );
       }).toList();
     });

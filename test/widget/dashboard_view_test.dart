@@ -50,6 +50,7 @@ void main() {
       recurringOccurrenceOverridden: false,
       hasSplits: false,
       needsAccountAssignment: false,
+      needsProjectAssignment: false,
     );
   }
 

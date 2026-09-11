@@ -4852,6 +4852,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String get smartBillingAutoAttachmentDesc => '图片/拍照记账时自动将原图添加为附件';
 
   @override
+  String get smartBillingProjectAssignMode => 'AI Project Assignment';
+
+  @override
+  String get aiProjectAssignModeNone => 'Don\'t assign a project';
+
+  @override
+  String get aiProjectAssignModeNoneDesc =>
+      'AI-created transactions won\'t have a project (current behavior)';
+
+  @override
+  String get aiProjectAssignModeAsk => 'Ask me each time';
+
+  @override
+  String get aiProjectAssignModeAskDesc =>
+      'Show a project picker when a new transaction is created';
+
+  @override
+  String get aiProjectAssignModeAiDecide => 'Let AI decide';
+
+  @override
+  String get aiProjectAssignModeAiDecideDesc =>
+      'AI picks the best matching project automatically; asks when unsure';
+
+  @override
   String get autoScreenshotBillingIosTitle => '自动记账';
 
   @override
@@ -8978,6 +9002,18 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get pendingAccountAssignSuccess => 'Account set';
+
+  @override
+  String get pendingProjectPageTitle => 'Projects to Confirm';
+
+  @override
+  String get pendingProjectEmptyMessage => 'Nothing to confirm';
+
+  @override
+  String get pendingProjectEntryCardTitle => 'Projects to Confirm';
+
+  @override
+  String get pendingProjectAssignSuccess => 'Project set';
 
   @override
   String get accountsDebtEntryTitle => 'Debts';
@@ -14467,6 +14503,27 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get smartBillingAutoAttachmentDesc => '圖片/拍照記帳時自動將原圖新增為附件';
 
   @override
+  String get smartBillingProjectAssignMode => 'AI 專案指定';
+
+  @override
+  String get aiProjectAssignModeNone => '不帶入專案';
+
+  @override
+  String get aiProjectAssignModeNoneDesc => 'AI 記帳建立的交易不會帶專案(目前行為)';
+
+  @override
+  String get aiProjectAssignModeAsk => '詢問使用者要用哪個專案';
+
+  @override
+  String get aiProjectAssignModeAskDesc => '新增交易時跳出專案選擇器讓你選';
+
+  @override
+  String get aiProjectAssignModeAiDecide => '由 AI 自動判斷';
+
+  @override
+  String get aiProjectAssignModeAiDecideDesc => 'AI 依帳單內容自動挑選最合適的專案,不確定時再詢問';
+
+  @override
   String get autoScreenshotBillingIosTitle => '自動記帳';
 
   @override
@@ -18563,6 +18620,18 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get pendingAccountAssignSuccess => '已設定帳戶';
+
+  @override
+  String get pendingProjectPageTitle => '待確認專案';
+
+  @override
+  String get pendingProjectEmptyMessage => '沒有待確認的交易';
+
+  @override
+  String get pendingProjectEntryCardTitle => '待確認專案';
+
+  @override
+  String get pendingProjectAssignSuccess => '已設定專案';
 
   @override
   String get accountsDebtEntryTitle => '借還款';

@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:collection/collection.dart';
 
+import '../../ai/core/ai_project_assign_mode.dart';
 import '../../ai/core/bill_info.dart';
 import '../../data/db.dart';
 import '../../data/repositories/base_repository.dart';
@@ -35,6 +36,14 @@ class MissingAccountSkipped implements Exception {
   const MissingAccountSkipped();
 }
 
+/// AI 記帳「專案指定」ask 模式(或 aiDecide 配對不到時退回)的攔截回調
+/// (design 2026-09-11)。回傳本地 project id,或 null 代表使用者主動選擇
+/// 「不指定專案」——跟 [ResolveMissingAccount] 不同,這裡的 null **不是取消**,
+/// 而是正常完成(專案是可選欄位),所以沒有對應的 `Skipped` 例外。呼叫端未
+/// 提供回呼(背景渠道)時,視同下方 fallback,標記 [needsAccountAssignment]
+/// 的姊妹旗標 `needsProjectAssignment`。
+typedef ResolveMissingProject = Future<int?> Function(BillInfo bill);
+
 class BillCreationService {
   static const _tag = 'BillCreation';
 
@@ -57,6 +66,7 @@ class BillCreationService {
     AppLocalizations? l10n,
     bool autoAddTags = true,
     ResolveMissingAccount? resolveMissingAccount,
+    ResolveMissingProject? resolveMissingProject,
   }) async {
     final amount = bill.amount;
     if (amount == null || amount.abs() <= 0) {
@@ -161,6 +171,14 @@ class BillCreationService {
       await _ensureRateAvailable(txCurrency);
     }
 
+    // 4.8 專案指定(design 2026-09-11):三模式分流。none 略過;aiDecide 先按
+    // BillInfo.project 名稱比對「目前有效專案」,配對成功直接寫入不詢問;
+    // 配對不到(或 bill.project 為空)退回 ask 的行為;ask 直接呼叫回調。
+    // 兩種情形都沒有回調可用(背景渠道)時,交易照常建立,只標記
+    // needsProjectAssignment 讓使用者事後在「待確認專案」列表補選。
+    final (projectSyncId, needsProjectAssignment) =
+        await _resolveProject(bill, ledgerId, resolveMissingProject);
+
     // 5. 落库。nativeAmount 不传 —— 交给 LocalRepository._resolveTxCurrency
     //    按有效汇率折算;缺汇率时它会退化成 =amount 并被 L11 检测捞回。
     final happenedAt = bill.time ?? DateTime.now();
@@ -175,6 +193,8 @@ class BillCreationService {
       note: bill.note,
       currencyCode: txCurrency,
       needsAccountAssignment: needsAccountAssignment,
+      projectSyncId: projectSyncId,
+      needsProjectAssignment: needsProjectAssignment,
     );
 
     // 6. 自动标签:受「智能记账自动关联标签」开关控制(默认开启,关闭后不挂任何标签)。
@@ -410,6 +430,73 @@ class BillCreationService {
           return a.id;
         }
       }
+    }
+    return null;
+  }
+
+  /// 專案指定(design 2026-09-11)三模式分流。回傳 (projectSyncId, 是否標記
+  /// needsProjectAssignment)。
+  Future<(String?, bool)> _resolveProject(
+    BillInfo bill,
+    int ledgerId,
+    ResolveMissingProject? resolveMissingProject,
+  ) async {
+    final mode = await _projectAssignMode();
+    if (mode == AiProjectAssignMode.none) return (null, false);
+
+    int? matchedProjectId;
+    if (mode == AiProjectAssignMode.aiDecide) {
+      final aiProjectName = bill.project?.trim();
+      if (aiProjectName != null && aiProjectName.isNotEmpty) {
+        matchedProjectId = await _matchProjectByName(aiProjectName, ledgerId);
+      }
+    }
+
+    if (matchedProjectId != null) {
+      final syncId = (await repo.getProject(matchedProjectId))?.syncId;
+      logger.debug(_tag, '[專案匹配] "${bill.project}" → 專案ID:$matchedProjectId');
+      return (syncId, false);
+    }
+
+    // aiDecide 配對不到(或本來就是 ask 模式)→ 退回 ask 的行為。
+    if (resolveMissingProject != null) {
+      final pickedId = await resolveMissingProject(bill);
+      if (pickedId == null) {
+        // 使用者主動選擇「不指定專案」,是正常完成,不是取消。
+        return (null, false);
+      }
+      final syncId = (await repo.getProject(pickedId))?.syncId;
+      return (syncId, false);
+    }
+
+    // 背景渠道(無回呼可用):交易照常建立,標記待確認。
+    return (null, true);
+  }
+
+  /// 目前設定的 [AiProjectAssignMode],直接讀 SharedPreferences(同
+  /// [_matchAccount] 讀 `account_feature_enabled` 的慣例,service 層不依賴
+  /// Riverpod)。解析失敗(未設定/髒值)一律當作 [AiProjectAssignMode.none]。
+  Future<AiProjectAssignMode> _projectAssignMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(kAiProjectAssignModeKey);
+    return AiProjectAssignMode.values.firstWhere(
+      (m) => m.name == raw,
+      orElse: () => AiProjectAssignMode.none,
+    );
+  }
+
+  /// 按名稱匹配「目前有效(enabled=true)」的專案。完全匹配 → 模糊匹配,
+  /// 邏輯結構同 [_matchAccountByName]。
+  Future<int?> _matchProjectByName(String projectName, int ledgerId) async {
+    final projects = await repo.getAllProjects(ledgerId);
+    final target = projectName.toLowerCase().trim();
+
+    for (final p in projects) {
+      if (p.name.toLowerCase().trim() == target) return p.id;
+    }
+    for (final p in projects) {
+      final n = p.name.toLowerCase().trim();
+      if (n.contains(target) || target.contains(n)) return p.id;
     }
     return null;
   }

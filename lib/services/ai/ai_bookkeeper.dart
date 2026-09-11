@@ -47,6 +47,7 @@ class AiBookkeeper {
     String billGuard = '',
     AppLocalizations? l10n,
     ResolveMissingAccount? resolveMissingAccount,
+    ResolveMissingProject? resolveMissingProject,
   }) async {
     final context = await AiExtractionContext.forLedger(
       repository: _repo,
@@ -59,6 +60,7 @@ class AiBookkeeper {
       billingTypes: billingTypes,
       l10n: l10n,
       resolveMissingAccount: resolveMissingAccount,
+      resolveMissingProject: resolveMissingProject,
     );
   }
 
@@ -77,6 +79,7 @@ class AiBookkeeper {
     AppLocalizations? l10n,
     Future<void> Function(int txId, int index)? onSaved,
     ResolveMissingAccount? resolveMissingAccount,
+    ResolveMissingProject? resolveMissingProject,
   }) async {
     final context = await AiExtractionContext.forLedger(
       repository: _repo,
@@ -90,6 +93,7 @@ class AiBookkeeper {
       l10n: l10n,
       onSaved: onSaved,
       resolveMissingAccount: resolveMissingAccount,
+      resolveMissingProject: resolveMissingProject,
     );
   }
 
@@ -101,6 +105,7 @@ class AiBookkeeper {
     required List<String> billingTypes,
     AppLocalizations? l10n,
     ResolveMissingAccount? resolveMissingAccount,
+    ResolveMissingProject? resolveMissingProject,
   }) async {
     final context = await AiExtractionContext.forLedger(
       repository: _repo,
@@ -113,6 +118,7 @@ class AiBookkeeper {
       billingTypes: billingTypes,
       l10n: l10n,
       resolveMissingAccount: resolveMissingAccount,
+      resolveMissingProject: resolveMissingProject,
     );
     return (result: result, recognizedText: audioResult.recognizedText);
   }
@@ -131,6 +137,7 @@ class AiBookkeeper {
     AppLocalizations? l10n,
     Future<void> Function(int txId, int index)? onSaved,
     ResolveMissingAccount? resolveMissingAccount,
+    ResolveMissingProject? resolveMissingProject,
   }) async {
     if (bills.isEmpty) {
       return BookkeepingResult.empty;
@@ -150,6 +157,7 @@ class AiBookkeeper {
           billingTypes: billingTypes,
           l10n: l10n,
           resolveMissingAccount: resolveMissingAccount,
+          resolveMissingProject: resolveMissingProject,
         );
         if (txId == null) {
           failed++;

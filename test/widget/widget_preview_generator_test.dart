@@ -361,6 +361,7 @@ List<RecentTransactionItem> _recentItems(_Pack p) {
         recurringOccurrenceOverridden: false,
         hasSplits: false,
         needsAccountAssignment: false,
+        needsProjectAssignment: false,
       );
   return [
     RecentTransactionItem(

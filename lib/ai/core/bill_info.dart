@@ -46,6 +46,11 @@ class BillInfo {
   /// 标签列表
   final List<String>? tags;
 
+  /// AI 猜测的专案名称(design 2026-09-11,仅 aiDecide 模式下 prompt 会要求
+  /// AI 填写)。`null` = AI 未识别到明显相关的专案,由 `BillCreationService`
+  /// 视设定模式决定是否询问用户或标记待确认。
+  final String? project;
+
   /// 交易币种(ISO 4217 大写)。`null` = AI 未识别 → 落库时回落账本本位币
   /// (.docs/multi-currency-ai A1)。解析/兜底见 [_parseCurrency]。
   final String? currency;
@@ -66,6 +71,7 @@ class BillInfo {
     this.fromAccount,
     this.toAccount,
     this.tags,
+    this.project,
     this.currency,
     this.ledgerId,
     this.confidence = 0.0,
@@ -89,6 +95,7 @@ class BillInfo {
     String? fromAccount,
     String? toAccount,
     List<String>? tags,
+    String? project,
     String? currency,
     int? ledgerId,
     double? confidence,
@@ -103,6 +110,7 @@ class BillInfo {
       fromAccount: fromAccount ?? this.fromAccount,
       toAccount: toAccount ?? this.toAccount,
       tags: tags ?? this.tags,
+      project: project ?? this.project,
       currency: currency ?? this.currency,
       ledgerId: ledgerId ?? this.ledgerId,
       confidence: confidence ?? this.confidence,
@@ -133,6 +141,7 @@ class BillInfo {
           json['from_account'] as String? ?? json['fromAccount'] as String?,
       toAccount: json['to_account'] as String? ?? json['toAccount'] as String?,
       tags: _parseTags(json['tags'] ?? json['tag']),
+      project: json['project'] as String?,
       currency: _parseCurrency(
           json['currency'] ?? json['currency_code'] ?? json['currencyCode']),
       ledgerId: json['ledgerId'] as int?,
@@ -150,6 +159,7 @@ class BillInfo {
         'from_account': fromAccount,
         'to_account': toAccount,
         'tags': tags,
+        'project': project,
         'currency': currency,
         'ledgerId': ledgerId,
         'confidence': confidence,
@@ -233,6 +243,6 @@ class BillInfo {
   String toString() {
     return 'BillInfo(amount: $amount, time: $time, note: $note, category: $category, '
         'type: $type, account: $account, fromAccount: $fromAccount, '
-        'toAccount: $toAccount, tags: $tags, currency: $currency)';
+        'toAccount: $toAccount, tags: $tags, project: $project, currency: $currency)';
   }
 }

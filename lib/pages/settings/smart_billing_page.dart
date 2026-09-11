@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/biz.dart';
 import '../../styles/tokens.dart';
+import '../../ai/core/ai_project_assign_mode.dart';
 import '../../providers/smart_billing_providers.dart';
 import '../../providers/theme_providers.dart';
 import '../../providers/voice_billing_providers.dart';
@@ -190,6 +191,77 @@ class SmartBillingPage extends ConsumerWidget {
                   await ref
                       .read(voiceBillingSettingsProvider.notifier)
                       .setTriggerMode(value);
+                },
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(l10n.commonCancel),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// AI 記帳「專案指定」模式的顯示文案(design 2026-09-11)。
+  String _projectAssignModeTitle(AiProjectAssignMode mode, AppLocalizations l10n) {
+    switch (mode) {
+      case AiProjectAssignMode.none:
+        return l10n.aiProjectAssignModeNone;
+      case AiProjectAssignMode.ask:
+        return l10n.aiProjectAssignModeAsk;
+      case AiProjectAssignMode.aiDecide:
+        return l10n.aiProjectAssignModeAiDecide;
+    }
+  }
+
+  String _projectAssignModeDesc(AiProjectAssignMode mode, AppLocalizations l10n) {
+    switch (mode) {
+      case AiProjectAssignMode.none:
+        return l10n.aiProjectAssignModeNoneDesc;
+      case AiProjectAssignMode.ask:
+        return l10n.aiProjectAssignModeAskDesc;
+      case AiProjectAssignMode.aiDecide:
+        return l10n.aiProjectAssignModeAiDecideDesc;
+    }
+  }
+
+  /// 專案指定模式選擇彈窗(比照 [_showVoiceTriggerDialog])。
+  void _showProjectAssignModeDialog(
+    BuildContext context,
+    WidgetRef ref,
+    AiProjectAssignMode current,
+  ) {
+    final l10n = AppLocalizations.of(context);
+    final primaryColor = ref.read(primaryColorProvider);
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.smartBillingProjectAssignMode),
+        contentPadding: const EdgeInsets.symmetric(vertical: 8),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final mode in AiProjectAssignMode.values)
+              RadioListTile<AiProjectAssignMode>(
+                value: mode,
+                groupValue: current,
+                activeColor: primaryColor,
+                title: Text(
+                  _projectAssignModeTitle(mode, l10n),
+                  style: const TextStyle(fontSize: 14),
+                ),
+                subtitle: Text(
+                  _projectAssignModeDesc(mode, l10n),
+                  style: const TextStyle(fontSize: 12),
+                ),
+                onChanged: (value) {
+                  if (value == null) return;
+                  Navigator.pop(dialogContext);
+                  ref.read(smartBillingProjectAssignModeProvider.notifier).state =
+                      value;
                 },
               ),
           ],
@@ -393,6 +465,19 @@ class SmartBillingPage extends ConsumerWidget {
                             ref.read(smartBillingAutoAttachmentProvider.notifier).state = value;
                           },
                         ),
+                      ),
+                      BeeTokens.cardDivider(context),
+                      // AI 記帳專案指定模式(design 2026-09-11)
+                      AppListTile(
+                        leading: Icons.folder_outlined,
+                        title: l10n.smartBillingProjectAssignMode,
+                        subtitle: _projectAssignModeTitle(
+                            ref.watch(smartBillingProjectAssignModeProvider),
+                            l10n),
+                        onTap: () => _showProjectAssignModeDialog(
+                            context,
+                            ref,
+                            ref.read(smartBillingProjectAssignModeProvider)),
                       ),
                     ],
                   ),

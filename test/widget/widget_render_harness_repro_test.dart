@@ -233,6 +233,7 @@ void main() {
           recurringOccurrenceOverridden: false,
           hasSplits: false,
           needsAccountAssignment: false,
+          needsProjectAssignment: false,
         );
     const cat = Category(
         id: 1,

@@ -13,6 +13,7 @@ import '../services/attachment_service.dart';
 import '../services/billing/post_processor.dart';
 import '../services/data/tag_seed_service.dart';
 import '../widgets/biz/account_card_picker.dart';
+import '../widgets/biz/project_picker.dart';
 import '../widgets/ui/ui.dart';
 
 /// 图片记账入口(相册/相机)。瘦身后:UI 流程 + 兜底,业务调 [AiBookkeeper]。
@@ -112,6 +113,12 @@ class ImageBillingHelper {
           final picked = await AccountCardPicker.show(context,
               ledgerId: currentLedger.id);
           return picked?.accountId;
+        },
+        resolveMissingProject: (bill) async {
+          if (!context.mounted) return null;
+          final picked =
+              await ProjectPicker.show(context, ledgerId: currentLedger.id);
+          return picked?.project?.id;
         },
         // 多笔时每笔都挂同一张原图,方便后续从任意一笔溯源
         onSaved: autoAddAttachment

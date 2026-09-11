@@ -333,6 +333,16 @@ class Transactions extends Table {
   BoolColumn get needsAccountAssignment =>
       boolean().withDefault(const Constant(false))();
 
+  /// v59:待確認專案(對齊 [needsAccountAssignment] 的姊妹旗標,design
+  /// 2026-09-11 AI 記帳專案指定邏輯):AI 記帳在「詢問使用者」/「AI 自行判斷」
+  /// 模式下,這筆找不到(或沒配對到)專案、且當下沒有 UI 可以攔截使用者選
+  /// (背景截圖/通知監聽)時,交易仍照常建立(projectSyncId 保持
+  /// null),但打這個旗標讓使用者能在「待確認專案」列表裡事後補選。有 UI 可
+  /// 攔截的路徑(AI 對話/照片/語音)不會用到這個旗標。純本地 UI 狀態,不
+  /// 需要同步(同 needsAccountAssignment)。
+  BoolColumn get needsProjectAssignment =>
+      boolean().withDefault(const Constant(false))();
+
   /// v46 轉帳手續費/折損(對齐 BeeCount Cloud `read_tx_projection.fee_amount`
   /// / `fee_label` / `discount_amount` / `discount_label`,`0039_tx_fee_
   /// discount.py`——Cloud 該組欄位本來就存在,只是原本只放行
@@ -1201,7 +1211,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 58; // v58: 信用卡自動扣繳欄位(accounts.auto_pay_*)
+  int get schemaVersion => 59; // v59: 待確認專案(transactions.needs_project_assignment)
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2485,6 +2495,19 @@ class BeeDatabase extends _$BeeDatabase {
             await _addColumnIfMissing('accounts', 'auto_pay_from_account_id',
                 'ALTER TABLE accounts ADD COLUMN auto_pay_from_account_id TEXT;');
             logger.info('DBMigration', 'v58 迁移完成');
+          }
+          if (from < 59) {
+            // v59:待確認專案(transactions.needs_project_assignment),對齊
+            // v40 needs_account_assignment 的寫法(見
+            // docs/superpowers/specs/2026-09-11-ai-billing-project-assignment-design.md)。
+            logger.info(
+                'DBMigration', '开始迁移到 v59: 待確認專案(needs_project_assignment)');
+            await _addColumnIfMissing(
+                'transactions',
+                'needs_project_assignment',
+                'ALTER TABLE transactions ADD COLUMN needs_project_assignment '
+                    'BOOLEAN NOT NULL DEFAULT 0;');
+            logger.info('DBMigration', 'v59 迁移完成');
           }
         },
         onCreate: (m) async {

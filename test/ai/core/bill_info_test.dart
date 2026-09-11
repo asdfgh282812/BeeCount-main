@@ -86,6 +86,16 @@ void main() {
       expect(bill.tags, ['自用']);
     });
 
+    // AI 记账专案指定(design 2026-09-11):project 字段解析,同 tags 一样容错缺欄位。
+    test('project 字段:有值直接带出,缺欄位为 null', () {
+      final withProject =
+          BillInfo.fromJson({'amount': -1, 'project': '日本旅行'});
+      expect(withProject.project, '日本旅行');
+
+      final withoutProject = BillInfo.fromJson({'amount': -1});
+      expect(withoutProject.project, isNull);
+    });
+
     test('from_account / to_account camelCase 兼容', () {
       final fromSnake = BillInfo.fromJson({
         'amount': 100,

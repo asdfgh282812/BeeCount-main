@@ -291,6 +291,9 @@ abstract class TransactionRepository {
     // syncId 字串,可在新建/編輯時直接傳,也可透過交易編輯表單事後改。
     String? projectSyncId,
     bool needsAccountAssignment = false,
+    // v59 AI 記帳專案指定(design 2026-09-11):同 needsAccountAssignment,
+    // 找不到/沒配對到專案且沒有 UI 可攔截時,交易照常建立但打這個旗標。
+    bool needsProjectAssignment = false,
     // v45 跨幣別轉帳:轉入帳戶自己幣別的金額。只有 type == 'transfer' 且
     // 轉出/轉入帳戶幣別不同時才傳非 null;同幣別轉帳/非轉帳留 null。
     double? toAmount,
@@ -484,6 +487,21 @@ abstract class TransactionRepository {
   Future<void> setTransactionAccountAssignment({
     required int id,
     required int accountId,
+  });
+
+  /// 「待確認專案」列表用(v59,design 2026-09-11):回傳這個帳本裡
+  /// [needsProjectAssignment] 為 true 的交易(AI 記帳「詢問使用者」/「AI
+  /// 自行判斷」模式下,沒有 UI 可攔截時建立的)。
+  Future<List<Transaction>> getTransactionsNeedingProjectAssignment(
+      int ledgerId);
+
+  /// 「待確認專案」列表裡使用者補選專案:寫入 [projectSyncId] 並清除
+  /// [needsProjectAssignment] 旗標。跟 [setTransactionProjectLink] 分工不同
+  /// (那個不清旗標,給手動表單用);[projectSyncId]=null 代表明確選擇「不
+  /// 指定專案」,同樣算完成補選(同 [ProjectPickResult] 的慣例)。
+  Future<void> setTransactionProjectAssignment({
+    required int id,
+    String? projectSyncId,
   });
 
   /// 對帳模式選單「取消全部選取」:批次把一組交易的 reconciledAt 清空

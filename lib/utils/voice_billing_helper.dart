@@ -16,6 +16,7 @@ import '../ai/providers/ai_provider_config.dart';
 import '../services/billing/post_processor.dart';
 import '../services/data/tag_seed_service.dart';
 import '../widgets/biz/account_card_picker.dart';
+import '../widgets/biz/project_picker.dart';
 import '../widgets/ui/ui.dart';
 import '../styles/tokens.dart';
 
@@ -460,6 +461,12 @@ class _VoiceRecordingDialogState extends ConsumerState<_VoiceRecordingDialog> {
           final picked = await AccountCardPicker.show(context,
               ledgerId: currentLedger.id);
           return picked?.accountId;
+        },
+        resolveMissingProject: (bill) async {
+          if (!mounted) return null;
+          final picked =
+              await ProjectPicker.show(context, ledgerId: currentLedger.id);
+          return picked?.project?.id;
         },
       );
 

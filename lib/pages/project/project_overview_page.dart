@@ -6,6 +6,7 @@ import '../../data/repositories/project_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers.dart';
 import '../../providers/budget_providers.dart';
+import '../../providers/pending_project_providers.dart';
 import '../../providers/project_providers.dart';
 import '../../services/data/category_service.dart';
 import '../../styles/tokens.dart';
@@ -15,6 +16,7 @@ import '../../widgets/biz/biz.dart';
 import '../../widgets/ui/ui.dart';
 import '../budget/budget_edit_page.dart';
 import '../budget/widgets/budget_progress_bar.dart';
+import 'pending_project_transactions_page.dart';
 import 'project_detail_page.dart';
 import 'project_edit_page.dart';
 
@@ -111,6 +113,7 @@ class _ProjectOverviewPageState extends ConsumerState<ProjectOverviewPage> {
           error: (_, __) => const SizedBox.shrink(),
         ),
         SizedBox(height: 12.0.scaled(context, ref)),
+        _buildPendingProjectEntry(context, ref, l10n),
         if (projects.isEmpty)
           _buildEmptyState(context, l10n, isEditorInShared)
         else
@@ -128,6 +131,36 @@ class _ProjectOverviewPageState extends ConsumerState<ProjectOverviewPage> {
                 ),
               )),
       ],
+    );
+  }
+
+  /// 待確認專案入口(design 2026-09-11,完整比照 accounts_page.dart 的「待確認
+  /// 帳戶」入口卡片)——只有目前帳本存在 needsProjectAssignment=true 的交易
+  /// 時才顯示,點擊進 [PendingProjectTransactionsPage] 逐筆補選專案。
+  Widget _buildPendingProjectEntry(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l10n,
+  ) {
+    final ledgerId = ref.watch(currentLedgerIdProvider);
+    final pending = ref.watch(pendingProjectTransactionsProvider(ledgerId));
+    final count = pending.asData?.value.length ?? 0;
+    if (count == 0) return const SizedBox.shrink();
+    return Padding(
+      padding: EdgeInsets.only(bottom: 12.0.scaled(context, ref)),
+      child: SectionCard(
+        margin: EdgeInsets.zero,
+        padding: EdgeInsets.zero,
+        child: ListTile(
+          leading: const Icon(Icons.folder_outlined),
+          title: Text(l10n.pendingProjectEntryCardTitle),
+          trailing: Text('$count'),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+                builder: (_) => const PendingProjectTransactionsPage()),
+          ),
+        ),
+      ),
     );
   }
 

@@ -446,6 +446,7 @@ class LocalTransactionRepository implements TransactionRepository {
     String? debtSyncId,
     String? projectSyncId,
     bool needsAccountAssignment = false,
+    bool needsProjectAssignment = false,
     double? toAmount,
     double? feeAmount,
     String? feeLabel,
@@ -484,6 +485,7 @@ class LocalTransactionRepository implements TransactionRepository {
                 debtSyncId: d.Value(debtSyncId),
                 projectSyncId: d.Value(projectSyncId),
                 needsAccountAssignment: d.Value(needsAccountAssignment),
+                needsProjectAssignment: d.Value(needsProjectAssignment),
                 toAmount: d.Value(toAmount),
                 feeAmount: d.Value(feeAmount),
                 feeLabel: d.Value(feeLabel),
@@ -1262,6 +1264,20 @@ class LocalTransactionRepository implements TransactionRepository {
   }
 
   @override
+  Future<List<Transaction>> getTransactionsNeedingProjectAssignment(
+      int ledgerId) async {
+    return await (db.select(db.transactions)
+          ..where((t) =>
+              t.ledgerId.equals(ledgerId) &
+              t.needsProjectAssignment.equals(true))
+          ..orderBy([
+            (t) => d.OrderingTerm(
+                expression: t.happenedAt, mode: d.OrderingMode.desc)
+          ]))
+        .get();
+  }
+
+  @override
   Future<List<Transaction>> getTransactionsByLedgerInRange({
     required int ledgerId,
     required DateTime start,
@@ -1396,6 +1412,19 @@ class LocalTransactionRepository implements TransactionRepository {
       TransactionsCompanion(
         accountId: d.Value(accountId),
         needsAccountAssignment: const d.Value(false),
+      ),
+    );
+  }
+
+  @override
+  Future<void> setTransactionProjectAssignment({
+    required int id,
+    String? projectSyncId,
+  }) async {
+    await (db.update(db.transactions)..where((t) => t.id.equals(id))).write(
+      TransactionsCompanion(
+        projectSyncId: d.Value(projectSyncId),
+        needsProjectAssignment: const d.Value(false),
       ),
     );
   }

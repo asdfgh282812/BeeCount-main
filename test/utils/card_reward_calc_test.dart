@@ -37,6 +37,7 @@ Transaction _tx(int id, double amount, DateTime happenedAt) {
     recurringOccurrenceOverridden: false,
     hasSplits: false,
     needsAccountAssignment: false,
+    needsProjectAssignment: false,
   );
 }
 

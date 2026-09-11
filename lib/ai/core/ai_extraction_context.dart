@@ -2,12 +2,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/repositories/base_repository.dart';
 import '../providers/ai_constants.dart';
+import 'ai_project_assign_mode.dart';
 
 /// 喂给 AI 的账户候选:名称 + 币种。
 ///
 /// 带币种是多币种记账的前提(.docs/multi-currency-ai A3)——AI 要能看出
 /// 「Chase 是美元账户」,才可能在用户说「用我的美元卡付的」时选中它。
 typedef AiAccountRef = ({String name, String currency});
+
+/// 喂给 AI 的专案候选:名称 + syncId(design 2026-09-11)。只在
+/// [AiProjectAssignMode.aiDecide] 模式下非空,由 [AiExtractionContext.forLedger]
+/// 查询「目前有效(enabled=true)」的专案列表得来。
+typedef AiProjectRef = ({String name, String syncId});
 
 /// AI 多模态记账底座 · 上下文
 ///
@@ -35,6 +41,11 @@ class AiExtractionContext {
   /// 用户自定义 prompt 模板。`null` 或空白 = 使用默认模板。
   final String? customPromptTemplate;
 
+  /// 目前有效(enabled=true)的专案候选,只在 [AiProjectAssignMode.aiDecide]
+  /// 模式下非空(design 2026-09-11)。none/ask 模式维持空列表,不影响 prompt
+  /// 大小、不影响既有行为。
+  final List<AiProjectRef> projects;
+
   const AiExtractionContext({
     this.expenseCategories = const [],
     this.incomeCategories = const [],
@@ -42,6 +53,7 @@ class AiExtractionContext {
     this.ledgerCurrency = 'CNY',
     this.availableCurrencies = const [],
     this.customPromptTemplate,
+    this.projects = const [],
   });
 
   /// 无账本场景的 fallback。prompt 走 hardcoded 默认分类,至少能识别金额。
@@ -93,6 +105,24 @@ class AiExtractionContext {
     final customTemplate =
         (saved != null && saved.trim().isNotEmpty) ? saved : null;
 
+    // 專案指定(design 2026-09-11):只有 aiDecide 模式才查詢候選清單,
+    // none/ask 模式維持空清單,不影響 prompt 大小、不影響既有行為。
+    final modeStr = prefs.getString(kAiProjectAssignModeKey);
+    final mode = AiProjectAssignMode.values.firstWhere(
+      (m) => m.name == modeStr,
+      orElse: () => AiProjectAssignMode.none,
+    );
+    final projectRefs = <AiProjectRef>[];
+    if (mode == AiProjectAssignMode.aiDecide) {
+      final projects = await repository.getAllProjects(ledgerId);
+      for (final p in projects) {
+        final syncId = p.syncId;
+        if (syncId != null && syncId.isNotEmpty) {
+          projectRefs.add((name: p.name, syncId: syncId));
+        }
+      }
+    }
+
     return AiExtractionContext(
       expenseCategories: expenseCats.map((c) => c.name).toList(),
       incomeCategories: incomeCats.map((c) => c.name).toList(),
@@ -100,6 +130,7 @@ class AiExtractionContext {
       ledgerCurrency: ledgerCurrency,
       availableCurrencies: currencies.toList()..sort(),
       customPromptTemplate: customTemplate,
+      projects: projectRefs,
     );
   }
 }

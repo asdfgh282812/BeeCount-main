@@ -9154,6 +9154,48 @@ abstract class AppLocalizations {
   /// **'Automatically add original image as attachment for photo billing'**
   String get smartBillingAutoAttachmentDesc;
 
+  /// No description provided for @smartBillingProjectAssignMode.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Project Assignment'**
+  String get smartBillingProjectAssignMode;
+
+  /// No description provided for @aiProjectAssignModeNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t assign a project'**
+  String get aiProjectAssignModeNone;
+
+  /// No description provided for @aiProjectAssignModeNoneDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'AI-created transactions won\'t have a project (current behavior)'**
+  String get aiProjectAssignModeNoneDesc;
+
+  /// No description provided for @aiProjectAssignModeAsk.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask me each time'**
+  String get aiProjectAssignModeAsk;
+
+  /// No description provided for @aiProjectAssignModeAskDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Show a project picker when a new transaction is created'**
+  String get aiProjectAssignModeAskDesc;
+
+  /// No description provided for @aiProjectAssignModeAiDecide.
+  ///
+  /// In en, this message translates to:
+  /// **'Let AI decide'**
+  String get aiProjectAssignModeAiDecide;
+
+  /// No description provided for @aiProjectAssignModeAiDecideDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'AI picks the best matching project automatically; asks when unsure'**
+  String get aiProjectAssignModeAiDecideDesc;
+
   /// No description provided for @autoScreenshotBillingIosTitle.
   ///
   /// In en, this message translates to:
@@ -16775,6 +16817,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Account set'**
   String get pendingAccountAssignSuccess;
+
+  /// No description provided for @pendingProjectPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Projects to Confirm'**
+  String get pendingProjectPageTitle;
+
+  /// No description provided for @pendingProjectEmptyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to confirm'**
+  String get pendingProjectEmptyMessage;
+
+  /// No description provided for @pendingProjectEntryCardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Projects to Confirm'**
+  String get pendingProjectEntryCardTitle;
+
+  /// No description provided for @pendingProjectAssignSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Project set'**
+  String get pendingProjectAssignSuccess;
 
   /// No description provided for @accountsDebtEntryTitle.
   ///

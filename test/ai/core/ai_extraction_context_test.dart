@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:beecount/ai/core/ai_extraction_context.dart';
+import 'package:beecount/ai/core/ai_project_assign_mode.dart';
 import 'package:beecount/ai/providers/ai_constants.dart';
 import 'package:beecount/data/db.dart';
 import 'package:beecount/data/repositories/local/local_repository.dart';
@@ -159,5 +160,56 @@ void main() {
     expect(ctx.accounts, isEmpty);
     expect(ctx.customPromptTemplate, isNull);
     expect(ctx.ledgerCurrency, 'CNY');
+  });
+
+  // AI 记账专案指定(design 2026-09-11):三模式下 projects 字段的行为。
+  group('专案候选(AiProjectAssignMode)', () {
+    test('none 模式(默认)下 projects 为空清单,即使有可用专案', () async {
+      final ledgerId = await repo.createLedger(name: '人民币', currency: 'CNY');
+      await repo.createProject(ledgerId: ledgerId, name: '日本旅行');
+
+      final ctx = await AiExtractionContext.forLedger(
+        repository: repo,
+        ledgerId: ledgerId,
+      );
+
+      expect(ctx.projects, isEmpty);
+    });
+
+    test('ask 模式下 projects 同样为空清单(只有 aiDecide 才查询)', () async {
+      SharedPreferences.setMockInitialValues({
+        kAiProjectAssignModeKey: AiProjectAssignMode.ask.name,
+      });
+      final ledgerId = await repo.createLedger(name: '人民币', currency: 'CNY');
+      await repo.createProject(ledgerId: ledgerId, name: '日本旅行');
+
+      final ctx = await AiExtractionContext.forLedger(
+        repository: repo,
+        ledgerId: ledgerId,
+      );
+
+      expect(ctx.projects, isEmpty);
+    });
+
+    test('aiDecide 模式下 projects 包含目前有效专案,不含已封存的', () async {
+      SharedPreferences.setMockInitialValues({
+        kAiProjectAssignModeKey: AiProjectAssignMode.aiDecide.name,
+      });
+      final ledgerId = await repo.createLedger(name: '人民币', currency: 'CNY');
+      await repo.createProject(ledgerId: ledgerId, name: '日本旅行');
+      final archivedId =
+          await repo.createProject(ledgerId: ledgerId, name: '已結束的專案');
+      await repo.updateProject(archivedId, enabled: false);
+
+      final ctx = await AiExtractionContext.forLedger(
+        repository: repo,
+        ledgerId: ledgerId,
+      );
+
+      final names = ctx.projects.map((p) => p.name).toList();
+      expect(names, contains('日本旅行'));
+      expect(names, isNot(contains('已結束的專案')));
+      expect(ctx.projects.first.syncId, isNotEmpty);
+    });
   });
 }

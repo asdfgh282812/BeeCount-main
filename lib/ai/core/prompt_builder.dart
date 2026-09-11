@@ -79,7 +79,7 @@ class PromptBuilder {
 7. from_account: 轉出帳戶（僅轉帳可用）
 8. to_account: 轉入帳戶（僅轉帳可用）
 9. tag/tags: 標籤（可選，單一字串或字串陣列）
-$_currencyFieldSpec
+$_currencyFieldSpec{{PROJECTS}}
 
 範例：
 單筆"昨天中午吃飯50" → [{"amount":-50,"time":"2025-11-24T12:00:00","category":"餐飲","type":"expense"}]
@@ -133,6 +133,9 @@ $_currencyFieldSpec
     PromptPlaceholder('{{CATEGORIES}}'),
     PromptPlaceholder('{{ACCOUNTS}}'),
     PromptPlaceholder('{{CURRENCIES}}', appendSnippet: currencySectionSnippet),
+    // 專案指定(design 2026-09-11)只在 aiDecide 模式下非空,絕大多數自訂
+    // 模板用戶根本不會用到這個能力,少了它只是少一個可選欄位,不值得警告。
+    PromptPlaceholder('{{PROJECTS}}', warnIfMissing: false),
   ];
 
   /// [template] 里缺失的、**值得提示**的占位符(即能力会失效的那些)。
@@ -202,7 +205,8 @@ $_currencyFieldSpec
         .replaceAll('{{OCR_TEXT}}', ocrText)
         .replaceAll('{{CATEGORIES}}', _buildCategoryHint(context))
         .replaceAll('{{ACCOUNTS}}', _buildAccountHint(context))
-        .replaceAll('{{CURRENCIES}}', _buildCurrencyHint(context));
+        .replaceAll('{{CURRENCIES}}', _buildCurrencyHint(context))
+        .replaceAll('{{PROJECTS}}', _buildProjectHint(context));
   }
 
   String _buildCategoryHint(AiExtractionContext ctx) {
@@ -229,6 +233,17 @@ $_currencyFieldSpec
       return (code.isEmpty || code == base) ? a.name : '${a.name}($code)';
     });
     return '\n帳戶清單：${parts.join('、')}';
+  }
+
+  /// 專案指定(design 2026-09-11)。只有 aiDecide 模式下 [ctx.projects] 才非
+  /// 空——none/ask 模式回傳空字串,prompt 完全不提「專案」這個欄位,零開銷、
+  /// 零回歸(同 [_buildAccountHint] 空帳戶清單時的處理)。
+  String _buildProjectHint(AiExtractionContext ctx) {
+    if (ctx.projects.isEmpty) return '';
+    final names = ctx.projects.map((p) => p.name).join('、');
+    return '\n11. project: 專案(可選)。僅在這筆帳單明顯與以下某個專案相關時'
+        '才填入該專案名稱，不確定或無明顯關聯就留空，不可虛構清單外的名稱\n'
+        '專案清單：$names';
   }
 
   /// 币种提示 = 主币种 + 账本内的外币账户币种 + **「中文说法 → ISO 代码」对照表**。

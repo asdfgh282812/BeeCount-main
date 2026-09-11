@@ -13,6 +13,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:beecount/ai/core/ai_project_assign_mode.dart';
 import 'package:beecount/ai/core/bill_info.dart';
 import 'package:beecount/data/db.dart';
 import 'package:beecount/data/repositories/local/local_repository.dart';
@@ -1097,6 +1098,163 @@ void main() {
         ),
         throwsA(isA<MissingAccountSkipped>()),
       );
+    });
+  });
+
+  // AI 记账专案指定(design 2026-09-11):三模式分流。
+  group('resolveMissingProject / AI 記帳專案指定', () {
+    setUp(() async {
+      await repo.createCategory(name: '餐饮', kind: 'expense');
+    });
+
+    test('none 模式(默認):即使有同名專案也不帶入,不標記旗標', () async {
+      final projectId =
+          await repo.createProject(ledgerId: ledgerId, name: '日本旅行');
+      final project = await repo.getProject(projectId);
+      final txId = await service.createFromBill(
+        bill: BillInfo(
+          amount: 30,
+          time: DateTime(2026, 5, 26),
+          category: '餐饮',
+          type: BillType.expense,
+          project: project?.name,
+        ),
+        ledgerId: ledgerId,
+      );
+      final tx = await repo.getTransactionById(txId!);
+      expect(tx?.projectSyncId, isNull);
+      expect(tx?.needsProjectAssignment, false);
+    });
+
+    test('ask 模式:沒有回調時標記 needsProjectAssignment,交易照常建立', () async {
+      SharedPreferences.setMockInitialValues({
+        kAiProjectAssignModeKey: AiProjectAssignMode.ask.name,
+      });
+      final txId = await service.createFromBill(
+        bill: BillInfo(
+          amount: 30,
+          time: DateTime(2026, 5, 26),
+          category: '餐饮',
+          type: BillType.expense,
+        ),
+        ledgerId: ledgerId,
+      );
+      final tx = await repo.getTransactionById(txId!);
+      expect(tx?.projectSyncId, isNull);
+      expect(tx?.needsProjectAssignment, true);
+    });
+
+    test('ask 模式:有回調且回傳 project id 時,寫入對應 projectSyncId', () async {
+      SharedPreferences.setMockInitialValues({
+        kAiProjectAssignModeKey: AiProjectAssignMode.ask.name,
+      });
+      final projectId =
+          await repo.createProject(ledgerId: ledgerId, name: '日本旅行');
+      final project = await repo.getProject(projectId);
+      final txId = await service.createFromBill(
+        bill: BillInfo(
+          amount: 30,
+          time: DateTime(2026, 5, 26),
+          category: '餐饮',
+          type: BillType.expense,
+        ),
+        ledgerId: ledgerId,
+        resolveMissingProject: (bill) async => projectId,
+      );
+      final tx = await repo.getTransactionById(txId!);
+      expect(tx?.projectSyncId, project?.syncId);
+      expect(tx?.needsProjectAssignment, false);
+    });
+
+    test('ask 模式:回調回傳 null(使用者選不指定)是正常完成,不拋例外也不標記旗標',
+        () async {
+      SharedPreferences.setMockInitialValues({
+        kAiProjectAssignModeKey: AiProjectAssignMode.ask.name,
+      });
+      final txId = await service.createFromBill(
+        bill: BillInfo(
+          amount: 30,
+          time: DateTime(2026, 5, 26),
+          category: '餐饮',
+          type: BillType.expense,
+        ),
+        ledgerId: ledgerId,
+        resolveMissingProject: (bill) async => null,
+      );
+      expect(txId, isNotNull);
+      final tx = await repo.getTransactionById(txId!);
+      expect(tx?.projectSyncId, isNull);
+      expect(tx?.needsProjectAssignment, false);
+    });
+
+    test('aiDecide 模式:bill.project 完全匹配時直接寫入,不呼叫回調', () async {
+      SharedPreferences.setMockInitialValues({
+        kAiProjectAssignModeKey: AiProjectAssignMode.aiDecide.name,
+      });
+      final projectId =
+          await repo.createProject(ledgerId: ledgerId, name: '日本旅行');
+      final project = await repo.getProject(projectId);
+      var callbackCalled = false;
+      final txId = await service.createFromBill(
+        bill: BillInfo(
+          amount: 30,
+          time: DateTime(2026, 5, 26),
+          category: '餐饮',
+          type: BillType.expense,
+          project: '日本旅行',
+        ),
+        ledgerId: ledgerId,
+        resolveMissingProject: (bill) async {
+          callbackCalled = true;
+          return null;
+        },
+      );
+      final tx = await repo.getTransactionById(txId!);
+      expect(tx?.projectSyncId, project?.syncId);
+      expect(tx?.needsProjectAssignment, false);
+      expect(callbackCalled, false);
+    });
+
+    test('aiDecide 模式:bill.project 配對不到時退回 ask 行為(呼叫回調)', () async {
+      SharedPreferences.setMockInitialValues({
+        kAiProjectAssignModeKey: AiProjectAssignMode.aiDecide.name,
+      });
+      final projectId =
+          await repo.createProject(ledgerId: ledgerId, name: '日本旅行');
+      final project = await repo.getProject(projectId);
+      final txId = await service.createFromBill(
+        bill: BillInfo(
+          amount: 30,
+          time: DateTime(2026, 5, 26),
+          category: '餐饮',
+          type: BillType.expense,
+          project: '完全不相關的名稱',
+        ),
+        ledgerId: ledgerId,
+        resolveMissingProject: (bill) async => projectId,
+      );
+      final tx = await repo.getTransactionById(txId!);
+      expect(tx?.projectSyncId, project?.syncId);
+    });
+
+    test('aiDecide 模式:bill.project 為空且無回調時,標記 needsProjectAssignment',
+        () async {
+      SharedPreferences.setMockInitialValues({
+        kAiProjectAssignModeKey: AiProjectAssignMode.aiDecide.name,
+      });
+      await repo.createProject(ledgerId: ledgerId, name: '日本旅行');
+      final txId = await service.createFromBill(
+        bill: BillInfo(
+          amount: 30,
+          time: DateTime(2026, 5, 26),
+          category: '餐饮',
+          type: BillType.expense,
+        ),
+        ledgerId: ledgerId,
+      );
+      final tx = await repo.getTransactionById(txId!);
+      expect(tx?.projectSyncId, isNull);
+      expect(tx?.needsProjectAssignment, true);
     });
   });
 }
