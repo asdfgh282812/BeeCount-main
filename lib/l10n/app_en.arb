@@ -135,6 +135,7 @@
   "commonNoteHint": "Note...",
   "transactionNameHint": "Name...",
   "transactionMerchantHint": "Merchant...",
+  "transactionCardRecommendationExcludedHint": "This may be an excluded category — check the web dashboard for details.",
   "transactionAddFeeDiscountButton": "Add fee/discount",
   "transactionFeeLabelHint": "Fee",
   "transactionDiscountLabelHint": "Discount",

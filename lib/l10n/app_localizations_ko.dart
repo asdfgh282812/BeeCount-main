@@ -267,6 +267,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get transactionMerchantHint => '상점...';
 
   @override
+  String get transactionCardRecommendationExcludedHint =>
+      'This may be an excluded category — check the web dashboard for details.';
+
+  @override
   String get transactionAddFeeDiscountButton => 'Add fee/discount';
 
   @override

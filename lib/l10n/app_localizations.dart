@@ -581,6 +581,12 @@ abstract class AppLocalizations {
   /// **'Merchant...'**
   String get transactionMerchantHint;
 
+  /// No description provided for @transactionCardRecommendationExcludedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This may be an excluded category — check the web dashboard for details.'**
+  String get transactionCardRecommendationExcludedHint;
+
   /// No description provided for @transactionAddFeeDiscountButton.
   ///
   /// In en, this message translates to:

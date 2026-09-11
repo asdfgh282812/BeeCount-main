@@ -267,6 +267,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get transactionMerchantHint => '商家…';
 
   @override
+  String get transactionCardRecommendationExcludedHint =>
+      'This may be an excluded category — check the web dashboard for details.';
+
+  @override
   String get transactionAddFeeDiscountButton => 'Add fee/discount';
 
   @override
@@ -9888,6 +9892,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get transactionMerchantHint => '商家…';
+
+  @override
+  String get transactionCardRecommendationExcludedHint => '此項可能為排除項，建議進網頁端查詢';
 
   @override
   String get transactionAddFeeDiscountButton => '新增手續費/折扣';

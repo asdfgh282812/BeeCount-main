@@ -1111,6 +1111,7 @@
   "commonNoteHint": "備註…",
   "transactionNameHint": "名稱…",
   "transactionMerchantHint": "商家…",
+  "transactionCardRecommendationExcludedHint": "此項可能為排除項，建議進網頁端查詢",
   "transactionAddFeeDiscountButton": "新增手續費/折扣",
   "transactionFeeLabelHint": "手續費",
   "transactionDiscountLabelHint": "折扣",

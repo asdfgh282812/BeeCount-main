@@ -390,6 +390,11 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   bool _swipesmartHasKey = false;
   Timer? _recommendationDebounce;
   ({double amount, String merchant})? _lastRecommendationQuery;
+  // SwipeSmart 對這組(金額,商家)算出來的原始結果就是空的(不是「有算出卡片
+  // 但沒對到本地帳戶」而被過濾掉)——多半代表這筆消費命中「一般消費回饋排除
+  // 項目」。SwipeSmart 本身有 reason 文字可查,但那段說明常常偏長,這裡不接
+  // 那支 API,直接給一句固定提示,要看詳細原因請使用者自己去網頁端查。
+  bool _lastRecommendationRawEmpty = false;
 
   // v51 支出/收入手續費/折扣:金額旁「+」展開單一面板(手續費列 + 折扣列
   // 同時顯示),寫法比照 transfer_form.dart 的轉出/轉入面板,但只有一個
@@ -549,11 +554,23 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
       setState(() {
         _recommendations = mapped;
         _lastRecommendationQuery = (amount: amount, merchant: merchant);
+        _lastRecommendationRawEmpty = results.isEmpty;
       });
     } catch (_) {
       // 靜默失敗——絕不能讓這個附加功能擋住記帳流程(design doc §4)。
       if (mounted) setState(() => _recommendations = []);
     }
+  }
+
+  /// 空清單時是否要顯示「可能是排除項」的提示——限定在剛好對這組(金額,商家)
+  /// 查詢過、且 SwipeSmart 回傳的原始結果就是空的情況,跟「有推薦但沒本地帳戶
+  /// 可對照」(見 [_fetchRecommendation] 的 mapped 過濾)區分開來,避免誤導。
+  bool _shouldShowRecommendationExcludedHint() {
+    if (!_lastRecommendationRawEmpty) return false;
+    final amount = double.tryParse(_amountStr) ?? 0;
+    final merchant = _merchantCtrl.text.trim();
+    return _lastRecommendationQuery?.amount == amount &&
+        _lastRecommendationQuery?.merchant == merchant;
   }
 
   /// 點一張(必為已對照)建議卡片:代入帳戶,並把它挪到列表最前面,讓「剛選
@@ -2004,6 +2021,16 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
                   const BoxConstraints(minWidth: 40, minHeight: 20),
             ),
           ),
+          if (_recommendations.isEmpty &&
+              _shouldShowRecommendationExcludedHint()) ...[
+            const SizedBox(height: 8),
+            Text(
+              AppLocalizations.of(context)
+                  .transactionCardRecommendationExcludedHint,
+              style: TextStyle(
+                  fontSize: 12, color: BeeTokens.textTertiary(context)),
+            ),
+          ],
           if (_recommendations.isNotEmpty) ...[
             const SizedBox(height: 8),
             SizedBox(
