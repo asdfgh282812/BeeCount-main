@@ -1,7 +1,11 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:super_clipboard/super_clipboard.dart';
 
 import '../ai/core/prompt_builder.dart';
 import '../ai/providers/ai_provider_config.dart';
@@ -16,14 +20,50 @@ import '../widgets/biz/account_card_picker.dart';
 import '../widgets/biz/project_picker.dart';
 import '../widgets/ui/ui.dart';
 
-/// 图片记账入口(相册/相机)。瘦身后:UI 流程 + 兜底,业务调 [AiBookkeeper]。
+/// 图片记账入口(相册/相机/剪贴板)。瘦身后:UI 流程 + 兜底,业务调 [AiBookkeeper]。
 class ImageBillingHelper {
-  /// 从相册选择图片并自动记账
+  /// 剪贴板图片支持的格式;文件扩展名需与实际数据匹配,
+  /// 否则 Gemini 等按扩展名猜 MIME 类型的供应商会解析失败,见
+  /// ai_provider_factory.dart 的 `_visionGemini`。
+  static const _clipboardImageFormats = [
+    Formats.png,
+    Formats.jpeg,
+    Formats.webp,
+    Formats.heic,
+    Formats.heif,
+  ];
+
+  /// 从相册选择图片并自动记账;若剪贴板中恰好有图片,先弹出来源选择
+  /// (剪贴板/相册),否则直接打开相册,行为与之前一致。
   static Future<void> pickImageForBilling(
     BuildContext context,
     WidgetRef ref,
-  ) =>
-      _processImageBilling(context, ref, ImageSource.gallery);
+  ) async {
+    final hasClipboardImage = await _clipboardHasImage();
+    if (!context.mounted) return;
+
+    if (hasClipboardImage) {
+      final l10n = AppLocalizations.of(context);
+      final fromClipboard = await _showImageSourceSheet(context, l10n);
+      if (fromClipboard == null) return;
+      if (!context.mounted) return;
+
+      if (fromClipboard) {
+        final file = await _readClipboardImageFile();
+        if (file == null) return;
+        if (!context.mounted) return;
+        await _processImageBilling(
+          context,
+          ref,
+          ImageSource.gallery,
+          pickedImage: file,
+        );
+        return;
+      }
+    }
+
+    await _processImageBilling(context, ref, ImageSource.gallery);
+  }
 
   /// 打开相机拍照并自动记账
   static Future<void> openCameraForBilling(
@@ -32,22 +72,108 @@ class ImageBillingHelper {
   ) =>
       _processImageBilling(context, ref, ImageSource.camera);
 
+  /// 剪贴板是否当前持有受支持格式的图片(仅探测,不读取内容)
+  static Future<bool> _clipboardHasImage() async {
+    try {
+      final clipboard = SystemClipboard.instance;
+      if (clipboard == null) return false;
+      final reader = await clipboard.read();
+      return _clipboardImageFormats.any(reader.canProvide);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// 弹出「从剪贴板 / 从相册」选择;返回 true=剪贴板,false=相册,null=取消
+  static Future<bool?> _showImageSourceSheet(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) {
+    return showModalBottomSheet<bool>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.content_paste),
+              title: Text(l10n.imageBillingPasteFromClipboard),
+              onTap: () => Navigator.pop(context, true),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: Text(l10n.attachmentChooseFromGallery),
+              onTap: () => Navigator.pop(context, false),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 读取剪贴板图片并写入临时文件;失败或剪贴板内容已变化则返回 null
+  static Future<File?> _readClipboardImageFile() async {
+    try {
+      final clipboard = SystemClipboard.instance;
+      if (clipboard == null) return null;
+      final reader = await clipboard.read();
+      final format = _clipboardImageFormats
+          .firstWhere(reader.canProvide, orElse: () => Formats.png);
+      if (!reader.canProvide(format)) return null;
+
+      final completer = Completer<Uint8List?>();
+      reader.getFile(
+        format,
+        (file) async => completer.complete(await file.readAll()),
+        onError: (_) => completer.complete(null),
+      );
+      final bytes = await completer.future;
+      if (bytes == null || bytes.isEmpty) return null;
+
+      final tempDir = await getTemporaryDirectory();
+      final ext = _extensionForFormat(format);
+      final path =
+          '${tempDir.path}/clipboard_bill_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final file = File(path);
+      await file.writeAsBytes(bytes);
+      return file;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static String _extensionForFormat(SimpleFileFormat format) {
+    if (format == Formats.png) return 'png';
+    if (format == Formats.webp) return 'webp';
+    if (format == Formats.heic) return 'heic';
+    if (format == Formats.heif) return 'heif';
+    return 'jpg';
+  }
+
   static Future<void> _processImageBilling(
     BuildContext context,
     WidgetRef ref,
-    ImageSource source,
-  ) async {
+    ImageSource source, {
+    File? pickedImage,
+  }) async {
     final l10n = AppLocalizations.of(context);
 
     try {
-      // 1. 选图
-      final pickedFile = await ImagePicker().pickImage(
-        source: source,
-        maxWidth: 1920,
-        maxHeight: 1920,
-        imageQuality: 85,
-      );
-      if (pickedFile == null) return;
+      // 1. 选图(剪贴板已在外层取好文件时跳过 ImagePicker)
+      File imageFile;
+      if (pickedImage != null) {
+        imageFile = pickedImage;
+      } else {
+        final pickedFile = await ImagePicker().pickImage(
+          source: source,
+          maxWidth: 1920,
+          maxHeight: 1920,
+          imageQuality: 85,
+        );
+        if (pickedFile == null) return;
+        if (!context.mounted) return;
+        imageFile = File(pickedFile.path);
+      }
       if (!context.mounted) return;
 
       // 2. 显示 loading
@@ -70,8 +196,6 @@ class ImageBillingHelper {
           ),
         ),
       );
-
-      final imageFile = File(pickedFile.path);
 
       // 3. AI vision 兜底
       if (!await AIProviderManager.isCapabilityConfigured(

@@ -11500,6 +11500,12 @@ abstract class AppLocalizations {
   /// **'Choose from Gallery'**
   String get attachmentChooseFromGallery;
 
+  /// No description provided for @imageBillingPasteFromClipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste from Clipboard'**
+  String get imageBillingPasteFromClipboard;
+
   /// No description provided for @attachmentMaxReached.
   ///
   /// In en, this message translates to:

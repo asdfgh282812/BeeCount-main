@@ -2586,6 +2586,7 @@
   "attachmentAdd": "Add Image",
   "attachmentTakePhoto": "Take Photo",
   "attachmentChooseFromGallery": "Choose from Gallery",
+  "imageBillingPasteFromClipboard": "Paste from Clipboard",
   "attachmentMaxReached": "Maximum attachments reached",
   "attachmentDeleteConfirm": "Delete this attachment?",
   "attachmentCount": "{count} images",

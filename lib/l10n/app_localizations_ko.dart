@@ -6160,6 +6160,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get attachmentChooseFromGallery => '갤러리에서 선택';
 
   @override
+  String get imageBillingPasteFromClipboard => 'Paste from Clipboard';
+
+  @override
   String get attachmentMaxReached => '첨부 가능한 최대 개수에 도달했습니다';
 
   @override

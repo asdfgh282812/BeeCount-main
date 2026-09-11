@@ -6345,6 +6345,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get attachmentChooseFromGallery => 'Choose from Gallery';
 
   @override
+  String get imageBillingPasteFromClipboard => 'Paste from Clipboard';
+
+  @override
   String get attachmentMaxReached => 'Maximum attachments reached';
 
   @override

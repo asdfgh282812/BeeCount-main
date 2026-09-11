@@ -491,6 +491,7 @@
     }
   },
   "attachmentChooseFromGallery": "從相簿選擇",
+  "imageBillingPasteFromClipboard": "從剪貼簿貼上",
   "attachmentCount": "{count}張圖片",
   "@attachmentCount": {
     "placeholders": {

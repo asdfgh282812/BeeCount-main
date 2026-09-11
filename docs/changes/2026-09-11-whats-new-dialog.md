@@ -9,9 +9,11 @@
 ## 新增檔案
 
 - **`lib/whats_new/whats_new_content.dart`**:`WhatsNewItem`(title/description 皆為 `String Function(AppLocalizations)`)+ `kWhatsNewContent`(版本字串 → 條目清單)。**用 `final` 而非設計文件範例裡的 `const`**——`WhatsNewItem` 的兩個欄位是函式字面量(closure),Dart 的 const 表達式不允許閉包,套 `const Map`/`const` 建構會直接編譯錯誤(`flutter analyze` 已驗證);`final` 頂層變數語意上等價(App 生命週期內不會被重新賦值),只是不是編譯期常數。
-- **`lib/whats_new/whats_new_store.dart`**:`WhatsNewStore`(`SharedPreferences` 讀寫已讀版本,`whatsnew.lastSeenVersion`)+ `decideWhatsNewAction`/`WhatsNewAction`。把觸發判斷抽成一個不依賴 `BuildContext` 的純函式(`decideWhatsNewAction`),對應設計文件要求的「三種分支可用 `SharedPreferences.setMockInitialValues` 直接測」——實際拆成四個分支(`silentFirstRun`/`alreadySeen`/`show`/`markOnlyNoContent`),`silentFirstRun` 與 `markOnlyNoContent` 都需要呼叫端補寫入已讀版本,只是回傳結果不同。
+- **`lib/whats_new/whats_new_store.dart`**:`WhatsNewStore`(`SharedPreferences` 讀寫已讀版本,`whatsnew.lastSeenVersion`)+ `decideWhatsNewAction`/`WhatsNewAction`。把觸發判斷抽成一個不依賴 `BuildContext` 的純函式(`decideWhatsNewAction`),對應設計文件要求的「分支可用 `SharedPreferences.setMockInitialValues` 直接測」——拆成三個分支(`alreadySeen`/`show`/`markOnlyNoContent`),`markOnlyNoContent` 需要呼叫端補寫入已讀版本但不彈窗。
+
+  **2026-09-11 修改**:原本設計文件與初版實作對 `lastSeenVersion == null`(全新安裝)特化出第四個分支 `silentFirstRun`——靜默寫入已讀版本、不彈窗,理由是「新用戶沒有舊版本可比較」。使用者要求改成全新安裝也要跳出彈窗,讓新用戶第一次開啟就看到目前版本帶了哪些功能。做法:拿掉 `lastSeenVersion == null` 的特判,讓它自然落入「版本不同」分支(`null` 本來就不等於任何實際版本字串),`decideWhatsNewAction` 因此從四分支簡化成三分支,`WhatsNewAction.silentFirstRun` 一併刪除(改成只有 `alreadySeen`/`show`/`markOnlyNoContent`)。
 - **`lib/widgets/ui/whats_new_dialog.dart`**:`WhatsNewDialog`(`StatelessWidget`,`BeeTokens` 配色)+ `maybeShowWhatsNewOnStartup`/`showWhatsNewForCurrentVersion`。額外加了 `currentAppVersionProvider`(`FutureProvider<String>`,包一層 `PackageInfo.fromPlatform()`)——專案沒有既有的共用版本 provider,直接讓「我的」頁面每次 rebuild 都呼叫 `PackageInfo.fromPlatform()` 會重複打 platform channel,用 Riverpod 的 `FutureProvider` 快取結果,寫法對齊既有的 `beecountCloudServerVersionProvider` 那套模式。
-- **`test/whats_new/whats_new_store_test.dart`**:涵蓋 `WhatsNewStore` get/set + `decideWhatsNewAction` 四個分支,不建 Widget tree。
+- **`test/whats_new/whats_new_store_test.dart`**:涵蓋 `WhatsNewStore` get/set + `decideWhatsNewAction` 三個分支(全新安裝的 `show`/`markOnlyNoContent` 各測一次),不建 Widget tree。
 
 ## 觸發點串接
 

@@ -19,22 +19,25 @@ void main() {
   });
 
   group('decideWhatsNewAction', () {
-    test('全新安装(lastSeenVersion 为 null):silentFirstRun,不管有没有内容', () {
+    test('全新安装(lastSeenVersion 为 null)且目前版本有内容:show', () {
       expect(
         decideWhatsNewAction(
           lastSeenVersion: null,
           currentVersion: '3.3.0',
           hasContent: true,
         ),
-        WhatsNewAction.silentFirstRun,
+        WhatsNewAction.show,
       );
+    });
+
+    test('全新安装(lastSeenVersion 为 null)但目前版本没有内容:markOnlyNoContent', () {
       expect(
         decideWhatsNewAction(
           lastSeenVersion: null,
           currentVersion: '3.3.0',
           hasContent: false,
         ),
-        WhatsNewAction.silentFirstRun,
+        WhatsNewAction.markOnlyNoContent,
       );
     });
 

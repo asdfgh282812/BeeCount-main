@@ -6093,6 +6093,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get attachmentChooseFromGallery => '从相册选择';
 
   @override
+  String get imageBillingPasteFromClipboard => 'Paste from Clipboard';
+
+  @override
   String get attachmentMaxReached => '已达到最大附件数量';
 
   @override
@@ -15768,6 +15771,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get attachmentChooseFromGallery => '從相簿選擇';
+
+  @override
+  String get imageBillingPasteFromClipboard => '從剪貼簿貼上';
 
   @override
   String get attachmentMaxReached => '已達到最大附件數量';

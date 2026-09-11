@@ -64,7 +64,9 @@ class WhatsNewDialog extends StatelessWidget {
 }
 
 /// App 冷啟動時呼叫(接在 `_checkStartupReminders`〔`app.dart`〕的登入提醒、
-/// App 更新提醒之後),依 [decideWhatsNewAction] 的四種分支決定是否彈窗。
+/// App 更新提醒之後),依 [decideWhatsNewAction] 的三種分支決定是否彈窗。
+/// 全新安裝(`lastSeenVersion` 為 null)也會走到 `show`,讓新用戶第一次
+/// 開啟就看到目前版本的公告。
 Future<void> maybeShowWhatsNewOnStartup(
   BuildContext context,
   WidgetRef ref,
@@ -82,7 +84,6 @@ Future<void> maybeShowWhatsNewOnStartup(
   switch (action) {
     case WhatsNewAction.alreadySeen:
       return;
-    case WhatsNewAction.silentFirstRun:
     case WhatsNewAction.markOnlyNoContent:
       await WhatsNewStore.setLastSeenVersion(currentVersion);
       return;
