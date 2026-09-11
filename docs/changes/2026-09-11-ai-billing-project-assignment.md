@@ -6,6 +6,11 @@
 
 AI 記帳(對話/拍照/語音/背景截圖/背景通知,5 個管道)原本完全不處理「專案」(`Projects`/`Transactions.projectSyncId`),AI 建立的交易永遠不帶專案。本次新增使用者可設定的三種模式:`none`(維持現狀)、`ask`(詢問使用者)、`aiDecide`(AI 自行判斷)。
 
+## 入口
+
+- **設定模式**:「我的」→「智能記帳」進入 `SmartBillingPage`,「智能記帳通用設置」卡片內新增一列(對應 `smartBillingProjectAssignMode` 標題),點擊彈出三選一 `RadioListTile` 對話框(不指定/詢問我/AI 自動判斷)。
+- **待確認專案清單**:底部「專案」分頁(`ProjectOverviewPage`,`asTab: true`)——只有當前帳本存在待確認交易時,總預算區塊與專案列表之間會顯示待確認入口卡片(含筆數),點擊進入 `PendingProjectTransactionsPage` 逐筆補選。
+
 ## 檔案異動
 
 ### Layer 1(`lib/ai/`,不依賴 Repository/Riverpod/Drift)

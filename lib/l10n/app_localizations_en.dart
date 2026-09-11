@@ -9999,13 +9999,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get whatsNewMenuTitle => 'What\'s New!';
 
   @override
-  String get whatsNew330GeminiTitle => 'Native Gemini support';
-
-  @override
-  String get whatsNew330GeminiDesc =>
-      'Gemini custom providers now use Google\'s native API for text, vision, and voice recognition, for faster and more accurate AI bookkeeping.';
-
-  @override
   String get whatsNew330AiProjectTitle =>
       'AI bookkeeping can now assign projects';
 
@@ -10019,4 +10012,28 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get whatsNew330FirstDayOfWeekDesc =>
       'Calendar and weekly statistics now follow your chosen first day of the week, Monday or Sunday.';
+
+  @override
+  String get whatsNew330ClipboardImageTitle =>
+      'Paste billing images from clipboard';
+
+  @override
+  String get whatsNew330ClipboardImageDesc =>
+      'AI image billing can now read a screenshot or copied receipt straight from your clipboard, no need to save it to the gallery first.';
+
+  @override
+  String get whatsNew330CardExclusionHintTitle =>
+      'Card recommendation now flags exclusions';
+
+  @override
+  String get whatsNew330CardExclusionHintDesc =>
+      'When a purchase matches a card\'s reward exclusion and there\'s no recommendation, you\'ll see a hint suggesting you check the web dashboard for the reason.';
+
+  @override
+  String get whatsNew330TxListProjectTagsTitle =>
+      'Transaction list shows project, tags wrap cleanly';
+
+  @override
+  String get whatsNew330TxListProjectTagsDesc =>
+      'The daily transaction list now shows the linked project, and tags wrap onto their own line instead of crowding the rest of the card.';
 }

@@ -18027,18 +18027,6 @@ abstract class AppLocalizations {
   /// **'What\'s New!'**
   String get whatsNewMenuTitle;
 
-  /// No description provided for @whatsNew330GeminiTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Native Gemini support'**
-  String get whatsNew330GeminiTitle;
-
-  /// No description provided for @whatsNew330GeminiDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Gemini custom providers now use Google\'s native API for text, vision, and voice recognition, for faster and more accurate AI bookkeeping.'**
-  String get whatsNew330GeminiDesc;
-
   /// No description provided for @whatsNew330AiProjectTitle.
   ///
   /// In en, this message translates to:
@@ -18062,6 +18050,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Calendar and weekly statistics now follow your chosen first day of the week, Monday or Sunday.'**
   String get whatsNew330FirstDayOfWeekDesc;
+
+  /// No description provided for @whatsNew330ClipboardImageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste billing images from clipboard'**
+  String get whatsNew330ClipboardImageTitle;
+
+  /// No description provided for @whatsNew330ClipboardImageDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'AI image billing can now read a screenshot or copied receipt straight from your clipboard, no need to save it to the gallery first.'**
+  String get whatsNew330ClipboardImageDesc;
+
+  /// No description provided for @whatsNew330CardExclusionHintTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Card recommendation now flags exclusions'**
+  String get whatsNew330CardExclusionHintTitle;
+
+  /// No description provided for @whatsNew330CardExclusionHintDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'When a purchase matches a card\'s reward exclusion and there\'s no recommendation, you\'ll see a hint suggesting you check the web dashboard for the reason.'**
+  String get whatsNew330CardExclusionHintDesc;
+
+  /// No description provided for @whatsNew330TxListProjectTagsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Transaction list shows project, tags wrap cleanly'**
+  String get whatsNew330TxListProjectTagsTitle;
+
+  /// No description provided for @whatsNew330TxListProjectTagsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'The daily transaction list now shows the linked project, and tags wrap onto their own line instead of crowding the rest of the card.'**
+  String get whatsNew330TxListProjectTagsDesc;
 }
 
 class _AppLocalizationsDelegate

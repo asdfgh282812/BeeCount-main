@@ -13,6 +13,10 @@ SwipeSmart 的 `ExclusionCategories` 機制會讓命中「一般消費回饋排�
 （詳見同一次對話：一開始誤判是 App 端快取或後端問題，實際上是這支功能本來
 就沒有空清單的說明文案）。
 
+## 入口
+
+不是獨立入口,依附在既有的「新增/編輯交易」表單(`TransactionEntryForm`)刷卡推薦區塊上——選擇信用卡類帳戶並輸入金額/商家後,原本就會顯示 SwipeSmart 的推薦結果;這次只在推薦結果為空時,同一位置多顯示一行提示文字,不新增頁面或選單項目。
+
 ## 改動
 
 `lib/widgets/biz/transaction_entry_form.dart`：

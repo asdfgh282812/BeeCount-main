@@ -24,16 +24,24 @@ class WhatsNewItem {
 final Map<String, List<WhatsNewItem>> kWhatsNewContent = {
   '3.3.0': [
     WhatsNewItem(
-      title: (l10n) => l10n.whatsNew330GeminiTitle,
-      description: (l10n) => l10n.whatsNew330GeminiDesc,
-    ),
-    WhatsNewItem(
       title: (l10n) => l10n.whatsNew330AiProjectTitle,
       description: (l10n) => l10n.whatsNew330AiProjectDesc,
     ),
     WhatsNewItem(
       title: (l10n) => l10n.whatsNew330FirstDayOfWeekTitle,
       description: (l10n) => l10n.whatsNew330FirstDayOfWeekDesc,
+    ),
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew330ClipboardImageTitle,
+      description: (l10n) => l10n.whatsNew330ClipboardImageDesc,
+    ),
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew330CardExclusionHintTitle,
+      description: (l10n) => l10n.whatsNew330CardExclusionHintDesc,
+    ),
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew330TxListProjectTagsTitle,
+      description: (l10n) => l10n.whatsNew330TxListProjectTagsDesc,
     ),
   ],
 };

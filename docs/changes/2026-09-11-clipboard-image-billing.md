@@ -5,6 +5,10 @@
 AI 圖片記帳（拍照/截圖識別帳單）過去只能透過系統相簿選圖。使用者在其他 App
 截圖或複製一張帳單圖片後，仍需先存到相簿才能拿來記帳，多一道手續。
 
+## 入口
+
+首頁底部中間圓形按鈕長按展開的快速記帳選單(`SpeedDial`)→「相簿」(`fabActionGallery`)——原本就是 `ImageBillingHelper.pickImageForBilling` 的唯一觸發點,本次沒有新增入口,只是這條既有路徑在系統剪貼簿有圖片時多一個「從剪貼簿貼上」的選項。App Link / 小組件的 `image` 動作走同一支函式,行為一併適用。
+
 ## 變更內容
 
 - [lib/utils/image_billing_helper.dart](../../lib/utils/image_billing_helper.dart)：

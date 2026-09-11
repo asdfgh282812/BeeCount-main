@@ -4291,10 +4291,14 @@
   "whatsNewDialogTitle": "What's New!",
   "whatsNewDialogGotIt": "Got it",
   "whatsNewMenuTitle": "What's New!",
-  "whatsNew330GeminiTitle": "Native Gemini support",
-  "whatsNew330GeminiDesc": "Gemini custom providers now use Google's native API for text, vision, and voice recognition, for faster and more accurate AI bookkeeping.",
   "whatsNew330AiProjectTitle": "AI bookkeeping can now assign projects",
   "whatsNew330AiProjectDesc": "Turn on \"AI decides\" or \"ask me\" in AI settings, and AI-created transactions (chat, photo, voice) can be tagged with a project automatically or by asking you.",
   "whatsNew330FirstDayOfWeekTitle": "Choose your week's first day",
-  "whatsNew330FirstDayOfWeekDesc": "Calendar and weekly statistics now follow your chosen first day of the week, Monday or Sunday."
+  "whatsNew330FirstDayOfWeekDesc": "Calendar and weekly statistics now follow your chosen first day of the week, Monday or Sunday.",
+  "whatsNew330ClipboardImageTitle": "Paste billing images from clipboard",
+  "whatsNew330ClipboardImageDesc": "AI image billing can now read a screenshot or copied receipt straight from your clipboard, no need to save it to the gallery first.",
+  "whatsNew330CardExclusionHintTitle": "Card recommendation now flags exclusions",
+  "whatsNew330CardExclusionHintDesc": "When a purchase matches a card's reward exclusion and there's no recommendation, you'll see a hint suggesting you check the web dashboard for the reason.",
+  "whatsNew330TxListProjectTagsTitle": "Transaction list shows project, tags wrap cleanly",
+  "whatsNew330TxListProjectTagsDesc": "The daily transaction list now shows the linked project, and tags wrap onto their own line instead of crowding the rest of the card."
 }

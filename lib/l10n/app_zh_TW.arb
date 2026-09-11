@@ -3828,10 +3828,14 @@
   "whatsNewDialogTitle": "新功能！",
   "whatsNewDialogGotIt": "知道了",
   "whatsNewMenuTitle": "新功能！",
-  "whatsNew330GeminiTitle": "原生支援 Gemini 模型",
-  "whatsNew330GeminiDesc": "Gemini 自訂供應商現在改走 Google 原生 API 處理文字、圖片與語音辨識,AI 記帳的速度與準確度都更好。",
   "whatsNew330AiProjectTitle": "AI 記帳可以指定專案了",
-  "whatsNew330AiProjectDesc": "在 AI 設定中開啟「AI 自行判斷」或「詢問我」,對話、拍照、語音記帳時就能自動或由你指定要歸到哪個專案。",
+  "whatsNew330AiProjectDesc": "在 「智慧記帳」 設定中開啟「AI 自行判斷」或「詢問我」,對話、拍照、語音記帳時就能自動或由你指定要歸到哪個專案。",
   "whatsNew330FirstDayOfWeekTitle": "可自訂每週起始日",
-  "whatsNew330FirstDayOfWeekDesc": "行事曆與週統計現在可以依你的設定,從週一或週日開始計算。"
+  "whatsNew330FirstDayOfWeekDesc": "在「個性化設定」 行事曆與週統計現在可以依你的設定,從週一或週日開始計算。",
+  "whatsNew330ClipboardImageTitle": "AI 圖片記帳支援剪貼簿貼上",
+  "whatsNew330ClipboardImageDesc": "截圖或複製帳單圖片後,可以直接從剪貼簿貼上辨識,不用再先存到相簿。",
+  "whatsNew330CardExclusionHintTitle": "刷卡建議新增排除項提示",
+  "whatsNew330CardExclusionHintDesc": "當這筆消費屬於信用卡回饋排除項目、沒有推薦結果時,會提示你可能為排除項,建議到網頁端查詢原因。",
+  "whatsNew330TxListProjectTagsTitle": "交易列表顯示專案,標籤換行更清楚",
+  "whatsNew330TxListProjectTagsDesc": "每日交易列表現在會顯示所屬專案,標籤多的時候也會自動換到下一行,不再擠壓其他內容。"
 }

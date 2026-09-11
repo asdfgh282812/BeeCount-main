@@ -9680,13 +9680,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get whatsNewMenuTitle => 'What\'s New!';
 
   @override
-  String get whatsNew330GeminiTitle => 'Native Gemini support';
-
-  @override
-  String get whatsNew330GeminiDesc =>
-      'Gemini custom providers now use Google\'s native API for text, vision, and voice recognition, for faster and more accurate AI bookkeeping.';
-
-  @override
   String get whatsNew330AiProjectTitle =>
       'AI bookkeeping can now assign projects';
 
@@ -9700,6 +9693,30 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get whatsNew330FirstDayOfWeekDesc =>
       'Calendar and weekly statistics now follow your chosen first day of the week, Monday or Sunday.';
+
+  @override
+  String get whatsNew330ClipboardImageTitle =>
+      'Paste billing images from clipboard';
+
+  @override
+  String get whatsNew330ClipboardImageDesc =>
+      'AI image billing can now read a screenshot or copied receipt straight from your clipboard, no need to save it to the gallery first.';
+
+  @override
+  String get whatsNew330CardExclusionHintTitle =>
+      'Card recommendation now flags exclusions';
+
+  @override
+  String get whatsNew330CardExclusionHintDesc =>
+      'When a purchase matches a card\'s reward exclusion and there\'s no recommendation, you\'ll see a hint suggesting you check the web dashboard for the reason.';
+
+  @override
+  String get whatsNew330TxListProjectTagsTitle =>
+      'Transaction list shows project, tags wrap cleanly';
+
+  @override
+  String get whatsNew330TxListProjectTagsDesc =>
+      'The daily transaction list now shows the linked project, and tags wrap onto their own line instead of crowding the rest of the card.';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -19305,22 +19322,37 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get whatsNewMenuTitle => '新功能！';
 
   @override
-  String get whatsNew330GeminiTitle => '原生支援 Gemini 模型';
-
-  @override
-  String get whatsNew330GeminiDesc =>
-      'Gemini 自訂供應商現在改走 Google 原生 API 處理文字、圖片與語音辨識,AI 記帳的速度與準確度都更好。';
-
-  @override
   String get whatsNew330AiProjectTitle => 'AI 記帳可以指定專案了';
 
   @override
   String get whatsNew330AiProjectDesc =>
-      '在 AI 設定中開啟「AI 自行判斷」或「詢問我」,對話、拍照、語音記帳時就能自動或由你指定要歸到哪個專案。';
+      '在 「智慧記帳」 設定中開啟「AI 自行判斷」或「詢問我」,對話、拍照、語音記帳時就能自動或由你指定要歸到哪個專案。';
 
   @override
   String get whatsNew330FirstDayOfWeekTitle => '可自訂每週起始日';
 
   @override
-  String get whatsNew330FirstDayOfWeekDesc => '行事曆與週統計現在可以依你的設定,從週一或週日開始計算。';
+  String get whatsNew330FirstDayOfWeekDesc =>
+      '在「個性化設定」 行事曆與週統計現在可以依你的設定,從週一或週日開始計算。';
+
+  @override
+  String get whatsNew330ClipboardImageTitle => 'AI 圖片記帳支援剪貼簿貼上';
+
+  @override
+  String get whatsNew330ClipboardImageDesc =>
+      '截圖或複製帳單圖片後,可以直接從剪貼簿貼上辨識,不用再先存到相簿。';
+
+  @override
+  String get whatsNew330CardExclusionHintTitle => '刷卡建議新增排除項提示';
+
+  @override
+  String get whatsNew330CardExclusionHintDesc =>
+      '當這筆消費屬於信用卡回饋排除項目、沒有推薦結果時,會提示你可能為排除項,建議到網頁端查詢原因。';
+
+  @override
+  String get whatsNew330TxListProjectTagsTitle => '交易列表顯示專案,標籤換行更清楚';
+
+  @override
+  String get whatsNew330TxListProjectTagsDesc =>
+      '每日交易列表現在會顯示所屬專案,標籤多的時候也會自動換到下一行,不再擠壓其他內容。';
 }

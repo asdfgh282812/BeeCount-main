@@ -15,6 +15,11 @@
 - **`lib/widgets/ui/whats_new_dialog.dart`**:`WhatsNewDialog`(`StatelessWidget`,`BeeTokens` 配色)+ `maybeShowWhatsNewOnStartup`/`showWhatsNewForCurrentVersion`。額外加了 `currentAppVersionProvider`(`FutureProvider<String>`,包一層 `PackageInfo.fromPlatform()`)——專案沒有既有的共用版本 provider,直接讓「我的」頁面每次 rebuild 都呼叫 `PackageInfo.fromPlatform()` 會重複打 platform channel,用 Riverpod 的 `FutureProvider` 快取結果,寫法對齊既有的 `beecountCloudServerVersionProvider` 那套模式。
 - **`test/whats_new/whats_new_store_test.dart`**:涵蓋 `WhatsNewStore` get/set + `decideWhatsNewAction` 三個分支(全新安裝的 `show`/`markOnlyNoContent` 各測一次),不建 Widget tree。
 
+## 入口
+
+- **自動彈出**:更新後(或全新安裝)第一次啟動 App 時,`app.dart` 的 `_checkStartupReminders()` 鏈依序跑完「登入提醒 → App 更新提醒」後自動彈出,不需使用者操作。
+- **手動重看**:「我的」→「新功能！」(`mine_page.dart`,「說明/資訊」卡片內,`關於` 上方)——只有 `kWhatsNewContent` 對目前版本有內容時才顯示這一列,否則整列不佔位。
+
 ## 觸發點串接
 
 - **`lib/app.dart`**:`_checkStartupReminders()` 既有的「登入提醒 → App 更新提醒」鏈之後接上第三步 `maybeShowWhatsNewOnStartup`,共用同一個 `_startupReminderCheckInProgress` 旗標。第三步不額外用回傳值互相 gate——跟既有第二步(`maybeShowAppUpdateReminder`,回傳 `void`)一樣,靠 `showDialog` 本身的 `await` 就能保證彈窗依序、不疊加,不需要每一步都回傳「有沒有顯示」。
@@ -26,7 +31,9 @@
 
 ## 3.3.0 版內容取捨
 
-`kWhatsNewContent['3.3.0']` 目前收錄 3 則,對應這幾個 commit 裡對使用者可見、值得公告的功能:Gemini 原生模型支援(`8ba4ccc`)、AI 記帳可指定專案(`feccd03`)、每週起始日可自訂(`fc19b3f`)。**刻意沒收錄**:`d72e020`(SwipeSmart 排除項提示)與 `b259866` 的民國年提示詞部分——這兩個偏向既有功能的細部調整,不是「新功能」等級的公告,放進去會稀釋公告本身的重要性。
+`kWhatsNewContent['3.3.0']` 目前收錄 6 則:Gemini 原生模型支援(`8ba4ccc`)、AI 記帳可指定專案(`feccd03`)、每週起始日可自訂(`fc19b3f`)、AI 圖片記帳支援剪貼簿貼上(`d3b037a`)、刷卡建議排除項提示(`d72e020`)、交易列表顯示專案+標籤換行(`91696dd`)。**刻意沒收錄**:`b259866` 的民國年提示詞部分(既有功能的 prompt 細部修正,不是使用者可感知的新功能)、以及新增「新功能通知視窗」本身(`a87e537`)——公告機制不適合公告自己。
+
+**2026-09-11 修改**:`d72e020`/`91696dd` 原本因「偏向細部調整」被排除在外,使用者要求全部補上,故補上對應的 l10n key 與條目(見 `app_en.arb`/`app_zh_TW.arb` 的 `whatsNew330ClipboardImageTitle/Desc`、`whatsNew330CardExclusionHintTitle/Desc`、`whatsNew330TxListProjectTagsTitle/Desc`)。
 
 ## 範疇之外
 

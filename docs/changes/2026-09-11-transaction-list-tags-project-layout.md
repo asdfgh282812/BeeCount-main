@@ -8,6 +8,10 @@ chip（含 `tag_seed_service.dart` 自動建立的「拍照記帳」「AI記帳�
 intrinsic 寬度會擠壓左側 `Expanded` 的分類名/備註/時間欄，造成畫面擁擠甚至視覺
 重疊；同時列表項目完全沒有顯示交易關聯的專案（`Projects` / `projectSyncId`）。
 
+## 入口
+
+沒有新增頁面或選單,是既有畫面的顯示調整:首頁「日曆」分頁的每日交易列表(`CalendarBody` → `TransactionListItem`),原本顯示交易標籤的位置改為顯示專案 pill,標籤改到卡片下方獨立一列。`TransactionListItem` 是共用元件,標籤換行的版面調整因此對分類明細、搜尋、專案明細、標籤明細等所有使用它的頁面都生效;專案 pill 目前只在首頁日曆列表串接了資料。
+
 ## 改動
 
 ### `lib/widgets/biz/transaction_list_item.dart`
