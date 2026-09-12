@@ -577,6 +577,63 @@ class _CategoryGroupSection extends StatelessWidget {
   }
 }
 
+/// 專案分類預算列表(`_CategoryBudgetTile`/`_UnsetCategorySectionState`)
+/// 共用的分類圖示格——2026-09-12 使用者反饋:專案裡的圖示沒有跟著切到
+/// 可愛主題,這兩處原本各自寫死一個方形色底 `Container` + 純 Material
+/// `Icon`,沒有走 cute 分支。Cute 模式下拿掉方形色底,改用底線呈現分類色,
+/// 跟其他畫面一致。
+class _ProjectCategoryIcon extends ConsumerWidget {
+  final Category category;
+  final Category? parent;
+  final double boxSize;
+  final double glyphSize;
+
+  const _ProjectCategoryIcon({
+    required this.category,
+    this.parent,
+    required this.boxSize,
+    required this.glyphSize,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final iconData = getCategoryIconData(
+        category: category,
+        categoryName: CategoryUtils.getDisplayName(category.name, context));
+    final resolvedColor = CategoryUtils.parseColor(
+        category.parentId != null ? parent?.color : category.color);
+    final isCute =
+        ref.watch(categoryIconStyleProvider) == CategoryIconStyle.cute;
+
+    if (isCute) {
+      return SizedBox(
+        width: boxSize,
+        child: Center(
+          child: CategoryIconWidget(
+            category: category,
+            size: glyphSize,
+            underlineColorOverride: resolvedColor,
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      width: boxSize,
+      height: boxSize,
+      decoration: BoxDecoration(
+        color: resolvedColor ?? BeeTokens.surfaceCategoryIcon(context),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Icon(iconData,
+          size: glyphSize,
+          color: resolvedColor != null
+              ? Colors.white
+              : BeeTokens.iconCategory(context)),
+    );
+  }
+}
+
 class _CategoryBudgetTile extends StatelessWidget {
   final Category category;
   final Category? parent;
@@ -599,10 +656,6 @@ class _CategoryBudgetTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final categoryName = CategoryUtils.getDisplayName(category.name, context);
-    final iconData =
-        getCategoryIconData(category: category, categoryName: categoryName);
-    final resolvedColor = CategoryUtils.parseColor(
-        category.parentId != null ? parent?.color : category.color);
 
     return InkWell(
       onTap: onTap,
@@ -610,18 +663,11 @@ class _CategoryBudgetTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
           children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: resolvedColor ?? BeeTokens.surfaceCategoryIcon(context),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(iconData,
-                  size: 18,
-                  color: resolvedColor != null
-                      ? Colors.white
-                      : BeeTokens.iconCategory(context)),
+            _ProjectCategoryIcon(
+              category: category,
+              parent: parent,
+              boxSize: 36,
+              glyphSize: 18,
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -740,25 +786,14 @@ class _UnsetCategorySectionState extends State<_UnsetCategorySection> {
 
   Widget _buildRow(BuildContext context, Category category) {
     final categoryName = CategoryUtils.getDisplayName(category.name, context);
-    final iconData =
-        getCategoryIconData(category: category, categoryName: categoryName);
-    final resolvedColor = CategoryUtils.parseColor(category.color);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: resolvedColor ?? BeeTokens.surfaceCategoryIcon(context),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(iconData,
-                size: 16,
-                color: resolvedColor != null
-                    ? Colors.white
-                    : BeeTokens.iconCategory(context)),
+          _ProjectCategoryIcon(
+            category: category,
+            boxSize: 32,
+            glyphSize: 16,
           ),
           const SizedBox(width: 10),
           Text(categoryName,

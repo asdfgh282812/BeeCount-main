@@ -835,30 +835,52 @@ class _CategoryCard extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Container(
-                    width: item.isSubCategory ? 28 : 32,
-                    height: item.isSubCategory ? 28 : 32,
-                    decoration: BoxDecoration(
-                      color: resolvedColor ??
-                          (item.isSubCategory
-                              ? Colors.orange.withValues(alpha: 0.2)
-                              : Theme.of(context)
-                                  .colorScheme
-                                  .primary
-                                  .withValues(alpha: 0.1)),
-                      shape: BoxShape.circle,
-                    ),
-                    child: CategoryIconWidget(
-                      category: item.category,
-                      size: item.isSubCategory ? 16.0 : 18.0,
-                      color: resolvedColor != null
-                          ? Colors.white
-                          : (item.isSubCategory
-                              ? Colors.orange[700]!
-                              : Theme.of(context).colorScheme.primary),
-                      circular: true,
-                    ),
-                  ),
+                  Builder(builder: (context) {
+                    final boxSize = item.isSubCategory ? 28.0 : 32.0;
+                    final glyphSize = item.isSubCategory ? 16.0 : 18.0;
+                    final isCute = ref.watch(categoryIconStyleProvider) ==
+                        CategoryIconStyle.cute;
+                    // Cute 主题:拿掉圆形色底,颜色改用底线呈现——这里原本
+                    // 固定 28/32 高的圆形 Container 套 cute 图示的直向排版
+                    // 会溢出(同 transaction_list_item.dart 那个 0.4px
+                    // overflow 的成因),改成只固定宽度、不设高度上限。
+                    if (isCute) {
+                      return SizedBox(
+                        width: boxSize,
+                        child: Center(
+                          child: CategoryIconWidget(
+                            category: item.category,
+                            size: glyphSize,
+                            underlineColorOverride: resolvedColor,
+                          ),
+                        ),
+                      );
+                    }
+                    return Container(
+                      width: boxSize,
+                      height: boxSize,
+                      decoration: BoxDecoration(
+                        color: resolvedColor ??
+                            (item.isSubCategory
+                                ? Colors.orange.withValues(alpha: 0.2)
+                                : Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withValues(alpha: 0.1)),
+                        shape: BoxShape.circle,
+                      ),
+                      child: CategoryIconWidget(
+                        category: item.category,
+                        size: glyphSize,
+                        color: resolvedColor != null
+                            ? Colors.white
+                            : (item.isSubCategory
+                                ? Colors.orange[700]!
+                                : Theme.of(context).colorScheme.primary),
+                        circular: true,
+                      ),
+                    );
+                  }),
                   const SizedBox(height: 8),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -986,20 +1008,37 @@ class _SubcategoryDialogState extends ConsumerState<_SubcategoryDialog> {
             // 标题栏
             Row(
               children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: resolvedColor ?? primaryColor.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: CategoryIconWidget(
-                    category: widget.parentCategory,
-                    size: 18,
-                    color: resolvedColor != null ? Colors.white : primaryColor,
-                    circular: true,
-                  ),
-                ),
+                Builder(builder: (context) {
+                  final isCute = ref.watch(categoryIconStyleProvider) ==
+                      CategoryIconStyle.cute;
+                  if (isCute) {
+                    return SizedBox(
+                      width: 32,
+                      child: Center(
+                        child: CategoryIconWidget(
+                          category: widget.parentCategory,
+                          size: 18,
+                          underlineColorOverride: resolvedColor,
+                        ),
+                      ),
+                    );
+                  }
+                  return Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color:
+                          resolvedColor ?? primaryColor.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: CategoryIconWidget(
+                      category: widget.parentCategory,
+                      size: 18,
+                      color: resolvedColor != null ? Colors.white : primaryColor,
+                      circular: true,
+                    ),
+                  );
+                }),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -1156,20 +1195,36 @@ class _DialogSubCategoryCard extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 26,
-              height: 26,
-              decoration: BoxDecoration(
-                color: resolvedColor ?? primaryColor.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: CategoryIconWidget(
-                category: category,
-                size: 14,
-                color: resolvedColor != null ? Colors.white : primaryColor,
-                circular: true,
-              ),
-            ),
+            Consumer(builder: (context, ref, _) {
+              final isCute = ref.watch(categoryIconStyleProvider) ==
+                  CategoryIconStyle.cute;
+              if (isCute) {
+                return SizedBox(
+                  width: 26,
+                  child: Center(
+                    child: CategoryIconWidget(
+                      category: category,
+                      size: 14,
+                      underlineColorOverride: resolvedColor,
+                    ),
+                  ),
+                );
+              }
+              return Container(
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  color: resolvedColor ?? primaryColor.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: CategoryIconWidget(
+                  category: category,
+                  size: 14,
+                  color: resolvedColor != null ? Colors.white : primaryColor,
+                  circular: true,
+                ),
+              );
+            }),
             const SizedBox(height: 4),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2),

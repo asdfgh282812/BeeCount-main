@@ -91,9 +91,15 @@ class CategoryIconWidget extends ConsumerWidget {
         size: glyphSize,
         lineColor: BeeTokens.iconCategory(context),
       );
+      // 分類沒有自訂顏色時(預設種子分類的 color 欄位本來就是 null,只有
+      // 使用者自己在顏色選擇器挑過才會有值),底線不能退回 iconColor——那其實
+      // 是 primaryColor,會跟著當下的主題色跑(2026-09-12 使用者反饋:節日
+      // 限定的金色主題下,沒配色的分類底線也變成搶眼的金色,跟圖示本身的
+      // 綠色配色對不起來,看起來像沒套用分類色)。改退回中性的圖示墨色
+      // token,跟線稿本身同色系,沒配色時不製造誤導。
       final underlineColor = underlineColorOverride ??
           CategoryUtils.parseColor(category?.color) ??
-          iconColor;
+          BeeTokens.iconCategory(context);
 
       return Column(
         mainAxisSize: MainAxisSize.min,

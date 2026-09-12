@@ -279,6 +279,72 @@ Material 模式維持原樣(圓形色底、無底線)。`flutter test` 全套 12
 只有同一個既有、跟本次改動無關的失敗
 (`test/widgets/calendar_month_jump_test.dart`)。
 
+## 10. (再追加)底線顏色誤用 primaryColor + 帳戶明細/專案/分類管理仍未套用 cute
+
+**背景**:使用者實機再看一輪,回報三件事:(a)分類編輯的圖示選取格裡,底線
+顏色沒有跟著分類跑,「明明圖示是綠色的,底線卻是黃色的」;(b)「專案」
+(`project_detail_page.dart`)裡的分類圖示還是舊版方形色底,沒有跟著切到
+cute;(c)每個帳戶詳情頁(`account_detail_page.dart`)的交易列表底線一樣有
+問題(第 9 節修的是首頁/明細共用的 `TransactionListItem`,帳戶詳情頁是自己
+另一份 `TransactionTile` 實作,没有共用那份代码,漏改了)。
+
+**(a) 底線顏色錯誤的根因**:`SeedService` 幫預設分類建檔時本來就不寫入
+`color` 欄位(只有使用者自己在顏色選擇器挑過才會有值),所以絕大多數預設
+分類(門診/醫療用品/藥品…)的 `category.color` 其實是 `null`。
+`category_icon.dart` 原本的底線顏色 fallback 邏輯是
+`underlineColorOverride ?? CategoryUtils.parseColor(category?.color) ?? iconColor`,
+`iconColor` 沒有另外傳 `color` 參數時就是 `primaryColor`——這個值會跟著
+App 當下的主題色跑,使用者截圖當時 App 剛好套用「一週年」節日限定金色
+主題,没配色的分類底線因此显示成刺眼的金色,跟图示本身的绿色强调色对不
+起来,看起来像「底线没有跟着分类颜色跑」。**修正**:把 fallback 換成中性
+的 `BeeTokens.iconCategory(context)`(跟線稿本身同色系的墨色 token),
+没配色时不再套用会随主题变动的 primaryColor。新增回歸測試
+`test/widgets/category_icon_widget_test.dart`(用一個刻意跟預設值不同的
+`primaryColorProvider` override 驗證底線顏色不等於它,而是等於
+`BeeTokens.iconCategory`)。
+
+**(b) 專案裡的圖標**:`project_detail_page.dart` 的 `_CategoryBudgetTile`
+(分類預算列)跟 `_UnsetCategorySectionState._buildRow`(未設定分類清單)
+各自寫死一個方形(`BorderRadius.circular(8)`)色底 `Container` +
+純 Material `Icon`,完全没有 cute 分支。抽出共用的 `_ProjectCategoryIcon`
+(`ConsumerWidget`),cute 模式下拿掉方形色底、改用
+`CategoryIconWidget(underlineColorOverride: resolvedColor)`,兩個呼叫點都
+改用它。
+
+**(c) 帳戶詳情頁**:`account_detail_page.dart` 的 `TransactionTile` 是獨立
+於 `TransactionListItem` 的另一份交易列渲染邏輯,同樣的圓形色底
+`Container` + `CategoryIconWidget(size: 18)` 組合、同樣的 32 高度緊約束,
+跟第 9 節分析的 `TransactionListItem` 是一模一樣的成因(cute 模式「圖示+
+底線」直向排版 ≈32.4 高,擠進寫死 32 高的容器裡溢出 0.4px)。套用同一個
+修法:cute 模式下只固定寬度、不設高度上限,並拿掉色底改用底線。
+
+**順手一併檢查/修正的其餘同類位置**(都是同一批「圓形/方形色底 Container
++ CategoryIconWidget」模式,趁這次上下文還在,一次核對完,避免又要使用者
+一個個畫面找出來回報):
+- `category_manage_page.dart`「分類管理」主網格(`_CategoryCard`,28/32 高
+  的圓形色底)——同樣的 32.4 vs 32 溢出成因,补上 cute 分支。
+- `category_manage_page.dart` 子分類彈窗(`_SubcategoryDialog` 標題列的
+  32 高圓形色底、`_DialogSubCategoryCard` 26 高圓形色底)——後者 26 高其實
+  沒有實際溢出(14×1.25+間距+底線≈25.2<26),但為了畫面一致性一併改成底
+  線呈現。
+- `lib/widgets/analytics/category_rank_row.dart`(分析頁的分類排行榜列)
+  ——44/38 高的圓形色底本身沒有溢出風險(圖示更大、格子也更大),但同樣
+  一直是舊版色底徽章,没跟着 cute 切換;這裡的顏色來源是排行榜自己算好的
+  `widget.color`(圖表配色,不一定等於 `category.color`),所以
+  `underlineColorOverride` 直接傳 `widget.color`,不是走 `category.color`
+  解析,底線顏色才會跟畫面上其他排行榜元素(進度條、百分比)的配色對得上。
+- `category_manage_page.dart` 頂部「轉帳圖示設定」卡片(`CategoryIconWidget(
+  showBackground: true)` 那處)已經是走 `showBackground` 參數,第 6 節就把
+  cute 分支改成「不管 showBackground 是不是 true 都忽略」,這裡不用額外
+  改動就自動套用。
+
+**測試**:除了 (a) 的回歸測試,其餘 (b)(c) 及順手修正的位置目前用
+`flutter analyze` + `flutter test` 全套 1282 案例(同一個既有無關失敗)
+驗證沒有引入新的編譯錯誤/回歸;沒有針對 `account_detail_page.dart`/
+`project_detail_page.dart`/`category_manage_page.dart`/`category_rank_row.dart`
+逐一新增 widget test(這幾個頁面本身的既有測試覆蓋率就不高,建立完整測試
+夾具超出這次修 bug 的範圍),實機驗證仍待使用者確認。
+
 ## 範圍外(刻意不做)
 
 - **切換偏好跨裝置同步**:見上面第 1 節。

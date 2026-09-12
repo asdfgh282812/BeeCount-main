@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:beecount/data/db.dart';
+import 'package:beecount/providers/theme_providers.dart';
+import 'package:beecount/styles/tokens.dart';
 import 'package:beecount/widgets/category_icon.dart';
 import 'package:beecount/widgets/cute_icons/cute_category_icon_keys.dart';
 import 'package:beecount/widgets/cute_icons/pencil_underline_painter.dart';
@@ -71,6 +73,39 @@ void main() {
     expect(find.byType(Icon), findsNothing);
     expect(find.byType(CuteCategoryIcon), findsOneWidget);
     expect(find.byType(CategoryColorUnderline), findsOneWidget);
+  });
+
+  testWidgets(
+      'cute style with no category color falls back to a neutral underline, '
+      'not the app-wide primaryColor (2026-09-12: 節日限定金色主題下沒配色的'
+      '分類底線曾經誤用 primaryColor,看起來像沒套用分類色)', (tester) async {
+    const distinctivePrimary = Color(0xFFAA00FF);
+    late Color underlineColor;
+    late Color neutralToken;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          primaryColorProvider.overrideWith((ref) => distinctivePrimary),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(builder: (context) {
+              neutralToken = BeeTokens.iconCategory(context);
+              return CategoryIconWidget(
+                category: _fakeCategory(icon: 'restaurant', color: null),
+              );
+            }),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    underlineColor =
+        tester.widget<CategoryColorUnderline>(find.byType(CategoryColorUnderline)).color;
+    expect(underlineColor, isNot(distinctivePrimary));
+    expect(underlineColor, neutralToken);
   });
 
   testWidgets(

@@ -14,6 +14,7 @@ import '../../utils/card_reward_period.dart';
 import '../../utils/credit_card_payment.dart';
 import '../../utils/reconciliation.dart';
 import '../../utils/account_quick_actions.dart';
+import '../../utils/category_utils.dart';
 import '../installment/installment_editor_page.dart';
 import '../transaction/transaction_editor_page.dart';
 import 'account_edit_page.dart';
@@ -2065,21 +2066,36 @@ class TransactionTile extends ConsumerWidget {
         ),
         child: Row(
           children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: primaryColor.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: transaction.hasSplits
+            Builder(builder: (context) {
+              // Cute 主题:同 transaction_list_item.dart 的处理——拿掉圆形
+              // 色底徽章,改用底线呈现分类色;这里原本跟那边一样固定
+              // height: 32,cute 模式「图示+底线」的直向排版(size=18 时
+              // ≈32.4)会溢出 0.4px,所以同样只固定宽度、不设高度上限。
+              final isCute = ref.watch(categoryIconStyleProvider) ==
+                  CategoryIconStyle.cute;
+              final iconWidget = transaction.hasSplits
                   ? Icon(Icons.apps,
                       size: 18, color: BeeTokens.iconSecondary(context))
                   : CategoryIconWidget(
                       category: category,
                       size: 18,
-                    ),
-            ),
+                      underlineColorOverride: isCute
+                          ? CategoryUtils.parseColor(category?.color)
+                          : null,
+                    );
+              if (isCute) {
+                return SizedBox(width: 32, child: Center(child: iconWidget));
+              }
+              return Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: primaryColor.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: iconWidget,
+              );
+            }),
             SizedBox(width: 12.0.scaled(context, ref)),
             Expanded(
               child: Column(

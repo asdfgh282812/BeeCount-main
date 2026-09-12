@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../styles/tokens.dart';
 import '../../widgets/category_icon.dart';
+import '../../providers/theme_providers.dart';
 import '../biz/biz.dart';
 import '../../utils/category_utils.dart';
 import '../../pages/transaction/category_detail_page.dart';
@@ -151,12 +152,17 @@ class _CategoryRankRowState extends ConsumerState<CategoryRankRow> {
     required double percent,
     required bool isTopLevel,
   }) {
-    // 使用统一的 CategoryIconWidget
+    // 使用统一的 CategoryIconWidget。Cute 主题下带 underlineColorOverride:
+    // widget.color 是这一列排行榜专用的图表配色(跟 category.color 不一定
+    // 相同),底线要对齐这里显示的配色,而不是退回分类自己的颜色字段。
+    final isCute =
+        ref.watch(categoryIconStyleProvider) == CategoryIconStyle.cute;
     final iconWidget = CategoryIconWidget(
       category: category,
       categoryName: name,
       size: isTopLevel ? 20 : 18,
       color: widget.color,
+      underlineColorOverride: isCute ? widget.color : null,
     );
 
     return InkWell(
@@ -174,17 +180,25 @@ class _CategoryRankRowState extends ConsumerState<CategoryRankRow> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Container(
-              width: isTopLevel ? 44 : 38,
-              height: isTopLevel ? 44 : 38,
-              decoration: BoxDecoration(
-                color: isTopLevel
-                    ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.12)
-                    : widget.color.withValues(alpha: 0.08),
-                shape: BoxShape.circle,
-              ),
-              child: iconWidget,
-            ),
+            isCute
+                ? SizedBox(
+                    width: isTopLevel ? 44 : 38,
+                    child: Center(child: iconWidget),
+                  )
+                : Container(
+                    width: isTopLevel ? 44 : 38,
+                    height: isTopLevel ? 44 : 38,
+                    decoration: BoxDecoration(
+                      color: isTopLevel
+                          ? Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withValues(alpha: 0.12)
+                          : widget.color.withValues(alpha: 0.08),
+                      shape: BoxShape.circle,
+                    ),
+                    child: iconWidget,
+                  ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
