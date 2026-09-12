@@ -252,6 +252,37 @@ class AssetTrendViewNotifier extends StateNotifier<AssetTrendView> {
   }
 }
 
+/// 类别图示风格：Material（现行）或 Cute（新的手绘可爱线稿主题）。
+/// 刻意只存本机（不像 skinAnimationEnabledProvider 那样推送云端）——
+/// 这是第一版，先验证画风本身，之后真的要跨装置同步再补
+/// _pushAppearanceToCloud，不要在这里抢跑。
+enum CategoryIconStyle { material, cute }
+
+final categoryIconStyleProvider =
+    StateNotifierProvider<CategoryIconStyleNotifier, CategoryIconStyle>(
+        (ref) => CategoryIconStyleNotifier());
+
+class CategoryIconStyleNotifier extends StateNotifier<CategoryIconStyle> {
+  static const _key = 'categoryIconStyle';
+  CategoryIconStyleNotifier() : super(CategoryIconStyle.material) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getString(_key) == 'cute') {
+      state = CategoryIconStyle.cute;
+    }
+  }
+
+  Future<void> select(CategoryIconStyle v) async {
+    if (state == v) return;
+    state = v;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_key, v == CategoryIconStyle.cute ? 'cute' : 'material');
+  }
+}
+
 // 字体持久化初始化 - 已移除，仅使用系统默认字体
 
 // Header装饰样式Provider
