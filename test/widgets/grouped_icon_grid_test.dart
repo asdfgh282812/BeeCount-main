@@ -49,18 +49,22 @@ void main() {
   });
 
   testWidgets(
-      'cute style renders the generic fallback cute icon for an uncovered '
-      'key, not its Material glyph', (tester) async {
+      'cute style: every tile in the grid renders as a CuteCategoryIcon, no '
+      'Material glyphs left at all (2026-09-12: kCuteCategoryIconKeys now '
+      'covers every key CategoryService.getCategoryIcon handles)',
+      (tester) async {
     SharedPreferences.setMockInitialValues({'categoryIconStyle': 'cute'});
-    await tester.pumpWidget(_wrap(GroupedIconGrid(
-      selectedIcon: 'label',
-      kind: 'expense',
-      onIconSelected: (_) {},
-    )));
-    await tester.pump();
+    // 'income' 分组也一起过,双重确认两份 _getIconGroups() 列表都全覆盖。
+    for (final kind in ['expense', 'income']) {
+      await tester.pumpWidget(_wrap(GroupedIconGrid(
+        selectedIcon: null,
+        kind: kind,
+        onIconSelected: (_) {},
+      )));
+      await tester.pump();
 
-    // 2026-09-12: 'label' 沒有專屬 cute SVG,但 cute 模式下不再退回 Material
-    // 圖示,改顯示手繪風的通用 fallback。
-    expect(find.byIcon(Icons.label), findsNothing);
+      expect(find.byType(Icon), findsNothing, reason: 'kind=$kind');
+      expect(find.byType(CuteCategoryIcon), findsWidgets, reason: 'kind=$kind');
+    }
   });
 }

@@ -4,15 +4,21 @@ import 'package:beecount/widgets/cute_icons/cute_category_icon_keys.dart';
 
 void main() {
   test(
-      'registry covers the original 18 plus the 111 default-category keys '
-      'added 2026-09-12 (129 total, no dupes)', () {
-    expect(kCuteCategoryIconKeys.length, 129);
+      'registry covers the original 18, the 111 default-category keys, and '
+      'the 159 remaining category_service.dart keys added 2026-09-12 '
+      '(288 total, no dupes — full CategoryService.getCategoryIcon coverage)',
+      () {
+    expect(kCuteCategoryIconKeys.length, 288);
     // A few from the original 18 (Task 3).
     for (final key in ['restaurant', 'home', 'pets', 'trending_up']) {
       expect(kCuteCategoryIconKeys.contains(key), isTrue, reason: key);
     }
-    // A few from the 2026-09-12 default-category expansion.
+    // A few from the first 2026-09-12 default-category expansion.
     for (final key in ['coffee', 'account_balance', 'work', 'star', 'yard']) {
+      expect(kCuteCategoryIconKeys.contains(key), isTrue, reason: key);
+    }
+    // A few from the second 2026-09-12 expansion (full table coverage).
+    for (final key in ['train', 'boat', 'category', 'bookmark', 'wifi']) {
       expect(kCuteCategoryIconKeys.contains(key), isTrue, reason: key);
     }
   });

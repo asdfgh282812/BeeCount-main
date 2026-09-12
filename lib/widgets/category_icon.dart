@@ -81,9 +81,14 @@ class CategoryIconWidget extends ConsumerWidget {
       // maybeBuild 现在永远回传一个 widget——没有专属素材的 key 会画通用的
       // _fallback.svg,不再退回 Material 图示(2026-09-12 使用者反馈:cute
       // 模式下不该再看到任何 Material 图示)。
+      // glyphSize 比传入的 size 放大 1.25 倍——cute 手绘线稿旁边没有 Material
+      // 图示原本会有的圆底衬托,同一个 size 看起来比 Material 版小,使用者
+      // 反馈「圖示有一點小」。1.25 倍还在旧版圆底徽章(size * 1.5)预留的
+      // 视觉空间预算内,不会撑爆既有版面。
+      final glyphSize = size * 1.25;
       final cuteIcon = CuteCategoryIcon.maybeBuild(
         iconKey: category?.icon,
-        size: size,
+        size: glyphSize,
         lineColor: BeeTokens.iconCategory(context),
       );
       final underlineColor = underlineColorOverride ??
@@ -95,11 +100,11 @@ class CategoryIconWidget extends ConsumerWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           cuteIcon,
-          SizedBox(height: size * 0.12),
+          SizedBox(height: glyphSize * 0.12),
           CategoryColorUnderline(
             color: underlineColor,
-            width: size * 1.3,
-            height: size * 0.32,
+            width: glyphSize * 1.3,
+            height: glyphSize * 0.32,
           ),
         ],
       );

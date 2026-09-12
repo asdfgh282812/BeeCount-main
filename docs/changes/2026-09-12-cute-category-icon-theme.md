@@ -185,15 +185,65 @@ Material `Icon` 顯示;**現在**:一律回傳非 null 的 `CuteCategoryIcon`,ke
 這些使用者還沒实际看到/反馈过,先不动,等使用者之後在这些画面看到色底再处理,
 避免在没验证过实际视觉效果前就大范围改动。
 
+## 8. (再追加)全表覆蓋 288 個 key + 修正強調色偏暗 + 圖示放大
+
+**背景**:使用者實機再看一輪,回報三件事:(a)還有很多實際分類(尤其
+「交通」大類底下,一次就有 5 個子分類)顯示 `_fallback.svg`;(b)不少
+新畫的圖示強調色太暗(特指深藍色系),擔心深色模式下看不清楚;(c)圖示整體
+偏小,希望放大。
+
+**(a) 全表覆蓋**:核對 `lib/services/data/category_service.dart` 的
+`CategoryService.getCategoryIcon` switch,總共 257 個不重複 key(比第 7 節
+用的 `SeedService` 127 個预设分类 key 的集合大得多——後者只是「新建分類时
+的默认值」,前者才是「实际渲染任何分类图示时真正会查的完整表」,使用者自己
+新建/编辑分类时透过 `grouped_icon_grid.dart` 的图示选取格能选到的 268 个
+key 绝大多数也在这个范围内)。跟已覆蓋的 129 個比對後缺口是 159 個,這次
+全部畫完,`kCuteCategoryIconKeys` 從 129 擴充到 **288**(= 257 + 之前就有、
+但不在 `category_service.dart` switch 里的 31 个原始/预设专属 key,比如
+`account_balance_wallet`/`card_travel` 等,詳見檔案內的分段注解)。至此
+`CuteCategoryIcon.maybeBuild` 對 `CategoryService.getCategoryIcon` 涵蓋的
+每一個 key 都有專屬手繪圖示,`_fallback.svg` 只會在使用者輸入了一個連
+`category_service.dart` 都不認得的 icon 字串時才出現(理論上不應該發生,
+是防禦性的兜底,不是這次的「正常路徑」)。
+
+**(b) 強調色偏暗的修正**:寫了一個腳本核對全部 130 張既有 SVG 的強調色
+(fill hex,不含 `currentColor`)感知亮度(`0.299R+0.587G+0.114B`),發現
+最暗的 `#6B8CAE`(用在 29 個檔案裡,包含原始 18 個裡的 `laptop.svg`)
+亮度只有 134,`#4FAE8B`(9 個檔案)134→141.6,`#4DA8B0`(`directions_bus.svg`
+原始 18 個之一)141.7——這三個偏暗色是使用者說「太多暗色系統顏色了(深藍)」
+的來源:强调色是写死的 hex,不像线稿那样透过 `currentColor` 跟着主题换色,
+深色模式背景本身也很暗,一个本来就偏暗的强调色块会跟暗色背景糊在一起、
+辨識度變差。全域 `sed` 替換成更亮的同色系版本(`#6B8CAE→#9AC0E6`、
+`#4FAE8B→#74CBA3`、`#4DA8B0→#6FC4CC`,亮度分別提升到 185/172/172),
+包含原始 18 個檔案(這裡刻意不迴避改到「已核准」的舊圖示,因為使用者的
+反饋是針對整體觀感,不是針對特定某一批)。第二輪 159 個新圖示的畫圖指令
+裡也加了明確的「強調色亮度下限 150」規則,避免重蹈覆轍。
+
+**(c) 圖示放大**:`lib/widgets/category_icon.dart` 的 cute 分支新增
+`glyphSize = size * 1.25`,取代原本直接用呼叫端傳入的 `size`——手繪圖示
+旁邊沒有 Material 版原本圓底徽章的視覺襯托,同樣的 `size` 看起來比較小。
+1.25 倍還在舊版圓底徽章 `size * 1.5` 預留的版面空間內,不會撐爆既有版面。
+這是唯一一個修改點,`suggested_category_grid.dart`/`category_selector.dart`
+都是透過 `CategoryIconWidget` 走這條路徑,自動一起放大;只有
+`grouped_icon_grid.dart` 的圖示選取格(直接呼叫
+`CuteCategoryIcon.maybeBuild`,不經過 `CategoryIconWidget`)沒有放大,因為
+那裡是刻意緊湊的選取網格,使用者沒有反饋那裡太小。
+
+**測試**:`test/widgets/cute_category_icon_keys_test.dart` 的數量斷言改成
+288,新增對第二輪 key(`train`/`boat`/`category`/`bookmark`/`wifi`)的
+覆蓋檢查;`test/widgets/grouped_icon_grid_test.dart` 原本「未覆蓋 key 顯示
+fallback」的測試改寫成「cute 模式下整個網格(expense/income 兩份)找不到
+任何 `Icon` 元件,全部都是 `CuteCategoryIcon`」——因為選取格自己的 259 條
+key 现在全部覆盖,原本拿來測試 fallback 行為的 `'label'` key 也被這輪畫進去
+了,舊測試的前提不再成立。
+
 ## 範圍外(刻意不做)
 
 - **切換偏好跨裝置同步**:見上面第 1 節。
-- **(2026-09-12 更新)第 7 節之後,不再有「其餘 key fallback 回 Material」
-  這件事**:129 個預設分類 key 各自有專屬手繪圖示,其餘任何 key(自訂分類、
-  更生僻的 key)都顯示 `_fallback.svg` 通用手繪圖示,cute 模式下不會再出現
-  Material 圖示。`category_service.dart` 259 條 switch 裡,還有 129 之外
-  沒被 129 涵蓋、但被使用者自訂分類實際用到的 key,一样會落到
-  `_fallback.svg`,這是刻意的(見第 7 節)。
+- **(2026-09-12 更新,第 8 節後)cute 模式下實質上不再有 fallback 這件
+  事**:288 個 key 涵蓋 `CategoryService.getCategoryIcon` 認得的每一個 key,
+  `_fallback.svg` 只在遇到連 Material 對照表都不認得的字串時才會出現,是
+  防禦性兜底,不是正常會走到的路徑。
 - **整併三份重複的 key→圖示對照表**(`category_service.dart` 的 259 條
   switch、`grouped_icon_grid.dart` 的 268 條 picker、已死的
   `icon_picker_page.dart`):這是既有技術債
@@ -246,3 +296,23 @@ Material `Icon` 顯示;**現在**:一律回傳非 null 的 `CuteCategoryIcon`,ke
   经过使用者本人肉眼確認**,只驗證了「檔案存在、格式合法、程式碼接線正確」
   這個技術層面。這是這次改動最大的未知風險,下次使用者反饋在這批新圖示上,
   預期會需要針對個別圖示重畫調整。
+
+**(2026-09-12 再再追加,第 8 節改動——288 個 key 全表覆蓋 + 亮度修正 +
+放大)**:
+- 289 個檔案(288 個 key + `_fallback.svg`)跟
+  `assets/icons/categories_cute/` 實際檔名再次做過集合差集比對,雙向皆空;
+  全部 289 個檔案重新跑過 XML 合法性 + `viewBox`/`currentColor` 檢查,全過。
+- 亮度修正後,全部 289 個檔案裡的強調色 hex 只剩 28 個「邊緣值」落在
+  146–149.7(都是原始 18 個既有色盤的重用,例如 `home.svg` 的 `#6FA97B`
+  sage green),沒有任何一個接近使用者點名的深藍色系;真正的深藍
+  `#6B8CAE`(29 檔)/`#4FAE8B`(9 檔)/`#4DA8B0`(1 檔)已全部替換。
+- `test/widgets/cute_category_icon_keys_test.dart`(288 數量斷言 + 第二輪
+  key 抽查)、`test/widgets/grouped_icon_grid_test.dart`(改寫成「整個網格
+  找不到任何 Material `Icon`」)更新完成,`flutter test` 全套 1279 案例
+  只有前述同一個既有無關失敗,`flutter analyze` 乾淨。
+- **這 159 張圖一樣沒有經過使用者逐張確認**——已更新
+  [Cute Icon Review Board](https://claude.ai/code/artifact/e024d9b9-6655-49c8-a1b7-5e6cff6b48f2)
+  這個複審看板加入全部 289 個圖示,方便使用者事後檢視、挑出需要重畫的。
+- 圖示放大(`glyphSize = size * 1.25`)跟亮度修正都只驗證了程式碼邏輯跟
+  數值,實機視覺效果(是否「剛好大小」、深色模式下是否真的清楚)同樣還沒
+  经过使用者在模擬器/實機上肉眼確認。
