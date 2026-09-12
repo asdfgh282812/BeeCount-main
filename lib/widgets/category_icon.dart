@@ -78,6 +78,9 @@ class CategoryIconWidget extends ConsumerWidget {
     // 拿掉,详见 docs/changes/2026-09-12-cute-category-icon-theme.md)。
     final iconStyle = ref.watch(categoryIconStyleProvider);
     if (iconStyle == CategoryIconStyle.cute) {
+      // maybeBuild 现在永远回传一个 widget——没有专属素材的 key 会画通用的
+      // _fallback.svg,不再退回 Material 图示(2026-09-12 使用者反馈:cute
+      // 模式下不该再看到任何 Material 图示)。
       final cuteIcon = CuteCategoryIcon.maybeBuild(
         iconKey: category?.icon,
         size: size,
@@ -91,7 +94,7 @@ class CategoryIconWidget extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          cuteIcon ?? Icon(iconData, size: size, color: iconColor),
+          cuteIcon,
           SizedBox(height: size * 0.12),
           CategoryColorUnderline(
             color: underlineColor,

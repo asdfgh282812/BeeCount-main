@@ -50,8 +50,9 @@ void main() {
     expect(find.byType(CategoryColorUnderline), findsOneWidget);
   });
 
-  testWidgets('cute style with an unregistered key falls back to Material icon',
-      (tester) async {
+  testWidgets(
+      'cute style with an unregistered key renders the generic fallback '
+      'cute icon, not a Material icon', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
@@ -65,9 +66,10 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.byType(Icon), findsOneWidget);
-    expect(find.byType(CuteCategoryIcon), findsNothing);
-    // Color-coding still shows even when the glyph itself falls back.
+    // 2026-09-12: cute 模式下不再退回 Material 图示,没有专属素材的 key 也
+    // 显示手绘风的通用 fallback 图示。
+    expect(find.byType(Icon), findsNothing);
+    expect(find.byType(CuteCategoryIcon), findsOneWidget);
     expect(find.byType(CategoryColorUnderline), findsOneWidget);
   });
 

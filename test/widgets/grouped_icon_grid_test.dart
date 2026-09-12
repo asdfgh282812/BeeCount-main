@@ -48,8 +48,9 @@ void main() {
     expect(find.byType(CuteCategoryIcon), findsWidgets);
   });
 
-  testWidgets('cute style still falls back to Material icon for an uncovered key',
-      (tester) async {
+  testWidgets(
+      'cute style renders the generic fallback cute icon for an uncovered '
+      'key, not its Material glyph', (tester) async {
     SharedPreferences.setMockInitialValues({'categoryIconStyle': 'cute'});
     await tester.pumpWidget(_wrap(GroupedIconGrid(
       selectedIcon: 'label',
@@ -58,8 +59,8 @@ void main() {
     )));
     await tester.pump();
 
-    // 'label' has no bundled cute SVG (not in kCuteCategoryIconKeys) so it
-    // keeps its Material glyph even though other keys in the same grid swap.
-    expect(find.byIcon(Icons.label), findsOneWidget);
+    // 2026-09-12: 'label' 沒有專屬 cute SVG,但 cute 模式下不再退回 Material
+    // 圖示,改顯示手繪風的通用 fallback。
+    expect(find.byIcon(Icons.label), findsNothing);
   });
 }

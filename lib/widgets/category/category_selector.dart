@@ -517,7 +517,7 @@ class _SubcategorySelectorCard extends ConsumerWidget {
 }
 
 /// 分类项组件
-class _CategoryItem extends StatelessWidget {
+class _CategoryItem extends ConsumerWidget {
   final Category category;
   final VoidCallback onTap;
   final bool selected;
@@ -552,7 +552,7 @@ class _CategoryItem extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     // 二级分类使用较小的图标和缩进；compact 模式下再进一步缩小,给 5 列/
     // 2 行的网格腾出空间(见 CategorySelector.compactGrid)。
     final iconSize =
@@ -567,6 +567,47 @@ class _CategoryItem extends StatelessWidget {
     // 为 null,退回原本的灰色 token 底色,不影响既有外观。
     final resolvedColor =
         CategoryUtils.parseColor(isSubCategory ? parent?.color : category.color);
+    final isCute =
+        ref.watch(categoryIconStyleProvider) == CategoryIconStyle.cute;
+
+    // Cute 主题:拿掉圆形色底,颜色改用图示下面的底线呈现,跟其他画面一致
+    // (2026-09-12 使用者反馈:这个分类选择格自己包了一层色底 Container,
+    // 不是走 CategoryIconWidget 的 showBackground 路径,得单独处理)。
+    final iconArea = isCute
+        ? SizedBox(
+            width: iconSize,
+            height: iconSize,
+            child: Center(
+              child: CategoryIconWidget(
+                category: category,
+                size: iconGlyphSize,
+                underlineColorOverride: resolvedColor,
+              ),
+            ),
+          )
+        : Container(
+            width: iconSize,
+            height: iconSize,
+            decoration: BoxDecoration(
+              color: resolvedColor ??
+                  (selected
+                      ? primaryColor.withValues(alpha: 0.25)
+                      : isSubCategory
+                          ? BeeTokens.surfaceCategoryIconLight(context)
+                          : BeeTokens.surfaceCategoryIcon(context)),
+              shape: BoxShape.circle,
+              border: resolvedColor != null && selected
+                  ? Border.all(color: primaryColor, width: 2.5)
+                  : null,
+            ),
+            child: _buildIcon(
+              context,
+              iconGlyphSize,
+              resolvedColor != null
+                  ? Colors.white
+                  : (selected ? primaryColor : BeeTokens.iconCategory(context)),
+            ),
+          );
 
     return InkWell(
       onTap: onTap,
@@ -577,29 +618,7 @@ class _CategoryItem extends StatelessWidget {
           Stack(
             clipBehavior: Clip.none,
             children: [
-              Container(
-                width: iconSize,
-                height: iconSize,
-                decoration: BoxDecoration(
-                  color: resolvedColor ??
-                      (selected
-                          ? primaryColor.withValues(alpha: 0.25)
-                          : isSubCategory
-                              ? BeeTokens.surfaceCategoryIconLight(context)
-                              : BeeTokens.surfaceCategoryIcon(context)),
-                  shape: BoxShape.circle,
-                  border: resolvedColor != null && selected
-                      ? Border.all(color: primaryColor, width: 2.5)
-                      : null,
-                ),
-                child: _buildIcon(
-                  context,
-                  iconGlyphSize,
-                  resolvedColor != null
-                      ? Colors.white
-                      : (selected ? primaryColor : BeeTokens.iconCategory(context)),
-                ),
-              ),
+              iconArea,
               // 有子分类时在图标右下角显示三个点（完全分开，不重叠）
               if (hasChildren && !isSubCategory)
                 Positioned(
