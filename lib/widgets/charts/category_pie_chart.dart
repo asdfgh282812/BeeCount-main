@@ -11,8 +11,12 @@ import '../../data/db.dart' as db;
 import '../../pages/transaction/category_detail_page.dart';
 import '../biz/biz.dart';
 
-/// 饼图用的分类调色板（12 色，覆盖常见分类数量）
-const _kPieColors = <Color>[
+/// 分类调色板（12 色，覆盖常见分类数量）——同时给下方的
+/// `CategoryRankRow` 排行清单使用(2026-09-13 使用者反馈:洞察页排行榜
+/// 每一列的底线/进度条都是同一个主题色,没有像饼图一样按分类区分颜色)。
+/// 两处都按「金额降序」排列后取相同的 index 对调色盘取模,确保同一个分类
+/// 在饼图扇区和下方排行条目上颜色一致。
+const kCategoryChartColors = <Color>[
   Color(0xFF5B8FF9), // 蓝
   Color(0xFF5AD8A6), // 绿
   Color(0xFFF6BD16), // 黄
@@ -114,7 +118,7 @@ class _CategoryPieChartState extends ConsumerState<CategoryPieChart> {
         slices.add((
           name: item.name,
           total: item.total,
-          color: _kPieColors[slices.length % _kPieColors.length],
+          color: kCategoryChartColors[slices.length % kCategoryChartColors.length],
           originalIndex: idx,
         ));
       } else {

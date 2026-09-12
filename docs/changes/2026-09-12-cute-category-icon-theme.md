@@ -424,6 +424,45 @@ CategoryUtils.resolveDisplayColor(category, allCategories)`(`allCategories`
 這兩個位置(這個表單本身體積很大、既有測試以互動流程為主,建立完整測試
 夾具超出這次修 bug 的範圍),實機驗證待使用者確認。
 
+## 13. (再追加)洞察頁排行榜每一列底線/進度條顏色都一樣
+
+**背景**:使用者反饋洞察(分析)頁分類排行榜清單裡,每一列的分類圖示
+底線跟進度條顏色看起來都一樣(截圖裡學習/購物/醫療/個人/交通/娛樂六列
+顏色沒有區分)。
+
+**根因**:跟第 9-12 節的「底線沒接對顏色」不是同一類問題——這裡
+`CategoryRankRow` 本身接線是對的(`underlineColorOverride: widget.color`,
+`category_rank_row.dart:165`),問題出在呼叫端
+`lib/pages/main/analytics_page.dart:986`:排行榜是用
+`for (final item in catData)` 迴圈產生的,但傳進去的
+`color: Theme.of(context).colorScheme.primary` 整段完全沒有引用迴圈變數
+`item`,所以每一列拿到的都是同一個主題主色,不是依分類區分的顏色。
+
+同一頁上方的 `CategoryPieChart` 反而是對的:它依「金額降序排序後的
+index」對一份 12 色調色盤(`_kPieColors`,`category_pie_chart.dart`)取模
+指定顏色,所以圓餅圖各分類顏色本來就不同,只是這份調色盤跟下面的排行榜
+完全沒共用。
+
+**修正**:
+- 把 `category_pie_chart.dart` 的 `_kPieColors` 改成公開常數
+  `kCategoryChartColors`,加註解說明現在跟 `CategoryRankRow` 共用。
+- `analytics_page.dart` 排行榜迴圈從 `for (final item in catData)` 改成
+  `for (var i = 0; i < catData.length; i++)`,`color` 改傳
+  `kCategoryChartColors[i % kCategoryChartColors.length]`。`catData` 本身
+  已經是按金額降序排好的(`_aggregateTopLevelCategories` 最後一行
+  `..sort((a, b) => b.total.compareTo(a.total))`),跟餅圖的排序邏輯一致,
+  所以同一個分類在餅圖扇區跟排行榜列上顏色會對得起來,是額外的一致性
+  改善(不只是「不再一樣」,是「跟餅圖顏色一致」)。
+- 沒有動 `CategoryRankRow` 內部邏輯(第 11 節加的
+  `underlineColorOverride: widget.color` 接線本來就是對的),純粹是呼叫端
+  傳錯值的 bug。
+
+**測試**:`analytics_page.dart`/`category_pie_chart.dart` 都沒有既有 widget
+test 覆蓋(`AnalyticsPage` 依賴完整 repo/DB,目前測試量能沒有這類夾具),
+沒有新增測試,靠 `flutter analyze`(兩個檔案乾淨無新增 issue)跟
+`flutter test` 全套 1298 案例(只有同一個既有無關失敗)把關,實機視覺
+驗證待使用者確認。
+
 ## 範圍外(刻意不做)
 
 - **切換偏好跨裝置同步**:見上面第 1 節。

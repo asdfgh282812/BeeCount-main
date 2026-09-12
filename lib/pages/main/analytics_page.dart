@@ -976,19 +976,24 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                         ),
                       if (_type != 'balance') const SizedBox(height: 12),
                       if (_type != 'balance')
-                        for (final item in catData)
+                        for (var i = 0; i < catData.length; i++)
                           CategoryRankRow(
-                            categoryId: item.id,
-                            category: item.category,
-                            name: item.name,
-                            value: item.total,
-                            percent: sum == 0 ? 0 : item.total / sum,
-                            color: Theme.of(context).colorScheme.primary,
+                            categoryId: catData[i].id,
+                            category: catData[i].category,
+                            name: catData[i].name,
+                            value: catData[i].total,
+                            percent: sum == 0 ? 0 : catData[i].total / sum,
+                            // catData 跟饼图一样按金额降序排列,用同一份调色
+                            // 盘、同一个 index 取色,让分类在饼图和排行榜里
+                            // 颜色一致(2026-09-13 修正:这里原本写死主题色,
+                            // 导致每一列颜色都一样)。
+                            color: kCategoryChartColors[
+                                i % kCategoryChartColors.length],
                             start: start,
                             end: end,
                             scope: _scope,
                             selMonth: selMonth,
-                            subCategories: item.subCategories,
+                            subCategories: catData[i].subCategories,
                           ),
                       if (_type != 'balance') const SizedBox(height: 20),
                       // 趋势折线图默认折叠，点击标题展开/收合
