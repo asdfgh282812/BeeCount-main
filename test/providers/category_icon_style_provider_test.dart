@@ -12,10 +12,12 @@ void main() {
     final container = ProviderContainer();
     addTearDown(container.dispose);
 
-    expect(container.read(categoryIconStyleProvider), CategoryIconStyle.material);
+    expect(
+        container.read(categoryIconStyleProvider), CategoryIconStyle.material);
   });
 
-  test('select(cute) updates state and persists across a fresh container', () async {
+  test('select(cute) updates state and persists across a fresh container',
+      () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
 

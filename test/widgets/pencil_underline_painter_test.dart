@@ -3,7 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:beecount/widgets/cute_icons/pencil_underline_painter.dart';
 
 void main() {
-  testWidgets('CategoryColorUnderline renders without throwing', (tester) async {
+  testWidgets('CategoryColorUnderline renders without throwing',
+      (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(

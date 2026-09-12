@@ -279,7 +279,8 @@ class CategoryIconStyleNotifier extends StateNotifier<CategoryIconStyle> {
     if (state == v) return;
     state = v;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_key, v == CategoryIconStyle.cute ? 'cute' : 'material');
+    await prefs.setString(
+        _key, v == CategoryIconStyle.cute ? 'cute' : 'material');
   }
 }
 

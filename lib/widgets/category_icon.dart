@@ -59,11 +59,14 @@ class CategoryIconWidget extends ConsumerWidget {
     final iconColor = color ?? primaryColor;
 
     // 检查是否有自定义图标
-    if (category != null && category!.iconType == 'custom' && category!.customIconPath != null) {
+    if (category != null &&
+        category!.iconType == 'custom' &&
+        category!.customIconPath != null) {
       return _buildCustomIcon(category!.customIconPath!, iconColor);
     }
 
-    final iconData = getCategoryIconData(category: category, categoryName: categoryName);
+    final iconData =
+        getCategoryIconData(category: category, categoryName: categoryName);
 
     // Cute 主题只替换「无背景色圆底」的渲染路径 —— showBackground 那套
     // 圆形色底徽章是另一套既有的类别色呈现方式，两者混在一起会互相打架,
@@ -75,7 +78,8 @@ class CategoryIconWidget extends ConsumerWidget {
         size: size,
         lineColor: BeeTokens.iconCategory(context),
       );
-      final underlineColor = CategoryUtils.parseColor(category?.color) ?? iconColor;
+      final underlineColor =
+          CategoryUtils.parseColor(category?.color) ?? iconColor;
 
       return Column(
         mainAxisSize: MainAxisSize.min,

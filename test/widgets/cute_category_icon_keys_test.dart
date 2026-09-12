@@ -34,7 +34,8 @@ void main() {
       isNull,
     );
     expect(
-      CuteCategoryIcon.maybeBuild(iconKey: null, size: 24, lineColor: Colors.black87),
+      CuteCategoryIcon.maybeBuild(
+          iconKey: null, size: 24, lineColor: Colors.black87),
       isNull,
     );
   });

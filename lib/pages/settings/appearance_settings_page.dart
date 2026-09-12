@@ -191,11 +191,13 @@ class _AppearanceSettingsPageState
                         title: l10n.appearanceCuteIcons,
                         subtitle: l10n.appearanceCuteIconsDesc,
                         trailing: Switch.adaptive(
-                          value:
-                              ref.watch(categoryIconStyleProvider) == CategoryIconStyle.cute,
+                          value: ref.watch(categoryIconStyleProvider) ==
+                              CategoryIconStyle.cute,
                           onChanged: (value) {
                             ref.read(categoryIconStyleProvider.notifier).select(
-                                value ? CategoryIconStyle.cute : CategoryIconStyle.material);
+                                value
+                                    ? CategoryIconStyle.cute
+                                    : CategoryIconStyle.material);
                           },
                           activeColor: ref.watch(primaryColorProvider),
                         ),

@@ -54,7 +54,8 @@ class CuteCategoryIcon extends StatelessWidget {
     required double size,
     required Color lineColor,
   }) {
-    if (iconKey == null || !kCuteCategoryIconKeys.contains(iconKey)) return null;
+    if (iconKey == null || !kCuteCategoryIconKeys.contains(iconKey))
+      return null;
     return CuteCategoryIcon(iconKey: iconKey, size: size, lineColor: lineColor);
   }
 

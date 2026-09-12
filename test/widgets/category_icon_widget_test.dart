@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:beecount/data/db.dart';
-import 'package:beecount/providers/theme_providers.dart';
 import 'package:beecount/widgets/category_icon.dart';
 import 'package:beecount/widgets/cute_icons/cute_category_icon_keys.dart';
 import 'package:beecount/widgets/cute_icons/pencil_underline_painter.dart';
@@ -31,7 +30,8 @@ void main() {
     SharedPreferences.setMockInitialValues({'categoryIconStyle': 'cute'});
   });
 
-  testWidgets('cute style with a registered key renders CuteCategoryIcon + underline',
+  testWidgets(
+      'cute style with a registered key renders CuteCategoryIcon + underline',
       (tester) async {
     await tester.pumpWidget(
       ProviderScope(
