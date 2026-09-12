@@ -2360,6 +2360,7 @@ class LocalRepository extends BaseRepository {
     bool? autoPayEnabled,
     String? autoPayFromAccountId,
     bool clearAutoPayFromAccountId = false,
+    bool? hideAmount,
   }) async {
     final account =
         changeTracker != null ? await _accountRepo.getAccount(id) : null;
@@ -2388,6 +2389,7 @@ class LocalRepository extends BaseRepository {
       autoPayEnabled: autoPayEnabled,
       autoPayFromAccountId: autoPayFromAccountId,
       clearAutoPayFromAccountId: clearAutoPayFromAccountId,
+      hideAmount: hideAmount,
     );
     if (account?.syncId != null) {
       await changeTracker!.recordUserGlobalChange(
@@ -2407,6 +2409,13 @@ class LocalRepository extends BaseRepository {
   @override
   Future<void> setAccountHidden(int id, bool hidden) =>
       updateAccount(id, hidden: hidden);
+
+  /// 帳戶頁面單帳戶金額隱藏。同 [setAccountHidden] 的道理:**必須**走本類
+  /// 已帶 change 追蹤的 [updateAccount],不能繞過去直接呼叫
+  /// `_accountRepo.setAccountHideAmount`。
+  @override
+  Future<void> setAccountHideAmount(int id, bool hideAmount) =>
+      updateAccount(id, hideAmount: hideAmount);
 
   @override
   Future<List<Account>> getCreditCardAccounts() =>

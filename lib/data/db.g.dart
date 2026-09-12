@@ -698,6 +698,16 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
   late final GeneratedColumn<String> autoPayFromAccountId =
       GeneratedColumn<String>('auto_pay_from_account_id', aliasedName, true,
           type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _hideAmountMeta =
+      const VerificationMeta('hideAmount');
+  @override
+  late final GeneratedColumn<bool> hideAmount = GeneratedColumn<bool>(
+      'hide_amount', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("hide_amount" IN (0, 1))'),
+      defaultValue: const Constant(false));
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -722,7 +732,8 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         avatarPath,
         includeInTotal,
         autoPayEnabled,
-        autoPayFromAccountId
+        autoPayFromAccountId,
+        hideAmount
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -851,6 +862,12 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
           autoPayFromAccountId.isAcceptableOrUnknown(
               data['auto_pay_from_account_id']!, _autoPayFromAccountIdMeta));
     }
+    if (data.containsKey('hide_amount')) {
+      context.handle(
+          _hideAmountMeta,
+          hideAmount.isAcceptableOrUnknown(
+              data['hide_amount']!, _hideAmountMeta));
+    }
     return context;
   }
 
@@ -907,6 +924,8 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
       autoPayFromAccountId: attachedDatabase.typeMapping.read(
           DriftSqlType.string,
           data['${effectivePrefix}auto_pay_from_account_id']),
+      hideAmount: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}hide_amount'])!,
     );
   }
 
@@ -976,6 +995,14 @@ class Account extends DataClass implements Insertable<Account> {
   /// auto_pay_from_account_id`):另一個帳戶,不可以是 account_group 類型或
   /// 自己,null = 未選擇。跟 parentAccountId 同款用 syncId 做跨裝置穩定引用。
   final String? autoPayFromAccountId;
+
+  /// v61 帳戶頁面單帳戶金額隱藏(對齊 BeeCount Cloud `accounts.
+  /// hide_amount`):只影響帳戶頁面該列自己的數字顯示,跟 [hidden](整列從
+  /// 清單消失)、[includeInTotal](排除淨值加總)是互不干涉的獨立開關 ——
+  /// 不影響任何金額計算/加總/小計(見 docs/superpowers/specs/
+  /// 2026-09-13-account-hide-amount-design.md)。實際顯示與否還要跟全域
+  /// `hideAmountsProvider` 做 OR:全域開著時無論這裡是什麼值都遮蔽。
+  final bool hideAmount;
   const Account(
       {required this.id,
       required this.ledgerId,
@@ -999,7 +1026,8 @@ class Account extends DataClass implements Insertable<Account> {
       this.avatarPath,
       required this.includeInTotal,
       required this.autoPayEnabled,
-      this.autoPayFromAccountId});
+      this.autoPayFromAccountId,
+      required this.hideAmount});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -1052,6 +1080,7 @@ class Account extends DataClass implements Insertable<Account> {
     if (!nullToAbsent || autoPayFromAccountId != null) {
       map['auto_pay_from_account_id'] = Variable<String>(autoPayFromAccountId);
     }
+    map['hide_amount'] = Variable<bool>(hideAmount);
     return map;
   }
 
@@ -1103,6 +1132,7 @@ class Account extends DataClass implements Insertable<Account> {
       autoPayFromAccountId: autoPayFromAccountId == null && nullToAbsent
           ? const Value.absent()
           : Value(autoPayFromAccountId),
+      hideAmount: Value(hideAmount),
     );
   }
 
@@ -1134,6 +1164,7 @@ class Account extends DataClass implements Insertable<Account> {
       autoPayEnabled: serializer.fromJson<bool>(json['autoPayEnabled']),
       autoPayFromAccountId:
           serializer.fromJson<String?>(json['autoPayFromAccountId']),
+      hideAmount: serializer.fromJson<bool>(json['hideAmount']),
     );
   }
   @override
@@ -1163,6 +1194,7 @@ class Account extends DataClass implements Insertable<Account> {
       'includeInTotal': serializer.toJson<bool>(includeInTotal),
       'autoPayEnabled': serializer.toJson<bool>(autoPayEnabled),
       'autoPayFromAccountId': serializer.toJson<String?>(autoPayFromAccountId),
+      'hideAmount': serializer.toJson<bool>(hideAmount),
     };
   }
 
@@ -1189,7 +1221,8 @@ class Account extends DataClass implements Insertable<Account> {
           Value<String?> avatarPath = const Value.absent(),
           bool? includeInTotal,
           bool? autoPayEnabled,
-          Value<String?> autoPayFromAccountId = const Value.absent()}) =>
+          Value<String?> autoPayFromAccountId = const Value.absent(),
+          bool? hideAmount}) =>
       Account(
         id: id ?? this.id,
         ledgerId: ledgerId ?? this.ledgerId,
@@ -1222,6 +1255,7 @@ class Account extends DataClass implements Insertable<Account> {
         autoPayFromAccountId: autoPayFromAccountId.present
             ? autoPayFromAccountId.value
             : this.autoPayFromAccountId,
+        hideAmount: hideAmount ?? this.hideAmount,
       );
   Account copyWithCompanion(AccountsCompanion data) {
     return Account(
@@ -1267,6 +1301,8 @@ class Account extends DataClass implements Insertable<Account> {
       autoPayFromAccountId: data.autoPayFromAccountId.present
           ? data.autoPayFromAccountId.value
           : this.autoPayFromAccountId,
+      hideAmount:
+          data.hideAmount.present ? data.hideAmount.value : this.hideAmount,
     );
   }
 
@@ -1295,7 +1331,8 @@ class Account extends DataClass implements Insertable<Account> {
           ..write('avatarPath: $avatarPath, ')
           ..write('includeInTotal: $includeInTotal, ')
           ..write('autoPayEnabled: $autoPayEnabled, ')
-          ..write('autoPayFromAccountId: $autoPayFromAccountId')
+          ..write('autoPayFromAccountId: $autoPayFromAccountId, ')
+          ..write('hideAmount: $hideAmount')
           ..write(')'))
         .toString();
   }
@@ -1324,7 +1361,8 @@ class Account extends DataClass implements Insertable<Account> {
         avatarPath,
         includeInTotal,
         autoPayEnabled,
-        autoPayFromAccountId
+        autoPayFromAccountId,
+        hideAmount
       ]);
   @override
   bool operator ==(Object other) =>
@@ -1352,7 +1390,8 @@ class Account extends DataClass implements Insertable<Account> {
           other.avatarPath == this.avatarPath &&
           other.includeInTotal == this.includeInTotal &&
           other.autoPayEnabled == this.autoPayEnabled &&
-          other.autoPayFromAccountId == this.autoPayFromAccountId);
+          other.autoPayFromAccountId == this.autoPayFromAccountId &&
+          other.hideAmount == this.hideAmount);
 }
 
 class AccountsCompanion extends UpdateCompanion<Account> {
@@ -1379,6 +1418,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<bool> includeInTotal;
   final Value<bool> autoPayEnabled;
   final Value<String?> autoPayFromAccountId;
+  final Value<bool> hideAmount;
   const AccountsCompanion({
     this.id = const Value.absent(),
     this.ledgerId = const Value.absent(),
@@ -1403,6 +1443,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.includeInTotal = const Value.absent(),
     this.autoPayEnabled = const Value.absent(),
     this.autoPayFromAccountId = const Value.absent(),
+    this.hideAmount = const Value.absent(),
   });
   AccountsCompanion.insert({
     this.id = const Value.absent(),
@@ -1428,6 +1469,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.includeInTotal = const Value.absent(),
     this.autoPayEnabled = const Value.absent(),
     this.autoPayFromAccountId = const Value.absent(),
+    this.hideAmount = const Value.absent(),
   })  : ledgerId = Value(ledgerId),
         name = Value(name);
   static Insertable<Account> custom({
@@ -1454,6 +1496,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Expression<bool>? includeInTotal,
     Expression<bool>? autoPayEnabled,
     Expression<String>? autoPayFromAccountId,
+    Expression<bool>? hideAmount,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1480,6 +1523,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       if (autoPayEnabled != null) 'auto_pay_enabled': autoPayEnabled,
       if (autoPayFromAccountId != null)
         'auto_pay_from_account_id': autoPayFromAccountId,
+      if (hideAmount != null) 'hide_amount': hideAmount,
     });
   }
 
@@ -1506,7 +1550,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       Value<String?>? avatarPath,
       Value<bool>? includeInTotal,
       Value<bool>? autoPayEnabled,
-      Value<String?>? autoPayFromAccountId}) {
+      Value<String?>? autoPayFromAccountId,
+      Value<bool>? hideAmount}) {
     return AccountsCompanion(
       id: id ?? this.id,
       ledgerId: ledgerId ?? this.ledgerId,
@@ -1531,6 +1576,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       includeInTotal: includeInTotal ?? this.includeInTotal,
       autoPayEnabled: autoPayEnabled ?? this.autoPayEnabled,
       autoPayFromAccountId: autoPayFromAccountId ?? this.autoPayFromAccountId,
+      hideAmount: hideAmount ?? this.hideAmount,
     );
   }
 
@@ -1607,6 +1653,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       map['auto_pay_from_account_id'] =
           Variable<String>(autoPayFromAccountId.value);
     }
+    if (hideAmount.present) {
+      map['hide_amount'] = Variable<bool>(hideAmount.value);
+    }
     return map;
   }
 
@@ -1635,7 +1684,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
           ..write('avatarPath: $avatarPath, ')
           ..write('includeInTotal: $includeInTotal, ')
           ..write('autoPayEnabled: $autoPayEnabled, ')
-          ..write('autoPayFromAccountId: $autoPayFromAccountId')
+          ..write('autoPayFromAccountId: $autoPayFromAccountId, ')
+          ..write('hideAmount: $hideAmount')
           ..write(')'))
         .toString();
   }
@@ -18469,6 +18519,7 @@ typedef $$AccountsTableCreateCompanionBuilder = AccountsCompanion Function({
   Value<bool> includeInTotal,
   Value<bool> autoPayEnabled,
   Value<String?> autoPayFromAccountId,
+  Value<bool> hideAmount,
 });
 typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<int> id,
@@ -18494,6 +18545,7 @@ typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<bool> includeInTotal,
   Value<bool> autoPayEnabled,
   Value<String?> autoPayFromAccountId,
+  Value<bool> hideAmount,
 });
 
 class $$AccountsTableFilterComposer
@@ -18579,6 +18631,9 @@ class $$AccountsTableFilterComposer
   ColumnFilters<String> get autoPayFromAccountId => $composableBuilder(
       column: $table.autoPayFromAccountId,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get hideAmount => $composableBuilder(
+      column: $table.hideAmount, builder: (column) => ColumnFilters(column));
 }
 
 class $$AccountsTableOrderingComposer
@@ -18666,6 +18721,9 @@ class $$AccountsTableOrderingComposer
   ColumnOrderings<String> get autoPayFromAccountId => $composableBuilder(
       column: $table.autoPayFromAccountId,
       builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get hideAmount => $composableBuilder(
+      column: $table.hideAmount, builder: (column) => ColumnOrderings(column));
 }
 
 class $$AccountsTableAnnotationComposer
@@ -18745,6 +18803,9 @@ class $$AccountsTableAnnotationComposer
 
   GeneratedColumn<String> get autoPayFromAccountId => $composableBuilder(
       column: $table.autoPayFromAccountId, builder: (column) => column);
+
+  GeneratedColumn<bool> get hideAmount => $composableBuilder(
+      column: $table.hideAmount, builder: (column) => column);
 }
 
 class $$AccountsTableTableManager extends RootTableManager<
@@ -18793,6 +18854,7 @@ class $$AccountsTableTableManager extends RootTableManager<
             Value<bool> includeInTotal = const Value.absent(),
             Value<bool> autoPayEnabled = const Value.absent(),
             Value<String?> autoPayFromAccountId = const Value.absent(),
+            Value<bool> hideAmount = const Value.absent(),
           }) =>
               AccountsCompanion(
             id: id,
@@ -18818,6 +18880,7 @@ class $$AccountsTableTableManager extends RootTableManager<
             includeInTotal: includeInTotal,
             autoPayEnabled: autoPayEnabled,
             autoPayFromAccountId: autoPayFromAccountId,
+            hideAmount: hideAmount,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
@@ -18843,6 +18906,7 @@ class $$AccountsTableTableManager extends RootTableManager<
             Value<bool> includeInTotal = const Value.absent(),
             Value<bool> autoPayEnabled = const Value.absent(),
             Value<String?> autoPayFromAccountId = const Value.absent(),
+            Value<bool> hideAmount = const Value.absent(),
           }) =>
               AccountsCompanion.insert(
             id: id,
@@ -18868,6 +18932,7 @@ class $$AccountsTableTableManager extends RootTableManager<
             includeInTotal: includeInTotal,
             autoPayEnabled: autoPayEnabled,
             autoPayFromAccountId: autoPayFromAccountId,
+            hideAmount: hideAmount,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

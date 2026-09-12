@@ -78,11 +78,11 @@ abstract class AccountRepository {
 
   /// 更新账户
   ///
-  /// [hidden]、[includeInTotal]、[autoPayEnabled] 为 null 表示不改动(见
-  /// [setAccountHidden] 便捷法)。true/false 显式传入才会写库,配合同步 apply
-  /// 的「缺键保留」语义(账户隐藏 #240;不納入總餘額同理)。[autoPayFromAccountId]
-  /// 跟 [parentAccountId] 同款:传值即更新,[clearAutoPayFromAccountId] 才会
-  /// 清空。
+  /// [hidden]、[includeInTotal]、[autoPayEnabled]、[hideAmount] 为 null 表示
+  /// 不改动(见 [setAccountHidden]/[setAccountHideAmount] 便捷法)。true/false
+  /// 显式传入才会写库,配合同步 apply 的「缺键保留」语义(账户隐藏 #240;
+  /// 不納入總餘額同理)。[autoPayFromAccountId] 跟 [parentAccountId] 同款:
+  /// 传值即更新,[clearAutoPayFromAccountId] 才会清空。
   Future<void> updateAccount(
     int id, {
     String? name,
@@ -108,12 +108,18 @@ abstract class AccountRepository {
     bool? autoPayEnabled,
     String? autoPayFromAccountId,
     bool clearAutoPayFromAccountId = false,
+    bool? hideAmount,
   });
 
   /// 隐藏 / 恢复账户(账户隐藏 #240)。内部走 [updateAccount] → 记
   /// user-global 'update' change → 同步。**不要**绕过它直接改列,否则隐藏
   /// 状态不会 push 到云端(同 `updateAccountSortOrders` 的教训)。
   Future<void> setAccountHidden(int id, bool hidden);
+
+  /// 帳戶頁面單帳戶金額隱藏(跟 [hidden] 是互不干涉的獨立開關,見
+  /// docs/superpowers/specs/2026-09-13-account-hide-amount-design.md)。內部
+  /// 走 [updateAccount],同 [setAccountHidden] 的道理:不要繞過它直接改列。
+  Future<void> setAccountHideAmount(int id, bool hideAmount);
 
   /// 获取所有信用卡账户
   Future<List<Account>> getCreditCardAccounts();

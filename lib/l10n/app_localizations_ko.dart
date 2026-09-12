@@ -4149,6 +4149,12 @@ class AppLocalizationsKo extends AppLocalizations {
   String get accountHiddenTag => 'Hidden';
 
   @override
+  String get accountAmountHide => 'Hide this account\'s amount';
+
+  @override
+  String get accountAmountShow => 'Show this account\'s amount';
+
+  @override
   String get accountHiddenSection => 'Hidden';
 
   @override

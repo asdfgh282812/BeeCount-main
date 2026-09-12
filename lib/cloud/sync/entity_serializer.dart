@@ -188,6 +188,9 @@ class EntitySerializer {
       // 都會被 server 當「不更新」。
       'autoPayEnabled': account.autoPayEnabled,
       'autoPayFromAccountId': account.autoPayFromAccountId ?? '',
+      // 帳戶頁面單帳戶金額隱藏,跟 hidden 同款無條件 bool 發送(見
+      // docs/superpowers/specs/2026-09-13-account-hide-amount-design.md)。
+      'hideAmount': account.hideAmount,
     };
   }
 

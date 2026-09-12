@@ -106,6 +106,14 @@ class Accounts extends Table {
   /// auto_pay_from_account_id`):另一個帳戶,不可以是 account_group 類型或
   /// 自己,null = 未選擇。跟 parentAccountId 同款用 syncId 做跨裝置穩定引用。
   TextColumn get autoPayFromAccountId => text().nullable()();
+
+  /// v61 帳戶頁面單帳戶金額隱藏(對齊 BeeCount Cloud `accounts.
+  /// hide_amount`):只影響帳戶頁面該列自己的數字顯示,跟 [hidden](整列從
+  /// 清單消失)、[includeInTotal](排除淨值加總)是互不干涉的獨立開關 ——
+  /// 不影響任何金額計算/加總/小計(見 docs/superpowers/specs/
+  /// 2026-09-13-account-hide-amount-design.md)。實際顯示與否還要跟全域
+  /// `hideAmountsProvider` 做 OR:全域開著時無論這裡是什麼值都遮蔽。
+  BoolColumn get hideAmount => boolean().withDefault(const Constant(false))();
 }
 
 /// 自动汇率本地缓存。日期键 append-only;可随时整表重建 → **不进同步**(README D2)。
@@ -1211,7 +1219,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 60; // v60: 補跑轉帳分類回填,修正雲端建立轉帳的分類/圖示
+  int get schemaVersion => 61; // v61: 帳戶頁面單帳戶金額隱藏(accounts.hide_amount)
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2524,6 +2532,19 @@ class BeeDatabase extends _$BeeDatabase {
             logger.info('DBMigration', '开始迁移到 v60: 回填雲端建立轉帳的分類ID');
             await SeedService.migrateTransferTransactions(this);
             logger.info('DBMigration', 'v60 迁移完成');
+          }
+          if (from < 61) {
+            // v61:帳戶頁面單帳戶金額隱藏(accounts.hide_amount),對齊
+            // BeeCount Cloud `accounts.hide_amount`(見 docs/superpowers/specs/
+            // 2026-09-13-account-hide-amount-design.md)。跟 hidden 同款
+            // BOOLEAN NOT NULL DEFAULT 0,不影響既有資料。
+            logger.info('DBMigration', '开始迁移到 v61: 帳戶單獨隱藏金額(hide_amount)');
+            await _addColumnIfMissing(
+                'accounts',
+                'hide_amount',
+                'ALTER TABLE accounts ADD COLUMN hide_amount '
+                    'BOOLEAN NOT NULL DEFAULT 0;');
+            logger.info('DBMigration', 'v61 迁移完成');
           }
         },
         onCreate: (m) async {

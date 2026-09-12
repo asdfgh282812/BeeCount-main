@@ -2808,6 +2808,8 @@ class _ChildAccountRowState extends ConsumerState<_ChildAccountRow> {
     final onEdit = widget.onEdit;
     final balance = widget.stats?.balance ?? 0;
     final useCompact = ref.watch(compactAmountProvider);
+    final l10n = AppLocalizations.of(context);
+    final rowHide = ref.watch(hideAmountsProvider) || account.hideAmount;
 
     final isForeign =
         account.currency.toUpperCase() != widget.parentCurrency.toUpperCase();
@@ -2911,6 +2913,7 @@ class _ChildAccountRowState extends ConsumerState<_ChildAccountRow> {
               ),
             AmountText(
               value: displayValue,
+              hide: rowHide,
               signed: false,
               showCurrency: false,
               useCompactFormat: useCompact,
@@ -2947,6 +2950,27 @@ class _ChildAccountRowState extends ConsumerState<_ChildAccountRow> {
                   ),
                 ),
               ),
+            GestureDetector(
+              onTap: () => ref
+                  .read(repositoryProvider)
+                  .setAccountHideAmount(account.id, !account.hideAmount),
+              behavior: HitTestBehavior.opaque,
+              child: Tooltip(
+                message: account.hideAmount
+                    ? l10n.accountAmountShow
+                    : l10n.accountAmountHide,
+                child: Padding(
+                  padding: EdgeInsets.only(left: 6.0.scaled(context, ref)),
+                  child: Icon(
+                    account.hideAmount
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    size: 14.0.scaled(context, ref),
+                    color: BeeTokens.iconTertiary(context),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -3222,6 +3246,8 @@ class _AccountCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final balance = stats?.balance ?? 0;
+    final globalHide = ref.watch(hideAmountsProvider);
+    final rowHide = globalHide || account.hideAmount;
     final isLiability = isLiabilityType(effectiveType ?? account.type);
     final creditLimit = account.creditLimit;
     final used = balance < 0 ? -balance : 0.0;
@@ -3337,6 +3363,7 @@ class _AccountCard extends ConsumerWidget {
                 children: [
                   AmountText(
                     value: primaryValue,
+                    hide: rowHide,
                     signed: false,
                     showCurrency: false,
                     useCompactFormat: ref.watch(compactAmountProvider),
@@ -3363,6 +3390,27 @@ class _AccountCard extends ConsumerWidget {
                   ],
                 ],
               ),
+            GestureDetector(
+              onTap: () => ref
+                  .read(repositoryProvider)
+                  .setAccountHideAmount(account.id, !account.hideAmount),
+              behavior: HitTestBehavior.opaque,
+              child: Tooltip(
+                message: account.hideAmount
+                    ? l10n.accountAmountShow
+                    : l10n.accountAmountHide,
+                child: Padding(
+                  padding: EdgeInsets.only(left: 6.0.scaled(context, ref)),
+                  child: Icon(
+                    account.hideAmount
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    size: 16.0.scaled(context, ref),
+                    color: BeeTokens.iconTertiary(context),
+                  ),
+                ),
+              ),
+            ),
             if (onToggleExpand != null)
               GestureDetector(
                 onTap: onToggleExpand,

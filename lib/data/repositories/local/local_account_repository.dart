@@ -206,6 +206,7 @@ class LocalAccountRepository implements AccountRepository {
     bool? autoPayEnabled,
     String? autoPayFromAccountId,
     bool clearAutoPayFromAccountId = false,
+    bool? hideAmount,
   }) async {
     await (db.update(db.accounts)..where((a) => a.id.equals(id))).write(
       AccountsCompanion(
@@ -273,6 +274,8 @@ class LocalAccountRepository implements AccountRepository {
                 : (autoPayFromAccountId != null
                     ? d.Value(autoPayFromAccountId)
                     : const d.Value.absent()),
+        hideAmount:
+            hideAmount == null ? const d.Value.absent() : d.Value(hideAmount),
       ),
     );
   }
@@ -280,6 +283,10 @@ class LocalAccountRepository implements AccountRepository {
   @override
   Future<void> setAccountHidden(int id, bool hidden) =>
       updateAccount(id, hidden: hidden);
+
+  @override
+  Future<void> setAccountHideAmount(int id, bool hideAmount) =>
+      updateAccount(id, hideAmount: hideAmount);
 
   @override
   Future<List<Account>> getCreditCardAccounts() async {

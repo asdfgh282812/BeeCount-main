@@ -139,6 +139,8 @@
   "accountUnhide": "恢復帳戶",
   "accountRestore": "恢復",
   "accountHiddenTag": "已隱藏",
+  "accountAmountHide": "隱藏此帳戶的金額",
+  "accountAmountShow": "顯示此帳戶的金額",
   "accountHiddenSection": "已隱藏",
   "accountHiddenSectionSummary": "已隱藏 {count} · 合計 {total}",
   "accountHideConfirmTitle": "隱藏此帳戶？",

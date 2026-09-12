@@ -303,6 +303,7 @@ Account _account(int id, String name, {String type = 'bank'}) => Account(
       hidden: false,
       includeInTotal: true,
       autoPayEnabled: false,
+      hideAmount: false,
     );
 
 Category _category(int id, String name, String icon) => Category(

@@ -253,7 +253,8 @@ void main() {
         sortOrder: 1,
         hidden: false,
         includeInTotal: true,
-        autoPayEnabled: false);
+        autoPayEnabled: false,
+        hideAmount: false);
     final items = [
       for (var i = 1; i <= 6; i++)
         RecentTransactionItem(transaction: tx(i), category: cat, account: acc),

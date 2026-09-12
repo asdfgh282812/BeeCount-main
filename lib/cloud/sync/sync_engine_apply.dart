@@ -669,6 +669,13 @@ extension SyncEngineApplyExt on SyncEngine {
         ? (payload['includeInTotal'] as bool? ?? true)
         : null;
 
+    // 帳戶頁面單帳戶金額隱藏。跟 hidden 同款 D6 缺鍵保留語義:缺鍵 → null →
+    // update 不覆蓋本地,insert 缺鍵落預設 false(見 docs/superpowers/specs/
+    // 2026-09-13-account-hide-amount-design.md)。
+    final hideAmount = payload.containsKey('hideAmount')
+        ? (payload['hideAmount'] as bool? ?? false)
+        : null;
+
     // 主帳戶(合併帳單,§2.9 Phase 4):跟 hidden 同款 containsKey 保护 ——
     // 老版本 App / 早于本次改动落的历史 sync_change 没有这个键,不能把
     // d.Value(null) 无条件写进去抹掉本地已经建好的挂靠关系。本端 App 自己
@@ -796,6 +803,8 @@ extension SyncEngineApplyExt on SyncEngine {
         autoPayFromAccountId: hasAutoPayFromAccountIdKey
             ? d.Value(autoPayFromAccountId)
             : const d.Value.absent(),
+        hideAmount:
+            hideAmount == null ? const d.Value.absent() : d.Value(hideAmount),
       ));
       logger.debug('SyncEngine', 'pull: 更新账户 $syncId');
     } else {
@@ -821,6 +830,7 @@ extension SyncEngineApplyExt on SyncEngine {
               avatarPath: d.Value(resolvedAvatarPath),
               autoPayEnabled: d.Value(autoPayEnabled ?? false),
               autoPayFromAccountId: d.Value(autoPayFromAccountId),
+              hideAmount: d.Value(hideAmount ?? false),
             ),
           );
       activePullCache?.putAccount(syncId, localId);

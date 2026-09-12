@@ -640,6 +640,7 @@ Account _sampleAccount(
     hidden: false,
     includeInTotal: true,
     autoPayEnabled: false,
+    hideAmount: false,
   );
 }
 

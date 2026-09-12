@@ -7810,6 +7810,18 @@ abstract class AppLocalizations {
   /// **'Hidden'**
   String get accountHiddenTag;
 
+  /// No description provided for @accountAmountHide.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide this account\'s amount'**
+  String get accountAmountHide;
+
+  /// No description provided for @accountAmountShow.
+  ///
+  /// In en, this message translates to:
+  /// **'Show this account\'s amount'**
+  String get accountAmountShow;
+
   /// No description provided for @accountHiddenSection.
   ///
   /// In en, this message translates to:

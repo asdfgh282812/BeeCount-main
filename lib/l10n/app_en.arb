@@ -1736,6 +1736,8 @@
   "accountUnhide": "Restore account",
   "accountRestore": "Restore",
   "accountHiddenTag": "Hidden",
+  "accountAmountHide": "Hide this account's amount",
+  "accountAmountShow": "Show this account's amount",
   "accountHiddenSection": "Hidden",
   "accountHiddenSectionSummary": "{count} hidden · {total}",
   "@accountHiddenSectionSummary": {

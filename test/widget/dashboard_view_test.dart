@@ -78,6 +78,7 @@ void main() {
       hidden: false,
       includeInTotal: true,
       autoPayEnabled: false,
+      hideAmount: false,
     );
   }
 

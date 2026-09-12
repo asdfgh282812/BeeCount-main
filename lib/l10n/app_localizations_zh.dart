@@ -4126,6 +4126,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get accountHiddenTag => '已隐藏';
 
   @override
+  String get accountAmountHide => 'Hide this account\'s amount';
+
+  @override
+  String get accountAmountShow => 'Show this account\'s amount';
+
+  @override
   String get accountHiddenSection => '已隐藏';
 
   @override
@@ -13836,6 +13842,12 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get accountHiddenTag => '已隱藏';
+
+  @override
+  String get accountAmountHide => '隱藏此帳戶的金額';
+
+  @override
+  String get accountAmountShow => '顯示此帳戶的金額';
 
   @override
   String get accountHiddenSection => '已隱藏';

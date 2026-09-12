@@ -192,12 +192,13 @@ extension SharedLedgerPickerFilter on BeeDatabase {
       cardLastFour: a.cardLastFour,
       note: a.note,
       syncId: a.syncId,
-      // SharedLedgerAccounts 镜像表没有 hidden/includeInTotal/autoPay 概念
-      // (这些都是 Owner 侧个人状态,不随共享账本镜像同步),synthetic 账户固定按
-      // 「未隐藏、納入總餘額、未開自動扣繳」处理。
+      // SharedLedgerAccounts 镜像表没有 hidden/includeInTotal/autoPay/hideAmount
+      // 概念(这些都是 Owner 侧个人状态,不随共享账本镜像同步),synthetic 账户
+      // 固定按「未隐藏、納入總餘額、未開自動扣繳、金額不隱藏」处理。
       hidden: false,
       includeInTotal: true,
       autoPayEnabled: false,
+      hideAmount: false,
     );
   }
 
