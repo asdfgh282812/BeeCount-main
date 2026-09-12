@@ -592,6 +592,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get analyticsSwipeToSwitch => '스와이프해 전환';
 
   @override
+  String get analyticsTrendTitle => 'Trend';
+
+  @override
   String get analyticsAllYears => '전체 기간';
 
   @override

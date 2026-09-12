@@ -589,6 +589,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get analyticsSwipeToSwitch => '横滑切换';
 
   @override
+  String get analyticsTrendTitle => 'Trend';
+
+  @override
   String get analyticsAllYears => '全部年份';
 
   @override
@@ -10307,6 +10310,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get analyticsSwipeToSwitch => '橫滑切換';
+
+  @override
+  String get analyticsTrendTitle => '趨勢';
 
   @override
   String get analyticsAllYears => '全部年份';

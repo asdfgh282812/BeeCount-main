@@ -324,6 +324,7 @@
   "analyticsOverallAvg": "平均值",
   "analyticsSwipeHint": "左右滑動切換週期",
   "analyticsSwipeToSwitch": "橫滑切換",
+  "analyticsTrendTitle": "趨勢",
   "analyticsSwitchTo": "切換到{type}",
   "analyticsTipHeader": "提示：頂部膠囊可切換月/年/全部",
   "analyticsToday": "今天",

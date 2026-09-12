@@ -16,6 +16,11 @@ import '../../data/db.dart' as db;
 import '../../utils/month_range.dart';
 import '../../utils/analytics_average.dart';
 
+/// 横滑手势判定为「滑动」所需的最小速度（逻辑像素/秒）。
+/// 原地点一下松手，primaryVelocity 也可能是 0 或很小的值，
+/// 低于此阈值一律当作点击、不触发周期/收支视角切换。
+const double kSwipeVelocityThreshold = 100.0;
+
 class AnalyticsPage extends ConsumerStatefulWidget {
   const AnalyticsPage({super.key});
 
@@ -29,7 +34,7 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
   bool _chartSwiped = false; // 吸收图表区域横滑，避免父级切换收入/支出
   bool _localHeaderDismissed = false; // 本地快速隐藏，实际持久化在 provider 中
   bool _localChartDismissed = false;
-  bool _showPieChart = false; // 切换饼图/排行榜
+  bool _lineChartExpanded = false; // 趋势折线图默认折叠
 
   // 显示周期选择器
   void _showPeriodPicker() async {
@@ -516,7 +521,8 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                     onPressed: () async {
                       final ledgerId = ref.read(currentLedgerIdProvider);
                       if (ledgerId == 0) {
-                        showToast(context, AppLocalizations.of(context).sharePosterNoLedger);
+                        showToast(context,
+                            AppLocalizations.of(context).sharePosterNoLedger);
                         return;
                       }
 
@@ -536,12 +542,14 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                                   height: 50,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 3,
-                                    valueColor: AlwaysStoppedAnimation(Colors.white),
+                                    valueColor:
+                                        AlwaysStoppedAnimation(Colors.white),
                                   ),
                                 ),
                                 const SizedBox(height: 20),
                                 Text(
-                                  AppLocalizations.of(context).mineShareGenerating,
+                                  AppLocalizations.of(context)
+                                      .mineShareGenerating,
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 16,
@@ -640,8 +648,20 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
 
                 // 在balance模式下，需要计算结余数据
                 dynamic seriesRaw;
-                List<({int? id, String name, db.Category? category, double total, List<({int id, db.Category category, String name, double total})> subCategories})>
-                    catData;
+                List<
+                    ({
+                      int? id,
+                      String name,
+                      db.Category? category,
+                      double total,
+                      List<
+                          ({
+                            int id,
+                            db.Category category,
+                            String name,
+                            double total
+                          })> subCategories
+                    })> catData;
                 int txCount;
                 double sum;
 
@@ -655,7 +675,19 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
 
                   // 分类数据显示支出分类（但结余模式下不显示排行榜）
                   catData = list[0] as List<
-                      ({int? id, String name, db.Category? category, double total, List<({int id, db.Category category, String name, double total})> subCategories})>;
+                      ({
+                        int? id,
+                        String name,
+                        db.Category? category,
+                        double total,
+                        List<
+                            ({
+                              int id,
+                              db.Category category,
+                              String name,
+                              double total
+                            })> subCategories
+                      })>;
 
                   // 获取收入和支出的交易数量
                   final expenseCount = list[2] as int;
@@ -668,7 +700,19 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                   sum = incomeSum - expenseSum;
                 } else {
                   catData = list[0] as List<
-                      ({int? id, String name, db.Category? category, double total, List<({int id, db.Category category, String name, double total})> subCategories})>;
+                      ({
+                        int? id,
+                        String name,
+                        db.Category? category,
+                        double total,
+                        List<
+                            ({
+                              int id,
+                              db.Category category,
+                              String name,
+                              double total
+                            })> subCategories
+                      })>;
                   seriesRaw = list[1];
                   txCount = list[2] as int;
                   sum = catData.fold<double>(0, (a, b) => a + b.total);
@@ -699,8 +743,11 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                       _localHeaderDismissed;
                   return GestureDetector(
                     onHorizontalDragEnd: (details) {
-                      // 左右滑动切换周期（月份/年份）
-                      if (details.primaryVelocity! > 0) {
+                      // 左右滑动切换周期（月份/年份）；速度太小（例如原地点按一下）
+                      // 不视为滑动，避免空白处一点就跳周期
+                      final velocity = details.primaryVelocity ?? 0;
+                      if (velocity.abs() < kSwipeVelocityThreshold) return;
+                      if (velocity > 0) {
                         _onChartSwipeRight(); // 向右滑动 -> 上一个周期
                       } else {
                         _onChartSwipeLeft(); // 向左滑动 -> 下一个周期
@@ -857,8 +904,11 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                       setState(() => _chartSwiped = false);
                       return;
                     }
-                    // 左右滑动切换类型
-                    if (details.primaryVelocity! > 0) {
+                    // 左右滑动切换类型；速度太小（例如空白处点一下）
+                    // 不视为滑动，避免误触反复切换收入/结余/支出
+                    final velocity = details.primaryVelocity ?? 0;
+                    if (velocity.abs() < kSwipeVelocityThreshold) return;
+                    if (velocity > 0) {
                       _cycleTypeBackward();
                     } else {
                       _cycleTypeForward();
@@ -867,59 +917,6 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
-                      AnalyticsSummary(
-                        scope: _scope,
-                        isExpense: _type == 'expense',
-                        isBalance: _type == 'balance',
-                        total: sum,
-                        avg: computeSeriesAverage(filteredSeriesRaw),
-                        expenseColor: Theme.of(context).colorScheme.primary,
-                        incomeColor: Theme.of(context).colorScheme.primary,
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        height: 240,
-                        child: LineChart(
-                          values: values,
-                          xLabels: xLabels,
-                          highlightIndex: highlightIndex,
-                          hideAmounts: hide,
-                          themeColor: Theme.of(context).colorScheme.primary,
-                          // 使用统一图表令牌
-                          lineWidth: BeeChartTokens.lineWidth,
-                          dotRadius: BeeChartTokens.dotRadius,
-                          cornerRadius: BeeChartTokens.cornerRadius,
-                          xLabelFontSize: BeeChartTokens.xLabelFontSize,
-                          yLabelFontSize: BeeChartTokens.yLabelFontSize,
-                          onSwipeLeft: () {
-                            // 根据scope切换周期
-                            _onChartSwipeLeft();
-                            setState(() => _chartSwiped = true);
-                          },
-                          onSwipeRight: () {
-                            // 根据scope切换周期
-                            _onChartSwipeRight();
-                            setState(() => _chartSwiped = true);
-                          },
-                          showHint: !chartDismissed,
-                          hintText:
-                              AppLocalizations.of(context).analyticsSwipeHint,
-                          onCloseHint: () async {
-                            final setter =
-                                ref.read(analyticsHintsSetterProvider);
-                            await setter.dismissChart();
-                            if (mounted) {
-                              setState(() => _localChartDismissed = true);
-                            }
-                          },
-                          whiteBg: !BeeTokens.isDark(context),
-                          isDark: BeeTokens.isDark(context),
-                          showGrid: false,
-                          showDots: true,
-                          annotate: true,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
                       // 结余视角不显示分类排行榜标题和内容
                       if (_type != 'balance')
                         Row(
@@ -930,19 +927,6 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                               style: BeeTextTokens.title(context),
                             ),
                             const Spacer(),
-                            // 饼图/列表切换按钮
-                            if (catData.isNotEmpty && sum > 0)
-                              GestureDetector(
-                                onTap: () =>
-                                    setState(() => _showPieChart = !_showPieChart),
-                                child: Icon(
-                                  _showPieChart
-                                      ? Icons.format_list_bulleted
-                                      : Icons.pie_chart_outline,
-                                  size: 20,
-                                  color: BeeTokens.textSecondary(context),
-                                ),
-                              ),
                             if (!headerDismissed) const SizedBox(width: 12),
                             if (!headerDismissed)
                               InkWell(
@@ -981,12 +965,17 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                           ],
                         ),
                       if (_type != 'balance') const SizedBox(height: 8),
-                      if (_type != 'balance' && _showPieChart && catData.isNotEmpty && sum > 0)
+                      if (_type != 'balance' && catData.isNotEmpty && sum > 0)
                         CategoryPieChart(
                           data: catData,
                           sum: sum,
+                          start: start,
+                          end: end,
+                          scope: _scope,
+                          selMonth: selMonth,
                         ),
-                      if (_type != 'balance' && !_showPieChart)
+                      if (_type != 'balance') const SizedBox(height: 12),
+                      if (_type != 'balance')
                         for (final item in catData)
                           CategoryRankRow(
                             categoryId: item.id,
@@ -1001,8 +990,90 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                             selMonth: selMonth,
                             subCategories: item.subCategories,
                           ),
+                      if (_type != 'balance') const SizedBox(height: 20),
+                      // 趋势折线图默认折叠，点击标题展开/收合
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => setState(
+                            () => _lineChartExpanded = !_lineChartExpanded),
+                        child: Row(
+                          children: [
+                            Text(
+                              AppLocalizations.of(context).analyticsTrendTitle,
+                              style: BeeTextTokens.title(context),
+                            ),
+                            const Spacer(),
+                            Icon(
+                              _lineChartExpanded
+                                  ? Icons.keyboard_arrow_up
+                                  : Icons.keyboard_arrow_down,
+                              size: 20,
+                              color: BeeTokens.textSecondary(context),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_lineChartExpanded) ...[
+                        const SizedBox(height: 8),
+                        AnalyticsSummary(
+                          scope: _scope,
+                          isExpense: _type == 'expense',
+                          isBalance: _type == 'balance',
+                          total: sum,
+                          avg: computeSeriesAverage(filteredSeriesRaw),
+                          expenseColor: Theme.of(context).colorScheme.primary,
+                          incomeColor: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          height: 240,
+                          child: LineChart(
+                            values: values,
+                            xLabels: xLabels,
+                            highlightIndex: highlightIndex,
+                            hideAmounts: hide,
+                            themeColor: Theme.of(context).colorScheme.primary,
+                            // 使用统一图表令牌
+                            lineWidth: BeeChartTokens.lineWidth,
+                            dotRadius: BeeChartTokens.dotRadius,
+                            cornerRadius: BeeChartTokens.cornerRadius,
+                            xLabelFontSize: BeeChartTokens.xLabelFontSize,
+                            yLabelFontSize: BeeChartTokens.yLabelFontSize,
+                            onSwipeLeft: () {
+                              // 根据scope切换周期
+                              _onChartSwipeLeft();
+                              setState(() => _chartSwiped = true);
+                            },
+                            onSwipeRight: () {
+                              // 根据scope切换周期
+                              _onChartSwipeRight();
+                              setState(() => _chartSwiped = true);
+                            },
+                            showHint: !chartDismissed,
+                            hintText:
+                                AppLocalizations.of(context).analyticsSwipeHint,
+                            onCloseHint: () async {
+                              final setter =
+                                  ref.read(analyticsHintsSetterProvider);
+                              await setter.dismissChart();
+                              if (mounted) {
+                                setState(() => _localChartDismissed = true);
+                              }
+                            },
+                            whiteBg: !BeeTokens.isDark(context),
+                            isDark: BeeTokens.isDark(context),
+                            showGrid: false,
+                            showDots: true,
+                            annotate: true,
+                          ),
+                        ),
+                      ],
                       // 底部留白，避免被悬浮 Tab 栏遮挡
-                      SizedBox(height: 56 + 12 + MediaQuery.of(context).viewPadding.bottom + 16),
+                      SizedBox(
+                          height: 56 +
+                              12 +
+                              MediaQuery.of(context).viewPadding.bottom +
+                              16),
                     ],
                   ),
                 );
@@ -1114,20 +1185,33 @@ Future<List<dynamic>> _loadBalanceData(
 }
 
 // 聚合一级分类数据（将二级分类金额聚合到一级分类）
-Future<List<({int? id, String name, db.Category? category, double total, List<({int id, db.Category category, String name, double total})> subCategories})>>
-    _aggregateTopLevelCategories(
-        List<
-                ({
-                  int? id,
-                  String name,
-                  String? icon,
-                  int? parentId,
-                  int level,
-                  double total
-                })>
-            hierarchyData,
-        dynamic repo,
-        Map<int, db.Category> sharedSynthetic) async {
+Future<
+    List<
+        ({
+          int? id,
+          String name,
+          db.Category? category,
+          double total,
+          List<
+              ({
+                int id,
+                db.Category category,
+                String name,
+                double total
+              })> subCategories
+        })>> _aggregateTopLevelCategories(
+    List<
+            ({
+              int? id,
+              String name,
+              String? icon,
+              int? parentId,
+              int level,
+              double total
+            })>
+        hierarchyData,
+    dynamic repo,
+    Map<int, db.Category> sharedSynthetic) async {
   // 1. 先收集所有一级分类的完整信息
   // §7 共享账本:Editor 的 tx 用 SharedLedger* 表(synthetic 负 id),
   // 主表 getCategoryById 查不到。topLevelNames/Icons 兜底从 hierarchyData
@@ -1187,7 +1271,8 @@ Future<List<({int? id, String name, db.Category? category, double total, List<({
 
   // 4. 聚合金额，同时收集子分类明细
   final topLevelMap = <int?, double>{};
-  final subCategoriesMap = <int?, List<({int id, db.Category category, String name, double total})>>{};
+  final subCategoriesMap = <int?,
+      List<({int id, db.Category category, String name, double total})>>{};
 
   for (final item in hierarchyData) {
     if (item.level == 1) {
@@ -1230,7 +1315,8 @@ Future<List<({int? id, String name, db.Category? category, double total, List<({
   final result = topLevelMap.entries.map((e) {
     final id = e.key;
     final total = e.value;
-    final subs = subCategoriesMap[id] ?? <({int id, db.Category category, String name, double total})>[];
+    final subs = subCategoriesMap[id] ??
+        <({int id, db.Category category, String name, double total})>[];
 
     // 获取一级分类信息
     if (id != null && topLevelInfo.containsKey(id)) {

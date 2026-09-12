@@ -253,18 +253,19 @@ class AssetTrendViewNotifier extends StateNotifier<AssetTrendView> {
 }
 
 /// 类别图示风格：Material（现行）或 Cute（新的手绘可爱线稿主题）。
-/// 刻意只存本机（不像 skinAnimationEnabledProvider 那样推送云端）——
-/// 这是第一版，先验证画风本身，之后真的要跨装置同步再补
-/// _pushAppearanceToCloud，不要在这里抢跑。
+/// 现在会推云端（跨装置 + web 同步），`select()` 比照 reduceMotionProvider 的
+/// 写法接 echo 抑制（`isApplyingFromServer` + `beginThemePush`），下行 apply
+/// 见 `sync_providers.dart::_applyAppearanceFields`。
 enum CategoryIconStyle { material, cute }
 
 final categoryIconStyleProvider =
     StateNotifierProvider<CategoryIconStyleNotifier, CategoryIconStyle>(
-        (ref) => CategoryIconStyleNotifier());
+        (ref) => CategoryIconStyleNotifier(ref));
 
 class CategoryIconStyleNotifier extends StateNotifier<CategoryIconStyle> {
   static const _key = 'categoryIconStyle';
-  CategoryIconStyleNotifier() : super(CategoryIconStyle.material) {
+  final Ref _ref;
+  CategoryIconStyleNotifier(this._ref) : super(CategoryIconStyle.material) {
     _load();
   }
 
@@ -278,9 +279,17 @@ class CategoryIconStyleNotifier extends StateNotifier<CategoryIconStyle> {
   Future<void> select(CategoryIconStyle v) async {
     if (state == v) return;
     state = v;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-        _key, v == CategoryIconStyle.cute ? 'cute' : 'material');
+    final fromServer = isApplyingFromServer;
+    final endPush = fromServer ? null : beginThemePush();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+          _key, v == CategoryIconStyle.cute ? 'cute' : 'material');
+      if (fromServer) return;
+      _pushAppearanceToCloud(_ref);
+    } finally {
+      endPush?.call();
+    }
   }
 }
 
@@ -656,6 +665,10 @@ void _pushAppearanceToCloud(Ref ref) {
         'note_history_scope': ref.read(noteHistoryScopeProvider).name,
         'note_history_sort': ref.read(noteHistorySortProvider).name,
         'note_history_limit': ref.read(noteHistoryLimitProvider),
+        'category_icon_style':
+            ref.read(categoryIconStyleProvider) == CategoryIconStyle.cute
+                ? 'cute'
+                : 'material',
       };
       await cloudProvider.updateMyProfileAppearance(appearance: appearance);
       logger.info(

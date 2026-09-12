@@ -291,7 +291,24 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
       },
       onFormatChanged: (format) {
         if (_calendarFormat != format) {
-          setState(() => _calendarFormat = format);
+          setState(() {
+            _calendarFormat = format;
+            if (format == CalendarFormat.week) {
+              // 收起为週检视时定位到「目前选中日」所在的那一週,而非停留在
+              // _focusedMonth 原本的月初所在週 —— 此前 focusedDay 恒传月初,
+              // 收起后经常跳到跟选中日不同的週。dailyTotalsByMonthProvider
+              // 只取 year/month(local_transaction_repository.dart 计算区间时
+              // 不看 day),所以这里可以放心带上完整日期。
+              final anchor = _selectedDay ?? DateTime.now();
+              _focusedMonth = DateTime(anchor.year, anchor.month, anchor.day);
+            } else {
+              // 展开回整月时恢复「日恒为 1」的月份不变量,维持
+              // _onPageChanged/jumpToMonth/_showMonthJumpPicker 的共同前置假设。
+              _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
+            }
+          });
+          ref.read(calendarSelectedMonthProvider.notifier).state = _focusedMonth;
+          ref.read(selectedMonthProvider.notifier).state = _focusedMonth;
         }
       },
       startingDayOfWeek: ref.watch(weekStartsOnMondayProvider)

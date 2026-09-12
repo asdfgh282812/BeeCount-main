@@ -1163,6 +1163,12 @@ abstract class AppLocalizations {
   /// **'Swipe to switch'**
   String get analyticsSwipeToSwitch;
 
+  /// No description provided for @analyticsTrendTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Trend'**
+  String get analyticsTrendTitle;
+
   /// No description provided for @analyticsAllYears.
   ///
   /// In en, this message translates to:

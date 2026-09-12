@@ -599,6 +599,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get analyticsSwipeToSwitch => 'Swipe to switch';
 
   @override
+  String get analyticsTrendTitle => 'Trend';
+
+  @override
   String get analyticsAllYears => 'All Years';
 
   @override

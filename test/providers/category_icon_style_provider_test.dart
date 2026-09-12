@@ -4,6 +4,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:beecount/providers/theme_providers.dart';
 
 void main() {
+  // select() 现在会尝试推播到云端(见 theme_providers.dart),推播路径会碰
+  // logger 单例的原生桥接初始化,没有这行会在纯 test() 环境下断言失败——
+  // 跟 reduce_motion_provider_test.dart 的写法保持一致。
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   setUp(() {
     SharedPreferences.setMockInitialValues({});
   });

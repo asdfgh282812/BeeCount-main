@@ -926,6 +926,16 @@ void _applyAppearanceFields(Ref ref, Map<String, dynamic> appearance) {
       ref.read(weekStartsOnMondayProvider.notifier).state = weekStartsMonday;
     }
   }
+  final categoryIconStyleRaw = appearance['category_icon_style'] as String?;
+  if (categoryIconStyleRaw != null) {
+    final next = categoryIconStyleRaw == 'cute'
+        ? CategoryIconStyle.cute
+        : CategoryIconStyle.material;
+    final current = ref.read(categoryIconStyleProvider);
+    if (current != next) {
+      ref.read(categoryIconStyleProvider.notifier).select(next);
+    }
+  }
   final skin = appearance['header_skin'] as String?;
   if (skin != null && skin.isNotEmpty) {
     final current = ref.read(headerSkinProvider);
