@@ -71,6 +71,30 @@ void main() {
     expect(find.byType(CategoryColorUnderline), findsOneWidget);
   });
 
+  testWidgets(
+      'cute style ignores showBackground: true — no circle badge, still an underline',
+      (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: CategoryIconWidget(
+              category: _fakeCategory(icon: 'restaurant', color: '#3F9DA6'),
+              showBackground: true,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // Reaching CuteCategoryIcon/CategoryColorUnderline at all proves the cute
+    // Column branch ran instead of the showBackground==true circle-Container
+    // branch (that branch never builds either of these widgets).
+    expect(find.byType(CuteCategoryIcon), findsOneWidget);
+    expect(find.byType(CategoryColorUnderline), findsOneWidget);
+  });
+
   testWidgets('material style renders the plain Icon with no underline',
       (tester) async {
     SharedPreferences.setMockInitialValues({'categoryIconStyle': 'material'});

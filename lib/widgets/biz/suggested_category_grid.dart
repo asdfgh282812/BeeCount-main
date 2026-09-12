@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/db.dart';
 import '../../l10n/app_localizations.dart';
 import '../../pages/category/category_edit_page.dart';
+import '../../providers/theme_providers.dart';
 import '../../styles/tokens.dart';
 import '../../utils/category_utils.dart';
 import '../category_icon.dart';
@@ -12,7 +14,7 @@ import '../category_icon.dart';
 /// 「新增」,跟 [CategorySelector] 的主類別格一致(與 moze 一致);點擊
 /// 新增分類的 kind 固定 'expense'——建議清單本身混合收支,没有单一 kind
 /// 可用,取最常见的支出场景当默认,使用者仍可在新增页里自行切换。
-class SuggestedCategoryGrid extends StatelessWidget {
+class SuggestedCategoryGrid extends ConsumerWidget {
   const SuggestedCategoryGrid({
     super.key,
     required this.categories,
@@ -28,7 +30,8 @@ class SuggestedCategoryGrid extends StatelessWidget {
   final Map<int, String?> colorByCategoryId;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isCute = ref.watch(categoryIconStyleProvider) == CategoryIconStyle.cute;
     return GridView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -83,13 +86,21 @@ class SuggestedCategoryGrid extends StatelessWidget {
             ? (colorByCategoryId[category.parentId] ?? category.color)
             : category.color;
         final resolvedColor = _parseColor(hex);
-        return InkWell(
-          onTap: () => onCategorySelected(category),
-          borderRadius: BorderRadius.circular(48),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
+        // Cute 主题:拿掉圆形色底,颜色改用图示下面的底线呈现(跟列表页的
+        // CategoryIconWidget 一致),不再包一层色底 Container。
+        final iconTile = isCute
+            ? SizedBox(
+                width: 48,
+                height: 48,
+                child: Center(
+                  child: CategoryIconWidget(
+                    category: category,
+                    size: 26,
+                    underlineColorOverride: resolvedColor,
+                  ),
+                ),
+              )
+            : Container(
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
@@ -104,7 +115,14 @@ class SuggestedCategoryGrid extends StatelessWidget {
                       : BeeTokens.iconCategory(context),
                   circular: true,
                 ),
-              ),
+              );
+        return InkWell(
+          onTap: () => onCategorySelected(category),
+          borderRadius: BorderRadius.circular(48),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              iconTile,
               const SizedBox(height: 6),
               Text(
                 CategoryUtils.getDisplayName(category.name, context),

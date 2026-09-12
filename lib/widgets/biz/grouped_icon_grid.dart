@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class GroupedIconGrid extends StatelessWidget {
+import '../../providers/theme_providers.dart';
+import '../cute_icons/cute_category_icon_keys.dart';
+
+class GroupedIconGrid extends ConsumerWidget {
   final String? selectedIcon;
   final String kind;
   final ValueChanged<String> onIconSelected;
@@ -13,8 +17,10 @@ class GroupedIconGrid extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final iconGroups = _getIconGroups();
+    final isCute =
+        ref.watch(categoryIconStyleProvider) == CategoryIconStyle.cute;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,6 +51,18 @@ class GroupedIconGrid extends StatelessWidget {
               itemBuilder: (context, index) {
                 final iconData = group.icons[index];
                 final isSelected = selectedIcon == iconData.key;
+                final tileColor = isSelected
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).iconTheme.color;
+                // Cute 主题下,选取格里的图示也要换成手绘线稿(有对应素材的
+                // key 才换),让使用者选到的东西跟切换后实际显示的一致。
+                final cuteGlyph = isCute
+                    ? CuteCategoryIcon.maybeBuild(
+                        iconKey: iconData.key,
+                        size: 20,
+                        lineColor: tileColor ?? Colors.grey,
+                      )
+                    : null;
 
                 return InkWell(
                   onTap: () => onIconSelected(iconData.key),
@@ -65,13 +83,12 @@ class GroupedIconGrid extends StatelessWidget {
                       ),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(
-                      iconData.iconData,
-                      size: 20,
-                      color: isSelected
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).iconTheme.color,
-                    ),
+                    child: cuteGlyph ??
+                        Icon(
+                          iconData.iconData,
+                          size: 20,
+                          color: tileColor,
+                        ),
                   ),
                 );
               },

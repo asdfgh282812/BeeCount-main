@@ -76,15 +76,19 @@ fallback 圖示,沒人注意到。
 
 **改了什麼**:`lib/widgets/category_icon.dart` 的 `build()` 在自訂圖示分支
 之後、Material 圖示分支之前,新增一段:`ref.watch(categoryIconStyleProvider)`
-若為 `cute` 且 `showBackground == false`,就用 `CuteCategoryIcon.maybeBuild`
-嘗試取對應 SVG(拿不到就退回原本的 `Icon(iconData, ...)`),圖示下面疊一條
-`CategoryColorUnderline`(顏色來自 `CategoryUtils.parseColor(category?.color)`,
-解析失敗就退回 `iconColor`)。
+若為 `cute`,就用 `CuteCategoryIcon.maybeBuild` 嘗試取對應 SVG(拿不到就退回
+原本的 `Icon(iconData, ...)`),圖示下面疊一條 `CategoryColorUnderline`(顏色
+預設來自 `CategoryUtils.parseColor(category?.color)`,解析失敗就退回
+`iconColor`;呼叫端如果自己已經解析過顏色,可以用新增的
+`underlineColorOverride` 參數直接覆蓋,見第 6 節)。
 
-**為什麼只動 `showBackground == false` 這條路徑**:`showBackground == true`
-是另一套既有的「圓形色底徽章」呈現類別色的方式(類別卡片在用),疊加底線會
-互相打架、視覺上很亂,不是這次使用者驗收過的畫面。這個圓底徽章路徑完全
-不動。
+**(2026-09-12 追加)原本只動 `showBackground == false`,現在 cute 模式下
+`showBackground` 完全不影響輸出**:第一版刻意只改「無背景色圓底」這條路徑,
+`showBackground == true`(類別卡片用的圓形色底徽章)維持原樣不動——但使用者
+實機看過後反饋圓形色底跟 cute 手繪圖示放在一起「很難看」,要求 cute 模式下
+一律拿掉圓底、顏色統一用底線呈現。所以現在的判斷式只看
+`iconStyle == CategoryIconStyle.cute`,不再檢查 `showBackground`;Material
+模式下 `showBackground == true` 的圓底徽章行為完全沒變。
 
 ## 5. 外觀設定切換開關
 
@@ -95,6 +99,36 @@ fallback 圖示,沒人注意到。
 `app_zh.arb`/`app_ko.arb` 已停止手動維護的既有決議)新增
 `appearanceCuteIcons`/`appearanceCuteIconsDesc` 兩個 key,跑過
 `flutter gen-l10n` 重新產生 `app_localizations*.dart`。
+
+## 6. (追加)另外兩處圓形色底徽章畫面——建議分類格、圖示選取格
+
+**背景**:使用者實機看過第一版後,除了第 4 節那個全域行為調整,還額外指出
+兩個具體畫面也要跟著改:「建議」分類分頁(`SuggestedCategoryGrid`)跟分類
+編輯頁的「系統圖示」選取格(`GroupedIconGrid`)。這兩處各自有自己的一份
+Container 渲染邏輯,**不是**透過 `CategoryIconWidget` 的 `showBackground`
+路徑畫出來的,所以光改第 4 節那段還不夠,要分開處理。
+
+**`lib/widgets/biz/suggested_category_grid.dart`**:改成 `ConsumerWidget`,
+`ref.watch(categoryIconStyleProvider)`。cute 模式下,原本包一層
+`resolvedColor` 當底色的圓形 `Container` 拿掉,直接放
+`CategoryIconWidget(category: category, size: 26, underlineColorOverride:
+resolvedColor)`——這裡要傳 `underlineColorOverride` 而不是讓
+`CategoryIconWidget` 自己重新讀 `category.color`,因為這個畫面對二級分類有
+自己的「反查父分類顏色」規則(`colorByCategoryId`),`CategoryIconWidget`
+本身不知道這個規則。Material 模式的圓形色底徽章完全不動。「新增」那格(固定
+`+` 圖示)兩種模式下都不變——它本來就不是類別色,跟這次的問題無關。
+
+**`lib/widgets/biz/grouped_icon_grid.dart`**:改成 `ConsumerWidget`。cute
+模式下,對每一格 icon key 呼叫 `CuteCategoryIcon.maybeBuild`,能拿到 SVG
+就用它換掉原本的 `Icon(iconData.iconData, ...)`;拿不到(不在 18 個白名單
+裡)就照舊顯示 Material 圖示。選中/未選中的邊框跟底色樣式完全不變——這裡
+本來就沒有類別顏色可顯示(顏色是編輯頁另外一塊「分類顏色」色板選的,跟
+圖示選取格是分開的 UI),使用者要的只是「選圖示的時候看到的畫風,要跟切完
+之後實際顯示的畫風一致」,不牽涉底線。
+
+**`lib/widgets/category_icon.dart` 新增的 `underlineColorOverride` 參數**:
+給上面 `SuggestedCategoryGrid` 這種「呼叫端已經自己解析好顏色」的場景用,
+預設 `null`,行為等同沒加這個參數之前(繼續讀 `category?.color`)。
 
 ## 範圍外(刻意不做)
 
@@ -122,6 +156,14 @@ fallback 圖示,沒人注意到。
   lint 雜訊(`dangling_library_doc_comments` 等)跟這次改動無關,沒有新增。
 - `flutter gen-l10n`:`en`/`zh_TW` 兩份新 key 生成無誤。
 - 實機驗證:iOS Simulator(iPhone 17 Pro)上跑 `flutter run` 實際開啟 App,
-  進外觀設定切換「可愛類別圖示」開關,確認 18 個已覆蓋的分類顯示新圖示、
-  其餘分類 fallback 回 Material 圖示但疊加類別色底線,深色模式下線稿正確
-  跟著換色,切回 Material 後畫面完全回復原狀無版面跳動。
+  進外觀設定切換「可愛類別圖示」開關,確認可以正常開關、App 沒有崩潰。
+
+**(2026-09-12 追加,第 6 節改動)**:這一輪(拿掉 `showBackground` 圓底、
+`SuggestedCategoryGrid`/`GroupedIconGrid` 兩處個別畫面)是根據使用者實際
+操作 App 後回報的畫面反饋才動的手,不是原計畫內容。新增/更新了 3 份測試檔
+(`test/widgets/category_icon_widget_test.dart` 補一個 `showBackground: true`
+案例、新增 `test/widgets/suggested_category_grid_test.dart`、新增
+`test/widgets/grouped_icon_grid_test.dart`),全部綠燈;`flutter test` 全套
+1276 案例(新增 6 個測試後)只有前述同一個既有無關失敗。`flutter analyze`
+乾淨。**這一輪改完後,尚未讓使用者在模擬器上重新肉眼確認實際畫面**——下次
+如果使用者或未來的 session 要繼續這個功能,這是還沒收尾的驗證步驟。

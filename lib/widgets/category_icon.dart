@@ -41,6 +41,10 @@ class CategoryIconWidget extends ConsumerWidget {
   final Color? backgroundColor;
   final bool showBackground;
   final bool circular; // 是否使用完全圆形（50%圆角），默认为微圆角（20%）
+  // Cute 主题底线颜色的显式覆盖——给「建议」格这类已经自己解析过颜色的调用方
+  // 用(例如二级分类要 fallback 回父分类色),不用再让本 widget 重新读一遍
+  // category.color。留空时照旧读 category?.color。
+  final Color? underlineColorOverride;
 
   const CategoryIconWidget({
     super.key,
@@ -51,6 +55,7 @@ class CategoryIconWidget extends ConsumerWidget {
     this.backgroundColor,
     this.showBackground = false,
     this.circular = false,
+    this.underlineColorOverride,
   });
 
   @override
@@ -68,18 +73,19 @@ class CategoryIconWidget extends ConsumerWidget {
     final iconData =
         getCategoryIconData(category: category, categoryName: categoryName);
 
-    // Cute 主题只替换「无背景色圆底」的渲染路径 —— showBackground 那套
-    // 圆形色底徽章是另一套既有的类别色呈现方式，两者混在一起会互相打架,
-    // 不在这次范围内。
+    // Cute 主题下,不管 showBackground 是不是 true,都不要圆形色底徽章——
+    // 类别颜色一律只靠底线呈现(2026-09-12 使用者反馈:色底徽章太抢眼,统一
+    // 拿掉,详见 docs/changes/2026-09-12-cute-category-icon-theme.md)。
     final iconStyle = ref.watch(categoryIconStyleProvider);
-    if (iconStyle == CategoryIconStyle.cute && !showBackground) {
+    if (iconStyle == CategoryIconStyle.cute) {
       final cuteIcon = CuteCategoryIcon.maybeBuild(
         iconKey: category?.icon,
         size: size,
         lineColor: BeeTokens.iconCategory(context),
       );
-      final underlineColor =
-          CategoryUtils.parseColor(category?.color) ?? iconColor;
+      final underlineColor = underlineColorOverride ??
+          CategoryUtils.parseColor(category?.color) ??
+          iconColor;
 
       return Column(
         mainAxisSize: MainAxisSize.min,
