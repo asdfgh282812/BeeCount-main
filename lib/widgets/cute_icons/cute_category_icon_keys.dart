@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 /// `category.icon` keys that currently have a bundled original SVG under
-/// assets/icons/categories_cute/<key>.svg. Keep this in sync BY HAND
+/// `assets/icons/categories_cute/`. Keep this in sync BY HAND
 /// whenever an asset is added or removed — `CategoryIconWidget` checks
 /// membership here before attempting to load the file, so a missing asset
 /// never throws at runtime; it just falls back to the Material icon.

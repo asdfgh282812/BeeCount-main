@@ -185,6 +185,29 @@ class _AppearanceSettingsPageState
                         },
                       ),
                       BeeTokens.cardDivider(context),
+                      // 可爱类别图示 —— 切换类别图示为手绘风,颜色改用底线呈现
+                      AppListTile(
+                        leading: Icons.auto_awesome_outlined,
+                        title: l10n.appearanceCuteIcons,
+                        subtitle: l10n.appearanceCuteIconsDesc,
+                        trailing: Switch.adaptive(
+                          value:
+                              ref.watch(categoryIconStyleProvider) == CategoryIconStyle.cute,
+                          onChanged: (value) {
+                            ref.read(categoryIconStyleProvider.notifier).select(
+                                value ? CategoryIconStyle.cute : CategoryIconStyle.material);
+                          },
+                          activeColor: ref.watch(primaryColorProvider),
+                        ),
+                        onTap: () {
+                          final current = ref.read(categoryIconStyleProvider);
+                          ref.read(categoryIconStyleProvider.notifier).select(
+                              current == CategoryIconStyle.cute
+                                  ? CategoryIconStyle.material
+                                  : CategoryIconStyle.cute);
+                        },
+                      ),
+                      BeeTokens.cardDivider(context),
                       // 显示缩放
                       AppListTile(
                         leading: Icons.zoom_out_map_outlined,

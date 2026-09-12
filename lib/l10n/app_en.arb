@@ -959,6 +959,8 @@
   "appearanceSkinAnimationDesc": "Turn off to freeze animated skins on a still frame and save power",
   "appearanceReduceMotion": "Reduce Motion",
   "appearanceReduceMotionDesc": "Turn on to simplify animations across the app and save power",
+  "appearanceCuteIcons": "Cute category icons",
+  "appearanceCuteIconsDesc": "Hand-drawn icons with a colored-pencil underline instead of Material icons",
   "appearanceShowTransactionTime": "Show Transaction Time",
   "appearanceShowTransactionTimeDesc": "Display time in transaction list, allow time selection when editing",
   "appearanceNoteDisplay": "Note display",
