@@ -2337,6 +2337,13 @@ class AppLocalizationsZh extends AppLocalizations {
       'Turn on to simplify animations across the app and save power';
 
   @override
+  String get appearanceCuteIcons => 'Cute category icons';
+
+  @override
+  String get appearanceCuteIconsDesc =>
+      'Hand-drawn icons with a colored-pencil underline instead of Material icons';
+
+  @override
   String get appearanceShowTransactionTime => '显示交易时间';
 
   @override
@@ -12038,6 +12045,12 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get appearanceReduceMotionDesc => '開啟後全站動畫精簡化，更省電';
+
+  @override
+  String get appearanceCuteIcons => '可愛類別圖示';
+
+  @override
+  String get appearanceCuteIconsDesc => '手繪風圖示，改用色鉛筆底線標示類別色，取代 Material 圖示';
 
   @override
   String get appearanceShowTransactionTime => '顯示交易時間';

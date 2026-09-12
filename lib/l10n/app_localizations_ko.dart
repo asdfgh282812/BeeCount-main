@@ -2347,6 +2347,13 @@ class AppLocalizationsKo extends AppLocalizations {
       'Turn on to simplify animations across the app and save power';
 
   @override
+  String get appearanceCuteIcons => 'Cute category icons';
+
+  @override
+  String get appearanceCuteIconsDesc =>
+      'Hand-drawn icons with a colored-pencil underline instead of Material icons';
+
+  @override
   String get appearanceShowTransactionTime => '거래 시간 표시';
 
   @override

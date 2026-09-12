@@ -4411,6 +4411,18 @@ abstract class AppLocalizations {
   /// **'Turn on to simplify animations across the app and save power'**
   String get appearanceReduceMotionDesc;
 
+  /// No description provided for @appearanceCuteIcons.
+  ///
+  /// In en, this message translates to:
+  /// **'Cute category icons'**
+  String get appearanceCuteIcons;
+
+  /// No description provided for @appearanceCuteIconsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Hand-drawn icons with a colored-pencil underline instead of Material icons'**
+  String get appearanceCuteIconsDesc;
+
   /// No description provided for @appearanceShowTransactionTime.
   ///
   /// In en, this message translates to:
