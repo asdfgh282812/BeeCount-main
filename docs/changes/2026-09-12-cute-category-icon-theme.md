@@ -345,6 +345,56 @@ App 當下的主題色跑,使用者截圖當時 App 剛好套用「一週年」�
 逐一新增 widget test(這幾個頁面本身的既有測試覆蓋率就不高,建立完整測試
 夾具超出這次修 bug 的範圍),實機驗證仍待使用者確認。
 
+## 11. (再追加)二級分類底線要跟著父分類的顏色跑
+
+**背景**:使用者實機再看一輪,指出「交通」的子分類(手扶梯、火車、摩托車…)
+在分類選擇格裡底線都正確顯示成父分類的粉色,但在交易明細卡片裡點開單筆
+「摩托車」交易時,底線卻是灰白色的中性色,沒有跟著父分類的粉色跑。
+
+**根因**:二級分類在資料庫裡幾乎都沒有自己的 `color`(只有一級分類會被
+使用者在顏色選擇器裡配色,見第 10 節),UI 上必須靠「讀取父分類的顏色」
+來補齊——但這件事目前是每個畫面各自手動實作,而不是集中在一個地方做:
+`category_selector.dart`(分類選擇格)跟 `project_detail_page.dart`(專案
+分類預算列)都正確做了「是子分類就改讀 parent.color」,但
+`transaction_list_item.dart`(明細列表)、`account_detail_page.dart`
+(帳戶詳情頁的交易列)、`transaction_detail_card.dart`(交易詳情卡,含
+拆帳明細列)這三處是直接讀 `category?.color`,完全沒有查父分類,子分類
+永遠拿不到顏色、落回中性 fallback。
+
+**修正**:在 `CategoryUtils`(`lib/utils/category_utils.dart`)新增共用的
+`resolveDisplayColor(Category? category, List<Category> allCategories)`——
+先看分類自己的 `color`,沒有的話再用 `parentId` 在 `allCategories` 裡查
+父分類的 `color`。三個受影響的畫面改呼叫這個共用方法,而不是各自重新實作
+一次同樣的邏輯:
+- `transaction_list_item.dart`:原本沒有整份分類清單可查,改
+  `ref.watch(categoriesProvider)`(跟其他畫面共用同一份、已經在記憶體裡
+  的資料,不會多打一次 DB)。
+- `account_detail_page.dart` 的 `TransactionTile`:本來就有
+  `categories`(整份分類清單)當建構參數,直接查,不用額外接 provider。
+- `transaction_detail_card.dart`:大圖示預覽區、備註列的小圖示、拆帳明細
+  列表三個地方都補上,同樣改讀 `categoriesProvider`。
+
+**測試**:`test/widgets/transaction_list_item_cute_icon_test.dart` 新增
+「子分類沒有自己的顏色時,底線顯示成父分類的顏色」案例,用
+`categoriesProvider.overrideWith(...)` 餵一組固定的父子分類資料驗證。
+另外把既有的兩個測試也補上 `categoriesProvider` 的 override(空清單即
+可)——`TransactionListItem` 現在一律會讀這個 provider,測試環境沒有真的
+repository/DB,不 override 會意外打到 `repositoryProvider→databaseProvider`
+鏈路,炸出真的 SQLite 初始化。`flutter test` 全套 1283 案例只有同一個既有
+無關失敗。
+
+**已知限制**:`transaction_detail_card.dart` 這個檔案在這次修改之前,工作
+目錄裡已經有一份跟這次無關、尚未提交的變更(轉帳分類 fallback,見
+`docs/changes/2026-09-12-transfer-detail-card-category-fallback.md`),兩者
+在同一批程式碼行裡緊密交錯(例如 `_iconCategory`/`_iconUnderlineColor`
+兩個 method 緊接著寫、同一行 `CategoryIconWidget(...)` 呼叫同時帶了轉帳
+那批加的 `category: _iconCategory(isTransfer)` 跟這次加的
+`underlineColorOverride: _iconUnderlineColor(isTransfer)`),沒辦法用
+`git add -p` 乾淨地只挑出這次的部分。這次先不提交這個檔案(連同同一批
+轉帳修正牽動的 `sync_engine_apply.dart`/`db.dart`/`transaction_list.dart`
+都維持原本未提交的狀態),避免在使用者還沒表態前就把不是這次要求的變更
+一起提交進版本紀錄。
+
 ## 範圍外(刻意不做)
 
 - **切換偏好跨裝置同步**:見上面第 1 節。

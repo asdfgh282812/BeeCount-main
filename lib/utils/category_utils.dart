@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../data/db.dart';
 import '../l10n/app_localizations.dart';
 import '../services/data/seed_service.dart';
 
@@ -213,5 +214,27 @@ class CategoryUtils {
     } catch (_) {
       return null;
     }
+  }
+
+  /// 解析一筆交易實際要顯示的分類顏色——二級分類通常沒有自己的
+  /// `color`(只有使用者在顏色選擇器裡挑過的一級分類才會有值),要跟著
+  /// 父分類的顏色跑,否則畫面上會誤判成「沒有配色」(2026-09-12 使用者
+  /// 反饋:交通類別底下的子分類——摩托車、火車等——顏色沒有跟著父分類的
+  /// 粉色跑)。
+  ///
+  /// [allCategories] 通常直接傳 `categoriesProvider`/`categories` 建構參數
+  /// 裡已經在記憶體中的整份分類清單,不會另外查一次 DB。
+  static Color? resolveDisplayColor(
+      Category? category, List<Category> allCategories) {
+    if (category == null) return null;
+    final ownColor = parseColor(category.color);
+    if (ownColor != null) return ownColor;
+    final parentId = category.parentId;
+    if (parentId == null) return null;
+    final parent = allCategories.cast<Category?>().firstWhere(
+          (c) => c?.id == parentId,
+          orElse: () => null,
+        );
+    return parseColor(parent?.color);
   }
 }

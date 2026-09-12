@@ -2079,8 +2079,12 @@ class TransactionTile extends ConsumerWidget {
                   : CategoryIconWidget(
                       category: category,
                       size: 18,
+                      // 二级分类通常没有自己的 color,底线要跟着父分类跑
+                      // (2026-09-12 使用者反馈)——categories 本来就是这个
+                      // widget 自己的建构参数(整份分类清单),直接查父分类。
                       underlineColorOverride: isCute
-                          ? CategoryUtils.parseColor(category?.color)
+                          ? CategoryUtils.resolveDisplayColor(
+                              category, categories)
                           : null,
                     );
               if (isCute) {

@@ -310,6 +310,13 @@ class TransactionListItem extends ConsumerWidget {
                       // 預設 center 會自動把整列高度撐到跟圖示一樣高。
                       final isCute = ref.watch(categoryIconStyleProvider) ==
                           CategoryIconStyle.cute;
+                      // 二级分类通常没有自己的 color(只有一级分类会被使用者
+                      // 在颜色选择器里配色),底线要跟着父分类的颜色跑,不然
+                      // 交通底下的摩托车/火车这类子分类会显示成没配色的中性
+                      // 底线(2026-09-12 使用者反馈)。
+                      final allCategories =
+                          ref.watch(categoriesProvider).asData?.value ??
+                              const <db.Category>[];
                       final iconWidget = hasSplits
                           ? Icon(Icons.apps,
                               size: 18, color: BeeTokens.iconSecondary(context))
@@ -317,7 +324,8 @@ class TransactionListItem extends ConsumerWidget {
                               category: category,
                               size: 18,
                               underlineColorOverride: isCute
-                                  ? CategoryUtils.parseColor(category?.color)
+                                  ? CategoryUtils.resolveDisplayColor(
+                                      category, allCategories)
                                   : null,
                             );
                       if (isCute) {

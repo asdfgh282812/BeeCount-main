@@ -12,6 +12,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:beecount/data/db.dart';
+import 'package:beecount/providers/database_providers.dart';
+import 'package:beecount/utils/category_utils.dart';
 import 'package:beecount/widgets/biz/transaction_list_item.dart';
 import 'package:beecount/widgets/cute_icons/pencil_underline_painter.dart';
 
@@ -29,8 +31,15 @@ Category _fakeCategory({required String icon, String? color}) {
   );
 }
 
-Widget _wrap(Widget child) {
+Widget _wrap(Widget child, {List<Category> categories = const []}) {
   return ProviderScope(
+    // TransactionListItem 现在会读 categoriesProvider 来做子分类颜色继承
+    // (见 category_utils.dart 的 resolveDisplayColor)——测试环境没有真的
+    // repository/DB,这里直接 override 成固定列表,避免打到真实的
+    // repositoryProvider→databaseProvider 链路。
+    overrides: [
+      categoriesProvider.overrideWith((ref) async => categories),
+    ],
     child: MaterialApp(
       home: Scaffold(body: child),
     ),
@@ -53,6 +62,7 @@ void main() {
       categoryName: '餐飲',
     )));
     await tester.pump();
+    await tester.pump();
 
     // 核心回归断言:不再有 RenderFlex overflow 之类的渲染异常。
     expect(tester.takeException(), isNull);
@@ -69,6 +79,63 @@ void main() {
     expect(circleContainers, isEmpty);
   });
 
+  testWidgets(
+      'cute style: a subcategory with no color of its own inherits the '
+      "parent category's color for its underline (2026-09-12 使用者反饋:"
+      '交通底下的摩托車等子分類,底線顏色沒有跟著父分類的顏色跑)',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({'categoryIconStyle': 'cute'});
+    final parent = Category(
+      id: 10,
+      syncId: 'parent-sync-id',
+      name: '交通',
+      kind: 'expense',
+      icon: 'directions_bus',
+      iconType: 'material',
+      color: '#FF4FA3',
+      sortOrder: 0,
+      level: 1,
+    );
+    final child = Category(
+      id: 11,
+      syncId: 'child-sync-id',
+      name: '摩托車',
+      kind: 'expense',
+      icon: 'motorcycle',
+      iconType: 'material',
+      color: null,
+      sortOrder: 0,
+      level: 2,
+      parentId: 10,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          categoriesProvider.overrideWith((ref) async => [parent, child]),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: TransactionListItem(
+              icon: Icons.motorcycle,
+              category: child,
+              title: '保養煞車皮',
+              amount: 405,
+              isExpense: true,
+              categoryName: '摩托車',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final underline = tester
+        .widget<CategoryColorUnderline>(find.byType(CategoryColorUnderline));
+    expect(underline.color, CategoryUtils.parseColor(parent.color));
+  });
+
   testWidgets('material style: still shows the circle badge, no underline',
       (tester) async {
     SharedPreferences.setMockInitialValues({});
@@ -81,6 +148,7 @@ void main() {
       isExpense: true,
       categoryName: '餐飲',
     )));
+    await tester.pump();
     await tester.pump();
 
     expect(tester.takeException(), isNull);
