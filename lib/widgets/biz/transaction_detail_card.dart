@@ -672,7 +672,7 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
                 children: [
                   _buildHeader(context, l10n, canRefund, refundDisabledReason,
                       bundle?.relatedDebt),
-                  _buildImageOrCategoryBlock(context, bundle),
+                  _buildImageOrCategoryBlock(context, bundle, isTransfer),
                   _buildNoteAmountRow(context, l10n, isExpense, isTransfer,
                       isAdjustment, isRefundTx),
                   const SizedBox(height: 8),
@@ -765,16 +765,21 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
   }
 
   Widget _buildImageOrCategoryBlock(
-      BuildContext context, _DetailBundle? bundle) {
+      BuildContext context, _DetailBundle? bundle, bool isTransfer) {
     final attachments = bundle?.attachments ?? const <TransactionAttachment>[];
     if (attachments.isEmpty) {
       final categoryKind = widget.category?.kind ??
           (widget.transaction.type == 'income' ? 'income' : 'expense');
       // v38 拆帳:没有单一分类可显示,固定用「多類別」聚合图示+标签。
+      // 轉帳:雲端建立的轉帳交易沒有對應的本機虛擬分類(category 為
+      // null),不能直接顯示分類名稱,否則會退回「預設分類」——跟
+      // transaction_list.dart 的 isTransfer 特判保持一致。
       final displayName = widget.transaction.hasSplits
           ? AppLocalizations.of(context).txSplitAggregateLabel
-          : CategoryUtils.getDisplayName(widget.category?.name, context,
-              kind: categoryKind);
+          : isTransfer
+              ? AppLocalizations.of(context).transferTitle
+              : CategoryUtils.getDisplayName(widget.category?.name, context,
+                  kind: categoryKind);
       return Container(
         width: double.infinity,
         height: 220,
@@ -787,9 +792,10 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
                 ? Icon(Icons.apps,
                     size: 88, color: BeeTokens.iconSecondary(context))
                 : CategoryIconWidget(
-                    category: widget.category,
+                    category: _iconCategory(isTransfer),
                     categoryName: displayName,
                     size: 88,
+                    underlineColorOverride: _iconUnderlineColor(isTransfer),
                   ),
             const SizedBox(height: 12),
             Text(
@@ -846,10 +852,14 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
     final categoryKind =
         widget.category?.kind ?? (tx.type == 'income' ? 'income' : 'expense');
     // v38 拆帳:没有单一分类可显示,固定用「多類別」聚合标签。
+    // 轉帳同上——雲端建立的轉帳沒有本機虛擬分類,category 為 null 時不能
+    // 落到 CategoryUtils 的「預設分類」預設值。
     final categoryDisplayName = tx.hasSplits
         ? l10n.txSplitAggregateLabel
-        : CategoryUtils.getDisplayName(widget.category?.name, context,
-            kind: categoryKind);
+        : isTransfer
+            ? l10n.transferTitle
+            : CategoryUtils.getDisplayName(widget.category?.name, context,
+                kind: categoryKind);
     final noteText = (tx.note != null && tx.note!.isNotEmpty)
         ? tx.note!
         : categoryDisplayName;
@@ -882,9 +892,10 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
               ? Icon(Icons.apps,
                   size: 22, color: BeeTokens.iconSecondary(context))
               : CategoryIconWidget(
-                  category: widget.category,
+                  category: _iconCategory(isTransfer),
                   categoryName: categoryDisplayName,
                   size: 22,
+                  underlineColorOverride: _iconUnderlineColor(isTransfer),
                 ),
           const SizedBox(width: 10),
           Expanded(
@@ -957,6 +968,31 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
 
   Widget _tertiaryIcon(BuildContext context, IconData icon) =>
       Icon(icon, size: 16, color: BeeTokens.iconTertiary(context));
+
+  /// 轉帳圖示用的分類物件。雲端建立的轉帳沒有本機虛擬轉帳分類的
+  /// categoryId(`widget.category` 為 null),但圖示渲染(`CategoryIconWidget`
+  /// / `CuteCategoryIcon.maybeBuild`)只認 `category.icon`——傳 null 會畫成
+  /// 通用「無分類」fallback 圖示,而不是轉帳專屬圖示,跟 App 自己建立的轉帳
+  /// (categoryId 本來就指向這個虛擬分類)看起來不一致。這裡兜底改讀全域快取
+  /// 的 [transferCategoryProvider],跟 transfer_form.dart 取得/顯示轉帳分類
+  /// 用的是同一個 provider。
+  Category? _iconCategory(bool isTransfer) {
+    if (widget.category != null) return widget.category;
+    if (!isTransfer) return null;
+    return ref.watch(transferCategoryProvider).valueOrNull;
+  }
+
+  /// Cute 主題底線顏色。二級分類通常沒有自己的 `color`(只有一級分類會被
+  /// 使用者在顏色選擇器裡配色),要跟著父分類的顏色跑,否則畫面上會誤判成
+  /// 「沒有配色」(2026-09-12 使用者反饋:交通底下的摩托車等子分類,顏色
+  /// 沒有跟著父分類的粉色跑)。這裡沒有現成的「整份分類清單」可用,直接讀
+  /// `categoriesProvider`(跟其他畫面共用同一份、已在記憶體裡的資料)。
+  Color? _iconUnderlineColor(bool isTransfer) {
+    final category = _iconCategory(isTransfer);
+    final allCategories = ref.watch(categoriesProvider).asData?.value ??
+        const <Category>[];
+    return CategoryUtils.resolveDisplayColor(category, allCategories);
+  }
 
   Widget _detailItem(BuildContext context, Widget icon, String text) {
     return Expanded(
@@ -1112,6 +1148,10 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
     final splits = bundle?.splits ?? const <_ResolvedSplit>[];
     if (splits.isEmpty) return const SizedBox.shrink();
     final tx = widget.transaction;
+    // 同 _iconUnderlineColor:拆帳裡每一筆的分類也可能是二級分類,底線要
+    // 跟着父分类的颜色跑。
+    final allCategories =
+        ref.watch(categoriesProvider).asData?.value ?? const <Category>[];
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -1139,6 +1179,8 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
                     category: s.category,
                     categoryName: name,
                     size: 22,
+                    underlineColorOverride: CategoryUtils.resolveDisplayColor(
+                        s.category, allCategories),
                   ),
                   const SizedBox(width: 10),
                   Expanded(

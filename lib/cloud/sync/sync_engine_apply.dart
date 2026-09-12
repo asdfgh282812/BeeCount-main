@@ -206,6 +206,18 @@ extension SyncEngineApplyExt on SyncEngine {
       categorySyncIdOverride = null;
     }
 
+    // 轉帳:網頁端建立轉帳沒有分類概念,payload 不帶 categoryId,上面解析
+    // 出来的 categoryId 会是 null。App 自己建立转账时会把 categoryId 指向
+    // 本机虚拟「转账」分类(transfer_form.dart → transferCategoryProvider),
+    // 这里补齐同样的行为——否则明細卡/列表用 category.icon 挑图示时,云端
+    // 建立的转账会落回「无分类」的通用 fallback 图示,跟 App 建立的转账
+    // 图示不一致(分类名称本身靠 UI 层 isTransfer 特判已经一致,见
+    // transaction_list.dart / transaction_detail_card.dart)。
+    if (isTransfer && categoryId == null && !txHasSplits) {
+      final transferCategory = await repo.getTransferCategory();
+      categoryId = transferCategory.id;
+    }
+
     final rawAccountId = (payload['accountId'] as String?) ??
         (isTransfer ? payload['fromAccountId'] as String? : null);
     int? accountId = await _resolveAccountIdBySyncId(rawAccountId) ??

@@ -571,13 +571,27 @@ class TransactionListState extends ConsumerState<TransactionList> {
                       final attachmentCount =
                           _getAttachmentCountForTransaction(it.t.id);
 
+                      // 轉帳:雲端建立的轉帳沒有本機虛擬轉帳分類的
+                      // categoryId(it.category 為 null),圖示渲染只認
+                      // category.icon,傳 null 會落回通用「無分類」fallback
+                      // 圖示,跟 App 自己建立的轉帳看起來不一致——兜底改讀
+                      // 全域快取的 transferCategoryProvider(同
+                      // transaction_detail_card.dart 的 _iconCategory)。
+                      final iconCategory = isAdjustment
+                          ? null
+                          : it.category ??
+                              (isTransfer
+                                  ? ref
+                                      .watch(transferCategoryProvider)
+                                      .valueOrNull
+                                  : null);
                       return TransactionListItem(
                         icon: isAdjustment
                             ? Icons.tune
                             : getCategoryIconData(
-                                category: it.category,
+                                category: iconCategory,
                                 categoryName: categoryName),
-                        category: isAdjustment ? null : it.category,
+                        category: iconCategory,
                         title: isTransfer
                             ? (subtitle.isNotEmpty
                                 ? subtitle

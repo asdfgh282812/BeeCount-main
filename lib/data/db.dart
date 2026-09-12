@@ -1211,7 +1211,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 59; // v59: 待確認專案(transactions.needs_project_assignment)
+  int get schemaVersion => 60; // v60: 補跑轉帳分類回填,修正雲端建立轉帳的分類/圖示
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2508,6 +2508,22 @@ class BeeDatabase extends _$BeeDatabase {
                 'ALTER TABLE transactions ADD COLUMN needs_project_assignment '
                     'BOOLEAN NOT NULL DEFAULT 0;');
             logger.info('DBMigration', 'v59 迁移完成');
+          }
+          if (from < 60) {
+            // v60:雲端(BeeCount Cloud)建立的轉帳交易不會帶 categoryId(網頁
+            // 端沒有分類概念),pull 套用後 transactions.category_id 停在
+            // NULL——分類名稱/圖示因此顯示成「預設分類」+ 可愛主題的通用
+            // fallback 圖示,而不是虛擬轉帳分類的「轉帳」+ swap_horiz 圖示。
+            // v14 當時只在「schema 從 <14 升級」那一次性時機呼叫過
+            // `migrateTransferTransactions`,之後所有透過雲同步新產生的
+            // categoryId=NULL 轉帳記錄都沒有機會被這個函式碰到。這裡再跑一次
+            // 同一個冪等函式,把所有既有的 orphan 轉帳記錄一次性回填,拉取
+            // 套用邏輯(sync_engine_apply.dart)也已經改成新 pull 時直接補
+            // 上,兩邊一起確保新舊資料都對齊 App 自己建立轉帳時的行為。見
+            // docs/changes/2026-09-12-transfer-detail-card-category-fallback.md。
+            logger.info('DBMigration', '开始迁移到 v60: 回填雲端建立轉帳的分類ID');
+            await SeedService.migrateTransferTransactions(this);
+            logger.info('DBMigration', 'v60 迁移完成');
           }
         },
         onCreate: (m) async {
