@@ -17,6 +17,7 @@ import '../../services/data/merchant_history_service.dart';
 import '../../models/merchant_history.dart';
 import '../../services/attachment_service.dart';
 import '../../providers.dart';
+import '../../utils/category_utils.dart';
 import '../../utils/ui_scale_extensions.dart';
 import '../../utils/amount_calculator.dart';
 import '../../utils/card_reward_calc.dart';
@@ -2295,6 +2296,13 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
                   size: 24,
                   showBackground: true,
                   circular: true,
+                  // 二级分类通常没有自己的 color,底线要跟着父分类跑,不然
+                  // 選好分類後這裡會顯示成沒配色的中性底線(2026-09-12
+                  // 使用者反馈)。
+                  underlineColorOverride: CategoryUtils.resolveDisplayColor(
+                      c,
+                      ref.watch(categoriesProvider).asData?.value ??
+                          const <Category>[]),
                 ),
                 const SizedBox(width: 10),
                 Flexible(
@@ -2336,6 +2344,9 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   /// 比照使用者提供的 Moze 截圖排版。
   Widget _buildSplitChipStrip(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    // 同 _buildCategorySection:二级分类底线要跟着父分类的颜色跑。
+    final allCategories =
+        ref.watch(categoriesProvider).asData?.value ?? const <Category>[];
     return SizedBox(
       height: 86,
       child: ListView(
@@ -2402,6 +2413,8 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
                   size: 26,
                   showBackground: true,
                   circular: true,
+                  underlineColorOverride: CategoryUtils.resolveDisplayColor(
+                      _splits[i].category, allCategories),
                 ),
               ),
               label: _splits[i].category.name,

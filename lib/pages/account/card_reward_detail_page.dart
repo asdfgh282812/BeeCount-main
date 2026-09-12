@@ -453,6 +453,12 @@ class _CardRewardDetailPageState extends ConsumerState<CardRewardDetailPage> {
               category: category,
               categoryName: displayName,
               size: 36,
+              // 二级分类没有自己的 color 时,底线要跟着父分类跑(见
+              // docs/changes/2026-09-12-cute-category-icon-theme.md 第 11 節)。
+              underlineColorOverride: CategoryUtils.resolveDisplayColor(
+                  category,
+                  ref.watch(categoriesProvider).asData?.value ??
+                      const <db.Category>[]),
             ),
             const SizedBox(width: 10),
             Expanded(

@@ -395,6 +395,35 @@ repository/DB,不 override 會意外打到 `repositoryProvider→databaseProvide
 都維持原本未提交的狀態),避免在使用者還沒表態前就把不是這次要求的變更
 一起提交進版本紀錄。
 
+## 12. (再追加)新增交易表單的已選分類 chip 也要跟著父分類顏色跑
+
+**背景**:第 11 節修的是明細列表/帳戶詳情頁,使用者這輪指出「新增交易」
+表單裡,選好分類後上方顯示的已選分類 chip(圖示+名稱+展開箭頭),圖示
+正確但底線又是沒配色的中性色——這是另一個獨立的畫面,同一個 bug 還沒
+覆蓋到。
+
+**修正**:`lib/widgets/biz/transaction_entry_form.dart` 有兩處
+`CategoryIconWidget` 呼叫都補上 `underlineColorOverride:
+CategoryUtils.resolveDisplayColor(category, allCategories)`(`allCategories`
+一樣讀 `categoriesProvider`):
+- `_buildCategorySection` 未展開時顯示的已選分類 chip(圖示+名稱+
+  `Icons.unfold_more` 箭頭+右側拆帳按鈕那一整排)。
+- `_buildSplitChipStrip`(v38 拆帳模式的橫向分類 chip 條)裡每一筆拆分
+  明細的圖示。
+
+順手核對了整個 repo 所有 `CategoryIconWidget(` 呼叫點,又多抓到一個同樣
+沒接 `underlineColorOverride` 的信用卡回饋明細頁
+(`lib/pages/account/card_reward_detail_page.dart`,交易列表列),一併
+修正。`lib/pages/budget/widgets/category_budget_tile.dart`(預算頁的分類
+條目)也是同一個 bug,但那裡除了顏色繼承之外還完全沒有 cute 模式分支
+(色底方塊、potential 0.4px overflow 都還沒處理),範圍比單純補
+`underlineColorOverride` 大一些,這次先用背景任務記錄下來,沒有直接改。
+
+**測試**:`flutter analyze`/`flutter test` 全套 1283 案例只有同一個既有
+無關失敗;沒有另外新增 widget test 覆蓋 `transaction_entry_form.dart`
+這兩個位置(這個表單本身體積很大、既有測試以互動流程為主,建立完整測試
+夾具超出這次修 bug 的範圍),實機驗證待使用者確認。
+
 ## 範圍外(刻意不做)
 
 - **切換偏好跨裝置同步**:見上面第 1 節。
