@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../styles/tokens.dart';
+
 /// `category.icon` keys that currently have a bundled original SVG under
 /// `assets/icons/categories_cute/`. Keep this in sync BY HAND
 /// whenever an asset is added or removed — `CuteCategoryIcon.maybeBuild`
@@ -353,13 +355,18 @@ class CuteCategoryIcon extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return SvgPicture.asset(
-      'assets/icons/categories_cute/$iconKey.svg',
-      width: size,
-      height: size,
-      fit: BoxFit.contain,
-      theme: SvgTheme(currentColor: lineColor),
-    );
-  }
+    Widget build(BuildContext context) {
+      // 暗色模式下，線條直接切成白色（或極淺灰）；淺色模式維持原本傳入的 lineColor
+      final effectiveLineColor = BeeTokens.isDark(context)
+          ? Colors.white.withValues(alpha: 0.9)
+          : lineColor;
+
+      return SvgPicture.asset(
+        'assets/icons/categories_cute/$iconKey.svg',
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+        theme: SvgTheme(currentColor: effectiveLineColor),
+      );
+    }
 }

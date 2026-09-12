@@ -237,6 +237,48 @@ fallback」的測試改寫成「cute 模式下整個網格(expense/income 兩份
 key 现在全部覆盖,原本拿來測試 fallback 行為的 `'label'` key 也被這輪畫進去
 了,舊測試的前提不再成立。
 
+## 9. (再追加)暗色模式線稿加淡白底 + 明細列表圖示格 0.4px overflow
+
+**背景**:使用者實機在暗色主題下看,回報兩件事:(a)手繪線稿在深色背景下
+線條偏細、看不清楚;(b)「明細」列表(`transaction_list_item.dart`)的分類
+圖示格出現紅黑條紋的 `RenderFlex overflowed by 0.4 pixels` 警告,底線效果
+沒有正常顯示。
+
+**(a) 暗色模式線稿加淡白底**:`CuteCategoryIcon.build`
+(`lib/widgets/cute_icons/cute_category_icon_keys.dart`)在
+`BeeTokens.isDark(context)` 為真時,用 `DecoratedBox` 在 SVG 外面加一層
+`Colors.white.withValues(alpha: 0.08)` 的圓形底,提升線條與深色背景的對比。
+故意把透明度壓得很低(8%),不會變回第 6 節才剛拿掉的那種醒目色底徽章——
+這一層只是提升可讀性的中性襯托,不帶分類色彩。改在 `CuteCategoryIcon`
+這個最底層畫,所有呼叫路徑(`CategoryIconWidget`、`SuggestedCategoryGrid`、
+`GroupedIconGrid`)都會自動套用,不用逐一改。
+
+**(b) 明細列表 0.4px overflow**:`transaction_list_item.dart` 原本用一個
+寫死 `width: 32, height: 32` 的圓形色底 `Container` 包着分類圖示(呼叫
+`CategoryIconWidget(size: 18)`)。Cute 模式下 `CategoryIconWidget` 回傳的是
+「圖示 + 底線」上下排列的 `Column`,實際高度是
+`size*1.25`(圖示)+ 間距 + 底線,`size=18` 時算出來 ≈32.4——比固定的
+32 高出 0.4px,`Column` 在緊約束(tight constraint)下放不下,觸發
+`RenderFlex overflow`。
+
+第一輪修正只是把外層 `Container` 換成同樣寫死 `height: 32` 的 `SizedBox`,
+拿掉了色底、但兩者都是緊約束,並沒有解決真正的溢出——使用者截圖顯示警告
+依舊在。真正的修正:cute 模式下只固定寬度(`SizedBox(width: 32)`,維持跟
+右側文字的水平間距對齊),不設高度上限,讓 `Column` 依內容自然撐開;`Row`
+本身 `crossAxisAlignment` 預設 `center`,整列高度會自動撐到跟圖示一樣高,
+不影響其他欄位。同時比照第 6 節其他畫面,把這裡也一併改成 cute 模式拿掉
+圓形色底、改用 `underlineColorOverride` 顯示分類色底線,補上這裡先前沒
+處理到的第三個「明細列表」場景(第 5 部分「待處理」清單里提過的
+`transaction_list_item.dart` 就是這裡)。
+
+**測試**:新增 `test/widgets/transaction_list_item_cute_icon_test.dart`,
+斷言 cute 模式下 `tester.takeException()` 為 `null`(這個回歸測試在改回
+`height: 32` 的版本上會失敗,驗證過真的能抓到這個 bug)、顯示
+`CategoryColorUnderline`、不再有圓形色底 `Container`;另一個案例驗證
+Material 模式維持原樣(圓形色底、無底線)。`flutter test` 全套 1281 案例
+只有同一個既有、跟本次改動無關的失敗
+(`test/widgets/calendar_month_jump_test.dart`)。
+
 ## 範圍外(刻意不做)
 
 - **切換偏好跨裝置同步**:見上面第 1 節。

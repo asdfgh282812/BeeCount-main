@@ -7,6 +7,7 @@ import '../../widgets/ui/ui.dart';
 import '../../widgets/category_icon.dart';
 import '../../providers/database_providers.dart';
 import '../../providers/theme_providers.dart';
+import '../../utils/category_utils.dart';
 import 'amount_text.dart';
 import 'tag_chip.dart';
 import 'transaction_row_title.dart';
@@ -293,24 +294,51 @@ class TransactionListItem extends ConsumerWidget {
                   // 分类图标，支持点击跳转
                   GestureDetector(
                     onTap: onCategoryTap,
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: hasSplits
+                    child: Builder(builder: (context) {
+                      // Cute 主题:拿掉圆形色底,颜色改用图示下面的底线呈现,
+                      // 跟其他画面一致(2026-09-12 使用者反馈)。
+                      //
+                      // 注意:cute 模式的 CategoryIconWidget 回傳的是「圖示+
+                      // 底線」上下排列的 Column,實際高度是 size*1.25(圖示)
+                      // + 間距 + 底線,size=18 時算出來 ≈32.4——比這裡原本
+                      // 固定的 32 高的圖示格子還高 0.4px。之前只把 Container
+                      // 換成同樣寫死 height:32 的 SizedBox,兩者都是「緊約束
+                      // (tight constraint)」,並沒有解決溢出,只是拿掉了色底
+                      // (使用者截圖顯示 overflow 警告依舊在)。這裡只固定寬度
+                      // 32(維持與後面文字的水平間距對齊),高度不設限,讓
+                      // Column 依內容自然撐開,Row 本身 crossAxisAlignment
+                      // 預設 center 會自動把整列高度撐到跟圖示一樣高。
+                      final isCute = ref.watch(categoryIconStyleProvider) ==
+                          CategoryIconStyle.cute;
+                      final iconWidget = hasSplits
                           ? Icon(Icons.apps,
                               size: 18, color: BeeTokens.iconSecondary(context))
                           : CategoryIconWidget(
                               category: category,
                               size: 18,
-                            ),
-                    ),
+                              underlineColorOverride: isCute
+                                  ? CategoryUtils.parseColor(category?.color)
+                                  : null,
+                            );
+                      if (isCute) {
+                        return SizedBox(
+                          width: 32,
+                          child: Center(child: iconWidget),
+                        );
+                      }
+                      return Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: iconWidget,
+                      );
+                    }),
                   ),
                 const SizedBox(width: 12),
                 // 左侧：分类名称 + 备注 + 时间·账户
