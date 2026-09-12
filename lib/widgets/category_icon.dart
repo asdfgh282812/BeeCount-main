@@ -7,6 +7,10 @@ import '../services/custom_icon_service.dart';
 import '../data/db.dart';
 import '../data/models/category_icon.dart';
 import '../providers/theme_providers.dart';
+import '../styles/tokens.dart';
+import '../utils/category_utils.dart';
+import 'cute_icons/cute_category_icon_keys.dart';
+import 'cute_icons/pencil_underline_painter.dart';
 
 /// 获取分类的图标数据。**永远只读 `category.icon` 字段**,不再按名字推导。
 ///
@@ -59,8 +63,34 @@ class CategoryIconWidget extends ConsumerWidget {
       return _buildCustomIcon(category!.customIconPath!, iconColor);
     }
 
-    // 使用 Material Icon
     final iconData = getCategoryIconData(category: category, categoryName: categoryName);
+
+    // Cute 主题只替换「无背景色圆底」的渲染路径 —— showBackground 那套
+    // 圆形色底徽章是另一套既有的类别色呈现方式，两者混在一起会互相打架,
+    // 不在这次范围内。
+    final iconStyle = ref.watch(categoryIconStyleProvider);
+    if (iconStyle == CategoryIconStyle.cute && !showBackground) {
+      final cuteIcon = CuteCategoryIcon.maybeBuild(
+        iconKey: category?.icon,
+        size: size,
+        lineColor: BeeTokens.iconCategory(context),
+      );
+      final underlineColor = CategoryUtils.parseColor(category?.color) ?? iconColor;
+
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          cuteIcon ?? Icon(iconData, size: size, color: iconColor),
+          SizedBox(height: size * 0.12),
+          CategoryColorUnderline(
+            color: underlineColor,
+            width: size * 1.3,
+            height: size * 0.32,
+          ),
+        ],
+      );
+    }
 
     if (showBackground) {
       return Container(
