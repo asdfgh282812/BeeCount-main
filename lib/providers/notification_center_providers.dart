@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter_cloud_sync/flutter_cloud_sync.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../utils/notification_factory.dart';
 import 'sync_providers.dart';
 
 /// 通知中心状态 —— App 只展示 server(BeeCount Cloud)已生成的通知,不做任何
@@ -74,9 +76,50 @@ class NotificationCenterNotifier
         items: page.items,
         unreadCount: page.unreadCount,
       );
+      unawaited(_notifyNewUnread(page.items));
     } catch (e) {
       if (!mounted) return;
       state = state.copyWith(loading: false, error: e);
+    }
+  }
+
+  static const _lastNotifiedIdKey = 'notification_center_last_notified_id';
+
+  /// 把輪詢新拉到的未讀通知順便跳一則本機系統通知,讓 App 開著/剛回前景時
+  /// 使用者不用主動點開通知中心才看得到(見
+  /// docs/changes/2026-09-13-notification-center-local-push.md)。只在 App
+  /// 有在跑輪詢時生效,不是真正的遠端推播,App 完全關閉時不會補跳。
+  ///
+  /// 用 SharedPreferences 存一個「看過的最大 id」watermark 去重,避免同一則
+  /// 每次輪詢都重跳一次。第一次執行(本機還沒有 watermark,例如剛升級這個
+  /// 版本或剛登入)只記錄當下最大 id 當基準線、不倒著把既有未讀通通跳出來。
+  Future<void> _notifyNewUnread(List<BeeCountCloudNotificationItem> items) async {
+    if (items.isEmpty) return;
+    final maxId = items.map((item) => item.id).reduce((a, b) => a > b ? a : b);
+    final prefs = await SharedPreferences.getInstance();
+    final lastNotifiedId = prefs.getInt(_lastNotifiedIdKey);
+
+    if (lastNotifiedId == null) {
+      await prefs.setInt(_lastNotifiedIdKey, maxId);
+      return;
+    }
+
+    final newUnread =
+        items.where((item) => item.id > lastNotifiedId && !item.isRead);
+    for (final item in newUnread) {
+      try {
+        await NotificationFactory.getInstance().showNotification(
+          id: item.id,
+          title: item.title,
+          body: item.body ?? '',
+        );
+      } catch (_) {
+        // 通知子系統失敗(未授權/不支援的平台等)不應影響輪詢本身。
+      }
+    }
+
+    if (maxId > lastNotifiedId) {
+      await prefs.setInt(_lastNotifiedIdKey, maxId);
     }
   }
 
