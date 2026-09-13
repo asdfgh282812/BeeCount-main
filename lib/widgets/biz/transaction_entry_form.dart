@@ -377,6 +377,11 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
 
   // v30 交易级多币种(跟 amount_editor_sheet.dart 同一套逻辑)
   String? _pickedCurrency;
+  // 使用者是否已經透過「幣別」欄位主動選過幣別(或編輯既有交易時,該筆交易
+  // 本身就帶著自己的 currencyCode)——true 之後 [_txCurrency] 以此為準,
+  // 不再被「換帳戶/重新載入帳戶幣別」蓋掉,讓交易幣別可以跟帳戶自身幣別
+  // 脫鉤(例如台幣帳戶記一筆日圓交易),對齊 Cloud 網頁端行為。
+  bool _currencyManuallySet = false;
   String? _selectedAccountCurrency;
   String? _selectedAccountName;
   // v35:信用卡紅利回饋——只有選中帳戶是 credit_card 時才啟用回饋選單。
@@ -430,6 +435,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     _selectedTagIds = List.from(widget.initialTagIds ?? []);
     _selectedRewardRuleIds = List.from(widget.initialRewardRuleIds ?? []);
     _pickedCurrency = widget.initialCurrencyCode?.toUpperCase();
+    _currencyManuallySet = _pickedCurrency != null;
 
     // v51 支出/收入手續費/折扣:編輯模式若有 baseAmount,小算盤要顯示使用者
     // 當初輸入的原始金額,不是套用公式後的淨額(initialAmount)。
@@ -917,10 +923,14 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   }
 
   String _txCurrency() {
-    if (_selectedAccountId != null) {
-      return _selectedAccountCurrency ??
-          _pickedCurrency ??
-          ref.read(currentLedgerCurrencyProvider);
+    // 使用者手動選過幣別(或編輯既有交易帶著自己的 currencyCode)時,這個
+    // 選擇一律優先於帳戶自身幣別——交易幣別本來就該能跟帳戶幣別脫鉤(比照
+    // Cloud 網頁端:任何帳戶都能記一筆任意幣別的交易)。
+    if (_currencyManuallySet && _pickedCurrency != null) {
+      return _pickedCurrency!;
+    }
+    if (_selectedAccountId != null && _selectedAccountCurrency != null) {
+      return _selectedAccountCurrency!;
     }
     return _pickedCurrency ?? ref.read(currentLedgerCurrencyProvider);
   }
@@ -954,21 +964,19 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     final base = ref.read(currentLedgerCurrencyProvider);
     final picked = await showCurrencyPickerSheet(
       context,
-      selected: _pickedCurrency ?? base,
+      selected: _txCurrency(),
       primaryColor: Theme.of(context).colorScheme.primary,
       title: l10n.txCurrencyPickerTitle,
       rateBase: base,
     );
     if (picked == null || !mounted) return;
     setState(() {
-      _pickedCurrency =
-          picked.toUpperCase() == base ? null : picked.toUpperCase();
+      // 保留原本已選的帳戶——幣別跟帳戶幣別脫鉤,不再靠清空帳戶來避免
+      // [_txCurrency] 被帳戶幣別蓋掉。
+      _pickedCurrency = picked.toUpperCase();
+      _currencyManuallySet = true;
       _rateStr = null;
       _rateManuallySet = false;
-      _selectedAccountId = null;
-      _selectedAccountCurrency = null;
-      _selectedAccountName = null;
-      _selectedAccountType = null;
       _selectedRewardRuleIds = [];
     });
   }
@@ -1115,6 +1123,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     ref.watch(currentLedgerCurrencyProvider);
     final txCurrency = _txCurrency();
     return InkWell(
+      key: const Key('currencyChip'),
       borderRadius: BorderRadius.circular(8),
       onTap: _pickCurrency,
       child: Container(

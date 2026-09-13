@@ -377,4 +377,70 @@ void main() {
     expect(find.byKey(const Key('nameField')), findsOneWidget);
     expect(nameField.focusNode!.hasFocus, isTrue);
   });
+
+  testWidgets('本位幣帳戶選定後仍可手動改選外幣,帳戶不會被清空(回歸:選 TWD/CNY 帳戶後選不了 JPY)',
+      (tester) async {
+    final accountId = await repo.createAccount(
+      ledgerId: 0,
+      name: 'Cash',
+      type: 'cash',
+      currency: 'CNY',
+      initialBalance: 0,
+    );
+
+    AmountEditorResult? submittedResult;
+    await tester.pumpWidget(host(
+      onSubmit: (c, r) async {
+        submittedResult = r;
+      },
+      extraOverrides: [
+        effectiveRatesForLedgerProvider.overrideWith((ref) async =>
+            {'JPY': const EffectiveRate(rate: '0.05', manual: false)}),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('餐饮'));
+    await tester.tap(find.text('餐饮'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('amountDisplayTap')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('1'));
+    await tester.tap(find.text('1'));
+    await tester.tap(find.text('2'));
+    await tester.tap(find.text('3'));
+    await tester.pumpAndSettle();
+
+    // 先選一個本位幣(CNY)帳戶。
+    await tester.ensureVisible(find.byIcon(Icons.credit_card));
+    await tester.tap(find.byIcon(Icons.credit_card));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cash'));
+    await tester.pumpAndSettle();
+
+    // 再手動把幣別改成日圓——帳戶不該被清空,幣別也不該被帳戶自身幣別蓋掉。
+    await tester.ensureVisible(find.byKey(const Key('currencyChip')));
+    await tester.tap(find.byKey(const Key('currencyChip')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('(JPY)'));
+    await tester.pumpAndSettle();
+
+    // 帳戶列仍顯示 Cash,沒有被 _pickCurrency 清空。
+    expect(find.text('Cash'), findsOneWidget);
+
+    final l10n =
+        AppLocalizations.of(tester.element(find.byType(TransactionEntryForm)));
+    // 換算預覽以 CNY(帳本本位幣)呈現,代表交易幣別確實變成了 JPY。
+    expect(find.text(l10n.txConvertedPreview('6.15', 'CNY')), findsOneWidget);
+
+    await tester.ensureVisible(find.byIcon(Icons.check));
+    await tester.tap(find.byIcon(Icons.check));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 3));
+
+    expect(submittedResult?.currencyCode, 'JPY');
+    expect(submittedResult?.accountId, accountId);
+    expect(submittedResult?.nativeAmount, closeTo(6.15, 0.01));
+  });
 }
