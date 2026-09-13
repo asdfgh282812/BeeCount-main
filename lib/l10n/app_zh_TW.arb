@@ -3842,5 +3842,17 @@
   "whatsNew330CardExclusionHintTitle": "刷卡建議新增排除項提示",
   "whatsNew330CardExclusionHintDesc": "當這筆消費屬於信用卡回饋排除項目、沒有推薦結果時,會提示你可能為排除項,建議到網頁端查詢原因。",
   "whatsNew330TxListProjectTagsTitle": "交易列表顯示專案,標籤換行更清楚",
-  "whatsNew330TxListProjectTagsDesc": "每日交易列表現在會顯示所屬專案,標籤多的時候也會自動換到下一行,不再擠壓其他內容。"
+  "whatsNew330TxListProjectTagsDesc": "每日交易列表現在會顯示所屬專案,標籤多的時候也會自動換到下一行,不再擠壓其他內容。",
+  "whatsNew340CuteIconsTitle": "新增「可愛類別圖示」主題",
+  "whatsNew340CuteIconsDesc": "「我的」→ 外觀設定 開啟「可愛類別圖示」,分類圖示會換成手繪風格,並用底線顏色代替原本的色底來標示分類色。",
+  "whatsNew340AnalyticsPieChartTitle": "分析頁報表改版:圓餅圖與排行榜一起看",
+  "whatsNew340AnalyticsPieChartDesc": "圓餅圖不用再切換,直接跟分類排行榜同時顯示;原本的趨勢折線圖移到下方並預設收合,點「趨勢」標題即可展開查看。",
+  "whatsNew340HideAccountAmountTitle": "帳戶可以單獨隱藏金額",
+  "whatsNew340HideAccountAmountDesc": "「帳戶」頁面每一列新增眼睛圖示,點一下就能單獨遮住這個帳戶的金額,不影響其他帳戶或全域隱藏設定。",
+  "whatsNew340CardNotificationTitle": "信用卡通知現在會跳出系統通知",
+  "whatsNew340CardNotificationDesc": "帳單結算、即將到期等通知中心項目,只要 App 有在執行,現在也會跳出手機的系統通知橫幅,不用再自己打開通知中心查看。",
+  "whatsNew340TxCurrencyTitle": "建立/編輯交易可以任意選擇幣別",
+  "whatsNew340TxCurrencyDesc": "選好帳戶後仍能手動改選其他幣別記帳,不再被帳戶本身的幣種卡住,行為跟網頁端一致。",
+  "whatsNew340AiCrossCurrencyTitle": "AI 記帳選帳戶時,幣別不再受限",
+  "whatsNew340AiCrossCurrencyDesc": "拍照、語音、對話記帳如果自動配對不到同幣別的帳戶,「選擇帳戶」畫面現在會列出所有幣別的帳戶,並依匯率正確換算金額。"
 }

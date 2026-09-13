@@ -9733,6 +9733,53 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get whatsNew330TxListProjectTagsDesc =>
       'The daily transaction list now shows the linked project, and tags wrap onto their own line instead of crowding the rest of the card.';
+
+  @override
+  String get whatsNew340CuteIconsTitle => 'New \"Cute Category Icons\" theme';
+
+  @override
+  String get whatsNew340CuteIconsDesc =>
+      'Turn on \"Cute category icons\" in Appearance settings (Mine) to switch category icons to a hand-drawn style, with an underline showing the category color instead of a filled background.';
+
+  @override
+  String get whatsNew340AnalyticsPieChartTitle =>
+      'Reports redesigned: pie chart + ranking together';
+
+  @override
+  String get whatsNew340AnalyticsPieChartDesc =>
+      'The pie chart no longer needs switching — it now shows alongside the category ranking. The trend line chart moved below and collapses by default; tap \"Trend\" to expand it.';
+
+  @override
+  String get whatsNew340HideAccountAmountTitle =>
+      'Hide the amount for a single account';
+
+  @override
+  String get whatsNew340HideAccountAmountDesc =>
+      'Each row on the Accounts page now has an eye icon — tap it to hide just that account\'s amount, without affecting other accounts or the global hide-amount switch.';
+
+  @override
+  String get whatsNew340CardNotificationTitle =>
+      'Card bill notifications now pop up';
+
+  @override
+  String get whatsNew340CardNotificationDesc =>
+      'Notification Center items like bill settlement or upcoming due dates now trigger a system notification banner while the app is running, so you don\'t have to open the notification center to notice them.';
+
+  @override
+  String get whatsNew340TxCurrencyTitle =>
+      'Pick any currency when adding or editing a transaction';
+
+  @override
+  String get whatsNew340TxCurrencyDesc =>
+      'After choosing an account, you can still manually switch the transaction\'s currency — it\'s no longer locked to the account\'s own currency, matching the web dashboard\'s behavior.';
+
+  @override
+  String get whatsNew340AiCrossCurrencyTitle =>
+      'AI bookkeeping\'s account picker is no longer currency-locked';
+
+  @override
+  String get whatsNew340AiCrossCurrencyDesc =>
+      'When photo, voice, or chat billing can\'t auto-match an account in the same currency, the account picker now shows accounts of any currency and converts the amount correctly.';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -19386,4 +19433,46 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   @override
   String get whatsNew330TxListProjectTagsDesc =>
       '每日交易列表現在會顯示所屬專案,標籤多的時候也會自動換到下一行,不再擠壓其他內容。';
+
+  @override
+  String get whatsNew340CuteIconsTitle => '新增「可愛類別圖示」主題';
+
+  @override
+  String get whatsNew340CuteIconsDesc =>
+      '「我的」→ 外觀設定 開啟「可愛類別圖示」,分類圖示會換成手繪風格,並用底線顏色代替原本的色底來標示分類色。';
+
+  @override
+  String get whatsNew340AnalyticsPieChartTitle => '分析頁報表改版:圓餅圖與排行榜一起看';
+
+  @override
+  String get whatsNew340AnalyticsPieChartDesc =>
+      '圓餅圖不用再切換,直接跟分類排行榜同時顯示;原本的趨勢折線圖移到下方並預設收合,點「趨勢」標題即可展開查看。';
+
+  @override
+  String get whatsNew340HideAccountAmountTitle => '帳戶可以單獨隱藏金額';
+
+  @override
+  String get whatsNew340HideAccountAmountDesc =>
+      '「帳戶」頁面每一列新增眼睛圖示,點一下就能單獨遮住這個帳戶的金額,不影響其他帳戶或全域隱藏設定。';
+
+  @override
+  String get whatsNew340CardNotificationTitle => '信用卡通知現在會跳出系統通知';
+
+  @override
+  String get whatsNew340CardNotificationDesc =>
+      '帳單結算、即將到期等通知中心項目,只要 App 有在執行,現在也會跳出手機的系統通知橫幅,不用再自己打開通知中心查看。';
+
+  @override
+  String get whatsNew340TxCurrencyTitle => '建立/編輯交易可以任意選擇幣別';
+
+  @override
+  String get whatsNew340TxCurrencyDesc =>
+      '選好帳戶後仍能手動改選其他幣別記帳,不再被帳戶本身的幣種卡住,行為跟網頁端一致。';
+
+  @override
+  String get whatsNew340AiCrossCurrencyTitle => 'AI 記帳選帳戶時,幣別不再受限';
+
+  @override
+  String get whatsNew340AiCrossCurrencyDesc =>
+      '拍照、語音、對話記帳如果自動配對不到同幣別的帳戶,「選擇帳戶」畫面現在會列出所有幣別的帳戶,並依匯率正確換算金額。';
 }

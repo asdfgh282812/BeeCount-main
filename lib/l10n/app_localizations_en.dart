@@ -10052,4 +10052,51 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get whatsNew330TxListProjectTagsDesc =>
       'The daily transaction list now shows the linked project, and tags wrap onto their own line instead of crowding the rest of the card.';
+
+  @override
+  String get whatsNew340CuteIconsTitle => 'New \"Cute Category Icons\" theme';
+
+  @override
+  String get whatsNew340CuteIconsDesc =>
+      'Turn on \"Cute category icons\" in Appearance settings (Mine) to switch category icons to a hand-drawn style, with an underline showing the category color instead of a filled background.';
+
+  @override
+  String get whatsNew340AnalyticsPieChartTitle =>
+      'Reports redesigned: pie chart + ranking together';
+
+  @override
+  String get whatsNew340AnalyticsPieChartDesc =>
+      'The pie chart no longer needs switching — it now shows alongside the category ranking. The trend line chart moved below and collapses by default; tap \"Trend\" to expand it.';
+
+  @override
+  String get whatsNew340HideAccountAmountTitle =>
+      'Hide the amount for a single account';
+
+  @override
+  String get whatsNew340HideAccountAmountDesc =>
+      'Each row on the Accounts page now has an eye icon — tap it to hide just that account\'s amount, without affecting other accounts or the global hide-amount switch.';
+
+  @override
+  String get whatsNew340CardNotificationTitle =>
+      'Card bill notifications now pop up';
+
+  @override
+  String get whatsNew340CardNotificationDesc =>
+      'Notification Center items like bill settlement or upcoming due dates now trigger a system notification banner while the app is running, so you don\'t have to open the notification center to notice them.';
+
+  @override
+  String get whatsNew340TxCurrencyTitle =>
+      'Pick any currency when adding or editing a transaction';
+
+  @override
+  String get whatsNew340TxCurrencyDesc =>
+      'After choosing an account, you can still manually switch the transaction\'s currency — it\'s no longer locked to the account\'s own currency, matching the web dashboard\'s behavior.';
+
+  @override
+  String get whatsNew340AiCrossCurrencyTitle =>
+      'AI bookkeeping\'s account picker is no longer currency-locked';
+
+  @override
+  String get whatsNew340AiCrossCurrencyDesc =>
+      'When photo, voice, or chat billing can\'t auto-match an account in the same currency, the account picker now shows accounts of any currency and converts the amount correctly.';
 }

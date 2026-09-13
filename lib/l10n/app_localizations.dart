@@ -18116,6 +18116,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The daily transaction list now shows the linked project, and tags wrap onto their own line instead of crowding the rest of the card.'**
   String get whatsNew330TxListProjectTagsDesc;
+
+  /// No description provided for @whatsNew340CuteIconsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New \"Cute Category Icons\" theme'**
+  String get whatsNew340CuteIconsTitle;
+
+  /// No description provided for @whatsNew340CuteIconsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on \"Cute category icons\" in Appearance settings (Mine) to switch category icons to a hand-drawn style, with an underline showing the category color instead of a filled background.'**
+  String get whatsNew340CuteIconsDesc;
+
+  /// No description provided for @whatsNew340AnalyticsPieChartTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reports redesigned: pie chart + ranking together'**
+  String get whatsNew340AnalyticsPieChartTitle;
+
+  /// No description provided for @whatsNew340AnalyticsPieChartDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'The pie chart no longer needs switching — it now shows alongside the category ranking. The trend line chart moved below and collapses by default; tap \"Trend\" to expand it.'**
+  String get whatsNew340AnalyticsPieChartDesc;
+
+  /// No description provided for @whatsNew340HideAccountAmountTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide the amount for a single account'**
+  String get whatsNew340HideAccountAmountTitle;
+
+  /// No description provided for @whatsNew340HideAccountAmountDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Each row on the Accounts page now has an eye icon — tap it to hide just that account\'s amount, without affecting other accounts or the global hide-amount switch.'**
+  String get whatsNew340HideAccountAmountDesc;
+
+  /// No description provided for @whatsNew340CardNotificationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Card bill notifications now pop up'**
+  String get whatsNew340CardNotificationTitle;
+
+  /// No description provided for @whatsNew340CardNotificationDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Notification Center items like bill settlement or upcoming due dates now trigger a system notification banner while the app is running, so you don\'t have to open the notification center to notice them.'**
+  String get whatsNew340CardNotificationDesc;
+
+  /// No description provided for @whatsNew340TxCurrencyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick any currency when adding or editing a transaction'**
+  String get whatsNew340TxCurrencyTitle;
+
+  /// No description provided for @whatsNew340TxCurrencyDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'After choosing an account, you can still manually switch the transaction\'s currency — it\'s no longer locked to the account\'s own currency, matching the web dashboard\'s behavior.'**
+  String get whatsNew340TxCurrencyDesc;
+
+  /// No description provided for @whatsNew340AiCrossCurrencyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI bookkeeping\'s account picker is no longer currency-locked'**
+  String get whatsNew340AiCrossCurrencyTitle;
+
+  /// No description provided for @whatsNew340AiCrossCurrencyDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'When photo, voice, or chat billing can\'t auto-match an account in the same currency, the account picker now shows accounts of any currency and converts the amount correctly.'**
+  String get whatsNew340AiCrossCurrencyDesc;
 }
 
 class _AppLocalizationsDelegate

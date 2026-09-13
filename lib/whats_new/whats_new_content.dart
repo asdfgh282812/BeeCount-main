@@ -44,4 +44,30 @@ final Map<String, List<WhatsNewItem>> kWhatsNewContent = {
       description: (l10n) => l10n.whatsNew330TxListProjectTagsDesc,
     ),
   ],
+  '3.4.0': [
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew340CuteIconsTitle,
+      description: (l10n) => l10n.whatsNew340CuteIconsDesc,
+    ),
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew340AnalyticsPieChartTitle,
+      description: (l10n) => l10n.whatsNew340AnalyticsPieChartDesc,
+    ),
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew340HideAccountAmountTitle,
+      description: (l10n) => l10n.whatsNew340HideAccountAmountDesc,
+    ),
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew340CardNotificationTitle,
+      description: (l10n) => l10n.whatsNew340CardNotificationDesc,
+    ),
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew340TxCurrencyTitle,
+      description: (l10n) => l10n.whatsNew340TxCurrencyDesc,
+    ),
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew340AiCrossCurrencyTitle,
+      description: (l10n) => l10n.whatsNew340AiCrossCurrencyDesc,
+    ),
+  ],
 };
