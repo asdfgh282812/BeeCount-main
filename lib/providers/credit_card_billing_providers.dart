@@ -24,11 +24,16 @@ List<int> _parseExtraIds(String extraIdsKey) => extraIdsKey.isEmpty
     ? const <int>[]
     : extraIdsKey.split(',').map(int.parse).toList();
 
-/// 算 [ids] 裡每一個帳戶在 [cutoff] 這個時間點各自的「仍欠款」金額(正值=
-/// 欠款,對齊 Cloud `remaining_due`/`carryover_due` 的正負號)——已結清
-/// (`<= 0.005`)的帳戶不會出現在回傳的 map 裡。[_dueAsOf]/群組繳款頁的「分攤
-/// 預覽」都建立在這個共用計算上,不要各自重寫一份(2026-09-07 bugfix,見下方
-/// 「先淨額、再換算」的說明)。
+/// 算 [ids] 裡每一個帳戶在 [cutoff] 這個時間點各自的「仍欠款」淨額(正值=
+/// 欠款,負值=溢繳,鏡射 Cloud `compute_group_billing::
+/// per_child_remaining_due_signed` 這個中間值)——已經真的結清(在該帳戶
+/// 自己幣別下 `abs(charged-paid) <= 0.005`)的帳戶不會出現在回傳的 map 裡。
+/// [creditCardDueByChildAsOf](分攤預覽用,只留正值、floor 過)、[_dueAsOf]
+/// (群組加總用,「先淨額加總、只在最後總和上 floor」,鏡射 Cloud
+/// `remaining_due = sum(per_child_remaining_due_signed.values())`)都建立在
+/// 這個共用查詢上,不要各自重寫一份(也不要為了省事直接拿
+/// [creditCardDueByChildAsOf] 的回傳值去加總——那個回傳值刻意只留正值且已經
+/// floor 過,拿來加總正是下面 [_dueAsOf] 說的那個 bug 本身)。
 ///
 /// 子專案 4(帳單分期沖銷):`charged` 要先扣掉
 /// [InstallmentRepository.getOffsetTotalForAccount]——已經被某個分期計畫
@@ -51,7 +56,7 @@ List<int> _parseExtraIds(String extraIdsKey) => extraIdsKey.isEmpty
 /// `convertToLedgerCurrency: true` 呼叫一次重新拿 charged/paidTotal 再相減,
 /// 不是拿两次不同convert設定的結果去湊。單一帳戶(`ids.length == 1`)永遠
 /// 不折算——單卡頁面本來就用該帳戶自己的幣別顯示。
-Future<Map<int, double>> creditCardDueByChildAsOf(
+Future<Map<int, double>> _signedDueByChildAsOf(
   BaseRepository repo,
   List<int> ids,
   DateTime cutoff,
@@ -63,11 +68,10 @@ Future<Map<int, double>> creditCardDueByChildAsOf(
     final chargedNative =
         await repo.getCreditCardChargedAsOf(id, asOf: cutoff) - offsetTotal;
     final paidNative = await repo.getCreditCardPaidTotal(id);
-    final dueNative =
-        creditCardDueAsOf(charged: chargedNative, paidTotal: paidNative);
-    if (dueNative <= 0.005) continue;
+    final dueNativeSigned = chargedNative - paidNative;
+    if (dueNativeSigned.abs() <= 0.005) continue;
     if (!isGroup) {
-      result[id] = dueNative;
+      result[id] = dueNativeSigned;
       continue;
     }
     final chargedConverted = await repo.getCreditCardChargedAsOf(id,
@@ -75,23 +79,61 @@ Future<Map<int, double>> creditCardDueByChildAsOf(
         offsetTotal;
     final paidConverted =
         await repo.getCreditCardPaidTotal(id, convertToLedgerCurrency: true);
-    result[id] =
-        creditCardDueAsOf(charged: chargedConverted, paidTotal: paidConverted);
+    result[id] = chargedConverted - paidConverted;
   }
   return result;
 }
 
-/// 算 [ids] 加總後在 [cutoff] 這個時間點的「仍欠款」金額,細節見
-/// [creditCardDueByChildAsOf]。
+/// 算 [ids] 裡每一個帳戶在 [cutoff] 這個時間點各自的「仍欠款」金額(正值=
+/// 欠款,對齊 Cloud `per_child_remaining_due` 的正負號)——已結清或溢繳的
+/// 帳戶不會出現在回傳的 map 裡,細節見 [_signedDueByChildAsOf]。這是繳款
+/// 分攤預覽要用的資料形狀(不能對某張卡「繳負數」),**不要**拿這個函式的
+/// 回傳值去加總算群組「剩餘帳款」——要算群組總額請用 [_dueAsOf]。
+Future<Map<int, double>> creditCardDueByChildAsOf(
+  BaseRepository repo,
+  List<int> ids,
+  DateTime cutoff,
+) async {
+  final signed = await _signedDueByChildAsOf(repo, ids, cutoff);
+  return {
+    for (final entry in signed.entries)
+      if (entry.value > 0.005) entry.key: entry.value,
+  };
+}
+
+/// 算 [ids] 加總後在 [cutoff] 這個時間點的「仍欠款」金額——先把每個子帳戶
+/// 的淨額(可能是負值,即溢繳)加總,只在最後的總和上 floor 到 0,鏡射 Cloud
+/// `compute_group_billing::remaining_due = sum(per_child_remaining_due_signed.
+/// values())`。**不能**先把每個子帳戶自己 floor 成 0 再加總(那是
+/// [creditCardDueByChildAsOf] 的語意)——合併帳單群組裡,一張子卡若因為
+/// 回饋金等收入變成溢繳(淨額 < 0),這筆溢繳額度本該拿去抵掉群組裡其他子
+/// 卡的欠款,若先把它 floor 成 0 才加總,這筆溢繳就會憑空消失,讓群組的
+/// 「剩餘帳款」比實際欠款多出溢繳的金額(2026-09-13 使用者反饋:合併帳單
+/// 群組裡一張子卡有 +23 回饋金入帳、淨額變成溢繳,「剩餘帳款」卻比「應繳
+/// 金額」多算了 23)。
 Future<double> _dueAsOf(
   BaseRepository repo,
   List<int> ids,
   DateTime cutoff,
 ) async {
-  final byChild = await creditCardDueByChildAsOf(repo, ids, cutoff);
-  final total = byChild.values.fold(0.0, (double a, double b) => a + b);
-  return total;
+  final signed = await _signedDueByChildAsOf(repo, ids, cutoff);
+  final total = signed.values.fold(0.0, (double a, double b) => a + b);
+  return total > 0 ? total : 0.0;
 }
+
+/// [_dueAsOf] 的公開版本——群組繳款頁([CreditCardGroupPaymentPage])預帶的
+/// 「繳款總額」要跟帳單彙總卡片的「剩餘帳款」是同一個數字(2026-09-13
+/// bugfix):該頁面原本直接把 [creditCardDueByChildAsOf] 的 map 加總當預帶
+/// 金額,那個 map 刻意只留正值、已經 floor 過,加總會漏算溢繳子卡該扣抵的
+/// 額度,重演一模一樣的 488 vs 465 落差(使用者反饋:「剩餘帳款」修正後,
+/// 群組繳款頁的預帶金額卻還是舊的錯誤數字)。**不要**在該頁面自己重寫加總
+/// 邏輯,一律呼叫這裡。
+Future<double> creditCardGroupDueAsOf(
+  BaseRepository repo,
+  List<int> ids,
+  DateTime cutoff,
+) =>
+    _dueAsOf(repo, ids, cutoff);
 
 /// 規則一:進入信用卡「交易明細」tab 時預設停留的帳期 offset——「尚未繳清
 /// 的最早歷史帳期」,全部繳清時回傳 0(當期)。

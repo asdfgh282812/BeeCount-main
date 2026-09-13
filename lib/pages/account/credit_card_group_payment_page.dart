@@ -45,6 +45,7 @@ class _CreditCardGroupPaymentPageState
     extends ConsumerState<CreditCardGroupPaymentPage> {
   bool _loadingDue = true;
   Map<int, double> _remainingDueByChild = {};
+  double _totalDue = 0;
   int? _fromAccountId;
   db.Account? _fromAccount;
   final TextEditingController _amountController = TextEditingController();
@@ -65,16 +66,24 @@ class _CreditCardGroupPaymentPageState
   Future<void> _loadDue() async {
     final repo = ref.read(repositoryProvider);
     final cutoff = endOfDay(widget.period.end);
+    final childIds = widget.children.map((c) => c.id).toList();
     // 跟帳單彙總卡片(帳戶詳情頁「剩餘帳款」)共用同一套計算,不要各自重寫
     // 一份——2026-09-07 之前這裡自己重算,既沒扣分期沖銷,子卡跨幣別時也沒
     // 折算成帳本本位幣,曾經跟帳單彙總卡片的數字兜不起來(見
     // [creditCardDueByChildAsOf] 文件註解)。
-    final due = await creditCardDueByChildAsOf(
-        repo, widget.children.map((c) => c.id).toList(), cutoff);
+    //
+    // `_remainingDueByChild`(分攤預覽/`allocateCardPayment` 用,只留正值)
+    // 跟預帶的「繳款總額」(`creditCardGroupDueAsOf`,先淨額加總、只在總和上
+    // floor)是兩個不同語意,**不要**用前者的加總當後者——2026-09-13
+    // bugfix:某張子卡因回饋金等收入變成溢繳時,前者會把它整個排除,漏算它
+    // 該扣抵其他子卡欠款的額度,讓這裡預帶的金額比帳單彙總卡片的「剩餘帳款」
+    // 多(使用者反饋:「剩餘帳款」修正後,這裡預帶的金額卻還是舊的錯誤數字)。
+    final due = await creditCardDueByChildAsOf(repo, childIds, cutoff);
+    final total = await creditCardGroupDueAsOf(repo, childIds, cutoff);
     if (!mounted) return;
-    final total = due.values.fold(0.0, (a, b) => a + b);
     setState(() {
       _remainingDueByChild = due;
+      _totalDue = total;
       _loadingDue = false;
       _amountController.text = total.toStringAsFixed(2);
     });
@@ -156,7 +165,7 @@ class _CreditCardGroupPaymentPageState
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final allocations = _allocations;
-    final totalDue = _remainingDueByChild.values.fold(0.0, (a, b) => a + b);
+    final totalDue = _totalDue;
     final childNameById = {for (final c in widget.children) c.id: c.name};
 
     return Scaffold(
