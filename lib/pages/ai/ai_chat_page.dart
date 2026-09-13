@@ -665,8 +665,8 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
         l10n: l10n,
         resolveMissingAccount: (bill) async {
           if (!mounted) return null;
-          final result =
-              await AccountCardPicker.show(context, ledgerId: ledgerId);
+          final result = await AccountCardPicker.show(context,
+              ledgerId: ledgerId, allowAllCurrencies: true);
           return result?.accountId;
         },
         resolveMissingProject: (bill) async {

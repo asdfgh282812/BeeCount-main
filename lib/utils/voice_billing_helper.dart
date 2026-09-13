@@ -459,7 +459,7 @@ class _VoiceRecordingDialogState extends ConsumerState<_VoiceRecordingDialog> {
         resolveMissingAccount: (bill) async {
           if (!mounted) return null;
           final picked = await AccountCardPicker.show(context,
-              ledgerId: currentLedger.id);
+              ledgerId: currentLedger.id, allowAllCurrencies: true);
           return picked?.accountId;
         },
         resolveMissingProject: (bill) async {

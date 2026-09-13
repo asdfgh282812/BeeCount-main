@@ -7,6 +7,7 @@ import '../../data/db.dart';
 import '../../data/repositories/base_repository.dart';
 import '../../data/category_node.dart';
 import '../../l10n/app_localizations.dart';
+import '../currency/rate_math.dart';
 import '../data/tag_seed_service.dart';
 import '../system/logger_service.dart';
 import 'category_matcher.dart';
@@ -156,12 +157,31 @@ class BillCreationService {
         ? matchedAccount!.currency.toUpperCase()
         : null;
     final txCurrency = accountCurrency ?? requestedCurrency ?? ledgerBase;
+
+    // 4.6 AI 給的幣種跟命中帳戶的幣種不一致(#手動選帳戶,見下段):自動匹配
+    // 池已按 requestedCurrency 篩過,正常不會走到這裡;唯一路徑是使用者透過
+    // resolveMissingAccount(3.7)手動選了一個幣種不同的帳戶——例如收據是
+    // JPY,手上沒有 JPY 帳戶,選了 TWD 帳戶記帳。帳戶幣種仍然贏(帳戶內不混
+    // 幣的不變量不能破,見 4.5 開頭注解),但 AI 抓到的原始金額是
+    // requestedCurrency 底下的數字,必須先換算成 accountCurrency 再落庫,否則
+    // 會把「10230 日圓」原封不動記成「10230 台幣」(bug:少乘了匯率)。換算不到
+    // 匯率時退化成不轉換並記警告,交易仍照常建立,不因為換算失敗而整筆放棄。
+    var billAmount = amount.abs();
     if (requestedCurrency != null &&
         accountCurrency != null &&
         requestedCurrency != accountCurrency) {
-      // 池已按币种筛过,正常走不到这里;留日志防未来改动引入静默错币种
-      logger.warning(_tag,
-          '[币种] AI 给 $requestedCurrency 但命中账户是 $accountCurrency,以账户为准');
+      final converted = await _convertBetweenCurrencies(
+        amount: billAmount,
+        from: requestedCurrency,
+        to: accountCurrency,
+        ledgerBase: ledgerBase,
+      );
+      if (converted != null) {
+        billAmount = converted;
+      } else {
+        logger.warning(_tag,
+            '[币种] AI 给 $requestedCurrency 但選中帳戶是 $accountCurrency,匯率換算失敗,金額按原始數字記入 $accountCurrency(需事後手動修正)');
+      }
     }
     // 外币且**本地还没有**有效汇率时才拉(A6)。本地已有就直接用 —— 否则
     // 多笔外币账单(一张图 10 笔)会各打一次 force 网络请求,后台自动记账
@@ -185,7 +205,7 @@ class BillCreationService {
     final transactionId = await repo.addTransaction(
       ledgerId: ledgerId,
       type: transactionType,
-      amount: amount.abs(),
+      amount: billAmount,
       categoryId: categoryId,
       accountId: accountId,
       toAccountId: toAccountId,
@@ -230,7 +250,7 @@ class BillCreationService {
     ];
     logger.info(
       _tag,
-      '[自动记账] 成功 | ID:$transactionId | ${amount.abs()}元 | $typeStr | '
+      '[自动记账] 成功 | ID:$transactionId | $billAmount $txCurrency | $typeStr | '
       '分类:${categoryName ?? '未设置'} | 账户:${accountName ?? '未设置'} | '
       '时间:${_formatDateTime(happenedAt)} | 备注:${bill.note ?? '无'} | '
       '标签:${tagSources.isNotEmpty ? tagSources.join(',') : '无'}',
@@ -552,6 +572,55 @@ class BillCreationService {
       logger.debug(_tag, '[汇率] 本地汇率检查失败,按「无」处理: $e');
       return false;
     }
+  }
+
+  /// 用「[from] → 帳本本位幣 → [to]」三角換算(對齊 transfer_form.dart
+  /// `_convertCrossCurrency` 同一套邏輯):本地匯率表一律以帳本本位幣為 base,
+  /// 沒有兩個外幣之間的直接匯率,所以兩段都要轉。任一段查不到有效匯率就回傳
+  /// null,呼叫端自行決定退化行為(這裡選擇金額原樣落庫,而不是擋住整筆建立)。
+  Future<double?> _convertBetweenCurrencies({
+    required double amount,
+    required String from,
+    required String to,
+    required String ledgerBase,
+  }) async {
+    if (from == to) return amount;
+    if (from != ledgerBase && !await _hasLocalRate(ledgerBase, from)) {
+      await _ensureRateAvailable(from);
+    }
+    if (to != ledgerBase && !await _hasLocalRate(ledgerBase, to)) {
+      await _ensureRateAvailable(to);
+    }
+    final rates = await _effectiveRates(ledgerBase);
+    final inBase = computeNativeAmount(
+      amount: amount,
+      accountCurrency: from,
+      ledgerBase: ledgerBase,
+      rates: rates,
+    );
+    if (inBase == null) return null;
+    if (to == ledgerBase) return inBase;
+    final toEff = rates[to];
+    if (toEff == null) return null;
+    final r = double.tryParse(toEff.rate);
+    if (r == null || r <= 0) return null;
+    return inBase / r;
+  }
+
+  /// [base] 的有效匯率表(手動 override 優先於最新自動源),同
+  /// `LocalRepository._effectiveRatesFor` 的口徑。
+  Future<Map<String, EffectiveRate>> _effectiveRates(String base) async {
+    final autos = await repo.getLatestAutoRates(base);
+    final overrides = await repo.getOverrides(base);
+    return mergeEffectiveRates(
+      autoRates: [
+        for (final r in autos)
+          (quote: r.quoteCurrency, rate: r.rate, rateDate: r.rateDate)
+      ],
+      overrides: [
+        for (final o in overrides) (quote: o.quoteCurrency, rate: o.rate)
+      ],
+    );
   }
 
   /// 尽力把 [code] → 账本本位币的汇率拉到本地(A6)。

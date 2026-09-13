@@ -235,7 +235,7 @@ class ImageBillingHelper {
         resolveMissingAccount: (bill) async {
           if (!context.mounted) return null;
           final picked = await AccountCardPicker.show(context,
-              ledgerId: currentLedger.id);
+              ledgerId: currentLedger.id, allowAllCurrencies: true);
           return picked?.accountId;
         },
         resolveMissingProject: (bill) async {

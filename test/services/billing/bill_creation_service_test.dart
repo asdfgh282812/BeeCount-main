@@ -1099,6 +1099,89 @@ void main() {
         throwsA(isA<MissingAccountSkipped>()),
       );
     });
+
+    // 回归锁:AI 识别出外币收据,但使用者手动挑了一个不同币种的帐户(手上没有
+    // 该币种帐户时的常见操作,例如日元收据选了台币/人民币帐户)——帐户币种仍然
+    // 赢(账户内不混币的不变量),但原始金额必须按有效汇率换算成账户币种,不能
+    // 原样落库(bug:45 美元选了 CNY 账户,结果记成 45 元)。
+    test('選的帳戶幣種跟 AI 給的幣種不同 + 有匯率 → 金額按匯率換算成帳戶幣種', () async {
+      await repo.setOverride(base: 'CNY', quote: 'JPY', rate: '0.05');
+      final cnyAcc = await repo.createAccount(
+        ledgerId: ledgerId,
+        name: '中信',
+        currency: 'CNY',
+      );
+      final txId = await service.createFromBill(
+        bill: BillInfo(
+          amount: -1200,
+          time: DateTime(2026, 5, 26),
+          category: '餐饮',
+          currency: 'JPY',
+          type: BillType.expense,
+        ),
+        ledgerId: ledgerId,
+        resolveMissingAccount: (bill) async => cnyAcc,
+      );
+      final tx = await repo.getTransactionById(txId!);
+      expect(tx?.accountId, cnyAcc);
+      expect(tx?.currencyCode, 'CNY');
+      expect(tx?.amount, closeTo(60, 0.0001)); // 1200 JPY * 0.05 = 60 CNY
+      expect(tx?.nativeAmount, tx?.amount); // 币种已等于本位币,原样收敛
+    });
+
+    // 三角换算:选中帐户的币种既不是 AI 给的币种、也不是帐本本位币时,必须
+    // 经过「requestedCurrency → 本位币 → accountCurrency」两段换算(汇率表只以
+    // 本位币为 base,没有两个外币之间的直接汇率),对齐
+    // transfer_form.dart `_convertCrossCurrency` 的既有逻辑。
+    test('選的帳戶幣種既非 AI 幣種也非本位幣 → 三角換算', () async {
+      await repo.setOverride(base: 'CNY', quote: 'JPY', rate: '0.05'); // 1 JPY = 0.05 CNY
+      await repo.setOverride(base: 'CNY', quote: 'USD', rate: '7.2'); // 1 USD = 7.2 CNY
+      final usdAcc = await repo.createAccount(
+        ledgerId: ledgerId,
+        name: 'Chase',
+        currency: 'USD',
+      );
+      final txId = await service.createFromBill(
+        bill: BillInfo(
+          amount: -1200,
+          time: DateTime(2026, 5, 26),
+          category: '餐饮',
+          currency: 'JPY',
+          type: BillType.expense,
+        ),
+        ledgerId: ledgerId,
+        resolveMissingAccount: (bill) async => usdAcc,
+      );
+      final tx = await repo.getTransactionById(txId!);
+      expect(tx?.accountId, usdAcc);
+      expect(tx?.currencyCode, 'USD');
+      // 1200 JPY -> 60 CNY -> 60 / 7.2 USD
+      expect(tx?.amount, closeTo(60 / 7.2, 0.0001));
+    });
+
+    test('選的帳戶幣種跟 AI 給的幣種不同但沒有匯率 → 退化成金額原樣記入該帳戶',
+        () async {
+      final cnyAcc = await repo.createAccount(
+        ledgerId: ledgerId,
+        name: '中信',
+        currency: 'CNY',
+      );
+      final txId = await service.createFromBill(
+        bill: BillInfo(
+          amount: -1200,
+          time: DateTime(2026, 5, 26),
+          category: '餐饮',
+          currency: 'JPY',
+          type: BillType.expense,
+        ),
+        ledgerId: ledgerId,
+        resolveMissingAccount: (bill) async => cnyAcc,
+      );
+      final tx = await repo.getTransactionById(txId!);
+      expect(tx?.accountId, cnyAcc);
+      expect(tx?.currencyCode, 'CNY');
+      expect(tx?.amount, 1200); // 沒有匯率可換算,原樣落库,等使用者事后修正
+    });
   });
 
   // AI 记账专案指定(design 2026-09-11):三模式分流。

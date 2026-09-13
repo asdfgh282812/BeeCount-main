@@ -64,7 +64,12 @@ class PendingAccountTransactionsPage extends ConsumerWidget {
 
   Future<void> _assignAccount(
       BuildContext context, WidgetRef ref, Transaction tx, int ledgerId) async {
-    final result = await AccountCardPicker.show(context, ledgerId: ledgerId);
+    // 這筆交易的 currencyCode 已經定案(AI 記帳時決定,補選帳戶不會重算幣別
+    // /金額換算,見 BillCreationService.createFromBill),所以候選帳戶要按
+    // 「這筆交易的幣種」篩,而不是帳本本位幣——否則日圓記錄的待確認交易,補選
+    // 帳戶時反而看不到日圓帳戶(同 AI 對話/照片/語音那三個 picker 曾經的 bug)。
+    final result = await AccountCardPicker.show(context,
+        ledgerId: ledgerId, filterCurrency: tx.currencyCode);
     if (result?.accountId == null || !context.mounted) return;
     final repo = ref.read(repositoryProvider);
     await repo.setTransactionAccountAssignment(
