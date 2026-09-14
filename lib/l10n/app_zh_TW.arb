@@ -240,7 +240,7 @@
   "autoBillingNotifyPendingAccountBody": "點擊選擇這筆交易的帳戶",
   "aiOcrNoLedger": "未找到帳本",
   "aiOcrRecognizing": "正在識別帳單...",
-  "aiOcrSuccess": "✅ {type}帳單建立成功 ¥{amount}",
+  "aiOcrSuccess": "✅ {type}帳單建立成功 {amount} 元",
   "aiBillingRateMissingHint": "⚠️ 未取得 {currency} 匯率，已按 1:1 暫記，可在統計頁「補折算」修正",
   "aiBillingAccountSkippedHint": "已略過 {count} 筆(未選帳戶)",
   "aiPromptVarCurrencies": "帳本主幣種 + 已在用的外幣帳戶",

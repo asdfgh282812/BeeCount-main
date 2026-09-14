@@ -435,30 +435,50 @@ class TransactionListItem extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // 金额（转账不显示正负号）
-                    AmountText(
-                        value: isAdjustment
-                            ? amount // adjustment 直接显示原始值（含正负）
-                            : isExpense
-                                ? -amount
-                                : amount,
-                        hide: hide,
-                        signed: !isTransfer, // 转账不显示正负号
-                        // v30:外币交易显示其币种符号(原币语义);本位币维持纯数字
-                        showCurrency: _isForeign(ref),
-                        currencyCode: currencyCode,
-                        decimals: 2,
-                        style: BeeTextTokens.title(context).copyWith(
-                          color: isAdjustment
-                              ? (amount >= 0
-                                  ? BeeTokens.incomeColor(context, ref)
-                                  : BeeTokens.expenseColor(context, ref))
-                              : isTransfer
-                                  ? BeeTokens.textPrimary(context)
-                                  : isExpense
-                                      ? BeeTokens.expenseColor(context, ref)
-                                      : BeeTokens.incomeColor(context, ref),
-                        )),
+                    // 金额（转账不显示正负号）。v30:外币交易在金额前加一个
+                    // 幣別縮寫文字标签(例如 JPY),不用貨幣符號——符號在同一
+                    // 符號被多種幣別共用時(¥ 同時是 JPY/CNY)會誤導使用者
+                    // 誤判實際扣款幣別(2026-09-14 使用者反饋)。本位币维持
+                    // 纯数字,不受影响。
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_isForeign(ref) && hide != true)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 4),
+                            child: Text(
+                              currencyCode!.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: BeeTokens.textTertiary(context),
+                              ),
+                            ),
+                          ),
+                        AmountText(
+                            value: isAdjustment
+                                ? amount // adjustment 直接显示原始值（含正负）
+                                : isExpense
+                                    ? -amount
+                                    : amount,
+                            hide: hide,
+                            signed: !isTransfer, // 转账不显示正负号
+                            showCurrency: false,
+                            currencyCode: currencyCode,
+                            decimals: 2,
+                            style: BeeTextTokens.title(context).copyWith(
+                              color: isAdjustment
+                                  ? (amount >= 0
+                                      ? BeeTokens.incomeColor(context, ref)
+                                      : BeeTokens.expenseColor(context, ref))
+                                  : isTransfer
+                                      ? BeeTokens.textPrimary(context)
+                                      : isExpense
+                                          ? BeeTokens.expenseColor(context, ref)
+                                          : BeeTokens.incomeColor(context, ref),
+                            )),
+                      ],
+                    ),
                     // 专案 pill(唯一,占用原标签的位置)+ ≈折算小字,同一行;
                     // 无专案时折算独占该行。隐藏金额开关开启时折算同样遮蔽。
                     Builder(builder: (context) {

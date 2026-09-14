@@ -14446,7 +14446,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String aiOcrSuccess(String type, String amount) {
-    return '✅ $type帳單建立成功 ¥$amount';
+    return '✅ $type帳單建立成功 $amount 元';
   }
 
   @override

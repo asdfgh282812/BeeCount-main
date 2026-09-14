@@ -1041,8 +1041,12 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     // 合併帳單群組(子卡彼此可能幣別不同)要先把每筆交易折算成帳本本位幣
     // (讀記帳當下就算好的 nativeAmount)再相加,否則不同幣別的原始 amount
     // 直接加總會失真(2026-09-05 使用者反饋:JPY 子卡消費被當 TWD 算進
-    // 「新增花費」/「應繳金額」)。單一帳戶(非群組)維持用自己幣別的原始
-    // amount,跟下面顯示用的 currencyCode(單卡情境=account.currency)對得上。
+    // 「新增花費」/「應繳金額」)。單一帳戶(非群組)原則上維持用自己幣別的
+    // 原始 amount,跟下面顯示用的 currencyCode(單卡情境=account.currency)
+    // 對得上;但交易幣別本身也可能跟帳戶脫鉤(例如台幣信用卡記一筆日圓
+    // 消費,見 transaction_entry_form.dart 對應註解),這種情況下 amount
+    // 不是帳戶自身幣別下的金額,一樣要折算(2026-09-14 使用者反饋:日圓 600
+    // 元消費讓單卡「剩餘帳款」多算成台幣 600)。
     final isGroup = children.isNotEmpty;
     final displayCurrency =
         isGroup ? ref.watch(currentLedgerCurrencyProvider) : currencyCode;
@@ -1051,7 +1055,12 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     for (final tx in txs) {
       if ((tx.type == 'expense' || tx.type == 'income') &&
           !effectiveDate(tx).isAfter(now)) {
-        final amount = isGroup ? (tx.nativeAmount ?? tx.amount) : tx.amount;
+        final txCurrencyDiffers = tx.currencyCode != null &&
+            tx.currencyCode!.isNotEmpty &&
+            tx.currencyCode!.toUpperCase() != account.currency.toUpperCase();
+        final amount = (isGroup || txCurrencyDiffers)
+            ? (tx.nativeAmount ?? tx.amount)
+            : tx.amount;
         newSpending += tx.type == 'expense' ? amount : -amount;
         if (tx.type == 'income' &&
             isRewardCategoryName(categoryNameById[tx.categoryId])) {
@@ -2207,23 +2216,81 @@ class TransactionTile extends ConsumerWidget {
                 ],
               ),
             ),
-            AmountText(
-              value: transaction.type == 'expense'
-                  ? -transaction.amount
-                  : transaction.type == 'transfer'
-                      ? (isTransferOut
-                          ? -transaction.amount
-                          : transaction.amount)
-                      : transaction.amount,
-              signed: true,
-              showCurrency: false,
-              currencyCode: currencyCode,
-              style: TextStyle(
+            Builder(builder: (context) {
+              // 交易自己的幣別可能跟這裡顯示用的帳戶幣別脫鉤(例如台幣信用卡
+              // 記一筆日圓消費)——這種情況下不能只顯示折算後的數字,要比照
+              // 首頁交易清單(transaction_list_item.dart)先顯示外幣原始金額
+              // 再顯示「≈折算金額」小字,否則使用者看不出這筆錢的原始幣別跟
+              // 實際扣款金額(2026-09-14 使用者反饋)。這裡幣種一律用縮寫文字
+              // (例如 JPY)而非貨幣符號——符號在同一符號被多種幣別共用時
+              // (¥ 同時是 JPY/CNY)會誤導,縮寫文字沒有這個歧義。轉帳不套用
+              // 這個顯示(轉帳沒有 currencyCode/nativeAmount 這組欄位,幣別
+              // 轉換走的是 toAmount)。
+              final txCurrency = transaction.currencyCode;
+              final isForeign = transaction.type != 'transfer' &&
+                  txCurrency != null &&
+                  txCurrency.isNotEmpty &&
+                  txCurrency.toUpperCase() != currencyCode.toUpperCase();
+              final amountStyle = TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
                 color: amountColor,
-              ),
-            ),
+              );
+              if (!isForeign) {
+                return AmountText(
+                  value: transaction.type == 'expense'
+                      ? -transaction.amount
+                      : transaction.type == 'transfer'
+                          ? (isTransferOut
+                              ? -transaction.amount
+                              : transaction.amount)
+                          : transaction.amount,
+                  signed: true,
+                  showCurrency: false,
+                  currencyCode: currencyCode,
+                  style: amountStyle,
+                );
+              }
+              final sign = transaction.type == 'expense' ? -1.0 : 1.0;
+              final convertedMagnitude =
+                  transaction.nativeAmount ?? transaction.amount;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '$txCurrency ',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: BeeTokens.textTertiary(context),
+                        ),
+                      ),
+                      AmountText(
+                        value: sign * transaction.amount,
+                        signed: true,
+                        showCurrency: false,
+                        currencyCode: txCurrency,
+                        style: amountStyle,
+                      ),
+                    ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      '≈${convertedMagnitude.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: BeeTokens.textTertiary(context),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }),
           ],
         ),
       ),

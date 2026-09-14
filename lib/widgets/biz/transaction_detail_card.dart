@@ -57,6 +57,46 @@ Future<void> showTransactionDetailCard(
   );
 }
 
+/// 這筆交易是否为「幣別跟折算結果不同」的外幣交易。`nativeAmount`(記帳
+/// 當下折算到帳本本位幣的快照)在同幣別時恆等於 `amount`(見
+/// `_resolveTxCurrency` 注解:`cc == base → na = amount`),不同時才會不等,
+/// 拿來當「要不要顯示幣別縮寫/折算金額」的判斷,不需要另外查帳本本位幣做
+/// 比較。
+bool _txIsForeign(Transaction tx) =>
+    tx.nativeAmount != null && tx.nativeAmount != tx.amount;
+
+/// 幣別縮寫文字標籤(例如 JPY),取代貨幣符號——符號在同一符號被多種幣別
+/// 共用時(¥ 同時是 JPY/CNY)會誤導使用者誤判實際幣別
+/// (2026-09-14 使用者反饋:交易詳情卡/搜尋頁一律沿用 [showTransactionDetailCard]
+/// 呼叫的這張卡)。
+Widget _currencyAbbrevLabel(BuildContext context, String currencyCode,
+    {double fontSize = 12}) {
+  return Padding(
+    padding: const EdgeInsets.only(right: 4),
+    child: Text(
+      currencyCode.toUpperCase(),
+      style: TextStyle(
+        fontSize: fontSize,
+        fontWeight: FontWeight.w600,
+        color: BeeTokens.textTertiary(context),
+      ),
+    ),
+  );
+}
+
+/// 折算後金額的「≈」小字,格式對齊首頁 `TransactionListItem`/帳戶明細頁
+/// `TransactionTile` 既有的顯示慣例(`toStringAsFixed(2)`,不帶正負號)。
+Widget _convertedAmountHint(BuildContext context, double convertedMagnitude,
+    {double fontSize = 11}) {
+  return Text(
+    '≈${convertedMagnitude.toStringAsFixed(2)}',
+    style: TextStyle(
+      fontSize: fontSize,
+      color: BeeTokens.textTertiary(context),
+    ),
+  );
+}
+
 class _AccountDisplay {
   final String name;
   final String type;
@@ -927,17 +967,13 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
             crossAxisAlignment: CrossAxisAlignment.end,
             mainAxisSize: MainAxisSize.min,
             children: [
-              AmountText(
-                value: isAdjustment
+              Builder(builder: (context) {
+                final value = isAdjustment
                     ? tx.amount
                     : isExpense
                         ? -tx.amount
-                        : tx.amount,
-                signed: !isTransfer,
-                currencyCode: tx.currencyCode,
-                showCurrency: tx.currencyCode != null,
-                decimals: 2,
-                style: BeeTextTokens.title(context).copyWith(
+                        : tx.amount;
+                final amountStyle = BeeTextTokens.title(context).copyWith(
                   color: isAdjustment
                       ? (tx.amount >= 0
                           ? BeeTokens.incomeColor(context, ref)
@@ -947,8 +983,42 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
                           : isExpense
                               ? BeeTokens.expenseColor(context, ref)
                               : BeeTokens.incomeColor(context, ref),
-                ),
-              ),
+                );
+                if (!_txIsForeign(tx)) {
+                  return AmountText(
+                    value: value,
+                    signed: !isTransfer,
+                    currencyCode: tx.currencyCode,
+                    showCurrency: false,
+                    decimals: 2,
+                    style: amountStyle,
+                  );
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _currencyAbbrevLabel(context, tx.currencyCode!),
+                        AmountText(
+                          value: value,
+                          signed: !isTransfer,
+                          currencyCode: tx.currencyCode,
+                          showCurrency: false,
+                          decimals: 2,
+                          style: amountStyle,
+                        ),
+                      ],
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: _convertedAmountHint(context, tx.nativeAmount!),
+                    ),
+                  ],
+                );
+              }),
               if (!isTransfer && !isAdjustment)
                 _buildFeeDiscountSubtitle(context, l10n),
             ],
@@ -989,8 +1059,8 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
   /// `categoriesProvider`(跟其他畫面共用同一份、已在記憶體裡的資料)。
   Color? _iconUnderlineColor(bool isTransfer) {
     final category = _iconCategory(isTransfer);
-    final allCategories = ref.watch(categoriesProvider).asData?.value ??
-        const <Category>[];
+    final allCategories =
+        ref.watch(categoriesProvider).asData?.value ?? const <Category>[];
     return CategoryUtils.resolveDisplayColor(category, allCategories);
   }
 
@@ -1209,20 +1279,59 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
                       ],
                     ),
                   ),
-                  AmountText(
-                    value: tx.type == 'income' ? s.row.amount : -s.row.amount,
-                    signed: true,
-                    currencyCode: tx.currencyCode,
-                    showCurrency: tx.currencyCode != null,
-                    decimals: 2,
-                    style: TextStyle(
+                  Builder(builder: (context) {
+                    final value =
+                        tx.type == 'income' ? s.row.amount : -s.row.amount;
+                    final style = TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: tx.type == 'income'
                           ? BeeTokens.incomeColor(context, ref)
                           : BeeTokens.expenseColor(context, ref),
-                    ),
-                  ),
+                    );
+                    if (!_txIsForeign(tx)) {
+                      return AmountText(
+                        value: value,
+                        signed: true,
+                        currencyCode: tx.currencyCode,
+                        showCurrency: false,
+                        decimals: 2,
+                        style: style,
+                      );
+                    }
+                    // 拆帳明細沒有自己的 currencyCode/nativeAmount(跟父交易
+                    // 同幣別,見 TransactionSplits schema),按這筆分帳金額佔
+                    // 父交易總額的比例,從父交易的 nativeAmount 按比例折算。
+                    final splitNative = tx.amount != 0
+                        ? (s.row.amount / tx.amount) * tx.nativeAmount!
+                        : s.row.amount;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _currencyAbbrevLabel(context, tx.currencyCode!,
+                                fontSize: 11),
+                            AmountText(
+                              value: value,
+                              signed: true,
+                              currencyCode: tx.currencyCode,
+                              showCurrency: false,
+                              decimals: 2,
+                              style: style,
+                            ),
+                          ],
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: _convertedAmountHint(context, splitNative,
+                              fontSize: 10),
+                        ),
+                      ],
+                    );
+                  }),
                 ],
               ),
             );
@@ -1322,14 +1431,27 @@ Widget buildFeeDiscountSubtitle(
     color: BeeTokens.textTertiary(context),
   );
 
-  Widget amountText(double amount) => AmountText(
-        value: amount,
-        signed: false,
-        currencyCode: tx.currencyCode,
-        showCurrency: tx.currencyCode != null,
-        decimals: 2,
-        style: subtitleStyle,
-      );
+  Widget amountText(double amount) {
+    final number = AmountText(
+      value: amount,
+      signed: false,
+      currencyCode: tx.currencyCode,
+      showCurrency: false,
+      decimals: 2,
+      style: subtitleStyle,
+    );
+    if (!_txIsForeign(tx)) return number;
+    // 手續費/折扣/原始金額是同一筆交易總額的組成部分,共用父交易的幣別,
+    // 這裡只換掉符號成幣別縮寫文字,不逐項加「≈折算金額」(這行本身已經是
+    // 密集的行內組字,逐項再加一行會讓版面過度擁擠)。
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _currencyAbbrevLabel(context, tx.currencyCode!, fontSize: 11),
+        number,
+      ],
+    );
+  }
 
   final segments = <Widget>[];
   void addSegment(String? connector, String label, double amount) {
@@ -1448,18 +1570,29 @@ class _RewardRuleRow extends ConsumerWidget {
             ),
             const SizedBox(width: 6),
           ],
-          AmountText(
-            value: estimated,
-            signed: false,
-            currencyCode: tx.currencyCode,
-            showCurrency: true,
-            decimals: 2,
-            style: TextStyle(
+          Builder(builder: (context) {
+            final style = TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: BeeTokens.incomeColor(context, ref),
-            ),
-          ),
+            );
+            final number = AmountText(
+              value: estimated,
+              signed: false,
+              currencyCode: tx.currencyCode,
+              showCurrency: false,
+              decimals: 2,
+              style: style,
+            );
+            if (!_txIsForeign(tx)) return number;
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _currencyAbbrevLabel(context, tx.currencyCode!, fontSize: 11),
+                number,
+              ],
+            );
+          }),
         ],
       ),
     );

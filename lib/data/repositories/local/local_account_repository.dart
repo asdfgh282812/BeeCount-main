@@ -311,6 +311,11 @@ class LocalAccountRepository implements AccountRepository {
     // clamp 到「现在」——即使调用方显式传了未来时间点,也不该把还没发生的
     // 周期性交易预先计入(对齐 Cloud `min(cycle_end_dt, now)`)。
     final cutoff = (asOf == null || asOf.isAfter(now)) ? now : asOf;
+    // 帳戶自身幣別——交易幣別可能跟它脫鉤,見 [_amountInAccountCurrency] 注釋。
+    final account = await (db.select(db.accounts)
+          ..where((a) => a.id.equals(accountId)))
+        .getSingleOrNull();
+    final accountCurrency = account?.currency ?? '';
     // 入帳歸屬日 = COALESCE(deferred_posting_at, happened_at)——延後入帳的
     // 交易要用延後後的日期做帳期截斷,對齊 Cloud `_ATTR_DATE`、以及 App 既有
     // `getAccountStatementTransactions` 同一套口徑。原本這裡用 happened_at
@@ -319,7 +324,7 @@ class LocalAccountRepository implements AccountRepository {
     // 標記延後入帳的交易,讓「已繳金額」倒推出 -140 的異常負數)。
     final results = await db.customSelect(
       '''
-      SELECT type, amount, native_amount FROM transactions
+      SELECT type, amount, native_amount, currency_code FROM transactions
       WHERE account_id = ?1 AND type IN ('expense', 'income')
         AND $_kExcludeJoinedSharedLedgerSql
         AND COALESCE(deferred_posting_at, happened_at) <= ?2
@@ -334,9 +339,16 @@ class LocalAccountRepository implements AccountRepository {
     for (final row in results) {
       final type = row.data['type'] as String;
       final rawAmount = (row.data['amount'] as num).toDouble();
-      final amount = convertToLedgerCurrency
-          ? ((row.data['native_amount'] as num?)?.toDouble() ?? rawAmount)
-          : rawAmount;
+      final nativeAmount = (row.data['native_amount'] as num?)?.toDouble();
+      final txCurrency = row.data['currency_code'] as String?;
+      // 群組(convertToLedgerCurrency=true)一律折算成帳本本位幣;單一帳戶
+      // 則只在這筆交易自己的幣別跟帳戶自身幣別不同時才折算(見
+      // [_amountInAccountCurrency] 注釋),同幣別維持原樣不受影響。
+      final needsConversion = convertToLedgerCurrency ||
+          (txCurrency != null &&
+              txCurrency.isNotEmpty &&
+              txCurrency.toUpperCase() != accountCurrency.toUpperCase());
+      final amount = needsConversion ? (nativeAmount ?? rawAmount) : rawAmount;
       charged += type == 'expense' ? amount : -amount;
     }
     return charged;
@@ -441,6 +453,27 @@ class LocalAccountRepository implements AccountRepository {
   double _transferInEffect(Transaction t) =>
       (t.toAmount ?? t.amount) - (t.discountAmount ?? 0);
 
+  /// v51 起交易幣別可以跟所屬帳戶自身幣別脫鉤(例如台幣帳戶記一筆日圓消費,
+  /// 見 transaction_entry_form.dart 對應註解),此時 `amount` 是交易自己
+  /// 幣別下的原始金額,直接拿來加減帳戶餘額/信用卡帳款會用錯幣別的數字
+  /// 當成同一個單位相加(2026-09-14 使用者反饋:日圓 600 元消費被信用卡
+  /// 帳款當成台幣 600 算)。折算回帳戶自身幣別:目前沒有「即時換算成任意
+  /// 帳戶幣別」的查詢,退而求其次用 `nativeAmount`(記帳當下折算到帳本
+  /// 本位幣的快照)——多數帳戶自身幣別就是帳本本位幣,兩者相等；只有帳戶
+  /// 自身也是外幣時才會有殘餘誤差,這跟合併帳單群組既有的折算方式(見
+  /// credit_card_billing_providers.dart 的 convertToLedgerCurrency)是同一個
+  /// 近似,非本次修正新增的限制。currencyCode 為空(舊資料/無帳戶)一律
+  /// 視為同幣別,行為不變。
+  double _amountInAccountCurrency(Transaction t, String accountCurrency) {
+    final cc = t.currencyCode;
+    if (cc == null ||
+        cc.isEmpty ||
+        cc.toUpperCase() == accountCurrency.toUpperCase()) {
+      return t.amount;
+    }
+    return t.nativeAmount ?? t.amount;
+  }
+
   @override
   Future<double> getAccountBalance(int accountId, {DateTime? asOf}) async {
     // 获取账户初始资金
@@ -471,14 +504,14 @@ class LocalAccountRepository implements AccountRepository {
 
     for (final t in normalTxs) {
       if (t.type == 'income') {
-        balance += t.amount;
+        balance += _amountInAccountCurrency(t, account.currency);
       } else if (t.type == 'expense') {
-        balance -= t.amount;
+        balance -= _amountInAccountCurrency(t, account.currency);
       } else if (t.type == 'transfer') {
         // 作为转出账户。v46:疊加轉出側手續費(見 _transferOutEffect 注釋)。
         balance -= _transferOutEffect(t);
       } else if (t.type == 'adjustment') {
-        balance += t.amount;
+        balance += _amountInAccountCurrency(t, account.currency);
       }
     }
 
