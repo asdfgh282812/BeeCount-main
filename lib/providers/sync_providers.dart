@@ -927,7 +927,10 @@ void _applyAppearanceFields(Ref ref, Map<String, dynamic> appearance) {
     }
   }
   final categoryIconStyleRaw = appearance['category_icon_style'] as String?;
-  if (categoryIconStyleRaw != null) {
+  // 本地刚切换、push 还没落地时,这次下行多半带着 server 上还没被覆盖的旧值——
+  // 采信它就会把用户刚点的开关扳回去,跟主题色当年的闪烁是同一个坑
+  // (见 isThemePushInFlight 定义处的注释),这里比照同样用它挡掉。
+  if (categoryIconStyleRaw != null && !isThemePushInFlight) {
     final next = categoryIconStyleRaw == 'cute'
         ? CategoryIconStyle.cute
         : CategoryIconStyle.material;

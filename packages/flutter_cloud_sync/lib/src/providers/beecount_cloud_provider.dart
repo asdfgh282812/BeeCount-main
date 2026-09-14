@@ -1451,6 +1451,17 @@ class BeeCountCloudAuthService implements CloudAuthService {
   /// 新 session 也清掉。下次启动就回到"silent recovery 撞 2FA"的循环。
   ///
   /// 用 in-flight dedup 让并发调用共享同一个 refresh future,只发一次 server 请求。
+  ///
+  /// 这只挡得住**同一个实例内**的并发调用 —— App 里实际上有好几处各自独立
+  /// `createCloudServices()` 出来的 `BeeCountCloudAuthService`(见
+  /// lib/providers/sync_providers.dart 的 authServiceProvider /
+  /// beecountCloudProviderInstance),彼此内存里的 `_session` 互不同步,却共享
+  /// 同一把 SharedPreferences key。跨实例时同样的 rotating-refresh-token 竞态
+  /// 依然会发生:实例 A 用旧 refresh_token 刷新成功并落盘,实例 B 稍后(甚至
+  /// App 挂后台很久、resume 时才触发)还拿着刷新前那份旧 refresh_token 去刷新,
+  /// 撞 401,把 A 刚存的、其实仍然合法的 session 整个清掉,导致用户被强制登出。
+  /// `_doRefreshSession` 因此在刷新前后都会重新读一次磁盘,把“别的实例已经
+  /// 刷新过”的情况当成成功处理,而不是当成登出信号。
   Future<bool>? _refreshInFlight;
 
   Future<bool> tryRefreshSession() async {
@@ -1468,18 +1479,57 @@ class BeeCountCloudAuthService implements CloudAuthService {
   }
 
   Future<bool> _doRefreshSession() async {
+    // 刷新前先看看磁盘上是否已经有别的实例(或本实例更早的一次调用)刷新出
+    // 来的、目前仍然有效的 session —— 有的话直接采用,不要拿内存里这份可能
+    // 已经过期/被 revoke 的旧 refresh_token 去发一个注定失败的请求。
+    final onDisk = await _loadSessionFromDisk();
+    if (onDisk != null && !_isAccessTokenExpired(onDisk)) {
+      _session = onDisk;
+      _emitCurrentUser();
+      return true;
+    }
+    // 磁盘上的 refresh_token 比内存里这份新(说明别的实例已经抢先转了一轮,
+    // 只是新 access_token 恰好也过期了)——优先用磁盘上这份去刷新,避免拿已经
+    // 被 revoke 的旧 token 去撞 server。
+    if (onDisk != null && onDisk.refreshToken != _session?.refreshToken) {
+      _session = onDisk;
+    }
     try {
       await _refreshSession();
       return true;
     } on CloudAuthException catch (_) {
-      // server 明确拒绝 refresh token(401/403,已被 revoke/过期)才是真正需要
-      // 用户重新登录的情况,清掉本地 session。
+      // 在判定“refresh token 真的失效,需要用户重新登录”之前,再读一次磁盘:
+      // 如果这期间另一个实例已经用更新的 refresh_token 刷新成功,不能用我们
+      // 这次失败的结果去清掉它 —— 那会把一个仍然合法的全局 session 误杀。
+      final latestOnDisk = await _loadSessionFromDisk();
+      if (latestOnDisk != null && !_isAccessTokenExpired(latestOnDisk)) {
+        _session = latestOnDisk;
+        _emitCurrentUser();
+        return true;
+      }
+      // server 明确拒绝 refresh token(401/403,已被 revoke/过期)且磁盘上也没有
+      // 更新的合法 session,才是真正需要用户重新登录的情况,清掉本地 session。
       await _clearSession();
       return false;
     } catch (_) {
       // 网络错误、超时、server 5xx 等瞬时故障 —— 不能证明 refresh token 真的失效,
       // 保留本地登录状态,让下一次同步/刷新再重试,避免把用户静默登出。
       return false;
+    }
+  }
+
+  /// 从 SharedPreferences 读取当前持久化的 session(可能是别的
+  /// `BeeCountCloudAuthService` 实例更早刷新并落盘的最新版本)。解析失败按
+  /// 没有 session 处理,不在这里清盘 —— 清盘的决策留给调用方。
+  Future<_BeeCountCloudSession?> _loadSessionFromDisk() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_sessionStorageKey);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final json = jsonDecode(raw) as Map<String, dynamic>;
+      return _BeeCountCloudSession.fromJson(json);
+    } catch (_) {
+      return null;
     }
   }
 

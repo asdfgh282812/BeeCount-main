@@ -186,6 +186,13 @@ class _AppearanceSettingsPageState
                       ),
                       BeeTokens.cardDivider(context),
                       // 可爱类别图示 —— 切换类别图示为手绘风,颜色改用底线呈现
+                      //
+                      // 注意:不要在这里再加 onTap 重复调用 select() ——
+                      // AppListTile 是整行包一个 InkWell,trailing 的 Switch
+                      // 巢狀在它裡面,点在 Switch 上时两边的手势都会命中,
+                      // 一来一回互相抵销,表现成「点了没反应」(2026-09-14 实测)。
+                      // 其他有 trailing Switch 的 AppListTile(如
+                      // smart_billing_page.dart)都只留 onChanged,照那个来。
                       AppListTile(
                         leading: Icons.auto_awesome_outlined,
                         title: l10n.appearanceCuteIcons,
@@ -201,13 +208,6 @@ class _AppearanceSettingsPageState
                           },
                           activeColor: ref.watch(primaryColorProvider),
                         ),
-                        onTap: () {
-                          final current = ref.read(categoryIconStyleProvider);
-                          ref.read(categoryIconStyleProvider.notifier).select(
-                              current == CategoryIconStyle.cute
-                                  ? CategoryIconStyle.material
-                                  : CategoryIconStyle.cute);
-                        },
                       ),
                       BeeTokens.cardDivider(context),
                       // 显示缩放
