@@ -8,11 +8,11 @@ import '../../providers.dart';
 import '../../providers/budget_providers.dart';
 import '../../providers/pending_project_providers.dart';
 import '../../providers/project_providers.dart';
-import '../../services/data/category_service.dart';
 import '../../styles/tokens.dart';
 import '../../utils/currencies.dart';
 import '../../utils/ui_scale_extensions.dart';
 import '../../widgets/biz/biz.dart';
+import '../../widgets/category_icon.dart';
 import '../../widgets/ui/ui.dart';
 import '../budget/budget_edit_page.dart';
 import '../budget/widgets/budget_progress_bar.dart';
@@ -369,7 +369,7 @@ class _ProjectCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Center(
-                      child: CategoryService.iconOrEmojiWidget(
+                      child: ThemedIconGlyph(
                         icon: project.icon,
                         color: Theme.of(context).colorScheme.primary,
                         size: 18,

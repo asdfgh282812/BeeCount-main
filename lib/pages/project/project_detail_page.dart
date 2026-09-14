@@ -7,7 +7,6 @@ import '../../data/repositories/project_repository.dart'
 import '../../l10n/app_localizations.dart';
 import '../../providers.dart';
 import '../../providers/project_providers.dart';
-import '../../services/data/category_service.dart';
 import '../../styles/tokens.dart';
 import '../../utils/category_utils.dart';
 import '../../utils/currencies.dart';
@@ -210,7 +209,7 @@ class _ProjectDetailBody extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Center(
-                  child: CategoryService.iconOrEmojiWidget(
+                  child: ThemedIconGlyph(
                     icon: project.icon,
                     color: Theme.of(context).colorScheme.primary,
                     size: 24,

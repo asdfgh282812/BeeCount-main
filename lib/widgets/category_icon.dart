@@ -187,3 +187,41 @@ class CategoryIconWidget extends ConsumerWidget {
 CategoryIconData getCategoryIconDataFromCategory(Category category) {
   return CategoryIconData.fromCategory(category);
 }
+
+/// 通用「icon key 字符串 → 图标 widget」渲染组件,感知 cute/material 图标
+/// 主题切换。给 Project 这类只存一个 icon key 字符串(没有完整 Category
+/// 对象、没有 iconType/customIconPath/color 字段)的场景使用——完整
+/// Category 对象仍应优先用 [CategoryIconWidget](支持自定义图片、分类色
+/// 底线等)。修复 2026-09-14:此前 Project 相关渲染点直接调用不感知主题的
+/// `CategoryService.iconOrEmojiWidget`,导致 cute 主题下 Project 图标仍
+/// 固定显示 Material 版本。
+class ThemedIconGlyph extends ConsumerWidget {
+  final String? icon;
+  final Color color;
+  final double size;
+
+  const ThemedIconGlyph({
+    super.key,
+    required this.icon,
+    required this.color,
+    this.size = 18,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (icon != null &&
+        icon!.isNotEmpty &&
+        CategoryService.looksLikeEmoji(icon!)) {
+      return Text(icon!, style: TextStyle(fontSize: size * 0.9));
+    }
+    final iconStyle = ref.watch(categoryIconStyleProvider);
+    if (iconStyle == CategoryIconStyle.cute) {
+      return CuteCategoryIcon.maybeBuild(
+        iconKey: icon,
+        size: size * 1.25,
+        lineColor: color,
+      );
+    }
+    return Icon(CategoryService.getCategoryIcon(icon), size: size, color: color);
+  }
+}

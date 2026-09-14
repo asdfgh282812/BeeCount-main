@@ -137,8 +137,7 @@ class TransactionListItem extends ConsumerWidget {
   /// 专案 pill（一笔交易最多一个专案，视觉上与账本名 pill 一致：主题色 10% 底）
   Widget _buildProjectChip(BuildContext context, WidgetRef ref, db.Project p) {
     final color = ref.watch(primaryColorProvider);
-    final label =
-        (p.icon != null && p.icon!.isNotEmpty) ? '${p.icon} ${p.name}' : p.name;
+    final hasIcon = p.icon != null && p.icon!.isNotEmpty;
     return Container(
       constraints: const BoxConstraints(maxWidth: 120),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -146,12 +145,23 @@ class TransactionListItem extends ConsumerWidget {
         color: color.withValues(alpha: BeeTokens.isDark(context) ? 0.15 : 0.1),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Text(
-        label,
-        style:
-            TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w500),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (hasIcon) ...[
+            ThemedIconGlyph(icon: p.icon, color: color, size: 12),
+            const SizedBox(width: 3),
+          ],
+          Flexible(
+            child: Text(
+              p.name,
+              style: TextStyle(
+                  fontSize: 11, color: color, fontWeight: FontWeight.w500),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -9,12 +9,12 @@ import '../../l10n/app_localizations.dart';
 import '../../providers.dart';
 import '../../providers/project_providers.dart';
 import '../../services/billing/post_processor.dart';
-import '../../services/data/category_service.dart';
 import '../../styles/tokens.dart';
 import '../../utils/currencies.dart';
 import '../../utils/ui_scale_extensions.dart';
 import '../../widgets/biz/biz.dart';
 import '../../widgets/biz/grouped_icon_grid.dart';
+import '../../widgets/category_icon.dart';
 import '../../widgets/ui/ui.dart';
 
 /// 專案新增/編輯頁(design doc §8)。比照 BudgetEditPage 的頁面骨架
@@ -157,7 +157,7 @@ class _ProjectEditPageState extends ConsumerState<ProjectEditPage> {
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Center(
-                                    child: CategoryService.iconOrEmojiWidget(
+                                    child: ThemedIconGlyph(
                                       icon: _selectedIcon,
                                       color:
                                           Theme.of(context).colorScheme.primary,

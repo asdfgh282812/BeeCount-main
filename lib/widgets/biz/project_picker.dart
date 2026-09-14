@@ -5,9 +5,9 @@ import '../../data/db.dart';
 import '../../data/repositories/project_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers.dart';
-import '../../services/data/category_service.dart';
 import '../../styles/tokens.dart';
 import '../../utils/currencies.dart' show getCurrencySymbol;
+import '../category_icon.dart';
 
 /// 記帳表單「選擇專案」的結果。`project == null` 代表明確選了「不指定專案」
 /// (清空),跟 [ProjectPicker.show] 回傳頂層 `null`(使用者取消/滑動關閉,
@@ -175,7 +175,7 @@ class _ProjectPickerSheetState extends ConsumerState<_ProjectPickerSheet> {
                                                   context),
                                         ),
                                       _ProjectRow(
-                                        icon: CategoryService.iconOrEmojiWidget(
+                                        icon: ThemedIconGlyph(
                                           icon: entry.$2.project.icon,
                                           color: primaryColor,
                                           size: 16,

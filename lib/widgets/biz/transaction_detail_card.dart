@@ -14,7 +14,6 @@ import '../../providers.dart';
 import '../../providers/budget_providers.dart';
 import '../../services/attachment_service.dart';
 import '../../services/billing/post_processor.dart';
-import '../../services/data/category_service.dart';
 import '../../styles/tokens.dart';
 import '../../utils/account_type_utils.dart';
 import '../../utils/card_reward_calc.dart';
@@ -1143,7 +1142,7 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
               children: [
                 _detailItem(
                   context,
-                  CategoryService.iconOrEmojiWidget(
+                  ThemedIconGlyph(
                     icon: project.icon,
                     color: BeeTokens.iconTertiary(context),
                     size: 16,
