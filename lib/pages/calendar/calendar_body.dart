@@ -97,7 +97,13 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
   void jumpToToday() {
     final now = DateTime.now();
     setState(() {
-      _focusedMonth = DateTime(now.year, now.month, 1);
+      // 週检视下 _focusedMonth 是 TableCalendar 定位「显示哪一週」的锚点,
+      // 必须带上完整日期才能停在今天所在的那一週(否则恒为月初的锚点会
+      // 定位到月初所在週,即使今天并非月初)—— 与 onFormatChanged 切到
+      // 週检视时的逻辑(line ~303)保持同一契约。月检视仍恢复「日恒为 1」。
+      _focusedMonth = _calendarFormat == CalendarFormat.week
+          ? DateTime(now.year, now.month, now.day)
+          : DateTime(now.year, now.month, 1);
       _selectedDay = now;
     });
     ref.read(calendarSelectedMonthProvider.notifier).state = _focusedMonth;
