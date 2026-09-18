@@ -1475,6 +1475,14 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         }
       }
 
+      // 帳戶餘額(含初始資金)靠 accountStatsProvider 等統計 Provider 快取,
+      // 平常只在交易變動時由 PostProcessor.run 觸發重新計算;這裡改的是
+      // initialBalance 本身,若不主動 bump statsRefreshProvider,前面已經
+      // keepAlive 住的快取值不會更新,下次讀取(例如「調整總額」對話框的
+      // 「目前餘額」)仍是編輯前的舊值,導致之後新增的交易金額疊加在這筆
+      // 「消失」的初始資金上。
+      ref.read(statsRefreshProvider.notifier).state++;
+
       // 新增/改成的帳戶幣種若還沒有匯率,立刻強制拉一次(對齊
       // transaction_entry_form/_maybeAutoFetchRate 同款模式)。不這樣做的話
       // 只能等 accounts_page 進頁的 24h 節流刷新自然過期,期間該幣種帳戶會
