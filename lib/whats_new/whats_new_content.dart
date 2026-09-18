@@ -70,4 +70,26 @@ final Map<String, List<WhatsNewItem>> kWhatsNewContent = {
       description: (l10n) => l10n.whatsNew340AiCrossCurrencyDesc,
     ),
   ],
+  '3.5.0': [
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew350AiMerchantRewardTitle,
+      description: (l10n) => l10n.whatsNew350AiMerchantRewardDesc,
+    ),
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew350TransferAccountDisplayTitle,
+      description: (l10n) => l10n.whatsNew350TransferAccountDisplayDesc,
+    ),
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew350CreditCardPaymentParityTitle,
+      description: (l10n) => l10n.whatsNew350CreditCardPaymentParityDesc,
+    ),
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew350AccountInitialBalanceTitle,
+      description: (l10n) => l10n.whatsNew350AccountInitialBalanceDesc,
+    ),
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew350CalendarWeekTodayTitle,
+      description: (l10n) => l10n.whatsNew350CalendarWeekTodayDesc,
+    ),
+  ],
 };

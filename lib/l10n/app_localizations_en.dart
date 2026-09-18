@@ -10105,4 +10105,44 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get whatsNew340AiCrossCurrencyDesc =>
       'When photo, voice, or chat billing can\'t auto-match an account in the same currency, the account picker now shows accounts of any currency and converts the amount correctly.';
+
+  @override
+  String get whatsNew350AiMerchantRewardTitle =>
+      'AI bookkeeping adds a Merchant field and auto-applies card rewards';
+
+  @override
+  String get whatsNew350AiMerchantRewardDesc =>
+      'For chat, photo, voice, and background screenshot/notification billing, credit card bill cards now show the recognized merchant name, and automatically pick the matching reward rule you\'ve already set up — no more opening the reward list to select it yourself afterward.';
+
+  @override
+  String get whatsNew350TransferAccountDisplayTitle =>
+      'Transfers now show \"from → to\" accounts, and cross-currency amounts are fixed';
+
+  @override
+  String get whatsNew350TransferAccountDisplayDesc =>
+      'Transfer transactions in the detail card, calendar day list, search results, and project/tag/category detail pages now show the full \"from account → to account\"; the cross-currency \"≈ converted amount\" is now computed from the actual amount received, so it no longer disagrees with what you entered.';
+
+  @override
+  String get whatsNew350CreditCardPaymentParityTitle =>
+      'Credit card payment transfer note/category now match the web dashboard';
+
+  @override
+  String get whatsNew350CreditCardPaymentParityDesc =>
+      'Transfers created from a single card\'s \"Payment record\" on the Accounts page now show the correct note \"Credit card payment (billing period ...)\" and the transfer category name, matching BeeCount Cloud\'s web dashboard.';
+
+  @override
+  String get whatsNew350AccountInitialBalanceTitle =>
+      'Editing an account\'s initial balance now updates instantly';
+
+  @override
+  String get whatsNew350AccountInitialBalanceDesc =>
+      'After changing an account\'s initial balance in \"Edit account\", the Accounts page and the \"Adjust total\" dialog now show the correct current balance right away, instead of waiting for the next transaction.';
+
+  @override
+  String get whatsNew350CalendarWeekTodayTitle =>
+      'Fixed \"Today\" jumping to the wrong week in calendar week view';
+
+  @override
+  String get whatsNew350CalendarWeekTodayDesc =>
+      'When the bookkeeping calendar is collapsed to week view, tapping \"Today\" in the top right now correctly jumps to the week containing today, instead of the week at the start of the month.';
 }

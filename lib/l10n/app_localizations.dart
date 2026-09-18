@@ -18200,6 +18200,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'When photo, voice, or chat billing can\'t auto-match an account in the same currency, the account picker now shows accounts of any currency and converts the amount correctly.'**
   String get whatsNew340AiCrossCurrencyDesc;
+
+  /// No description provided for @whatsNew350AiMerchantRewardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI bookkeeping adds a Merchant field and auto-applies card rewards'**
+  String get whatsNew350AiMerchantRewardTitle;
+
+  /// No description provided for @whatsNew350AiMerchantRewardDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'For chat, photo, voice, and background screenshot/notification billing, credit card bill cards now show the recognized merchant name, and automatically pick the matching reward rule you\'ve already set up — no more opening the reward list to select it yourself afterward.'**
+  String get whatsNew350AiMerchantRewardDesc;
+
+  /// No description provided for @whatsNew350TransferAccountDisplayTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfers now show \"from → to\" accounts, and cross-currency amounts are fixed'**
+  String get whatsNew350TransferAccountDisplayTitle;
+
+  /// No description provided for @whatsNew350TransferAccountDisplayDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer transactions in the detail card, calendar day list, search results, and project/tag/category detail pages now show the full \"from account → to account\"; the cross-currency \"≈ converted amount\" is now computed from the actual amount received, so it no longer disagrees with what you entered.'**
+  String get whatsNew350TransferAccountDisplayDesc;
+
+  /// No description provided for @whatsNew350CreditCardPaymentParityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Credit card payment transfer note/category now match the web dashboard'**
+  String get whatsNew350CreditCardPaymentParityTitle;
+
+  /// No description provided for @whatsNew350CreditCardPaymentParityDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfers created from a single card\'s \"Payment record\" on the Accounts page now show the correct note \"Credit card payment (billing period ...)\" and the transfer category name, matching BeeCount Cloud\'s web dashboard.'**
+  String get whatsNew350CreditCardPaymentParityDesc;
+
+  /// No description provided for @whatsNew350AccountInitialBalanceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing an account\'s initial balance now updates instantly'**
+  String get whatsNew350AccountInitialBalanceTitle;
+
+  /// No description provided for @whatsNew350AccountInitialBalanceDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'After changing an account\'s initial balance in \"Edit account\", the Accounts page and the \"Adjust total\" dialog now show the correct current balance right away, instead of waiting for the next transaction.'**
+  String get whatsNew350AccountInitialBalanceDesc;
+
+  /// No description provided for @whatsNew350CalendarWeekTodayTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed \"Today\" jumping to the wrong week in calendar week view'**
+  String get whatsNew350CalendarWeekTodayTitle;
+
+  /// No description provided for @whatsNew350CalendarWeekTodayDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'When the bookkeeping calendar is collapsed to week view, tapping \"Today\" in the top right now correctly jumps to the week containing today, instead of the week at the start of the month.'**
+  String get whatsNew350CalendarWeekTodayDesc;
 }
 
 class _AppLocalizationsDelegate
