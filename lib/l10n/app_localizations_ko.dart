@@ -5638,6 +5638,12 @@ class AppLocalizationsKo extends AppLocalizations {
   String get billCardAccount => '💳 계정';
 
   @override
+  String get billCardMerchant => '🏪 Merchant';
+
+  @override
+  String get billCardReward => '🎁 Reward';
+
+  @override
   String get billCardUndo => '실행 취소';
 
   @override

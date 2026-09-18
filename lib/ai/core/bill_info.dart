@@ -55,6 +55,12 @@ class BillInfo {
   /// (.docs/multi-currency-ai A1)。解析/兜底见 [_parseCurrency]。
   final String? currency;
 
+  /// AI 辨识出的商家/店名(design 2026-09-18,仅默认 prompt 模板会要求
+  /// AI 填写)。`null` = AI 未辨识出具体商家。独立于 [note](JSON key 是
+  /// `merchant_name`,不要跟旧版兼容字段 `merchant` 搞混——那个语意等同塞进
+  /// note)。用于信用卡回饋规则自动比对(见 `BillCreationService`)。
+  final String? merchant;
+
   /// 账本 ID(由应用层注入,AI 不感知)
   final int? ledgerId;
 
@@ -73,6 +79,7 @@ class BillInfo {
     this.tags,
     this.project,
     this.currency,
+    this.merchant,
     this.ledgerId,
     this.confidence = 0.0,
   });
@@ -97,6 +104,7 @@ class BillInfo {
     List<String>? tags,
     String? project,
     String? currency,
+    String? merchant,
     int? ledgerId,
     double? confidence,
   }) {
@@ -112,6 +120,7 @@ class BillInfo {
       tags: tags ?? this.tags,
       project: project ?? this.project,
       currency: currency ?? this.currency,
+      merchant: merchant ?? this.merchant,
       ledgerId: ledgerId ?? this.ledgerId,
       confidence: confidence ?? this.confidence,
     );
@@ -144,6 +153,7 @@ class BillInfo {
       project: json['project'] as String?,
       currency: _parseCurrency(
           json['currency'] ?? json['currency_code'] ?? json['currencyCode']),
+      merchant: json['merchant_name'] as String?,
       ledgerId: json['ledgerId'] as int?,
       confidence: _parseDouble(json['confidence']) ?? 0.8,
     );
@@ -161,6 +171,7 @@ class BillInfo {
         'tags': tags,
         'project': project,
         'currency': currency,
+        'merchant_name': merchant,
         'ledgerId': ledgerId,
         'confidence': confidence,
       };
@@ -243,6 +254,7 @@ class BillInfo {
   String toString() {
     return 'BillInfo(amount: $amount, time: $time, note: $note, category: $category, '
         'type: $type, account: $account, fromAccount: $fromAccount, '
-        'toAccount: $toAccount, tags: $tags, project: $project, currency: $currency)';
+        'toAccount: $toAccount, tags: $tags, project: $project, currency: $currency, '
+        'merchant: $merchant)';
   }
 }

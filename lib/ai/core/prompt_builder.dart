@@ -69,21 +69,22 @@ class PromptBuilder {
    - 時間段（早上、中午、晚上）→使用合理時刻（早上09:00、中午12:00、晚上19:00）
    - 完全沒提到時間→使用目前時間
 3. note: 備註（必須≤15字，超過則精簡），擷取優先順序：
-   - 商家/店名（如"星巴克"、"肯德基"）
    - 商品名稱（長標題需簡化，如"2025春季新款黑色斜紋格紋半身裙"→"黑色半身裙"）
    - 使用者描述（如"給女兒買"）
-   - 沒有則留空
-4. category: 從分類清單選擇（轉帳可填"轉帳"）
-5. type: income、expense 或 transfer
-6. account: 支付帳戶（收入/支出可用）
-7. from_account: 轉出帳戶（僅轉帳可用）
-8. to_account: 轉入帳戶（僅轉帳可用）
-9. tag/tags: 標籤（可選，單一字串或字串陣列）
+   - 以上都沒有 → 退回商家/店名（與 merchant_name 同值）
+   - 都沒有才留空
+4. merchant_name: 商家/店名（若能明確辨識出具體商家才填，例如"星巴克"、"全聯"；辨識不到就留空）
+5. category: 從分類清單選擇（轉帳可填"轉帳"）
+6. type: income、expense 或 transfer
+7. account: 支付帳戶（收入/支出可用）
+8. from_account: 轉出帳戶（僅轉帳可用）
+9. to_account: 轉入帳戶（僅轉帳可用）
+10. tag/tags: 標籤（可選，單一字串或字串陣列）
 $_currencyFieldSpec{{PROJECTS}}
 
 範例：
 單筆"昨天中午吃飯50" → [{"amount":-50,"time":"2025-11-24T12:00:00","category":"餐飲","type":"expense"}]
-單筆"早上在星巴克買咖啡30" → [{"amount":-30,"time":"{{CURRENT_DATE}}T09:00:00","note":"星巴克","category":"咖啡","type":"expense"}]
+單筆"早上在星巴克買咖啡30" → [{"amount":-30,"time":"{{CURRENT_DATE}}T09:00:00","note":"星巴克","merchant_name":"星巴克","category":"咖啡","type":"expense"}]
 單筆"商品:2025春季新款黑色半身裙 金額:NT\$299" → [{"amount":-299,"note":"黑色半身裙","category":"服裝","type":"expense"}]
 轉帳"從台新轉800到街口" → [{"amount":800,"category":"轉帳","type":"transfer","from_account":"台新","to_account":"街口","tag":"自己"}]
 外幣"花了45美元" → [{"amount":-45,"currency":"USD","type":"expense"}]
@@ -114,7 +115,8 @@ $_currencyFieldSpec{{PROJECTS}}
   /// 币种段落(A7)。给**自定义模板用户**的「插入币种段落」一键补丁用 ——
   /// 我们不覆盖用户模板(方案 a),但让他们一次点击就能把这个能力补进自己的
   /// 模板。内容与默认模板共用 [_currencyFieldSpec],不会漂移。
-  static const String currencySectionSnippet = '$_currencyFieldSpec\n{{CURRENCIES}}';
+  static const String currencySectionSnippet =
+      '$_currencyFieldSpec\n{{CURRENCIES}}';
 
   /// 默认模板用到的全部占位符。**新增占位符必须在此登记** ——
   /// [placeholdersMatchDefaultTemplate] 会双向校验,漏登记或登记了模板里没有的

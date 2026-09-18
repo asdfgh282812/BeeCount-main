@@ -5815,6 +5815,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get billCardAccount => '💳 Account';
 
   @override
+  String get billCardMerchant => '🏪 Merchant';
+
+  @override
+  String get billCardReward => '🎁 Reward';
+
+  @override
   String get billCardUndo => 'Undo';
 
   @override

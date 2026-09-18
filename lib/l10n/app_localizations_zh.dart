@@ -5576,6 +5576,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get billCardAccount => '💳 账户';
 
   @override
+  String get billCardMerchant => '🏪 Merchant';
+
+  @override
+  String get billCardReward => '🎁 Reward';
+
+  @override
   String get billCardUndo => '撤销';
 
   @override
@@ -15333,6 +15339,12 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get billCardAccount => '💳 帳戶';
+
+  @override
+  String get billCardMerchant => '🏪 商家';
+
+  @override
+  String get billCardReward => '🎁 回饋';
 
   @override
   String get billCardUndo => '撤銷';

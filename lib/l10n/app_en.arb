@@ -2359,6 +2359,8 @@
   "billCardTime": "📅 Time",
   "billCardNote": "📝 Note",
   "billCardAccount": "💳 Account",
+  "billCardMerchant": "🏪 Merchant",
+  "billCardReward": "🎁 Reward",
   "billCardUndo": "Undo",
   "billCardEdit": "Edit",
   "donationTitle": "Donate",

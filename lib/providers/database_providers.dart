@@ -227,3 +227,14 @@ final transactionBySyncIdProvider =
   final repo = ref.watch(repositoryProvider);
   return await repo.getTransactionBySyncId(syncId);
 });
+
+/// 按本地 int id 反查交易(design 2026-09-18):`BillCardWidget` 只拿得到
+/// `BillInfo`(AI 抽取結果,不含 `merchant`/`rewardRuleIds` 這種落庫後才決定
+/// 的欄位),要顯示「已套用的回饋」需要另外用 `transactionId` 查一次實際落
+/// 庫的 [Transaction]。
+final transactionByIdProvider =
+    FutureProvider.family<Transaction?, int>((ref, transactionId) async {
+  ref.watch(syncGenerationProvider);
+  final repo = ref.watch(repositoryProvider);
+  return await repo.getTransactionById(transactionId);
+});

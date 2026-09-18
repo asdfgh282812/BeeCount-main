@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../ai/core/bill_info.dart';
+import '../../data/db.dart';
 import '../../widgets/biz/section_card.dart';
 import '../../styles/tokens.dart';
 import '../../utils/ui_scale_extensions.dart';
@@ -117,6 +118,19 @@ class BillCardWidget extends ConsumerWidget {
                 billInfo.account!,
               ),
             ],
+            if (!isUndone &&
+                billInfo.merchant != null &&
+                billInfo.merchant!.isNotEmpty) ...[
+              SizedBox(height: 8.0.scaled(context, ref)),
+              _buildInfoRow(
+                context,
+                ref,
+                AppLocalizations.of(context).billCardMerchant,
+                billInfo.merchant!,
+              ),
+            ],
+            if (!isUndone && transactionId != null)
+              _buildRewardRow(context, ref, transactionId!),
 
             SizedBox(height: 16.0.scaled(context, ref)),
 
@@ -186,6 +200,45 @@ class BillCardWidget extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  /// 「回饋」信息行(design 2026-09-18):`BillInfo` 不含落庫後才決定的
+  /// `rewardRuleIds`,得另外用 [transactionId] 查一次實際落庫的
+  /// [Transaction]。沒有掛任何回饋規則時整列不顯示。
+  Widget _buildRewardRow(
+      BuildContext context, WidgetRef ref, int transactionId) {
+    final tx = ref.watch(transactionByIdProvider(transactionId)).asData?.value;
+    if (tx == null) return const SizedBox.shrink();
+    final ruleIds = tx.rewardRuleIds;
+    if (ruleIds.isEmpty) return const SizedBox.shrink();
+
+    final labels = <String>[];
+    for (final syncId in ruleIds) {
+      final rule =
+          ref.watch(cardRewardRuleBySyncIdProvider(syncId)).asData?.value;
+      if (rule != null) labels.add(_rewardRuleLabel(rule));
+    }
+    if (labels.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: EdgeInsets.only(top: 8.0.scaled(context, ref)),
+      child: _buildInfoRow(
+        context,
+        ref,
+        AppLocalizations.of(context).billCardReward,
+        labels.join('、'),
+      ),
+    );
+  }
+
+  /// 格式比照 `transaction_entry_form.dart` 的 `_rewardChipLabel`:
+  /// 「規則名稱 (比例%)」/「規則名稱 (固定金額)」。
+  String _rewardRuleLabel(CardRewardRule r) {
+    final v = r.rateValue;
+    final vs = v.toStringAsFixed(v == v.truncateToDouble() ? 0 : 2);
+    return r.rateType == 'fixed_amount'
+        ? '${r.label} ($vs)'
+        : '${r.label} ($vs%)';
   }
 
   /// 账本芯片（显示在右上角）

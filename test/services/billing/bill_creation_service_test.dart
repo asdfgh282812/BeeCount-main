@@ -393,8 +393,7 @@ void main() {
       expect(tx?.accountId, isNull);
     });
 
-    test('AI 账户名命中合并账单主账户(account_group) → 不匹配,不落到主账户上',
-        () async {
+    test('AI 账户名命中合并账单主账户(account_group) → 不匹配,不落到主账户上', () async {
       // 主账户是纯管理容器(不可直接入账),即使名称完全相等也不能命中——
       // 否则交易会挂在不该入账的分组账户上而系统不拦截。
       await repo.createAccount(
@@ -618,8 +617,7 @@ void main() {
         customTagNames: const ['朋友聚餐', '商务'],
       );
       final tags = await repo.getTagsForTransaction(txId!);
-      expect(tags.map((t) => t.name).toSet(),
-          containsAll({'朋友聚餐', '商务'}));
+      expect(tags.map((t) => t.name).toSet(), containsAll({'朋友聚餐', '商务'}));
     });
 
     test('BillInfo.tags 也会被作为标签挂上', () async {
@@ -795,8 +793,7 @@ void main() {
       expect(tx?.currencyCode, 'USD');
     });
 
-    test('缺汇率不阻断:仍落库,nativeAmount 退化成 amount(A5 + L11 可捞回)',
-        () async {
+    test('缺汇率不阻断:仍落库,nativeAmount 退化成 amount(A5 + L11 可捞回)', () async {
       await repo.createCategory(name: '餐饮', kind: 'expense');
       final txId = await service.createFromBill(
         bill: BillInfo(
@@ -867,8 +864,7 @@ void main() {
       );
       final tx = await repo.getTransactionById(txId!);
       expect(tx?.currencyCode, 'CNY');
-      expect(tx?.toAccountId, isNull,
-          reason: 'CNY 的转账不能挂 USD 转入账户');
+      expect(tx?.toAccountId, isNull, reason: 'CNY 的转账不能挂 USD 转入账户');
     });
 
     test('同币种转账照常双端命中(回归锁)', () async {
@@ -946,8 +942,7 @@ void main() {
       expect(calls, ['JPY']);
     });
 
-    test('本地已有该币种汇率 → 不再拉(否则每笔外币都打一次 force 请求)',
-        () async {
+    test('本地已有该币种汇率 → 不再拉(否则每笔外币都打一次 force 请求)', () async {
       await repo.createCategory(name: '餐饮', kind: 'expense');
       await repo.upsertAutoRates(
         base: 'CNY',
@@ -1017,8 +1012,7 @@ void main() {
       expect(calls, isEmpty);
     });
 
-    test('ensureRate 抛异常 → 吞掉,交易照常落库(不能因为拉汇率失败丢账)',
-        () async {
+    test('ensureRate 抛异常 → 吞掉,交易照常落库(不能因为拉汇率失败丢账)', () async {
       await repo.createCategory(name: '餐饮', kind: 'expense');
       final svc = BillCreationService(repo, ensureRate: (_) async {
         throw Exception('network down');
@@ -1134,8 +1128,10 @@ void main() {
     // 本位币为 base,没有两个外币之间的直接汇率),对齐
     // transfer_form.dart `_convertCrossCurrency` 的既有逻辑。
     test('選的帳戶幣種既非 AI 幣種也非本位幣 → 三角換算', () async {
-      await repo.setOverride(base: 'CNY', quote: 'JPY', rate: '0.05'); // 1 JPY = 0.05 CNY
-      await repo.setOverride(base: 'CNY', quote: 'USD', rate: '7.2'); // 1 USD = 7.2 CNY
+      await repo.setOverride(
+          base: 'CNY', quote: 'JPY', rate: '0.05'); // 1 JPY = 0.05 CNY
+      await repo.setOverride(
+          base: 'CNY', quote: 'USD', rate: '7.2'); // 1 USD = 7.2 CNY
       final usdAcc = await repo.createAccount(
         ledgerId: ledgerId,
         name: 'Chase',
@@ -1159,8 +1155,7 @@ void main() {
       expect(tx?.amount, closeTo(60 / 7.2, 0.0001));
     });
 
-    test('選的帳戶幣種跟 AI 給的幣種不同但沒有匯率 → 退化成金額原樣記入該帳戶',
-        () async {
+    test('選的帳戶幣種跟 AI 給的幣種不同但沒有匯率 → 退化成金額原樣記入該帳戶', () async {
       final cnyAcc = await repo.createAccount(
         ledgerId: ledgerId,
         name: '中信',
@@ -1249,8 +1244,7 @@ void main() {
       expect(tx?.needsProjectAssignment, false);
     });
 
-    test('ask 模式:回調回傳 null(使用者選不指定)是正常完成,不拋例外也不標記旗標',
-        () async {
+    test('ask 模式:回調回傳 null(使用者選不指定)是正常完成,不拋例外也不標記旗標', () async {
       SharedPreferences.setMockInitialValues({
         kAiProjectAssignModeKey: AiProjectAssignMode.ask.name,
       });
@@ -1338,6 +1332,266 @@ void main() {
       final tx = await repo.getTransactionById(txId!);
       expect(tx?.projectSyncId, isNull);
       expect(tx?.needsProjectAssignment, true);
+    });
+  });
+
+  // AI 記帳信用卡回饋規則自動比對(design 2026-09-18)。
+  group('信用卡回饋規則自動比對', () {
+    late int categoryId;
+    late int accountId;
+
+    setUp(() async {
+      categoryId = await repo.createCategory(name: '餐饮', kind: 'expense');
+      accountId = await repo.createAccount(
+        ledgerId: ledgerId,
+        name: '信用卡',
+        type: 'credit_card',
+        currency: 'CNY',
+      );
+    });
+
+    BillInfo bill({String? merchant}) => BillInfo(
+          amount: -100,
+          time: DateTime(2026, 5, 26),
+          category: '餐饮',
+          account: '信用卡',
+          type: BillType.expense,
+          merchant: merchant,
+        );
+
+    test('學習快取命中直接套用,不查 SwipeSmart', () async {
+      final ruleId = await repo.createCardRewardRule(
+        accountId: accountId,
+        label: '網購5%回饋',
+        rateValue: 5,
+      );
+      final rule = await repo.getCardRewardRuleById(ruleId);
+      await repo.upsertRewardChoice(
+        ledgerId: ledgerId,
+        categoryId: categoryId,
+        accountId: accountId,
+        rewardRuleIds: [rule!.syncId!],
+      );
+      var swipesmartCalled = false;
+      final svc = BillCreationService(
+        repo,
+        recommendRewardRuleName: ({
+          required ledgerId,
+          required accountId,
+          required amount,
+          required merchant,
+        }) async {
+          swipesmartCalled = true;
+          return null;
+        },
+      );
+
+      final txId = await svc.createFromBill(
+        bill: bill(merchant: '全聯'),
+        ledgerId: ledgerId,
+      );
+      final tx = await repo.getTransactionById(txId!);
+      expect(tx?.rewardRuleIds, [rule.syncId]);
+      expect(swipesmartCalled, false);
+    });
+
+    test('快取沒有,SwipeSmart 唯一命中 → 採用', () async {
+      final ruleId = await repo.createCardRewardRule(
+        accountId: accountId,
+        label: '網購5%回饋',
+        rateValue: 5,
+      );
+      final rule = await repo.getCardRewardRuleById(ruleId);
+      await repo.updateAccount(accountId, swipesmartCardId: 'card-1');
+      final svc = BillCreationService(
+        repo,
+        recommendRewardRuleName: ({
+          required ledgerId,
+          required accountId,
+          required amount,
+          required merchant,
+        }) async =>
+            '網購5%回饋',
+      );
+
+      final txId = await svc.createFromBill(
+          bill: bill(merchant: '全聯'), ledgerId: ledgerId);
+      final tx = await repo.getTransactionById(txId!);
+      expect(tx?.rewardRuleIds, [rule!.syncId]);
+    });
+
+    test('SwipeSmart 零筆命中本地規則 → 不套用回饋,交易照常建立', () async {
+      await repo.createCardRewardRule(
+        accountId: accountId,
+        label: '海外消費8%回饋',
+        rateValue: 8,
+      );
+      await repo.updateAccount(accountId, swipesmartCardId: 'card-1');
+      final svc = BillCreationService(
+        repo,
+        recommendRewardRuleName: ({
+          required ledgerId,
+          required accountId,
+          required amount,
+          required merchant,
+        }) async =>
+            '完全不相關的規則名稱',
+      );
+
+      final txId = await svc.createFromBill(
+          bill: bill(merchant: '全聯'), ledgerId: ledgerId);
+      final tx = await repo.getTransactionById(txId!);
+      expect(tx, isNotNull);
+      expect(tx?.rewardRuleIds, isEmpty);
+    });
+
+    test('SwipeSmart 命中多筆本地規則 → 降級不套用', () async {
+      await repo.createCardRewardRule(
+        accountId: accountId,
+        label: '網購5%回饋',
+        rateValue: 5,
+      );
+      await repo.createCardRewardRule(
+        accountId: accountId,
+        label: '網購3%回饋',
+        rateValue: 3,
+      );
+      await repo.updateAccount(accountId, swipesmartCardId: 'card-1');
+      final svc = BillCreationService(
+        repo,
+        recommendRewardRuleName: ({
+          required ledgerId,
+          required accountId,
+          required amount,
+          required merchant,
+        }) async =>
+            '網購',
+      );
+
+      final txId = await svc.createFromBill(
+          bill: bill(merchant: '全聯'), ledgerId: ledgerId);
+      final tx = await repo.getTransactionById(txId!);
+      expect(tx?.rewardRuleIds, isEmpty);
+    });
+
+    test('非信用卡帳戶 → 完全跳過,不查 SwipeSmart', () async {
+      final cashAcc = await repo.createAccount(
+        ledgerId: ledgerId,
+        name: '現金',
+        type: 'cash',
+        currency: 'CNY',
+      );
+      var swipesmartCalled = false;
+      final svc = BillCreationService(
+        repo,
+        recommendRewardRuleName: ({
+          required ledgerId,
+          required accountId,
+          required amount,
+          required merchant,
+        }) async {
+          swipesmartCalled = true;
+          return null;
+        },
+      );
+
+      final txId = await svc.createFromBill(
+        bill: BillInfo(
+          amount: -100,
+          time: DateTime(2026, 5, 26),
+          category: '餐饮',
+          account: '現金',
+          type: BillType.expense,
+          merchant: '全聯',
+        ),
+        ledgerId: ledgerId,
+      );
+      final tx = await repo.getTransactionById(txId!);
+      expect(tx?.accountId, cashAcc);
+      expect(tx?.rewardRuleIds, isEmpty);
+      expect(swipesmartCalled, false);
+    });
+
+    test('商家為空 → 不查 SwipeSmart', () async {
+      await repo.updateAccount(accountId, swipesmartCardId: 'card-1');
+      var swipesmartCalled = false;
+      final svc = BillCreationService(
+        repo,
+        recommendRewardRuleName: ({
+          required ledgerId,
+          required accountId,
+          required amount,
+          required merchant,
+        }) async {
+          swipesmartCalled = true;
+          return null;
+        },
+      );
+
+      final txId = await svc.createFromBill(
+          bill: bill(merchant: null), ledgerId: ledgerId);
+      final tx = await repo.getTransactionById(txId!);
+      expect(tx?.rewardRuleIds, isEmpty);
+      expect(swipesmartCalled, false);
+    });
+
+    test('recommendRewardRuleName 未注入時優雅跳過(不拋例外)', () async {
+      await repo.updateAccount(accountId, swipesmartCardId: 'card-1');
+      // 頂層 `service` 沒有注入 recommendRewardRuleName。
+      final txId = await service.createFromBill(
+          bill: bill(merchant: '全聯'), ledgerId: ledgerId);
+      final tx = await repo.getTransactionById(txId!);
+      expect(tx, isNotNull);
+      expect(tx?.rewardRuleIds, isEmpty);
+    });
+
+    test('帳戶未對照 swipesmartCardId → 不查 SwipeSmart', () async {
+      var swipesmartCalled = false;
+      final svc = BillCreationService(
+        repo,
+        recommendRewardRuleName: ({
+          required ledgerId,
+          required accountId,
+          required amount,
+          required merchant,
+        }) async {
+          swipesmartCalled = true;
+          return null;
+        },
+      );
+
+      final txId = await svc.createFromBill(
+          bill: bill(merchant: '全聯'), ledgerId: ledgerId);
+      final tx = await repo.getTransactionById(txId!);
+      expect(tx?.rewardRuleIds, isEmpty);
+      expect(swipesmartCalled, false);
+    });
+
+    test('自動比對結果不寫回學習快取(§8 既有不變量)', () async {
+      await repo.createCardRewardRule(
+        accountId: accountId,
+        label: '網購5%回饋',
+        rateValue: 5,
+      );
+      await repo.updateAccount(accountId, swipesmartCardId: 'card-1');
+      final svc = BillCreationService(
+        repo,
+        recommendRewardRuleName: ({
+          required ledgerId,
+          required accountId,
+          required amount,
+          required merchant,
+        }) async =>
+            '網購5%回饋',
+      );
+
+      await svc.createFromBill(bill: bill(merchant: '全聯'), ledgerId: ledgerId);
+      final cached = await repo.getCachedRewardRuleIds(
+        ledgerId: ledgerId,
+        categoryId: categoryId,
+        accountId: accountId,
+      );
+      expect(cached, isNull);
     });
   });
 }

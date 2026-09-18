@@ -88,8 +88,7 @@ void main() {
 
     // AI 记账专案指定(design 2026-09-11):project 字段解析,同 tags 一样容错缺欄位。
     test('project 字段:有值直接带出,缺欄位为 null', () {
-      final withProject =
-          BillInfo.fromJson({'amount': -1, 'project': '日本旅行'});
+      final withProject = BillInfo.fromJson({'amount': -1, 'project': '日本旅行'});
       expect(withProject.project, '日本旅行');
 
       final withoutProject = BillInfo.fromJson({'amount': -1});
@@ -208,8 +207,10 @@ void main() {
 
   group('BillInfo.currency(智能记账多币种 A4)', () {
     test('ISO 码大小写归一', () {
-      expect(BillInfo.fromJson({'amount': -1, 'currency': 'usd'}).currency, 'USD');
-      expect(BillInfo.fromJson({'amount': -1, 'currency': ' JPY '}).currency, 'JPY');
+      expect(
+          BillInfo.fromJson({'amount': -1, 'currency': 'usd'}).currency, 'USD');
+      expect(BillInfo.fromJson({'amount': -1, 'currency': ' JPY '}).currency,
+          'JPY');
     });
 
     test('兼容 currency_code / currencyCode 键名', () {
@@ -224,21 +225,27 @@ void main() {
     });
 
     test('口语别名走 alias 表', () {
-      expect(BillInfo.fromJson({'amount': -1, 'currency': '美元'}).currency, 'USD');
-      expect(BillInfo.fromJson({'amount': -1, 'currency': '日元'}).currency, 'JPY');
+      expect(
+          BillInfo.fromJson({'amount': -1, 'currency': '美元'}).currency, 'USD');
+      expect(
+          BillInfo.fromJson({'amount': -1, 'currency': '日元'}).currency, 'JPY');
     });
 
     test(r'AI 把 currency 回成 "$" 时仍解析成 USD(实测高频)', () {
-      expect(BillInfo.fromJson({'amount': -1, 'currency': r'$'}).currency, 'USD');
+      expect(
+          BillInfo.fromJson({'amount': -1, 'currency': r'$'}).currency, 'USD');
     });
 
     test('真歧义符号 ¥ 按缺失处理(CNY/JPY 猜错差 ~20 倍)', () {
-      expect(BillInfo.fromJson({'amount': -1, 'currency': '¥'}).currency, isNull);
+      expect(
+          BillInfo.fromJson({'amount': -1, 'currency': '¥'}).currency, isNull);
     });
 
     test('非法币种按缺失处理,不抛异常', () {
-      expect(BillInfo.fromJson({'amount': -1, 'currency': 'XYZ'}).currency, isNull);
-      expect(BillInfo.fromJson({'amount': -1, 'currency': 123}).currency, isNull);
+      expect(BillInfo.fromJson({'amount': -1, 'currency': 'XYZ'}).currency,
+          isNull);
+      expect(
+          BillInfo.fromJson({'amount': -1, 'currency': 123}).currency, isNull);
     });
 
     test('回归锁:老 payload 无 currency 键 → null,其余字段不受影响', () {
@@ -260,6 +267,38 @@ void main() {
         BillInfo.fromJson(Map<String, dynamic>.from(bill.toJson())).currency,
         'JPY',
       );
+    });
+  });
+
+  group('BillInfo.merchant(信用卡回饋自动比对 design 2026-09-18)', () {
+    test('fromJson 解析 merchant_name 键', () {
+      final bill = BillInfo.fromJson({'amount': -30, 'merchant_name': '星巴克'});
+      expect(bill.merchant, '星巴克');
+    });
+
+    test('缺 merchant_name → null(自订 prompt 模板不吐这个字段)', () {
+      final bill = BillInfo.fromJson({'amount': -30});
+      expect(bill.merchant, isNull);
+    });
+
+    test('不跟旧版兼容字段 merchant(等同塞进 note)混用', () {
+      final bill = BillInfo.fromJson({'amount': -30, 'merchant': '星巴克'});
+      expect(bill.note, '星巴克');
+      expect(bill.merchant, isNull);
+    });
+
+    test('copyWith 替换 / 沿用', () {
+      const original = BillInfo(amount: -30, merchant: '星巴克');
+      expect(original.copyWith(merchant: '全联').merchant, '全联');
+      expect(original.copyWith().merchant, '星巴克');
+    });
+
+    test('toJson / fromJson 往返', () {
+      const bill = BillInfo(amount: -30, merchant: '星巴克');
+      final json = bill.toJson();
+      expect(json['merchant_name'], '星巴克');
+      final restored = BillInfo.fromJson(Map<String, dynamic>.from(json));
+      expect(restored.merchant, '星巴克');
     });
   });
 

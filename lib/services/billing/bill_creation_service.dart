@@ -11,6 +11,7 @@ import '../currency/rate_math.dart';
 import '../data/tag_seed_service.dart';
 import '../system/logger_service.dart';
 import 'category_matcher.dart';
+import 'reward_rule_matcher.dart';
 
 /// 账单交易创建服务。
 ///
@@ -45,6 +46,19 @@ class MissingAccountSkipped implements Exception {
 /// 的姊妹旗標 `needsProjectAssignment`。
 typedef ResolveMissingProject = Future<int?> Function(BillInfo bill);
 
+/// AI 記帳信用卡回饋規則自動比對(design 2026-09-18)的 SwipeSmart 推薦查詢
+/// 回調——由 provider 層注入,讓 service 層不必依賴 `flutter_cloud_sync`,
+/// 比照 [EnsureRate] 的注入模式。回傳該帳戶目前最推薦的規則「名稱」文字
+/// (不是本地 syncId——SwipeSmart 跟本地 `CardRewardRule` 是不同資料庫,沒有
+/// ID 對應關係,呼叫端需再用 [matchUniqueRewardRuleByLabel] 模糊比對本地規
+/// 則),查不到/例外一律回傳 null。
+typedef RecommendRewardRuleName = Future<String?> Function({
+  required int ledgerId,
+  required int accountId,
+  required double amount,
+  required String merchant,
+});
+
 class BillCreationService {
   static const _tag = 'BillCreation';
 
@@ -53,7 +67,12 @@ class BillCreationService {
   /// 见 [EnsureRate]。未注入(单测 / 老调用方)时跳过预拉,行为与改动前一致。
   final EnsureRate? ensureRate;
 
-  BillCreationService(this.repo, {this.ensureRate});
+  /// 见 [RecommendRewardRuleName]。未注入(单测 / 老调用方)时跳过 SwipeSmart
+  /// 推薦查詢,行为与改动前一致(只走本机学习快取,快取没有就没有回饋)。
+  final RecommendRewardRuleName? recommendRewardRuleName;
+
+  BillCreationService(this.repo,
+      {this.ensureRate, this.recommendRewardRuleName});
 
   /// 从 [BillInfo] 创建账单交易。入参的 [bill] 经过 sanitize,
   /// **保证 amount 非空且 abs > 0、time 非空**,内部无需再做兜底。
@@ -152,7 +171,8 @@ class BillCreationService {
 
     // 4.5 定交易币种:命中账户 → 随账户(账户内不混币,L7/L12 的不变量);
     //     否则用 AI 给的;都没有 → 账本本位币。
-    final matchedAccount = accountId == null ? null : await repo.getAccount(accountId);
+    final matchedAccount =
+        accountId == null ? null : await repo.getAccount(accountId);
     final accountCurrency = (matchedAccount?.currency.isNotEmpty ?? false)
         ? matchedAccount!.currency.toUpperCase()
         : null;
@@ -199,6 +219,21 @@ class BillCreationService {
     final (projectSyncId, needsProjectAssignment) =
         await _resolveProject(bill, ledgerId, resolveMissingProject);
 
+    // 4.9 信用卡回饋規則自動比對(design 2026-09-18):僅支出 + 帳戶為信用卡
+    // 才進入,結果直接放進下面的 addTransaction 一次寫入,不擋流程。
+    List<String>? rewardRuleIds;
+    if (transactionType == 'expense' &&
+        accountId != null &&
+        matchedAccount?.type == 'credit_card') {
+      rewardRuleIds = await _resolveRewardRuleIds(
+        bill: bill,
+        ledgerId: ledgerId,
+        categoryId: categoryId,
+        account: matchedAccount!,
+        amount: billAmount,
+      );
+    }
+
     // 5. 落库。nativeAmount 不传 —— 交给 LocalRepository._resolveTxCurrency
     //    按有效汇率折算;缺汇率时它会退化成 =amount 并被 L11 检测捞回。
     final happenedAt = bill.time ?? DateTime.now();
@@ -211,10 +246,12 @@ class BillCreationService {
       toAccountId: toAccountId,
       happenedAt: happenedAt,
       note: bill.note,
+      merchant: bill.merchant,
       currencyCode: txCurrency,
       needsAccountAssignment: needsAccountAssignment,
       projectSyncId: projectSyncId,
       needsProjectAssignment: needsProjectAssignment,
+      rewardRuleIds: rewardRuleIds,
     );
 
     // 6. 自动标签:受「智能记账自动关联标签」开关控制(默认开启,关闭后不挂任何标签)。
@@ -236,7 +273,8 @@ class BillCreationService {
     String? categoryName;
     String? accountName;
     if (categoryId != null) {
-      categoryName = categories.firstWhereOrNull((c) => c.id == categoryId)?.name;
+      categoryName =
+          categories.firstWhereOrNull((c) => c.id == categoryId)?.name;
     }
     if (accountId != null) {
       accountName = (await repo.getAccount(accountId))?.name;
@@ -417,8 +455,7 @@ class BillCreationService {
     // 完全匹配
     for (final a in pool) {
       if (a.name.toLowerCase().trim() == target) {
-        logger.debug(_tag,
-            '[账户匹配-完全] "$accountName" → ${a.name}(ID:${a.id})');
+        logger.debug(_tag, '[账户匹配-完全] "$accountName" → ${a.name}(ID:${a.id})');
         return a.id;
       }
     }
@@ -426,8 +463,7 @@ class BillCreationService {
     for (final a in pool) {
       final n = a.name.toLowerCase().trim();
       if (n.contains(target) || target.contains(n)) {
-        logger.debug(_tag,
-            '[账户匹配-模糊] "$accountName" → ${a.name}(ID:${a.id})');
+        logger.debug(_tag, '[账户匹配-模糊] "$accountName" → ${a.name}(ID:${a.id})');
         return a.id;
       }
     }
@@ -445,8 +481,8 @@ class BillCreationService {
       final n = a.name.toLowerCase().trim();
       for (final r in related) {
         if (n.contains(r.toLowerCase())) {
-          logger.debug(_tag,
-              '[账户匹配-类型] "$accountName" → ${a.name}(ID:${a.id})');
+          logger.debug(
+              _tag, '[账户匹配-类型] "$accountName" → ${a.name}(ID:${a.id})');
           return a.id;
         }
       }
@@ -521,6 +557,80 @@ class BillCreationService {
     return null;
   }
 
+  /// 信用卡回饋規則自動比對(design 2026-09-18 §5.2)。
+  ///
+  /// 1. [categoryId] 非 null 時先查「同帳戶+同分類」學習快取(跟手動表單共用
+  ///    同一份資料,**只讀不寫**——見 [RewardChoiceCacheRepository] 文件注
+  ///    釋)。快取存在的 syncId 可能已經被刪了,過濾掉不在
+  ///    [CardRewardRuleRepository.getCardRewardRulesForAccount] 清單裡的。
+  ///    過濾後非空就直接採用。
+  /// 2. 快取沒有可用結果時,只在帳戶已對照 SwipeSmart 卡片、AI 有辨識出商
+  ///    家、且注入了 [recommendRewardRuleName] 時才查 SwipeSmart 推薦,模糊
+  ///    比對本地目前生效中的規則,剛好一筆命中才採用。
+  ///
+  /// 任何一步沒有結果都回傳 null——交易照常建立,只是沒有回饋,不擋流程。
+  /// 自動比對的結果**不寫回**學習快取(§8:維持「只有使用者手動選才寫入」
+  /// 的既有不變量)。
+  Future<List<String>?> _resolveRewardRuleIds({
+    required BillInfo bill,
+    required int ledgerId,
+    required int? categoryId,
+    required Account account,
+    required double amount,
+  }) async {
+    final accountId = account.id;
+
+    if (categoryId != null) {
+      final cached = await repo.getCachedRewardRuleIds(
+        ledgerId: ledgerId,
+        categoryId: categoryId,
+        accountId: accountId,
+      );
+      if (cached != null && cached.isNotEmpty) {
+        final rules = await repo.getCardRewardRulesForAccount(accountId);
+        final validIds = rules.map((r) => r.syncId).whereType<String>().toSet();
+        final filtered = cached.where(validIds.contains).toList();
+        if (filtered.isNotEmpty) {
+          logger.debug(
+              _tag, '[回饋] 快取命中(帳戶$accountId+分類$categoryId): $filtered');
+          return filtered;
+        }
+      }
+    }
+
+    final recommend = recommendRewardRuleName;
+    final swipesmartCardId = account.swipesmartCardId;
+    final merchant = bill.merchant?.trim();
+    if (recommend == null ||
+        swipesmartCardId == null ||
+        swipesmartCardId.isEmpty ||
+        merchant == null ||
+        merchant.isEmpty) {
+      return null;
+    }
+
+    try {
+      final ruleName = await recommend(
+        ledgerId: ledgerId,
+        accountId: accountId,
+        amount: amount,
+        merchant: merchant,
+      );
+      if (ruleName == null || ruleName.isEmpty) return null;
+
+      final rules = await repo.getCardRewardRulesForAccount(accountId);
+      final matched =
+          matchUniqueRewardRuleByLabel(ruleName, effectiveRewardRules(rules));
+      if (matched?.syncId == null) return null;
+      logger.debug(
+          _tag, '[回饋] SwipeSmart 推薦"$ruleName" 唯一命中本地規則"${matched!.label}"');
+      return [matched.syncId!];
+    } catch (e, st) {
+      logger.warning(_tag, '[回饋] SwipeSmart 推薦查詢失敗,略過', st);
+      return null;
+    }
+  }
+
   /// 默认账户。[txCurrency] 是这笔的币种(AI 给的,没给就是账本本位币)——
   /// 记外币时本位币的默认账户**不适用**,返回 null 让这笔不挂账户(Q3),
   /// 而不是硬塞一个币种不符的账户进去。
@@ -539,8 +649,7 @@ class BillCreationService {
     final account = await repo.getAccount(defaultId);
     if (account == null) return null;
     if (account.currency.toUpperCase() != txCurrency.toUpperCase()) {
-      logger.debug(_tag,
-          '[默认账户] 币种不匹配: ${account.currency} vs $txCurrency');
+      logger.debug(_tag, '[默认账户] 币种不匹配: ${account.currency} vs $txCurrency');
       return null;
     }
     logger.debug(_tag, '[默认账户] → ${account.name}(ID:${account.id})');
@@ -560,13 +669,13 @@ class BillCreationService {
     bool valid(String rate) => (double.tryParse(rate) ?? 0) > 0;
     try {
       final overrides = await repo.getOverrides(base);
-      if (overrides.any((o) =>
-          o.quoteCurrency.toUpperCase() == quote && valid(o.rate))) {
+      if (overrides.any(
+          (o) => o.quoteCurrency.toUpperCase() == quote && valid(o.rate))) {
         return true;
       }
       final autos = await repo.getLatestAutoRates(base);
-      return autos.any(
-          (r) => r.quoteCurrency.toUpperCase() == quote && valid(r.rate));
+      return autos
+          .any((r) => r.quoteCurrency.toUpperCase() == quote && valid(r.rate));
     } catch (e) {
       // 查不了就当没有,交给 _ensureRateAvailable 兜(它自己也吞异常)
       logger.debug(_tag, '[汇率] 本地汇率检查失败,按「无」处理: $e');
@@ -655,9 +764,8 @@ class BillCreationService {
         names.addAll(TagSeedService.getBillingTagNames(billingTypes, l10n));
       }
       if (customTagNames != null && customTagNames.isNotEmpty) {
-        names.addAll(customTagNames
-            .map((n) => n.trim())
-            .where((n) => n.isNotEmpty));
+        names.addAll(
+            customTagNames.map((n) => n.trim()).where((n) => n.isNotEmpty));
       }
       if (names.isEmpty) return;
 

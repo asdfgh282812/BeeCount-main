@@ -10516,6 +10516,18 @@ abstract class AppLocalizations {
   /// **'💳 Account'**
   String get billCardAccount;
 
+  /// No description provided for @billCardMerchant.
+  ///
+  /// In en, this message translates to:
+  /// **'🏪 Merchant'**
+  String get billCardMerchant;
+
+  /// No description provided for @billCardReward.
+  ///
+  /// In en, this message translates to:
+  /// **'🎁 Reward'**
+  String get billCardReward;
+
   /// No description provided for @billCardUndo.
   ///
   /// In en, this message translates to:

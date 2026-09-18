@@ -118,6 +118,16 @@ final cardRewardRuleByIdProvider =
   return repo.getCardRewardRuleById(id);
 });
 
+/// 按 syncId 查單一規則(design 2026-09-18):`Transaction.rewardRuleIds` 存
+/// 的是 syncId(見 [CardRewardRule] 定義注釋),`BillCardWidget` 顯示「已套
+/// 用的回饋」規則名稱要靠這個反查,同
+/// `transaction_entry_form.dart` `_rewardChipLabel` 的資料來源。
+final cardRewardRuleBySyncIdProvider =
+    FutureProvider.family<CardRewardRule?, String>((ref, syncId) async {
+  final repo = ref.watch(repositoryProvider);
+  return repo.getCardRewardRuleBySyncId(syncId);
+});
+
 /// 某信用卡帳戶下所有「啟用中」規則,各自在 [offset] 帳單週期內套用的交易與
 /// 估算回饋彙總;interval == calendar_month 且該帳單週期橫跨多個自然月時
 /// 拆成 [CardRewardRuleSummary.monthlyBreakdown],見 [_summarizeRuleWindow]。
