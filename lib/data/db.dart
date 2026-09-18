@@ -1219,7 +1219,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 61; // v61: 帳戶頁面單帳戶金額隱藏(accounts.hide_amount)
+  int get schemaVersion => 62; // v62: 回填轉帳 native_amount 快照(跨幣別≈金額對不上）
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2545,6 +2545,40 @@ class BeeDatabase extends _$BeeDatabase {
                 'ALTER TABLE accounts ADD COLUMN hide_amount '
                     'BOOLEAN NOT NULL DEFAULT 0;');
             logger.info('DBMigration', 'v61 迁移完成');
+          }
+          if (from < 62) {
+            // v62:回填既有跨幣別轉帳的 native_amount 快照(2026-09-18 使用者
+            // 回報:轉帳「≈折算金額」跟實際轉入金額對不上)。根因是
+            // transfer_form.dart 送出時一直沒有把 currencyCode/nativeAmount
+            // 傳給 addTransaction/updateTransaction,落到
+            // LocalRepository._resolveTxCurrency 的兜底——用「轉出金額 × 轉出
+            // 幣別對本位幣的即時/全域匯率」重算,跟這裡實際用到的轉入金額
+            // (toAmount,使用者手動輸入/確認過的匯率)完全脫鉤。已在
+            // transfer_form.dart 修正新增/編輯路徑,但既有記錄的
+            // native_amount 是存檔當下的快照,不會因為改 code 自動更新,要靠
+            // 這裡一次性回填。只處理「轉入帳戶幣別 = 帳本本位幣」這個免查表、
+            // 保證精確的情況(user 回報的案例就是這種:JPY 帳戶轉回 TWD 帳戶,
+            // 帳本本位幣也是 TWD)——這種情況下 native_amount 直接等於
+            // to_amount,不需要任何匯率;轉入帳戶也不是本位幣的情況缺乏「當時
+            // 匯率」可回溯,維持原樣(跟 transfer_form.dart 那邊查不到匯率時
+            // 的降級行為一致)。詳見
+            // docs/changes/2026-09-18-transfer-direction-display-and-rate-fix.md。
+            logger.info('DBMigration', '开始迁移到 v62: 回填轉帳 native_amount 快照');
+            await customStatement('''
+              UPDATE transactions
+              SET native_amount = to_amount
+              WHERE type = 'transfer'
+                AND to_amount IS NOT NULL
+                AND to_account_id IS NOT NULL
+                AND (native_amount IS NULL OR ABS(native_amount - to_amount) > 0.0001)
+                AND EXISTS (
+                  SELECT 1 FROM accounts a
+                  JOIN ledgers l ON l.id = transactions.ledger_id
+                  WHERE a.id = transactions.to_account_id
+                    AND UPPER(a.currency) = UPPER(l.currency)
+                )
+            ''');
+            logger.info('DBMigration', 'v62 迁移完成');
           }
         },
         onCreate: (m) async {

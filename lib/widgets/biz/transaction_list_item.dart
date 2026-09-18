@@ -251,7 +251,11 @@ class TransactionListItem extends ConsumerWidget {
       );
     }
 
-    // 有时间·账户文字时:文字 + 附件保持原有 ' · ' 风格，标签紧随其后
+    // 有时间·账户文字时:文字 + 附件保持原有 ' · ' 风格，标签紧随其后。
+    // 修正(2026-09-18 使用者回報):轉帳的「帳戶」現在是「轉出 → 轉入」的
+    // 拼接字串,比單一帳戶名長很多,遇到長帳戶名時原本的純 Text 沒有任何
+    // 寬度限制會直接把 Row 撐出去(RIGHT OVERFLOWED)。這裡把它包一層
+    // Flexible + ellipsis,超出可用寬度就截斷,不會撐爆版面。
     return Wrap(
       spacing: 6,
       runSpacing: 2,
@@ -260,7 +264,14 @@ class TransactionListItem extends ConsumerWidget {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(parts.join(' · '), style: textStyle),
+            Flexible(
+              child: Text(
+                parts.join(' · '),
+                style: textStyle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
             if (attachmentCount > 0) ...[
               Text(' · ', style: textStyle),
               buildAttachmentWidget(),

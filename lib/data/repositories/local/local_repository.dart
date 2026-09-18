@@ -1538,6 +1538,7 @@ class LocalRepository extends BaseRepository {
             List<Tag> tags,
             List<TransactionAttachment> attachments,
             Account? account,
+            Account? toAccount,
             Project? project,
           })>> getTransactionsByDate({
     required int ledgerId,
@@ -1554,6 +1555,7 @@ class LocalRepository extends BaseRepository {
             List<Tag> tags,
             List<TransactionAttachment> attachments,
             Account? account,
+            Account? toAccount,
             Project? project,
           })>> getTransactionsByDateRange({
     required int ledgerId,

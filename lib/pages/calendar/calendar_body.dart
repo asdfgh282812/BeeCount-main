@@ -601,6 +601,13 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
                   .map((tag) => (id: tag.id, name: tag.name, color: tag.color))
                   .toList();
 
+              // 转账账户信息(同 transaction_list.dart 的处理:转出 → 转入)
+              final transferAccountInfo = (isTransfer &&
+                      item.account != null &&
+                      item.toAccount != null)
+                  ? '${item.account!.name} → ${item.toAccount!.name}'
+                  : null;
+
               return TransactionListItem(
                 icon: getCategoryIconData(
                     category: category, categoryName: categoryName),
@@ -618,7 +625,8 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
                 isTransfer: isTransfer,
                 happenedAt: item.t.happenedAt,
                 hasSplits: item.t.hasSplits,
-                accountName: item.account?.name,
+                accountName:
+                    isTransfer ? transferAccountInfo : item.account?.name,
                 tags: tagsList.isNotEmpty ? tagsList : null,
                 project: item.project,
                 attachmentCount: item.attachments.length,

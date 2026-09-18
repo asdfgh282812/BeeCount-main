@@ -1549,6 +1549,7 @@ class LocalTransactionRepository implements TransactionRepository {
             List<Tag> tags,
             List<TransactionAttachment> attachments,
             Account? account,
+            Account? toAccount,
             Project? project,
           })>> getTransactionsByDate({
     required int ledgerId,
@@ -1619,15 +1620,20 @@ class LocalTransactionRepository implements TransactionRepository {
           .add(attachment);
     }
 
-    // 批量查询账户
+    // 批量查询账户（含转账的转入账户,同批查,避免转出/转入各扫一次表）
     final accountIds = transactions
         .where((t) => t.accountId != null)
         .map((t) => t.accountId!)
         .toSet();
+    final toAccountIds = transactions
+        .where((t) => t.toAccountId != null)
+        .map((t) => t.toAccountId!)
+        .toSet();
+    final allAccountIds = accountIds.union(toAccountIds);
     final accountsMap = <int, Account>{};
-    if (accountIds.isNotEmpty) {
+    if (allAccountIds.isNotEmpty) {
       final accounts = await (db.select(db.accounts)
-            ..where((a) => a.id.isIn(accountIds.toList())))
+            ..where((a) => a.id.isIn(allAccountIds.toList())))
           .get();
       for (final account in accounts) {
         accountsMap[account.id] = account;
@@ -1660,6 +1666,8 @@ class LocalTransactionRepository implements TransactionRepository {
         tags: tagsMap[tx.id] ?? [],
         attachments: attachmentsMap[tx.id] ?? [],
         account: tx.accountId != null ? accountsMap[tx.accountId] : null,
+        toAccount:
+            tx.toAccountId != null ? accountsMap[tx.toAccountId] : null,
         project: tx.projectSyncId != null
             ? projectsBySyncId[tx.projectSyncId]
             : null,
@@ -1687,6 +1695,7 @@ class LocalTransactionRepository implements TransactionRepository {
             List<Tag> tags,
             List<TransactionAttachment> attachments,
             Account? account,
+            Account? toAccount,
             Project? project,
           })>> _hydrateSharedOverridesFull(
     List<
@@ -1696,6 +1705,7 @@ class LocalTransactionRepository implements TransactionRepository {
               List<Tag> tags,
               List<TransactionAttachment> attachments,
               Account? account,
+              Account? toAccount,
               Project? project,
             })>
         rows,
@@ -1714,6 +1724,10 @@ class LocalTransactionRepository implements TransactionRepository {
       final aov = r.t.accountSyncIdOverride;
       if (r.account == null && aov != null && aov.isNotEmpty) {
         accSyncIds.add(aov);
+      }
+      final tov = r.t.toAccountSyncIdOverride;
+      if (r.toAccount == null && tov != null && tov.isNotEmpty) {
+        accSyncIds.add(tov);
       }
       if (r.t.syncId != null && r.t.syncId!.isNotEmpty) {
         txSyncIds.add(r.t.syncId!);
@@ -1759,9 +1773,39 @@ class LocalTransactionRepository implements TransactionRepository {
       }
     }
 
+    Account syntheticAccountFromShared(SharedLedgerAccount s, int ledgerId) =>
+        Account(
+          id: syntheticIdForSyncId(s.syncId),
+          ledgerId: ledgerId,
+          name: s.name,
+          type: s.accountType,
+          currency: s.currency,
+          note: s.note,
+          initialBalance: s.initialBalance ?? 0.0,
+          sortOrder: 0,
+          creditLimit: s.creditLimit,
+          billingDay: s.billingDay,
+          paymentDueDay: s.paymentDueDay,
+          bankName: s.bankName,
+          cardLastFour: s.cardLastFour,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          syncId: s.syncId,
+          // SharedLedgerAccounts 镜像表没有 hidden/includeInTotal/autoPay/
+          // hideAmount 概念(这些都是 Owner 侧个人状态,不随共享账本镜像
+          // 同步),synthetic 账户固定按「未隐藏、納入總餘額、未開自動
+          // 扣繳、金額不隱藏」处理。
+          hidden: false,
+          includeInTotal: true,
+          autoPayEnabled: false,
+          autoPayFromAccountId: null,
+          hideAmount: false,
+        );
+
     return rows.map((r) {
       Category? category = r.category;
       Account? account = r.account;
+      Account? toAccount = r.toAccount;
       List<Tag> tags = r.tags;
 
       if (category == null) {
@@ -1794,33 +1838,17 @@ class LocalTransactionRepository implements TransactionRepository {
         if (aov != null && aov.isNotEmpty) {
           final s = sharedAccBySyncId[aov];
           if (s != null) {
-            account = Account(
-              id: syntheticIdForSyncId(s.syncId),
-              ledgerId: r.t.ledgerId,
-              name: s.name,
-              type: s.accountType,
-              currency: s.currency,
-              note: s.note,
-              initialBalance: s.initialBalance ?? 0.0,
-              sortOrder: 0,
-              creditLimit: s.creditLimit,
-              billingDay: s.billingDay,
-              paymentDueDay: s.paymentDueDay,
-              bankName: s.bankName,
-              cardLastFour: s.cardLastFour,
-              createdAt: DateTime.now(),
-              updatedAt: DateTime.now(),
-              syncId: s.syncId,
-              // SharedLedgerAccounts 镜像表没有 hidden/includeInTotal/autoPay/
-              // hideAmount 概念(这些都是 Owner 侧个人状态,不随共享账本镜像
-              // 同步),synthetic 账户固定按「未隐藏、納入總餘額、未開自動
-              // 扣繳、金額不隱藏」处理。
-              hidden: false,
-              includeInTotal: true,
-              autoPayEnabled: false,
-              autoPayFromAccountId: null,
-              hideAmount: false,
-            );
+            account = syntheticAccountFromShared(s, r.t.ledgerId);
+          }
+        }
+      }
+
+      if (toAccount == null) {
+        final tov = r.t.toAccountSyncIdOverride;
+        if (tov != null && tov.isNotEmpty) {
+          final s = sharedAccBySyncId[tov];
+          if (s != null) {
+            toAccount = syntheticAccountFromShared(s, r.t.ledgerId);
           }
         }
       }
@@ -1850,6 +1878,7 @@ class LocalTransactionRepository implements TransactionRepository {
         tags: tags,
         attachments: r.attachments,
         account: account,
+        toAccount: toAccount,
         project: r.project,
       );
     }).toList();
@@ -1864,6 +1893,7 @@ class LocalTransactionRepository implements TransactionRepository {
             List<Tag> tags,
             List<TransactionAttachment> attachments,
             Account? account,
+            Account? toAccount,
             Project? project,
           })>> getTransactionsByDateRange({
     required int ledgerId,
@@ -1890,6 +1920,7 @@ class LocalTransactionRepository implements TransactionRepository {
       List<Tag> tags,
       List<TransactionAttachment> attachments,
       Account? account,
+      Account? toAccount,
       Project? project,
     })>[];
 
@@ -1920,11 +1951,17 @@ class LocalTransactionRepository implements TransactionRepository {
             ..where((a) => a.transactionId.equals(transaction.id)))
           .get();
 
-      // 获取账户
+      // 获取账户（含转账的转入账户）
       Account? account;
       if (transaction.accountId != null) {
         account = await (db.select(db.accounts)
               ..where((a) => a.id.equals(transaction.accountId!)))
+            .getSingleOrNull();
+      }
+      Account? toAccount;
+      if (transaction.toAccountId != null) {
+        toAccount = await (db.select(db.accounts)
+              ..where((a) => a.id.equals(transaction.toAccountId!)))
             .getSingleOrNull();
       }
 
@@ -1943,6 +1980,7 @@ class LocalTransactionRepository implements TransactionRepository {
         tags: tags,
         attachments: attachments,
         account: account,
+        toAccount: toAccount,
         project: project,
       ));
     }

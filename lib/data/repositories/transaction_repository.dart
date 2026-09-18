@@ -534,6 +534,10 @@ abstract class TransactionRepository {
   });
 
   /// 获取指定日期的所有交易（含分类、标签、附件、账户、专案）
+  ///
+  /// `toAccount` 仅转账交易（`t.type == 'transfer'`）可能非空，是转入账户，
+  /// 供 UI 显示「转出账户 → 转入账户」（同 `watchTransactionsWithCategoryAll`
+  /// 的 from/to 账户 join）。
   Future<
       List<
           ({
@@ -542,6 +546,7 @@ abstract class TransactionRepository {
             List<Tag> tags,
             List<TransactionAttachment> attachments,
             Account? account,
+            Account? toAccount,
             Project? project,
           })>> getTransactionsByDate({
     required int ledgerId,
@@ -557,6 +562,7 @@ abstract class TransactionRepository {
             List<Tag> tags,
             List<TransactionAttachment> attachments,
             Account? account,
+            Account? toAccount,
             Project? project,
           })>> getTransactionsByDateRange({
     required int ledgerId,

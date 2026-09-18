@@ -1191,6 +1191,15 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                               category: item.category,
                               categoryName: categoryName);
 
+                          // 转账账户信息(同 transaction_list.dart 的处理:
+                          // 转出 → 转入),这里的 item 已经带 account/toAccount
+                          // (repo.transactionsWithCategoryAll 的三连 join)。
+                          final transferAccountInfo = (isTransfer &&
+                                  item.account != null &&
+                                  item.toAccount != null)
+                              ? '${item.account!.name} → ${item.toAccount!.name}'
+                              : null;
+
                           return Column(
                             children: [
                               TransactionListItem(
@@ -1202,6 +1211,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                                 currencyCode: item.t.currencyCode,
                                 nativeAmount: item.t.nativeAmount,
                                 isExpense: isExpense,
+                                isTransfer: isTransfer,
+                                accountName: transferAccountInfo,
                                 hide: hide,
                                 happenedAt: item.t.happenedAt,
                                 hasSplits: item.t.hasSplits,

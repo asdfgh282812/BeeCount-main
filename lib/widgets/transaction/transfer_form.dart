@@ -634,6 +634,37 @@ class TransferFormState extends ConsumerState<TransferForm>
       if (parsed != null && parsed > 0) resolvedToAmount = parsed;
     }
 
+    // 修正(2026-09-18 使用者回報):跨幣別轉帳一路都沒傳 currencyCode/
+    // nativeAmount,兩者會落到 LocalRepository._resolveTxCurrency 的兜底
+    // ——用「轉出金額」+「即時/全域匯率」重新換算,跟這裡實際使用的轉入
+    // 金額(可能是使用者手動輸入、關掉「採用線上匯率」時自訂的匯率)完全
+    // 脫鉤,導致明細頁/列表卡片的「≈折算金額」跟使用者真正換到的金額對不
+    // 上。這裡改成直接用 [resolvedToAmount](轉入帳戶幣別)換算到帳本本位
+    // 幣當作 nativeAmount——轉入帳戶幣別剛好等於本位幣時是精確值(免查表,
+    // 常見情況,例如外幣帳戶轉回台幣帳戶);只有轉入帳戶也不是本位幣時才
+    // 需要再查一次即時匯率(這段本來就沒有使用者自訂的資訊可用)。查不到
+    // 才放棄、維持原本兜底邏輯,不強行帶入不可靠的值。
+    String? resolvedCurrencyCode;
+    double? resolvedNativeAmount;
+    if (!sameCurrency &&
+        fromCurrency != null &&
+        toCurrency != null &&
+        resolvedToAmount != null) {
+      final ledgerBase = ref.read(currentLedgerCurrencyProvider);
+      final rates = ref.read(effectiveRatesForLedgerProvider).valueOrNull ??
+          const <String, EffectiveRate>{};
+      final na = computeNativeAmount(
+        amount: resolvedToAmount,
+        accountCurrency: toCurrency,
+        ledgerBase: ledgerBase,
+        rates: rates,
+      );
+      if (na != null) {
+        resolvedCurrencyCode = fromCurrency;
+        resolvedNativeAmount = na;
+      }
+    }
+
     // v46 轉帳手續費/折損:轉出/轉入兩側各自獨立驗證,金額皆須 ≥ 0;折損
     // 不能讓實際轉入金額變負數(discountAmount <= toAmount ?? amount)。
     double? resolvedFeeAmount;
@@ -728,6 +759,8 @@ class TransferFormState extends ConsumerState<TransferForm>
           happenedAt: _date,
           accountId: d.Value<int?>(fromAccountForAdd),
           accountSyncIdOverride: fromOverride,
+          currencyCode: resolvedCurrencyCode,
+          nativeAmount: resolvedNativeAmount,
           toAmount: d.Value<double?>(resolvedToAmount),
           feeAmount: d.Value<double?>(_feeEnabled ? resolvedFeeAmount : null),
           feeLabel: d.Value<String?>(_feeEnabled ? resolvedFeeLabel : null),
@@ -816,6 +849,8 @@ class TransferFormState extends ConsumerState<TransferForm>
           note: note,
           merchant: merchant,
           happenedAt: _date,
+          currencyCode: resolvedCurrencyCode,
+          nativeAmount: resolvedNativeAmount,
           toAmount: resolvedToAmount,
           feeAmount: _feeEnabled ? resolvedFeeAmount : null,
           feeLabel: _feeEnabled ? resolvedFeeLabel : null,

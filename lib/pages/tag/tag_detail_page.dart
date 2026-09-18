@@ -280,6 +280,16 @@ class _TagDetailPageState extends ConsumerState<TagDetailPage> {
       );
     }
 
+    // 轉帳顯示轉出→轉入帳戶用(2026-09-18 使用者回報:轉帳列表卡片沒有
+    // 顯示帳戶方向)。這裡跨帳本(allLedgers)可能為 true,直接用全域帳戶
+    // 清單依 id 查,不分帳本。共享帳本專屬的
+    // accountSyncIdOverride/toAccountSyncIdOverride synthetic 帳戶(本頁
+    // 目前沒有像分類那樣做 override 反查)暫不處理,屬已知限制。
+    final accountsById = {
+      for (final a in (ref.watch(allAccountsStreamProvider).valueOrNull ?? []))
+        a.id: a
+    };
+
     // 全部账本模式下，构建账本名映射，用于在交易项展示账本标签
     final ledgerNames = widget.allLedgers
         ? {
@@ -329,6 +339,13 @@ class _TagDetailPageState extends ConsumerState<TagDetailPage> {
               final category = catKey == null ? null : _categoryCache[catKey];
               final categoryName =
                   CategoryUtils.getDisplayName(category?.name, context);
+              final isTransfer = transaction.type == 'transfer';
+              final fromName = accountsById[transaction.accountId]?.name;
+              final toName = accountsById[transaction.toAccountId]?.name;
+              final transferAccountInfo =
+                  (isTransfer && fromName != null && toName != null)
+                      ? '$fromName → $toName'
+                      : null;
 
               // 和首页保持一致：分类名常驻，备注接在后面
               return TransactionListItem(
@@ -342,6 +359,8 @@ class _TagDetailPageState extends ConsumerState<TagDetailPage> {
                 currencyCode: transaction.currencyCode,
                 nativeAmount: transaction.nativeAmount,
                 isExpense: transaction.type == 'expense',
+                isTransfer: isTransfer,
+                accountName: transferAccountInfo,
                 happenedAt: transaction.happenedAt,
                 hasSplits: transaction.hasSplits,
                 onTap: () async {

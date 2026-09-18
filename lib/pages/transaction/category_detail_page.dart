@@ -378,6 +378,21 @@ class _CategoryDetailPageState extends ConsumerState<CategoryDetailPage> {
           }
         : const <int, String>{};
 
+    // 轉帳顯示轉出→轉入帳戶用(2026-09-18 使用者回報:轉帳列表卡片沒有
+    // 顯示帳戶方向)。這裡跨帳本(allLedgers)可能為 true,用全域帳戶清單
+    // 依 id 查,不分帳本(帳戶 id 全域唯一)。
+    final accountsById = {
+      for (final a in (ref.watch(allAccountsStreamProvider).valueOrNull ?? []))
+        a.id: a
+    };
+    String? transferAccountInfo(db.Transaction t) {
+      if (t.type != 'transfer') return null;
+      final fromName = accountsById[t.accountId]?.name;
+      final toName = accountsById[t.toAccountId]?.name;
+      if (fromName == null || toName == null) return null;
+      return '$fromName → $toName';
+    }
+
     // 金额排序时：预计算UI列表，避免动态插入导致卡顿
     if (currentSortType == SortType.amountDesc ||
         currentSortType == SortType.amountAsc) {
@@ -444,6 +459,8 @@ class _CategoryDetailPageState extends ConsumerState<CategoryDetailPage> {
               currencyCode: transaction.currencyCode,
               nativeAmount: transaction.nativeAmount,
               isExpense: transaction.type == 'expense',
+              isTransfer: transaction.type == 'transfer',
+              accountName: transferAccountInfo(transaction),
               happenedAt: transaction.happenedAt,
               hasSplits: transaction.hasSplits,
               onTap: () async {
@@ -535,6 +552,8 @@ class _CategoryDetailPageState extends ConsumerState<CategoryDetailPage> {
                 currencyCode: transaction.currencyCode,
                 nativeAmount: transaction.nativeAmount,
                 isExpense: transaction.type == 'expense',
+                isTransfer: transaction.type == 'transfer',
+                accountName: transferAccountInfo(transaction),
                 happenedAt: transaction.happenedAt,
                 hasSplits: transaction.hasSplits,
                 onTap: () async {

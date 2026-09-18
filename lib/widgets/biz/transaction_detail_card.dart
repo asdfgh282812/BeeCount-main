@@ -109,6 +109,10 @@ typedef _ResolvedSplit = ({TransactionSplit row, Category? category});
 
 class _DetailBundle {
   final _AccountDisplay? account;
+
+  /// 轉帳的轉入帳戶(僅 `type == 'transfer'` 時可能非空)。見
+  /// [_TransactionDetailCardState._loadBundle] 的 `toAccountFuture`。
+  final _AccountDisplay? toAccount;
   final List<Tag> tags;
   final List<TransactionAttachment> attachments;
   final List<Transaction> refunds;
@@ -122,6 +126,7 @@ class _DetailBundle {
 
   const _DetailBundle({
     required this.account,
+    required this.toAccount,
     required this.tags,
     required this.attachments,
     required this.refunds,
@@ -193,6 +198,23 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
       accountFuture = Future.value(null);
     }
 
+    final Future<_AccountDisplay?> toAccountFuture;
+    if (tx.toAccountId != null) {
+      toAccountFuture = repo
+          .getAccount(tx.toAccountId!)
+          .then((a) => a == null ? null : _AccountDisplay(a.name, a.type));
+    } else if (tx.toAccountSyncIdOverride != null && repo is LocalRepository) {
+      // §7 共享账本:同上面 accountFuture 的处理,转入账户也可能只在
+      // SharedLedgerAccounts 镜像表里。
+      toAccountFuture = (repo.db.select(repo.db.sharedLedgerAccounts)
+            ..where((t) => t.syncId.equals(tx.toAccountSyncIdOverride!)))
+          .getSingleOrNull()
+          .then(
+              (s) => s == null ? null : _AccountDisplay(s.name, s.accountType));
+    } else {
+      toAccountFuture = Future.value(null);
+    }
+
     final tagsFuture = repo.getTagsForTransaction(tx.id);
     final attachmentsFuture = repo.getAttachmentsByTransaction(tx.id);
     final refundsFuture = tx.syncId != null
@@ -209,6 +231,7 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
         : Future.value(null);
 
     final account = await accountFuture;
+    final toAccount = await toAccountFuture;
     final tags = await tagsFuture;
     final attachments = await attachmentsFuture;
     final refunds = await refundsFuture;
@@ -218,6 +241,7 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
     final relatedDebt = await _loadRelatedDebt(repo, tx);
     return _DetailBundle(
       account: account,
+      toAccount: toAccount,
       tags: tags,
       attachments: attachments,
       refunds: refunds,
@@ -1089,6 +1113,8 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
       BuildContext context, AppLocalizations l10n, _DetailBundle? bundle) {
     final tx = widget.transaction;
     final account = bundle?.account;
+    final toAccount = bundle?.toAccount;
+    final isTransfer = tx.type == 'transfer';
     final tags = bundle?.tags ?? const <Tag>[];
     final firstTagName = tags.isNotEmpty ? tags.first.name : '—';
     final merchant =
@@ -1115,7 +1141,9 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
-                              account.name,
+                              (isTransfer && toAccount != null)
+                                  ? '${account.name} → ${toAccount.name}'
+                                  : account.name,
                               style: TextStyle(
                                 fontSize: 13,
                                 color: BeeTokens.textSecondary(context),

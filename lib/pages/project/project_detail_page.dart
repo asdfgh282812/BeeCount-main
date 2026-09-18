@@ -823,6 +823,14 @@ class _ProjectCategoryTransactionsPage extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final categoryName = CategoryUtils.getDisplayName(category.name, context);
     final syncId = project.syncId;
+    // 轉帳顯示轉出→轉入帳戶用(2026-09-18 使用者回報:轉帳列表卡片沒有
+    // 顯示帳戶方向)。專案本身綁單一帳本,直接用 ledgerId 查該帳本帳戶即可。
+    final accountsById = {
+      for (final a
+          in ref.watch(accountsStreamProvider(project.ledgerId)).valueOrNull ??
+              const <Account>[])
+        a.id: a,
+    };
 
     return Scaffold(
       backgroundColor: BeeTokens.scaffoldBackground(context),
@@ -860,6 +868,13 @@ class _ProjectCategoryTransactionsPage extends ConsumerWidget {
                         separatorBuilder: (_, __) => const SizedBox(height: 4),
                         itemBuilder: (context, index) {
                           final t = txs[index];
+                          final isTransfer = t.type == 'transfer';
+                          final fromName = accountsById[t.accountId]?.name;
+                          final toName = accountsById[t.toAccountId]?.name;
+                          final transferAccountInfo =
+                              (isTransfer && fromName != null && toName != null)
+                                  ? '$fromName → $toName'
+                                  : null;
                           return TransactionListItem(
                             icon: getCategoryIconData(
                                 category: category, categoryName: categoryName),
@@ -870,6 +885,8 @@ class _ProjectCategoryTransactionsPage extends ConsumerWidget {
                             currencyCode: t.currencyCode,
                             nativeAmount: t.nativeAmount,
                             isExpense: t.type == 'expense',
+                            isTransfer: isTransfer,
+                            accountName: transferAccountInfo,
                             happenedAt: t.happenedAt,
                             hasSplits: t.hasSplits,
                             showFullDate: true,
