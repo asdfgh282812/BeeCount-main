@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:drift/drift.dart' as d;
 import 'package:path/path.dart' as p;
@@ -8,6 +9,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../db.dart';
 import '../../category_node.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../services/system/logger_service.dart';
 import '../../../utils/shared_ledger_picker_filter.dart';
 import '../category_repository.dart';
@@ -937,9 +939,10 @@ class LocalCategoryRepository implements CategoryRepository {
 
     // 不存在则创建（理论上seed时已创建，这里是兜底逻辑）
     logger.warning('LocalCategoryRepository', '转账分类不存在，正在创建...');
+    final l10n = lookupAppLocalizations(PlatformDispatcher.instance.locale);
     final id = await db.into(db.categories).insert(
       CategoriesCompanion.insert(
-        name: '转账', // 使用中文默认名称
+        name: l10n.transferTitle, // 依系統語言本地化，避免寫死簡體「转账」
         kind: 'transfer',
         icon: const d.Value('swap_horiz'),
         sortOrder: const d.Value(-1),

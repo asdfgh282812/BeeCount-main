@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui';
 
 import 'package:drift/drift.dart' as d;
 import 'package:uuid/uuid.dart';
 
 import '../../db.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../cloud/sync/change_tracker.dart';
 import '../../../services/currency/rate_math.dart';
 import '../../../services/system/project_budget_reminder_service.dart';
@@ -2170,8 +2172,10 @@ class LocalRepository extends BaseRepository {
     // 自动擦掉脏数据。
     final all = await _categoryRepo.getAllTransferCategories();
     if (all.length <= 1) {
-      // 0 条走子仓库的兜底创建,1 条直接返
-      return _categoryRepo.getTransferCategory();
+      // 0 条走子仓库的兜底创建,1 条直接返(两种情况都可能带着旧版兜底
+      // 逻辑写死的简体「转账」,进 _healTransferCategoryName 按当前语言校正)
+      return _healTransferCategoryName(
+          await _categoryRepo.getTransferCategory());
     }
 
     final keeper = all.first;
@@ -2228,7 +2232,35 @@ class LocalRepository extends BaseRepository {
       }
     }
 
-    return keeper;
+    return _healTransferCategoryName(keeper);
+  }
+
+  /// 历史 bug 曾在「转账」虚拟分类缺失时的兜底创建逻辑里写死简体「转账」
+  /// (不论使用者语言),导致繁中/英文使用者的转账分类永久显示简体字,直到
+  /// 手动修正。这里在每次取用时顺手校正:只有名字精确等于那个旧版写死字
+  /// 面量、且当前语言的本地化名称不同时才改写,避免误改使用者自己就是用
+  /// 简体中文、或曾手动把这个虚拟分类改成别的名字的情况。
+  Future<Category> _healTransferCategoryName(Category category) async {
+    const legacyHardcodedName = '转账';
+    final l10n = lookupAppLocalizations(PlatformDispatcher.instance.locale);
+    if (category.name != legacyHardcodedName ||
+        l10n.transferTitle == legacyHardcodedName) {
+      return category;
+    }
+
+    await (db.update(db.categories)..where((c) => c.id.equals(category.id)))
+        .write(CategoriesCompanion(name: d.Value(l10n.transferTitle)));
+
+    if (changeTracker != null && category.syncId != null) {
+      await changeTracker!.recordUserGlobalChange(
+        entityType: 'category',
+        entityId: category.id,
+        entitySyncId: category.syncId!,
+        action: 'update',
+      );
+    }
+
+    return (await _categoryRepo.getCategoryById(category.id))!;
   }
 
   // ============================================

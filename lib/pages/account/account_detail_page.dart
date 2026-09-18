@@ -1747,7 +1747,7 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
             initialKind: 'transfer',
             initialToAccountId: account.id,
             initialAmount: suggestedAmount,
-            initialNote: _formatCycleLabel(period),
+            initialNote: creditCardPaymentNote(billingDay: account.billingDay),
           ),
         ),
       );
