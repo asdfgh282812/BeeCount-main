@@ -91,8 +91,11 @@ class FreeChatRouter {
     final context = await _loadContext();
     final routingSystemPrompt =
         _buildRoutingSystemPrompt(languageCode, context);
+    logger.debug(_tag, '[Routing] system prompt:\n$routingSystemPrompt');
+    logger.debug(_tag, '[Routing] user prompt:\n$routingPrompt');
     final rawResponse =
         await _chatFn(routingPrompt, systemPrompt: routingSystemPrompt);
+    logger.debug(_tag, '[Routing] AI 回應:\n$rawResponse');
 
     final decision = _parseDecision(rawResponse);
     if (decision == null) {
@@ -161,8 +164,13 @@ class FreeChatRouter {
         '查到的資料：${jsonEncode(payload)}\n\n'
         '請用自然語言回答,不要提到 JSON 或工具。';
 
-    return FreeChatAnswer(
-        await _chatFn(answerPrompt, systemPrompt: answerSystemPrompt));
+    logger.debug(_tag, '[Answer] system prompt:\n$answerSystemPrompt');
+    logger.debug(_tag, '[Answer] user prompt:\n$answerPrompt');
+    final answerText =
+        await _chatFn(answerPrompt, systemPrompt: answerSystemPrompt);
+    logger.debug(_tag, '[Answer] AI 回應:\n$answerText');
+
+    return FreeChatAnswer(answerText);
   }
 
   /// 同時支援新的 `tools` 陣列與舊的單一 `tool` 欄位(向後相容)。
