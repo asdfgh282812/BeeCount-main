@@ -10,6 +10,7 @@ import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/account_card_picker.dart';
 import '../../widgets/biz/project_picker.dart';
 import '../../widgets/biz/bee_icon.dart';
+import '../../widgets/ai/markdown_text.dart';
 import '../../widgets/ai/typewriter_text.dart';
 import '../../widgets/ai/bill_card_widget.dart';
 import '../../widgets/ai/ai_quick_commands_bar.dart';
@@ -416,31 +417,7 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
                         : BeeTokens.border(context),
                   ),
                 ),
-                child: TypewriterText(
-                  text: message.content,
-                  animate: shouldAnimate, // 只对标记的消息启用动画
-                  onTextChange: shouldAnimate
-                      ? () {
-                          // 每次文本更新时滚动到底部
-                          _scrollToBottomSmooth();
-                        }
-                      : null,
-                  onComplete: shouldAnimate
-                      ? () {
-                          // 动画完成后清除标记
-                          if (mounted) {
-                            setState(() {
-                              _animatingMessageId = null;
-                            });
-                          }
-                        }
-                      : null,
-                  style: TextStyle(
-                    color: BeeTokens.textPrimary(context),
-                    fontSize: 14.0.scaled(context, ref),
-                    height: 1.5,
-                  ),
-                ),
+                child: _buildMessageText(message, isUser, shouldAnimate),
               ),
             ),
           ),
@@ -451,6 +428,46 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
           ],
         ],
       ),
+    );
+  }
+
+  /// 文字訊息的內容。
+  ///
+  /// AI 訊息在打字機動畫**播完之後**才切換成 Markdown 渲染 —— 逐字動畫期間餵進去
+  /// 的常是半截語法(例如只打出 `**粗`),即時解析會閃爍。動畫結束時 `onComplete`
+  /// 會清掉 `_animatingMessageId`,重建後自然走到 [MarkdownText] 這一支。
+  /// 使用者自己打的字一律原樣呈現,不做 Markdown 解析。
+  Widget _buildMessageText(Message message, bool isUser, bool shouldAnimate) {
+    final style = TextStyle(
+      color: BeeTokens.textPrimary(context),
+      fontSize: 14.0.scaled(context, ref),
+      height: 1.5,
+    );
+
+    if (!isUser && !shouldAnimate) {
+      return MarkdownText(text: message.content, baseStyle: style);
+    }
+
+    return TypewriterText(
+      text: message.content,
+      animate: shouldAnimate, // 只对标记的消息启用动画
+      onTextChange: shouldAnimate
+          ? () {
+              // 每次文本更新时滚动到底部
+              _scrollToBottomSmooth();
+            }
+          : null,
+      onComplete: shouldAnimate
+          ? () {
+              // 动画完成后清除标记
+              if (mounted) {
+                setState(() {
+                  _animatingMessageId = null;
+                });
+              }
+            }
+          : null,
+      style: style,
     );
   }
 
@@ -671,8 +688,7 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
         },
         resolveMissingProject: (bill) async {
           if (!mounted) return null;
-          final result =
-              await ProjectPicker.show(context, ledgerId: ledgerId);
+          final result = await ProjectPicker.show(context, ledgerId: ledgerId);
           return result?.project?.id;
         },
       );

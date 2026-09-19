@@ -91,5 +91,13 @@ final Map<String, List<WhatsNewItem>> kWhatsNewContent = {
       title: (l10n) => l10n.whatsNew350CalendarWeekTodayTitle,
       description: (l10n) => l10n.whatsNew350CalendarWeekTodayDesc,
     ),
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew350AiFreeChatQueryTitle,
+      description: (l10n) => l10n.whatsNew350AiFreeChatQueryDesc,
+    ),
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew350AiChatMarkdownTitle,
+      description: (l10n) => l10n.whatsNew350AiChatMarkdownDesc,
+    ),
   ],
 };

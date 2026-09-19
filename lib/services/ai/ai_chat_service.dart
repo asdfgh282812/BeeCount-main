@@ -8,6 +8,7 @@ import '../data/tag_seed_service.dart';
 import '../system/logger_service.dart';
 import '../billing/bill_creation_service.dart';
 import 'ai_bookkeeper.dart';
+import 'ai_chat_intent.dart' as intent;
 import 'free_chat_router.dart';
 
 /// AI 对话服务
@@ -62,7 +63,7 @@ class AIChatService {
   }) async {
     logger.info('AIChat', '收到消息: $userInput (forceChat: $forceChat)');
     try {
-      if (!forceChat && _isTransactionIntent(userInput)) {
+      if (!forceChat && intent.isTransactionIntent(userInput)) {
         return await _handleTransaction(
           userInput,
           ledgerId: ledgerId,
@@ -76,6 +77,9 @@ class AIChatService {
         ledgerId: ledgerId,
         languageCode: languageCode,
         conversationId: conversationId,
+        l10n: l10n,
+        resolveMissingAccount: resolveMissingAccount,
+        resolveMissingProject: resolveMissingProject,
       );
     } catch (e, st) {
       logger.error('AIChat', '处理失败', e, st);
@@ -99,19 +103,18 @@ class AIChatService {
   // 内部
   // ============================================================
 
-  bool _isTransactionIntent(String input) {
-    final hasAmount = RegExp(r'\d+(?:\.\d+)?').hasMatch(input);
-    const keywords = ['买', '花', '消费', '支付', '记账', '付', '收入', '赚', '工资'];
-    final hasKeyword = keywords.any((k) => input.contains(k));
-    return hasAmount || hasKeyword;
-  }
-
   Future<AIResponse> _handleTransaction(
     String input, {
     required int ledgerId,
     AppLocalizations? l10n,
     ResolveMissingAccount? resolveMissingAccount,
     ResolveMissingProject? resolveMissingProject,
+
+    /// 從 [FreeChatRouter] 的 record_transaction 決策轉進來的。提取失敗時模型
+    /// 已經誤判過一次,再丟一段記帳教學給正在問問題的人只會更糟,所以改用
+    /// [fallbackText]。
+    bool fromRouter = false,
+    String? fallbackText,
   }) async {
     logger.debug('AIChat', '识别为记账意图');
     final result = await _bookkeeper.fromText(
@@ -125,6 +128,13 @@ class AIChatService {
 
     if (!result.success) {
       logger.warning('AIChat', '账单提取失败或全部无有效金额');
+      if (fromRouter) {
+        return AIResponse.text(
+          (fallbackText != null && fallbackText.isNotEmpty)
+              ? fallbackText
+              : '抱歉,我不太確定你的意思,可以換個方式說嗎?',
+        );
+      }
       return AIResponse.text(
         '抱歉,未识别到完整的记账信息。\n\n'
         '请这样说:\n'
@@ -160,17 +170,37 @@ class AIChatService {
     required int ledgerId,
     String? languageCode,
     int? conversationId,
+    AppLocalizations? l10n,
+    ResolveMissingAccount? resolveMissingAccount,
+    ResolveMissingProject? resolveMissingProject,
   }) async {
     logger.info('AIChat', '开始自由对话 (语言: ${languageCode ?? "默认"})');
     try {
-      final response = await _freeChatRouter.route(
+      final outcome = await _freeChatRouter.route(
         input,
         ledgerId: ledgerId,
         conversationId: conversationId,
         languageCode: languageCode,
       );
+
+      // router 判斷這句其實是要記帳(接住本地閘門漏掉的句型:沒有動詞的
+      // 「星巴克 150」、口語化金額、英文口語)。記帳需要 l10n 與兩個會彈 UI 的
+      // callback,那些一直在 service 手上,所以由這裡執行而不是傳進 router。
+      if (outcome is FreeChatBookkeepingRequest) {
+        logger.info('AIChat', 'router 判定為記帳意圖');
+        return await _handleTransaction(
+          outcome.text,
+          ledgerId: ledgerId,
+          l10n: l10n,
+          resolveMissingAccount: resolveMissingAccount,
+          resolveMissingProject: resolveMissingProject,
+          fromRouter: true,
+          fallbackText: outcome.fallbackText,
+        );
+      }
+
       logger.info('AIChat', '对话响应成功');
-      return AIResponse.text(response);
+      return AIResponse.text((outcome as FreeChatAnswer).text);
     } on AIException catch (e) {
       logger.warning('AIChat', '对话响应失败: ${e.message}');
       if (e.message.contains('配置无效')) {

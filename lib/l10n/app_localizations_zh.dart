@@ -9826,6 +9826,22 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get whatsNew350CalendarWeekTodayDesc =>
       'When the bookkeeping calendar is collapsed to week view, tapping \"Today\" in the top right now correctly jumps to the week containing today, instead of the week at the start of the month.';
+
+  @override
+  String get whatsNew350AiFreeChatQueryTitle =>
+      'Smarter AI chat: ask about any spending, over any period';
+
+  @override
+  String get whatsNew350AiFreeChatQueryDesc =>
+      'Questions like \"how much have I spent at rehab so far\" used to be mistaken for a new transaction and never reached the query engine. AI chat now tells questions and bookkeeping apart properly, can search by note, merchant or category name (Traditional and Simplified both match), covers all time when you do not give a date range, and always totals every matching record instead of just the first page.';
+
+  @override
+  String get whatsNew350AiChatMarkdownTitle =>
+      'AI replies are now properly formatted';
+
+  @override
+  String get whatsNew350AiChatMarkdownDesc =>
+      'Bold text, lists and tables in AI replies are rendered instead of showing raw markdown symbols.';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -19564,4 +19580,18 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   @override
   String get whatsNew350CalendarWeekTodayDesc =>
       '記帳頁日曆收起為週檢視時,點右上角「今天」現在會正確跳到今天所在的那一週,不再跳到當月月初那一週。';
+
+  @override
+  String get whatsNew350AiFreeChatQueryTitle => 'AI 對話更會查帳:任何項目、任何期間都問得出來';
+
+  @override
+  String get whatsNew350AiFreeChatQueryDesc =>
+      '「我復健科至今為止花了多少錢」這類問題,以前會被誤判成要記一筆帳而根本沒查到資料。現在 AI 對話能正確分辨「提問」與「記帳」,可以用備註、商家或分類名稱搜尋(簡繁互通),沒指定期間時會涵蓋全部期間,而且金額一律加總全部符合的交易,不再只算前面幾筆。';
+
+  @override
+  String get whatsNew350AiChatMarkdownTitle => 'AI 回覆的排版正常了';
+
+  @override
+  String get whatsNew350AiChatMarkdownDesc =>
+      'AI 回覆裡的粗體、清單與表格會正確呈現,不再直接顯示 Markdown 符號。';
 }

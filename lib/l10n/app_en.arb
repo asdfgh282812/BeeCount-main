@@ -4329,5 +4329,9 @@
   "whatsNew350AccountInitialBalanceTitle": "Editing an account's initial balance now updates instantly",
   "whatsNew350AccountInitialBalanceDesc": "After changing an account's initial balance in \"Edit account\", the Accounts page and the \"Adjust total\" dialog now show the correct current balance right away, instead of waiting for the next transaction.",
   "whatsNew350CalendarWeekTodayTitle": "Fixed \"Today\" jumping to the wrong week in calendar week view",
-  "whatsNew350CalendarWeekTodayDesc": "When the bookkeeping calendar is collapsed to week view, tapping \"Today\" in the top right now correctly jumps to the week containing today, instead of the week at the start of the month."
+  "whatsNew350CalendarWeekTodayDesc": "When the bookkeeping calendar is collapsed to week view, tapping \"Today\" in the top right now correctly jumps to the week containing today, instead of the week at the start of the month.",
+  "whatsNew350AiFreeChatQueryTitle": "Smarter AI chat: ask about any spending, over any period",
+  "whatsNew350AiFreeChatQueryDesc": "Questions like \"how much have I spent at rehab so far\" used to be mistaken for a new transaction and never reached the query engine. AI chat now tells questions and bookkeeping apart properly, can search by note, merchant or category name (Traditional and Simplified both match), covers all time when you do not give a date range, and always totals every matching record instead of just the first page.",
+  "whatsNew350AiChatMarkdownTitle": "AI replies are now properly formatted",
+  "whatsNew350AiChatMarkdownDesc": "Bold text, lists and tables in AI replies are rendered instead of showing raw markdown symbols."
 }

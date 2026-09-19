@@ -36,7 +36,7 @@ void main() {
       now: () => DateTime(2026, 9, 8),
     );
 
-    final result = await router.route('哈囉', ledgerId: ledgerId);
+    final result = _answerText(await router.route('哈囉', ledgerId: ledgerId));
 
     expect(result, '你好,有什麼可以幫你');
     expect(callCount, 1);
@@ -57,7 +57,8 @@ void main() {
       now: () => DateTime(2026, 9, 8),
     );
 
-    final result = await router.route('這個月花多少', ledgerId: ledgerId);
+    final result =
+        _answerText(await router.route('這個月花多少', ledgerId: ledgerId));
 
     expect(result, '你這個月花了 0 元');
     expect(prompts, hasLength(2));
@@ -72,7 +73,7 @@ void main() {
       now: () => DateTime(2026, 9, 8),
     );
 
-    final result = await router.route('嗨', ledgerId: ledgerId);
+    final result = _answerText(await router.route('嗨', ledgerId: ledgerId));
 
     expect(result, '這是一段沒有 JSON 的純文字回覆');
   });
@@ -86,7 +87,7 @@ void main() {
       now: () => DateTime(2026, 9, 8),
     );
 
-    final result = await router.route('嗨', ledgerId: ledgerId);
+    final result = _answerText(await router.route('嗨', ledgerId: ledgerId));
 
     expect(result, rawResponse);
   });
@@ -97,16 +98,198 @@ void main() {
       repo: repo,
       chatFn: (prompt, {systemPrompt}) async {
         callCount++;
-        // 缺少必填的 startDate/endDate,executor 會拋 FreeChatToolException
-        return '{"type":"tool_call","tool":"get_spending_summary","params":{}}';
+        // 日期格式錯誤,executor 會拋 FreeChatToolException
+        // (注意:空 params 現在代表「全部期間」,不再是錯誤)
+        return '{"type":"tool_call","tool":"get_spending_summary",'
+            '"params":{"startDate":"不是日期"}}';
       },
       now: () => DateTime(2026, 9, 8),
     );
 
-    final result = await router.route('花多少', ledgerId: ledgerId);
+    final result = _answerText(await router.route('花多少', ledgerId: ledgerId));
 
     expect(result, contains('暫時處理不了'));
     expect(callCount, 1);
+  });
+
+  test('tools 陣列:兩個工具都執行,兩份結果都進 answer prompt', () async {
+    final prompts = <String>[];
+    final router = FreeChatRouter(
+      repo: repo,
+      chatFn: (prompt, {systemPrompt}) async {
+        prompts.add(prompt);
+        if (prompts.length == 1) {
+          return '{"type":"tool_call","tools":['
+              '{"tool":"get_spending_summary","params":{"allTime":true}},'
+              '{"tool":"get_recurring_transactions","params":{}}]}';
+        }
+        return '這是綜合回答';
+      },
+      now: () => DateTime(2026, 9, 8),
+    );
+
+    final result =
+        _answerText(await router.route('復健科跟牙科比呢', ledgerId: ledgerId));
+
+    expect(result, '這是綜合回答');
+    expect(prompts, hasLength(2), reason: 'LLM 往返次數不應該因為多個工具而增加');
+    expect(prompts[1], contains('get_spending_summary'));
+    expect(prompts[1], contains('get_recurring_transactions'));
+  });
+
+  test('tools 陣列超過上限時只取前 maxToolsPerTurn 個', () async {
+    final prompts = <String>[];
+    final router = FreeChatRouter(
+      repo: repo,
+      chatFn: (prompt, {systemPrompt}) async {
+        prompts.add(prompt);
+        if (prompts.length == 1) {
+          final one = '{"tool":"get_recurring_transactions","params":{}}';
+          return '{"type":"tool_call","tools":[${List.filled(5, one).join(',')}]}';
+        }
+        return 'ok';
+      },
+      now: () => DateTime(2026, 9, 8),
+    );
+
+    await router.route('問題', ledgerId: ledgerId);
+
+    final count = 'get_recurring_transactions'.allMatches(prompts[1]).length;
+    expect(count, FreeChatRouter.maxToolsPerTurn);
+  });
+
+  test('部分工具失敗仍進 answer 階段,失敗那格帶 error', () async {
+    final prompts = <String>[];
+    final router = FreeChatRouter(
+      repo: repo,
+      chatFn: (prompt, {systemPrompt}) async {
+        prompts.add(prompt);
+        if (prompts.length == 1) {
+          return '{"type":"tool_call","tools":['
+              '{"tool":"get_spending_summary","params":{"startDate":"不是日期"}},'
+              '{"tool":"get_recurring_transactions","params":{}}]}';
+        }
+        return '週期性交易有 0 筆,支出的部分我查不到';
+      },
+      now: () => DateTime(2026, 9, 8),
+    );
+
+    final result = _answerText(await router.route('問題', ledgerId: ledgerId));
+
+    expect(prompts, hasLength(2), reason: '一個失敗不該讓整輪死掉');
+    expect(prompts[1], contains('error'));
+    expect(result, contains('查不到'));
+  });
+
+  test('全部工具都失敗才降級成固定文案', () async {
+    var callCount = 0;
+    final router = FreeChatRouter(
+      repo: repo,
+      chatFn: (prompt, {systemPrompt}) async {
+        callCount++;
+        return '{"type":"tool_call","tools":['
+            '{"tool":"get_spending_summary","params":{"startDate":"壞日期"}},'
+            '{"tool":"query_transactions","params":{"type":"transfer"}}]}';
+      },
+      now: () => DateTime(2026, 9, 8),
+    );
+
+    final result = _answerText(await router.route('問題', ledgerId: ledgerId));
+
+    expect(result, contains('暫時處理不了'));
+    expect(callCount, 1);
+  });
+
+  test('record_transaction:回傳記帳請求,不呼叫 answer 階段', () async {
+    var callCount = 0;
+    final router = FreeChatRouter(
+      repo: repo,
+      chatFn: (prompt, {systemPrompt}) async {
+        callCount++;
+        return '{"type":"record_transaction","text":"星巴克 150",'
+            '"fallbackText":"我看不出金額"}';
+      },
+      now: () => DateTime(2026, 9, 8),
+    );
+
+    final outcome = await router.route('星巴克 150', ledgerId: ledgerId);
+
+    expect(outcome, isA<FreeChatBookkeepingRequest>());
+    final req = outcome as FreeChatBookkeepingRequest;
+    expect(req.text, '星巴克 150');
+    expect(req.fallbackText, '我看不出金額');
+    expect(callCount, 1);
+  });
+
+  test('record_transaction 沒帶 text 時退回使用者原句', () async {
+    final router = FreeChatRouter(
+      repo: repo,
+      chatFn: (prompt, {systemPrompt}) async => '{"type":"record_transaction"}',
+      now: () => DateTime(2026, 9, 8),
+    );
+
+    final outcome = await router.route('拿鐵 90', ledgerId: ledgerId);
+
+    expect((outcome as FreeChatBookkeepingRequest).text, '拿鐵 90');
+  });
+
+  test('routing prompt 帶入本帳本的分類名稱', () async {
+    await repo.createCategory(name: '復健科', kind: 'expense');
+    await repo.createCategory(name: '薪資', kind: 'income');
+
+    String? captured;
+    final router = FreeChatRouter(
+      repo: repo,
+      chatFn: (prompt, {systemPrompt}) async {
+        captured ??= systemPrompt;
+        return '{"type":"answer","text":"好"}';
+      },
+      now: () => DateTime(2026, 9, 8),
+    );
+
+    await router.route('嗨', ledgerId: ledgerId);
+
+    expect(captured, isNotNull);
+    expect(captured, contains('復健科'));
+    expect(captured, contains('薪資'));
+  });
+
+  test('routing prompt 帶入今天日期與全期間規則', () async {
+    String? captured;
+    final router = FreeChatRouter(
+      repo: repo,
+      chatFn: (prompt, {systemPrompt}) async {
+        captured ??= systemPrompt;
+        return '{"type":"answer","text":"好"}';
+      },
+      now: () => DateTime(2026, 9, 8),
+    );
+
+    await router.route('嗨', ledgerId: ledgerId);
+
+    expect(captured, contains('2026-09-08'));
+    expect(captured, contains('省略 startDate'));
+  });
+
+  test('answer prompt 帶入反幻覺護欄', () async {
+    final systemPrompts = <String?>[];
+    final router = FreeChatRouter(
+      repo: repo,
+      chatFn: (prompt, {systemPrompt}) async {
+        systemPrompts.add(systemPrompt);
+        if (systemPrompts.length == 1) {
+          return '{"type":"tool_call","tool":"get_recurring_transactions",'
+              '"params":{}}';
+        }
+        return '沒有週期性交易';
+      },
+      now: () => DateTime(2026, 9, 8),
+    );
+
+    await router.route('我有哪些訂閱', ledgerId: ledgerId);
+
+    expect(systemPrompts[1], contains('不要編造數字'));
+    expect(systemPrompts[1], contains('Markdown'));
   });
 
   test('conversationId 為 null 時歷史為空陣列,流程仍可運作', () async {
@@ -117,8 +300,8 @@ void main() {
       now: () => DateTime(2026, 9, 8),
     );
 
-    final result =
-        await router.route('哈囉', ledgerId: ledgerId, conversationId: null);
+    final result = _answerText(
+        await router.route('哈囉', ledgerId: ledgerId, conversationId: null));
 
     expect(result, '沒問題');
   });
@@ -175,4 +358,10 @@ void main() {
     expect(capturedPrompt, contains('這個月餐飲花多少'));
     expect(capturedPrompt, contains('您這個月餐飲支出 100 元'));
   });
+}
+
+/// 既有測試大多只關心最終文字。route() 現在回 FreeChatOutcome,這裡統一解包。
+String _answerText(FreeChatOutcome outcome) {
+  expect(outcome, isA<FreeChatAnswer>(), reason: '預期是一般回覆,實際拿到 $outcome');
+  return (outcome as FreeChatAnswer).text;
 }

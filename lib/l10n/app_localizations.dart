@@ -18260,6 +18260,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'When the bookkeeping calendar is collapsed to week view, tapping \"Today\" in the top right now correctly jumps to the week containing today, instead of the week at the start of the month.'**
   String get whatsNew350CalendarWeekTodayDesc;
+
+  /// No description provided for @whatsNew350AiFreeChatQueryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Smarter AI chat: ask about any spending, over any period'**
+  String get whatsNew350AiFreeChatQueryTitle;
+
+  /// No description provided for @whatsNew350AiFreeChatQueryDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Questions like \"how much have I spent at rehab so far\" used to be mistaken for a new transaction and never reached the query engine. AI chat now tells questions and bookkeeping apart properly, can search by note, merchant or category name (Traditional and Simplified both match), covers all time when you do not give a date range, and always totals every matching record instead of just the first page.'**
+  String get whatsNew350AiFreeChatQueryDesc;
+
+  /// No description provided for @whatsNew350AiChatMarkdownTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI replies are now properly formatted'**
+  String get whatsNew350AiChatMarkdownTitle;
+
+  /// No description provided for @whatsNew350AiChatMarkdownDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Bold text, lists and tables in AI replies are rendered instead of showing raw markdown symbols.'**
+  String get whatsNew350AiChatMarkdownDesc;
 }
 
 class _AppLocalizationsDelegate

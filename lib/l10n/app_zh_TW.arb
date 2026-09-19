@@ -3866,5 +3866,9 @@
   "whatsNew350AccountInitialBalanceTitle": "編輯帳戶的初始資金,現在會立刻反映",
   "whatsNew350AccountInitialBalanceDesc": "在「編輯帳戶」修改初始資金後,帳戶頁與「調整總額」對話框會立刻顯示正確的目前餘額,不用再等到下一筆交易才更新。",
   "whatsNew350CalendarWeekTodayTitle": "修正日曆週檢視下「今天」按鈕跳錯位置的問題",
-  "whatsNew350CalendarWeekTodayDesc": "記帳頁日曆收起為週檢視時,點右上角「今天」現在會正確跳到今天所在的那一週,不再跳到當月月初那一週。"
+  "whatsNew350CalendarWeekTodayDesc": "記帳頁日曆收起為週檢視時,點右上角「今天」現在會正確跳到今天所在的那一週,不再跳到當月月初那一週。",
+  "whatsNew350AiFreeChatQueryTitle": "AI 對話更會查帳:任何項目、任何期間都問得出來",
+  "whatsNew350AiFreeChatQueryDesc": "「我復健科至今為止花了多少錢」這類問題,以前會被誤判成要記一筆帳而根本沒查到資料。現在 AI 對話能正確分辨「提問」與「記帳」,可以用備註、商家或分類名稱搜尋(簡繁互通),沒指定期間時會涵蓋全部期間,而且金額一律加總全部符合的交易,不再只算前面幾筆。",
+  "whatsNew350AiChatMarkdownTitle": "AI 回覆的排版正常了",
+  "whatsNew350AiChatMarkdownDesc": "AI 回覆裡的粗體、清單與表格會正確呈現,不再直接顯示 Markdown 符號。"
 }

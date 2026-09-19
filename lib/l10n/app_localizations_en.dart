@@ -10145,4 +10145,20 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get whatsNew350CalendarWeekTodayDesc =>
       'When the bookkeeping calendar is collapsed to week view, tapping \"Today\" in the top right now correctly jumps to the week containing today, instead of the week at the start of the month.';
+
+  @override
+  String get whatsNew350AiFreeChatQueryTitle =>
+      'Smarter AI chat: ask about any spending, over any period';
+
+  @override
+  String get whatsNew350AiFreeChatQueryDesc =>
+      'Questions like \"how much have I spent at rehab so far\" used to be mistaken for a new transaction and never reached the query engine. AI chat now tells questions and bookkeeping apart properly, can search by note, merchant or category name (Traditional and Simplified both match), covers all time when you do not give a date range, and always totals every matching record instead of just the first page.';
+
+  @override
+  String get whatsNew350AiChatMarkdownTitle =>
+      'AI replies are now properly formatted';
+
+  @override
+  String get whatsNew350AiChatMarkdownDesc =>
+      'Bold text, lists and tables in AI replies are rendered instead of showing raw markdown symbols.';
 }
