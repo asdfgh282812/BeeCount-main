@@ -18201,89 +18201,101 @@ abstract class AppLocalizations {
   /// **'When photo, voice, or chat billing can\'t auto-match an account in the same currency, the account picker now shows accounts of any currency and converts the amount correctly.'**
   String get whatsNew340AiCrossCurrencyDesc;
 
-  /// No description provided for @whatsNew350AiMerchantRewardTitle.
+  /// No description provided for @whatsNew355AiMerchantRewardTitle.
   ///
   /// In en, this message translates to:
   /// **'AI bookkeeping adds a Merchant field and auto-applies card rewards'**
-  String get whatsNew350AiMerchantRewardTitle;
+  String get whatsNew355AiMerchantRewardTitle;
 
-  /// No description provided for @whatsNew350AiMerchantRewardDesc.
+  /// No description provided for @whatsNew355AiMerchantRewardDesc.
   ///
   /// In en, this message translates to:
-  /// **'For chat, photo, voice, and background screenshot/notification billing, credit card bill cards now show the recognized merchant name, and automatically pick the matching reward rule you\'ve already set up — no more opening the reward list to select it yourself afterward.'**
-  String get whatsNew350AiMerchantRewardDesc;
+  /// **'For chat, photo, voice, and background screenshot/notification billing, credit card bill cards now show the recognized merchant and auto-apply your reward rules — no more picking from the reward list yourself.'**
+  String get whatsNew355AiMerchantRewardDesc;
 
-  /// No description provided for @whatsNew350TransferAccountDisplayTitle.
+  /// No description provided for @whatsNew355TransferAccountDisplayTitle.
   ///
   /// In en, this message translates to:
   /// **'Transfers now show \"from → to\" accounts, and cross-currency amounts are fixed'**
-  String get whatsNew350TransferAccountDisplayTitle;
+  String get whatsNew355TransferAccountDisplayTitle;
 
-  /// No description provided for @whatsNew350TransferAccountDisplayDesc.
+  /// No description provided for @whatsNew355TransferAccountDisplayDesc.
   ///
   /// In en, this message translates to:
-  /// **'Transfer transactions in the detail card, calendar day list, search results, and project/tag/category detail pages now show the full \"from account → to account\"; the cross-currency \"≈ converted amount\" is now computed from the actual amount received, so it no longer disagrees with what you entered.'**
-  String get whatsNew350TransferAccountDisplayDesc;
+  /// **'Transfers in the detail card, calendar, search results, and project/tag/category pages now show the full \"from account → to account\"; the cross-currency converted amount is now computed from the actual amount received.'**
+  String get whatsNew355TransferAccountDisplayDesc;
 
-  /// No description provided for @whatsNew350CreditCardPaymentParityTitle.
+  /// No description provided for @whatsNew355CreditCardPaymentParityTitle.
   ///
   /// In en, this message translates to:
   /// **'Credit card payment transfer note/category now match the web dashboard'**
-  String get whatsNew350CreditCardPaymentParityTitle;
+  String get whatsNew355CreditCardPaymentParityTitle;
 
-  /// No description provided for @whatsNew350CreditCardPaymentParityDesc.
+  /// No description provided for @whatsNew355CreditCardPaymentParityDesc.
   ///
   /// In en, this message translates to:
-  /// **'Transfers created from a single card\'s \"Payment record\" on the Accounts page now show the correct note \"Credit card payment (billing period ...)\" and the transfer category name, matching BeeCount Cloud\'s web dashboard.'**
-  String get whatsNew350CreditCardPaymentParityDesc;
+  /// **'Transfers created from \"Payment record\" on the Accounts page now use the same note and category as BeeCount Cloud\'s web dashboard.'**
+  String get whatsNew355CreditCardPaymentParityDesc;
 
-  /// No description provided for @whatsNew350AccountInitialBalanceTitle.
+  /// No description provided for @whatsNew355AccountInitialBalanceTitle.
   ///
   /// In en, this message translates to:
   /// **'Editing an account\'s initial balance now updates instantly'**
-  String get whatsNew350AccountInitialBalanceTitle;
+  String get whatsNew355AccountInitialBalanceTitle;
 
-  /// No description provided for @whatsNew350AccountInitialBalanceDesc.
+  /// No description provided for @whatsNew355AccountInitialBalanceDesc.
   ///
   /// In en, this message translates to:
-  /// **'After changing an account\'s initial balance in \"Edit account\", the Accounts page and the \"Adjust total\" dialog now show the correct current balance right away, instead of waiting for the next transaction.'**
-  String get whatsNew350AccountInitialBalanceDesc;
+  /// **'The Accounts page and \"Adjust total\" dialog now show the correct balance right after you change the initial balance, instead of waiting for the next transaction.'**
+  String get whatsNew355AccountInitialBalanceDesc;
 
-  /// No description provided for @whatsNew350CalendarWeekTodayTitle.
+  /// No description provided for @whatsNew355CalendarWeekTodayTitle.
   ///
   /// In en, this message translates to:
   /// **'Fixed \"Today\" jumping to the wrong week in calendar week view'**
-  String get whatsNew350CalendarWeekTodayTitle;
+  String get whatsNew355CalendarWeekTodayTitle;
 
-  /// No description provided for @whatsNew350CalendarWeekTodayDesc.
+  /// No description provided for @whatsNew355CalendarWeekTodayDesc.
   ///
   /// In en, this message translates to:
-  /// **'When the bookkeeping calendar is collapsed to week view, tapping \"Today\" in the top right now correctly jumps to the week containing today, instead of the week at the start of the month.'**
-  String get whatsNew350CalendarWeekTodayDesc;
+  /// **'Tapping \"Today\" in calendar week view now correctly jumps to the week containing today.'**
+  String get whatsNew355CalendarWeekTodayDesc;
 
-  /// No description provided for @whatsNew350AiFreeChatQueryTitle.
+  /// No description provided for @whatsNew355AiFreeChatQueryTitle.
   ///
   /// In en, this message translates to:
   /// **'Smarter AI chat: ask about any spending, over any period'**
-  String get whatsNew350AiFreeChatQueryTitle;
+  String get whatsNew355AiFreeChatQueryTitle;
 
-  /// No description provided for @whatsNew350AiFreeChatQueryDesc.
+  /// No description provided for @whatsNew355AiFreeChatQueryDesc.
   ///
   /// In en, this message translates to:
-  /// **'Questions like \"how much have I spent at rehab so far\" used to be mistaken for a new transaction and never reached the query engine. AI chat now tells questions and bookkeeping apart properly, can search by note, merchant or category name (Traditional and Simplified both match), covers all time when you do not give a date range, and always totals every matching record instead of just the first page.'**
-  String get whatsNew350AiFreeChatQueryDesc;
+  /// **'AI chat now tells questions and bookkeeping apart properly, searches by note, merchant or category name (Traditional and Simplified both match), covers all time when you don\'t give a date range, and always totals every matching record instead of just the first page.'**
+  String get whatsNew355AiFreeChatQueryDesc;
 
-  /// No description provided for @whatsNew350AiChatMarkdownTitle.
+  /// No description provided for @whatsNew355AiChatMarkdownTitle.
   ///
   /// In en, this message translates to:
   /// **'AI replies are now properly formatted'**
-  String get whatsNew350AiChatMarkdownTitle;
+  String get whatsNew355AiChatMarkdownTitle;
 
-  /// No description provided for @whatsNew350AiChatMarkdownDesc.
+  /// No description provided for @whatsNew355AiChatMarkdownDesc.
   ///
   /// In en, this message translates to:
   /// **'Bold text, lists and tables in AI replies are rendered instead of showing raw markdown symbols.'**
-  String get whatsNew350AiChatMarkdownDesc;
+  String get whatsNew355AiChatMarkdownDesc;
+
+  /// No description provided for @whatsNew355AiChatDebugLogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI chat now logs its reasoning for easier troubleshooting'**
+  String get whatsNew355AiChatDebugLogTitle;
+
+  /// No description provided for @whatsNew355AiChatDebugLogDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'AI free-chat routing and answers are now recorded in Me → About → Log Center, so if a reply looks wrong you can check or export the log to help report the issue.'**
+  String get whatsNew355AiChatDebugLogDesc;
 }
 
 class _AppLocalizationsDelegate

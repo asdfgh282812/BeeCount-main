@@ -10107,58 +10107,66 @@ class AppLocalizationsEn extends AppLocalizations {
       'When photo, voice, or chat billing can\'t auto-match an account in the same currency, the account picker now shows accounts of any currency and converts the amount correctly.';
 
   @override
-  String get whatsNew350AiMerchantRewardTitle =>
+  String get whatsNew355AiMerchantRewardTitle =>
       'AI bookkeeping adds a Merchant field and auto-applies card rewards';
 
   @override
-  String get whatsNew350AiMerchantRewardDesc =>
-      'For chat, photo, voice, and background screenshot/notification billing, credit card bill cards now show the recognized merchant name, and automatically pick the matching reward rule you\'ve already set up — no more opening the reward list to select it yourself afterward.';
+  String get whatsNew355AiMerchantRewardDesc =>
+      'For chat, photo, voice, and background screenshot/notification billing, credit card bill cards now show the recognized merchant and auto-apply your reward rules — no more picking from the reward list yourself.';
 
   @override
-  String get whatsNew350TransferAccountDisplayTitle =>
+  String get whatsNew355TransferAccountDisplayTitle =>
       'Transfers now show \"from → to\" accounts, and cross-currency amounts are fixed';
 
   @override
-  String get whatsNew350TransferAccountDisplayDesc =>
-      'Transfer transactions in the detail card, calendar day list, search results, and project/tag/category detail pages now show the full \"from account → to account\"; the cross-currency \"≈ converted amount\" is now computed from the actual amount received, so it no longer disagrees with what you entered.';
+  String get whatsNew355TransferAccountDisplayDesc =>
+      'Transfers in the detail card, calendar, search results, and project/tag/category pages now show the full \"from account → to account\"; the cross-currency converted amount is now computed from the actual amount received.';
 
   @override
-  String get whatsNew350CreditCardPaymentParityTitle =>
+  String get whatsNew355CreditCardPaymentParityTitle =>
       'Credit card payment transfer note/category now match the web dashboard';
 
   @override
-  String get whatsNew350CreditCardPaymentParityDesc =>
-      'Transfers created from a single card\'s \"Payment record\" on the Accounts page now show the correct note \"Credit card payment (billing period ...)\" and the transfer category name, matching BeeCount Cloud\'s web dashboard.';
+  String get whatsNew355CreditCardPaymentParityDesc =>
+      'Transfers created from \"Payment record\" on the Accounts page now use the same note and category as BeeCount Cloud\'s web dashboard.';
 
   @override
-  String get whatsNew350AccountInitialBalanceTitle =>
+  String get whatsNew355AccountInitialBalanceTitle =>
       'Editing an account\'s initial balance now updates instantly';
 
   @override
-  String get whatsNew350AccountInitialBalanceDesc =>
-      'After changing an account\'s initial balance in \"Edit account\", the Accounts page and the \"Adjust total\" dialog now show the correct current balance right away, instead of waiting for the next transaction.';
+  String get whatsNew355AccountInitialBalanceDesc =>
+      'The Accounts page and \"Adjust total\" dialog now show the correct balance right after you change the initial balance, instead of waiting for the next transaction.';
 
   @override
-  String get whatsNew350CalendarWeekTodayTitle =>
+  String get whatsNew355CalendarWeekTodayTitle =>
       'Fixed \"Today\" jumping to the wrong week in calendar week view';
 
   @override
-  String get whatsNew350CalendarWeekTodayDesc =>
-      'When the bookkeeping calendar is collapsed to week view, tapping \"Today\" in the top right now correctly jumps to the week containing today, instead of the week at the start of the month.';
+  String get whatsNew355CalendarWeekTodayDesc =>
+      'Tapping \"Today\" in calendar week view now correctly jumps to the week containing today.';
 
   @override
-  String get whatsNew350AiFreeChatQueryTitle =>
+  String get whatsNew355AiFreeChatQueryTitle =>
       'Smarter AI chat: ask about any spending, over any period';
 
   @override
-  String get whatsNew350AiFreeChatQueryDesc =>
-      'Questions like \"how much have I spent at rehab so far\" used to be mistaken for a new transaction and never reached the query engine. AI chat now tells questions and bookkeeping apart properly, can search by note, merchant or category name (Traditional and Simplified both match), covers all time when you do not give a date range, and always totals every matching record instead of just the first page.';
+  String get whatsNew355AiFreeChatQueryDesc =>
+      'AI chat now tells questions and bookkeeping apart properly, searches by note, merchant or category name (Traditional and Simplified both match), covers all time when you don\'t give a date range, and always totals every matching record instead of just the first page.';
 
   @override
-  String get whatsNew350AiChatMarkdownTitle =>
+  String get whatsNew355AiChatMarkdownTitle =>
       'AI replies are now properly formatted';
 
   @override
-  String get whatsNew350AiChatMarkdownDesc =>
+  String get whatsNew355AiChatMarkdownDesc =>
       'Bold text, lists and tables in AI replies are rendered instead of showing raw markdown symbols.';
+
+  @override
+  String get whatsNew355AiChatDebugLogTitle =>
+      'AI chat now logs its reasoning for easier troubleshooting';
+
+  @override
+  String get whatsNew355AiChatDebugLogDesc =>
+      'AI free-chat routing and answers are now recorded in Me → About → Log Center, so if a reply looks wrong you can check or export the log to help report the issue.';
 }

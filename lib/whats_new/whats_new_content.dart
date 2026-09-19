@@ -70,34 +70,38 @@ final Map<String, List<WhatsNewItem>> kWhatsNewContent = {
       description: (l10n) => l10n.whatsNew340AiCrossCurrencyDesc,
     ),
   ],
-  '3.5.0': [
+  '3.5.5': [
     WhatsNewItem(
-      title: (l10n) => l10n.whatsNew350AiMerchantRewardTitle,
-      description: (l10n) => l10n.whatsNew350AiMerchantRewardDesc,
+      title: (l10n) => l10n.whatsNew355AiMerchantRewardTitle,
+      description: (l10n) => l10n.whatsNew355AiMerchantRewardDesc,
     ),
     WhatsNewItem(
-      title: (l10n) => l10n.whatsNew350TransferAccountDisplayTitle,
-      description: (l10n) => l10n.whatsNew350TransferAccountDisplayDesc,
+      title: (l10n) => l10n.whatsNew355TransferAccountDisplayTitle,
+      description: (l10n) => l10n.whatsNew355TransferAccountDisplayDesc,
     ),
     WhatsNewItem(
-      title: (l10n) => l10n.whatsNew350CreditCardPaymentParityTitle,
-      description: (l10n) => l10n.whatsNew350CreditCardPaymentParityDesc,
+      title: (l10n) => l10n.whatsNew355CreditCardPaymentParityTitle,
+      description: (l10n) => l10n.whatsNew355CreditCardPaymentParityDesc,
     ),
     WhatsNewItem(
-      title: (l10n) => l10n.whatsNew350AccountInitialBalanceTitle,
-      description: (l10n) => l10n.whatsNew350AccountInitialBalanceDesc,
+      title: (l10n) => l10n.whatsNew355AccountInitialBalanceTitle,
+      description: (l10n) => l10n.whatsNew355AccountInitialBalanceDesc,
     ),
     WhatsNewItem(
-      title: (l10n) => l10n.whatsNew350CalendarWeekTodayTitle,
-      description: (l10n) => l10n.whatsNew350CalendarWeekTodayDesc,
+      title: (l10n) => l10n.whatsNew355CalendarWeekTodayTitle,
+      description: (l10n) => l10n.whatsNew355CalendarWeekTodayDesc,
     ),
     WhatsNewItem(
-      title: (l10n) => l10n.whatsNew350AiFreeChatQueryTitle,
-      description: (l10n) => l10n.whatsNew350AiFreeChatQueryDesc,
+      title: (l10n) => l10n.whatsNew355AiFreeChatQueryTitle,
+      description: (l10n) => l10n.whatsNew355AiFreeChatQueryDesc,
     ),
     WhatsNewItem(
-      title: (l10n) => l10n.whatsNew350AiChatMarkdownTitle,
-      description: (l10n) => l10n.whatsNew350AiChatMarkdownDesc,
+      title: (l10n) => l10n.whatsNew355AiChatMarkdownTitle,
+      description: (l10n) => l10n.whatsNew355AiChatMarkdownDesc,
+    ),
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew355AiChatDebugLogTitle,
+      description: (l10n) => l10n.whatsNew355AiChatDebugLogDesc,
     ),
   ],
 };
