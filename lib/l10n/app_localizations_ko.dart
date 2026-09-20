@@ -9901,50 +9901,58 @@ class AppLocalizationsKo extends AppLocalizations {
       'When photo, voice, or chat billing can\'t auto-match an account in the same currency, the account picker now shows accounts of any currency and converts the amount correctly.';
 
   @override
-  String get whatsNew356AiMerchantRewardTitle =>
+  String get whatsNew357OverviewChartTitle =>
+      'Brand-new interactive chart on the Accounts page';
+
+  @override
+  String get whatsNew357OverviewChartDesc =>
+      'The net worth card\'s trend chart is now a combined bar (income/expense) + line (net worth) chart — switch between day/week/month/year and tap or drag to see any point\'s numbers, or tap the expand icon for a full-screen view.';
+
+  @override
+  String get whatsNew357IosLaunchFixTitle =>
+      'Fixed the app not launching on iOS 26/27';
+
+  @override
+  String get whatsNew357IosLaunchFixDesc =>
+      'Some devices updated to iOS 26/27 couldn\'t open the app due to a change in the system\'s app-launch lifecycle — this is now fixed.';
+
+  @override
+  String get whatsNew357AiMerchantRewardTitle =>
       'AI bookkeeping adds a Merchant field and auto-applies card rewards';
 
   @override
-  String get whatsNew356AiMerchantRewardDesc =>
+  String get whatsNew357AiMerchantRewardDesc =>
       'Chat, photo, voice, and background billing now show the recognized merchant and auto-apply your reward rules instead of picking from a list.';
 
   @override
-  String get whatsNew356AiChatTitle =>
+  String get whatsNew357AiChatTitle =>
       'Smarter AI chat, better-formatted replies';
 
   @override
-  String get whatsNew356AiChatDesc =>
+  String get whatsNew357AiChatDesc =>
       'AI chat now tells questions and bookkeeping apart, finds totals across any period by note/merchant/category, renders replies properly instead of raw markdown, and logs its reasoning in Me → About → Log Center for troubleshooting.';
 
   @override
-  String get whatsNew356CreditCardBillDisplayTitle =>
-      'Cleaner credit card bill and detail displays';
+  String get whatsNew357CreditCardTitle =>
+      'Cleaner credit card bill display, more accurate reward calculations';
 
   @override
-  String get whatsNew356CreditCardBillDisplayDesc =>
-      'Bill summary rows drop the ledger tag in favor of card-name and project tags; payment transfers now match the web dashboard\'s note/category; reconciliation and card detail records now respect the note display mode setting.';
+  String get whatsNew357CreditCardDesc =>
+      'Bill summary rows now show card name + project tags instead of the ledger tag, payment transfers match the web dashboard\'s note/category, and reward calculations are fixed for merged-billing cycles and refunds.';
 
   @override
-  String get whatsNew356RewardAccuracyTitle =>
-      'More accurate credit card reward calculations';
-
-  @override
-  String get whatsNew356RewardAccuracyDesc =>
-      'Fixed the reward detail page\'s billing cycle not matching the account page for merged-billing cards; refunding a transaction now recalculates the reward and spending totals from the net amount.';
-
-  @override
-  String get whatsNew356TransferAccountDisplayTitle =>
+  String get whatsNew357TransferAccountDisplayTitle =>
       'Transfers now show \"from → to\" accounts, and cross-currency amounts are fixed';
 
   @override
-  String get whatsNew356TransferAccountDisplayDesc =>
+  String get whatsNew357TransferAccountDisplayDesc =>
       'Transfers in the detail card, calendar, search results, and project/tag/category pages now show the full accounts; cross-currency amounts are computed from the actual amount received.';
 
   @override
-  String get whatsNew356MinorFixesTitle =>
-      'Minor fixes: initial balance and calendar week view';
+  String get whatsNew357ProjectFixesTitle =>
+      'Three project fixes: refund display, first sync, AI project sync';
 
   @override
-  String get whatsNew356MinorFixesDesc =>
-      'Editing an account\'s initial balance now updates the balance immediately; tapping \"Today\" in calendar week view now jumps to the correct week.';
+  String get whatsNew357ProjectFixesDesc =>
+      'The refund category in project details no longer shows 0.00; a newly synced device\'s project list no longer stays empty until you add a transaction; and the AI \"auto-assign project\" setting now syncs across devices.';
 }

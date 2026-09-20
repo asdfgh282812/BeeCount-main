@@ -70,30 +70,34 @@ final Map<String, List<WhatsNewItem>> kWhatsNewContent = {
       description: (l10n) => l10n.whatsNew340AiCrossCurrencyDesc,
     ),
   ],
-  '3.5.6': [
+  '3.5.7': [
     WhatsNewItem(
-      title: (l10n) => l10n.whatsNew356AiMerchantRewardTitle,
-      description: (l10n) => l10n.whatsNew356AiMerchantRewardDesc,
+      title: (l10n) => l10n.whatsNew357OverviewChartTitle,
+      description: (l10n) => l10n.whatsNew357OverviewChartDesc,
     ),
     WhatsNewItem(
-      title: (l10n) => l10n.whatsNew356AiChatTitle,
-      description: (l10n) => l10n.whatsNew356AiChatDesc,
+      title: (l10n) => l10n.whatsNew357IosLaunchFixTitle,
+      description: (l10n) => l10n.whatsNew357IosLaunchFixDesc,
     ),
     WhatsNewItem(
-      title: (l10n) => l10n.whatsNew356CreditCardBillDisplayTitle,
-      description: (l10n) => l10n.whatsNew356CreditCardBillDisplayDesc,
+      title: (l10n) => l10n.whatsNew357AiMerchantRewardTitle,
+      description: (l10n) => l10n.whatsNew357AiMerchantRewardDesc,
     ),
     WhatsNewItem(
-      title: (l10n) => l10n.whatsNew356RewardAccuracyTitle,
-      description: (l10n) => l10n.whatsNew356RewardAccuracyDesc,
+      title: (l10n) => l10n.whatsNew357AiChatTitle,
+      description: (l10n) => l10n.whatsNew357AiChatDesc,
     ),
     WhatsNewItem(
-      title: (l10n) => l10n.whatsNew356TransferAccountDisplayTitle,
-      description: (l10n) => l10n.whatsNew356TransferAccountDisplayDesc,
+      title: (l10n) => l10n.whatsNew357CreditCardTitle,
+      description: (l10n) => l10n.whatsNew357CreditCardDesc,
     ),
     WhatsNewItem(
-      title: (l10n) => l10n.whatsNew356MinorFixesTitle,
-      description: (l10n) => l10n.whatsNew356MinorFixesDesc,
+      title: (l10n) => l10n.whatsNew357TransferAccountDisplayTitle,
+      description: (l10n) => l10n.whatsNew357TransferAccountDisplayDesc,
+    ),
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew357ProjectFixesTitle,
+      description: (l10n) => l10n.whatsNew357ProjectFixesDesc,
     ),
   ],
 };

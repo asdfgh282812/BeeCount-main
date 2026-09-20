@@ -18243,77 +18243,89 @@ abstract class AppLocalizations {
   /// **'When photo, voice, or chat billing can\'t auto-match an account in the same currency, the account picker now shows accounts of any currency and converts the amount correctly.'**
   String get whatsNew340AiCrossCurrencyDesc;
 
-  /// No description provided for @whatsNew356AiMerchantRewardTitle.
+  /// No description provided for @whatsNew357OverviewChartTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Brand-new interactive chart on the Accounts page'**
+  String get whatsNew357OverviewChartTitle;
+
+  /// No description provided for @whatsNew357OverviewChartDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'The net worth card\'s trend chart is now a combined bar (income/expense) + line (net worth) chart — switch between day/week/month/year and tap or drag to see any point\'s numbers, or tap the expand icon for a full-screen view.'**
+  String get whatsNew357OverviewChartDesc;
+
+  /// No description provided for @whatsNew357IosLaunchFixTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed the app not launching on iOS 26/27'**
+  String get whatsNew357IosLaunchFixTitle;
+
+  /// No description provided for @whatsNew357IosLaunchFixDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Some devices updated to iOS 26/27 couldn\'t open the app due to a change in the system\'s app-launch lifecycle — this is now fixed.'**
+  String get whatsNew357IosLaunchFixDesc;
+
+  /// No description provided for @whatsNew357AiMerchantRewardTitle.
   ///
   /// In en, this message translates to:
   /// **'AI bookkeeping adds a Merchant field and auto-applies card rewards'**
-  String get whatsNew356AiMerchantRewardTitle;
+  String get whatsNew357AiMerchantRewardTitle;
 
-  /// No description provided for @whatsNew356AiMerchantRewardDesc.
+  /// No description provided for @whatsNew357AiMerchantRewardDesc.
   ///
   /// In en, this message translates to:
   /// **'Chat, photo, voice, and background billing now show the recognized merchant and auto-apply your reward rules instead of picking from a list.'**
-  String get whatsNew356AiMerchantRewardDesc;
+  String get whatsNew357AiMerchantRewardDesc;
 
-  /// No description provided for @whatsNew356AiChatTitle.
+  /// No description provided for @whatsNew357AiChatTitle.
   ///
   /// In en, this message translates to:
   /// **'Smarter AI chat, better-formatted replies'**
-  String get whatsNew356AiChatTitle;
+  String get whatsNew357AiChatTitle;
 
-  /// No description provided for @whatsNew356AiChatDesc.
+  /// No description provided for @whatsNew357AiChatDesc.
   ///
   /// In en, this message translates to:
   /// **'AI chat now tells questions and bookkeeping apart, finds totals across any period by note/merchant/category, renders replies properly instead of raw markdown, and logs its reasoning in Me → About → Log Center for troubleshooting.'**
-  String get whatsNew356AiChatDesc;
+  String get whatsNew357AiChatDesc;
 
-  /// No description provided for @whatsNew356CreditCardBillDisplayTitle.
+  /// No description provided for @whatsNew357CreditCardTitle.
   ///
   /// In en, this message translates to:
-  /// **'Cleaner credit card bill and detail displays'**
-  String get whatsNew356CreditCardBillDisplayTitle;
+  /// **'Cleaner credit card bill display, more accurate reward calculations'**
+  String get whatsNew357CreditCardTitle;
 
-  /// No description provided for @whatsNew356CreditCardBillDisplayDesc.
+  /// No description provided for @whatsNew357CreditCardDesc.
   ///
   /// In en, this message translates to:
-  /// **'Bill summary rows drop the ledger tag in favor of card-name and project tags; payment transfers now match the web dashboard\'s note/category; reconciliation and card detail records now respect the note display mode setting.'**
-  String get whatsNew356CreditCardBillDisplayDesc;
+  /// **'Bill summary rows now show card name + project tags instead of the ledger tag, payment transfers match the web dashboard\'s note/category, and reward calculations are fixed for merged-billing cycles and refunds.'**
+  String get whatsNew357CreditCardDesc;
 
-  /// No description provided for @whatsNew356RewardAccuracyTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'More accurate credit card reward calculations'**
-  String get whatsNew356RewardAccuracyTitle;
-
-  /// No description provided for @whatsNew356RewardAccuracyDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Fixed the reward detail page\'s billing cycle not matching the account page for merged-billing cards; refunding a transaction now recalculates the reward and spending totals from the net amount.'**
-  String get whatsNew356RewardAccuracyDesc;
-
-  /// No description provided for @whatsNew356TransferAccountDisplayTitle.
+  /// No description provided for @whatsNew357TransferAccountDisplayTitle.
   ///
   /// In en, this message translates to:
   /// **'Transfers now show \"from → to\" accounts, and cross-currency amounts are fixed'**
-  String get whatsNew356TransferAccountDisplayTitle;
+  String get whatsNew357TransferAccountDisplayTitle;
 
-  /// No description provided for @whatsNew356TransferAccountDisplayDesc.
+  /// No description provided for @whatsNew357TransferAccountDisplayDesc.
   ///
   /// In en, this message translates to:
   /// **'Transfers in the detail card, calendar, search results, and project/tag/category pages now show the full accounts; cross-currency amounts are computed from the actual amount received.'**
-  String get whatsNew356TransferAccountDisplayDesc;
+  String get whatsNew357TransferAccountDisplayDesc;
 
-  /// No description provided for @whatsNew356MinorFixesTitle.
+  /// No description provided for @whatsNew357ProjectFixesTitle.
   ///
   /// In en, this message translates to:
-  /// **'Minor fixes: initial balance and calendar week view'**
-  String get whatsNew356MinorFixesTitle;
+  /// **'Three project fixes: refund display, first sync, AI project sync'**
+  String get whatsNew357ProjectFixesTitle;
 
-  /// No description provided for @whatsNew356MinorFixesDesc.
+  /// No description provided for @whatsNew357ProjectFixesDesc.
   ///
   /// In en, this message translates to:
-  /// **'Editing an account\'s initial balance now updates the balance immediately; tapping \"Today\" in calendar week view now jumps to the correct week.'**
-  String get whatsNew356MinorFixesDesc;
+  /// **'The refund category in project details no longer shows 0.00; a newly synced device\'s project list no longer stays empty until you add a transaction; and the AI \"auto-assign project\" setting now syncs across devices.'**
+  String get whatsNew357ProjectFixesDesc;
 }
 
 class _AppLocalizationsDelegate

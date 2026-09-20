@@ -9809,52 +9809,60 @@ class AppLocalizationsZh extends AppLocalizations {
       'When photo, voice, or chat billing can\'t auto-match an account in the same currency, the account picker now shows accounts of any currency and converts the amount correctly.';
 
   @override
-  String get whatsNew356AiMerchantRewardTitle =>
+  String get whatsNew357OverviewChartTitle =>
+      'Brand-new interactive chart on the Accounts page';
+
+  @override
+  String get whatsNew357OverviewChartDesc =>
+      'The net worth card\'s trend chart is now a combined bar (income/expense) + line (net worth) chart — switch between day/week/month/year and tap or drag to see any point\'s numbers, or tap the expand icon for a full-screen view.';
+
+  @override
+  String get whatsNew357IosLaunchFixTitle =>
+      'Fixed the app not launching on iOS 26/27';
+
+  @override
+  String get whatsNew357IosLaunchFixDesc =>
+      'Some devices updated to iOS 26/27 couldn\'t open the app due to a change in the system\'s app-launch lifecycle — this is now fixed.';
+
+  @override
+  String get whatsNew357AiMerchantRewardTitle =>
       'AI bookkeeping adds a Merchant field and auto-applies card rewards';
 
   @override
-  String get whatsNew356AiMerchantRewardDesc =>
+  String get whatsNew357AiMerchantRewardDesc =>
       'Chat, photo, voice, and background billing now show the recognized merchant and auto-apply your reward rules instead of picking from a list.';
 
   @override
-  String get whatsNew356AiChatTitle =>
+  String get whatsNew357AiChatTitle =>
       'Smarter AI chat, better-formatted replies';
 
   @override
-  String get whatsNew356AiChatDesc =>
+  String get whatsNew357AiChatDesc =>
       'AI chat now tells questions and bookkeeping apart, finds totals across any period by note/merchant/category, renders replies properly instead of raw markdown, and logs its reasoning in Me → About → Log Center for troubleshooting.';
 
   @override
-  String get whatsNew356CreditCardBillDisplayTitle =>
-      'Cleaner credit card bill and detail displays';
+  String get whatsNew357CreditCardTitle =>
+      'Cleaner credit card bill display, more accurate reward calculations';
 
   @override
-  String get whatsNew356CreditCardBillDisplayDesc =>
-      'Bill summary rows drop the ledger tag in favor of card-name and project tags; payment transfers now match the web dashboard\'s note/category; reconciliation and card detail records now respect the note display mode setting.';
+  String get whatsNew357CreditCardDesc =>
+      'Bill summary rows now show card name + project tags instead of the ledger tag, payment transfers match the web dashboard\'s note/category, and reward calculations are fixed for merged-billing cycles and refunds.';
 
   @override
-  String get whatsNew356RewardAccuracyTitle =>
-      'More accurate credit card reward calculations';
-
-  @override
-  String get whatsNew356RewardAccuracyDesc =>
-      'Fixed the reward detail page\'s billing cycle not matching the account page for merged-billing cards; refunding a transaction now recalculates the reward and spending totals from the net amount.';
-
-  @override
-  String get whatsNew356TransferAccountDisplayTitle =>
+  String get whatsNew357TransferAccountDisplayTitle =>
       'Transfers now show \"from → to\" accounts, and cross-currency amounts are fixed';
 
   @override
-  String get whatsNew356TransferAccountDisplayDesc =>
+  String get whatsNew357TransferAccountDisplayDesc =>
       'Transfers in the detail card, calendar, search results, and project/tag/category pages now show the full accounts; cross-currency amounts are computed from the actual amount received.';
 
   @override
-  String get whatsNew356MinorFixesTitle =>
-      'Minor fixes: initial balance and calendar week view';
+  String get whatsNew357ProjectFixesTitle =>
+      'Three project fixes: refund display, first sync, AI project sync';
 
   @override
-  String get whatsNew356MinorFixesDesc =>
-      'Editing an account\'s initial balance now updates the balance immediately; tapping \"Today\" in calendar week view now jumps to the correct week.';
+  String get whatsNew357ProjectFixesDesc =>
+      'The refund category in project details no longer shows 0.00; a newly synced device\'s project list no longer stays empty until you add a transaction; and the AI \"auto-assign project\" setting now syncs across devices.';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -19579,45 +19587,52 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
       '拍照、語音、對話記帳如果自動配對不到同幣別的帳戶,「選擇帳戶」畫面現在會列出所有幣別的帳戶,並依匯率正確換算金額。';
 
   @override
-  String get whatsNew356AiMerchantRewardTitle => 'AI 記帳新增「商家」欄位,信用卡回饋自動套用';
+  String get whatsNew357OverviewChartTitle => '資產管理頁全新互動走勢圖';
 
   @override
-  String get whatsNew356AiMerchantRewardDesc =>
+  String get whatsNew357OverviewChartDesc =>
+      '淨資產卡片的走勢改成長條(收入/支出)+折線(淨資產)組合圖,可切換日/週/月/年,點按或拖曳直接看某一天的數字,點頁首展開圖示可看全螢幕大圖。';
+
+  @override
+  String get whatsNew357IosLaunchFixTitle => '修正 iOS 26/27 版本 App 無法開啟的問題';
+
+  @override
+  String get whatsNew357IosLaunchFixDesc =>
+      '部分升級到 iOS 26/27 的裝置因系統啟動流程改變導致無法開啟 App,已修正。';
+
+  @override
+  String get whatsNew357AiMerchantRewardTitle => 'AI 記帳新增「商家」欄位,信用卡回饋自動套用';
+
+  @override
+  String get whatsNew357AiMerchantRewardDesc =>
       'AI 對話、拍照、語音、背景記帳時會顯示辨識出的商家,並自動套用你設定好的回饋規則,不用再手動勾選。';
 
   @override
-  String get whatsNew356AiChatTitle => 'AI 對話更聰明,回覆也更好讀';
+  String get whatsNew357AiChatTitle => 'AI 對話更聰明,回覆也更好讀';
 
   @override
-  String get whatsNew356AiChatDesc =>
+  String get whatsNew357AiChatDesc =>
       '能正確分辨「提問」與「記帳」,用備註、商家或分類名稱就能查全部期間的加總金額;回覆的粗體、清單、表格正常顯示;判斷過程也會記錄到「我的→關於→日誌中心」方便回報問題。';
 
   @override
-  String get whatsNew356CreditCardBillDisplayTitle => '信用卡帳單與明細顯示優化';
+  String get whatsNew357CreditCardTitle => '信用卡帳單顯示更清爽,紅利回饋計算更精準';
 
   @override
-  String get whatsNew356CreditCardBillDisplayDesc =>
-      '帳單彙總交易列拿掉帳本標籤,改用卡片名+專案小標籤呈現;繳款轉帳的備註/分類改成跟網頁端一致;對帳模式與信用卡一般記錄也會套用「備註顯示方式」設定。';
+  String get whatsNew357CreditCardDesc =>
+      '帳單彙總交易列改用卡片名+專案標籤取代帳本標籤;繳款轉帳的備註/分類與網頁端一致;修正合併帳單子卡紅利明細週期對不上、退款後回饋金沒有重新計算的問題。';
 
   @override
-  String get whatsNew356RewardAccuracyTitle => '信用卡紅利回饋計算更精準';
-
-  @override
-  String get whatsNew356RewardAccuracyDesc =>
-      '修正合併帳單子卡的紅利明細頁週期跟帳戶頁對不上的問題;交易退款後,回饋金額與消費統計現在會依退款淨額重新計算。';
-
-  @override
-  String get whatsNew356TransferAccountDisplayTitle =>
+  String get whatsNew357TransferAccountDisplayTitle =>
       '轉帳交易看得出「轉出→轉入」帳戶,跨幣別金額也修正了';
 
   @override
-  String get whatsNew356TransferAccountDisplayDesc =>
+  String get whatsNew357TransferAccountDisplayDesc =>
       '交易明細、日曆、搜尋結果、專案/標籤/分類頁的轉帳交易都會顯示完整的轉出→轉入帳戶;跨幣別轉帳金額改用實際入帳金額計算。';
 
   @override
-  String get whatsNew356MinorFixesTitle => '帳戶初始資金與日曆週檢視小修正';
+  String get whatsNew357ProjectFixesTitle => '專案功能三項修正:退款顯示、首次同步、AI專案指定同步';
 
   @override
-  String get whatsNew356MinorFixesDesc =>
-      '修改初始資金後帳戶頁會立刻反映正確餘額;日曆收起為週檢視時點「今天」會正確跳到今天所在那一週。';
+  String get whatsNew357ProjectFixesDesc =>
+      '專案詳情頁的退款分類金額不再顯示 0.00;新裝置首次同步後專案列表不用先新增一筆交易才會出現;AI記帳的「AI專案指定」設定現在會跨裝置同步。';
 }
