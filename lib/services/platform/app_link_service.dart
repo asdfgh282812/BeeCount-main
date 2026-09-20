@@ -53,6 +53,14 @@ enum AppLinkAction {
   /// 不会真的走到 handleUrl 的这个 case（见 AppLinkService 顶部文档）。
   ssoCallback,
 
+  /// 纯启动链接：`beecount://`（host/path 都为空，不带任何动作）。
+  ///
+  /// SideStore/AltStore 这类侧载商店「打开 App」用的就是注册的 URL scheme
+  /// 本身，系统会把 `beecount://` 直接投递到 uriLinkStream。它不表达任何
+  /// 意图，必须静默忽略——否则每次从 SideStore 启动都会弹一个
+  /// 「未知的操作: 」的 toast（host 为空，冒号后什么都没有）。
+  launch,
+
   /// 未知
   unknown,
 }
@@ -191,6 +199,7 @@ class AppLinkResult {
 ///   反查信用卡账户/分类后打开预填新增交易表单（不自动存档）
 /// - beecount://auto-billing?text=... - 文本自动记账（兼容旧版）
 /// - beecount://quick-billing - 快速记账（兼容旧版）
+/// - beecount:// - 纯启动链接（SideStore/AltStore 打开 App 用），静默忽略
 ///
 /// 同时监听 iOS AppIntents EventChannel 处理快捷指令传入的图片
 class AppLinkService {
@@ -292,6 +301,11 @@ class AppLinkService {
   /// 解析 URI 获取动作类型
   static AppLinkAction parseAction(Uri uri) {
     final host = uri.host.toLowerCase();
+    // 纯启动链接 beecount:// —— 没有 host 也没有 path，仅仅是「把 App 拉起来」
+    // （SideStore 等侧载商店的打开方式），不当成未知动作报错。
+    if (host.isEmpty && (uri.path.isEmpty || uri.path == '/')) {
+      return AppLinkAction.launch;
+    }
     switch (host) {
       case 'voice':
         return AppLinkAction.voice;
@@ -397,6 +411,11 @@ class AppLinkService {
         // 兼容旧版，等同于图片记账
         onNavigate?.call(AppLinkAction.image);
         return AppLinkResult.success(message: '打开图片记账');
+
+      case AppLinkAction.launch:
+        // 静默忽略：没有动作可执行，也不该打扰用户。
+        logger.info('AppLink', '纯启动链接，无动作');
+        return AppLinkResult.success();
 
       case AppLinkAction.unknown:
         logger.warning('AppLink', '未知的action: ${uri.host}');
