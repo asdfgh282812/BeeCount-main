@@ -20,8 +20,7 @@ import '../../utils/ui_scale_extensions.dart';
 import '../../utils/account_type_utils.dart';
 import '../../utils/currencies.dart';
 import '../../widgets/charts/asset_composition_chart.dart';
-import '../../widgets/charts/line_chart.dart';
-import '../../utils/net_worth_trend_utils.dart';
+import '../../widgets/charts/overview_combo_chart.dart';
 import '../currency/exchange_rate_page.dart';
 import '../debt/debt_list_page.dart';
 import '../installment/installment_list_page.dart';
@@ -30,7 +29,7 @@ import '../../utils/account_quick_actions.dart';
 import '../transaction/transaction_editor_page.dart';
 import 'account_edit_page.dart';
 import 'account_detail_page.dart';
-import 'net_worth_trend_page.dart';
+import 'account_overview_chart_page.dart';
 import 'pending_account_transactions_page.dart';
 
 /// 帳戶總覽頁「目前展開的是哪一列」——暫態 UI 狀態,不持久化。每個
@@ -469,10 +468,9 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
             title: l10n.accountsTitle,
             showBack: !widget.asTab,
             compact: true,
-            // 顺序(左 → 右):加号 / 设置。
-            // 设置放最右边(Material 设计惯例,溢出 / 设置类放最右)。
-            // 編輯排序模式下(帳戶清單拖曳排序):兩個圖示暫時換成單一「完成」
-            // 按鈕退出,避免拖曳時誤觸新增/設定。
+            // Moze 风格圆形图标,顺序(左 → 右):展开(新)/ 加号 / 设置,三者靠右对齐。
+            // 編輯排序模式下(帳戶清單拖曳排序):三個圖示暫時換成單一「完成」
+            // 按鈕退出,避免拖曳時誤觸新增/設定/展開。
             actions: _editingOrder
                 ? [
                     TextButton(
@@ -481,16 +479,24 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                     ),
                   ]
                 : [
-                    IconButton(
-                      onPressed: () => _addAccount(context, ref, ledgerId),
-                      icon: const Icon(Icons.add),
-                      tooltip: l10n.accountAddTooltip,
+                    _CircleHeaderIcon(
+                      icon: Icons.open_in_full,
+                      tooltip: l10n.accountOverviewChartExpandTooltip,
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) => const AccountOverviewChartPage()),
+                      ),
                     ),
-                    IconButton(
+                    _CircleHeaderIcon(
+                      icon: Icons.add,
+                      tooltip: l10n.accountAddTooltip,
+                      onPressed: () => _addAccount(context, ref, ledgerId),
+                    ),
+                    _CircleHeaderIcon(
+                      icon: Icons.settings_outlined,
+                      tooltip: l10n.commonSettings,
                       onPressed: () => _showSettingsSheet(
                           context, ref, accountFeatureAsync, accountsAsync),
-                      icon: const Icon(Icons.settings_outlined),
-                      tooltip: l10n.commonSettings,
                     ),
                   ],
           ),
@@ -973,74 +979,17 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     );
   }
 
-  /// 资产卡内嵌净值走势图（完整版：带网格 + 月份标签，非缩略 sparkline），点击进全屏
-  /// 趋势页。interactive:false → LineChart 不吞 tap，把点击交给外层 InkWell。
+  /// 资产卡内嵌走势组合图（长条:收入/支出 + 折线:净资产,可切换 日/週/月/年)。
+  /// interactive:true → 图表本身直接处理点击/拖曳选点,让使用者在卡片上就能
+  /// 点某一天看当天数字;进全屏图表页(AccountOverviewChartPage)改由頁首的
+  /// 「展开」圆形图示负责,这里不再包一层「点击进全屏」的 InkWell(否则会跟
+  /// 选点手势抢手势竞技场)。
   Widget _buildNetWorthChartInline(BuildContext context, WidgetRef ref) {
-    final now = trendTodayAnchor();
-    final start = DateTime(now.year, now.month - 11, 1);
-    final seriesAsync = ref
-        .watch(netWorthTrendSeriesProvider((startDate: start, endDate: now)));
-    final hide = ref.watch(hideAmountsProvider);
-    final primary = ref.watch(primaryColorProvider);
-    final l10n = AppLocalizations.of(context);
-    return seriesAsync.maybeWhen(
-      data: (series) {
-        final monthly = downsampleMonthly(series);
-        if (monthly.length < 2) {
-          return _inlineChartBox(
-            context,
-            ref,
-            Text(l10n.commonEmpty,
-                style: TextStyle(
-                    fontSize: 12, color: BeeTokens.textTertiary(context))),
-          );
-        }
-        return InkWell(
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const NetWorthTrendPage()),
-          ),
-          borderRadius: BorderRadius.circular(8),
-          child: SizedBox(
-            height: 180.0.scaled(context, ref),
-            child: LineChart(
-              values: monthly.map((e) => e.net).toList(),
-              xLabels: monthly
-                  .map((e) => '${e.date.year % 100}/${e.date.month}')
-                  .toList(),
-              highlightIndex: monthly.length - 1,
-              onSwipeLeft: () {},
-              onSwipeRight: () {},
-              showHint: false,
-              hideAmounts: hide,
-              themeColor: primary,
-              whiteBg: !BeeTokens.isDark(context),
-              isDark: BeeTokens.isDark(context),
-              showGrid: true,
-              showDots: false,
-              annotate: true,
-              interactive: false, // 点击交给外层 InkWell 进全屏页
-              minimal: true, // 去背景/Y轴/均线，避免嵌在 SectionCard 内暗黑模式「卡中卡」
-            ),
-          ),
-        );
-      },
-      error: (_, __) => _inlineChartBox(
-        context,
-        ref,
-        Text(l10n.commonError,
-            style: TextStyle(
-                fontSize: 12, color: BeeTokens.textTertiary(context))),
-      ),
-      orElse: () => _inlineChartBox(context, ref,
-          const Center(child: CircularProgressIndicator(strokeWidth: 2))),
+    return SizedBox(
+      height: 220.0.scaled(context, ref),
+      child: const OverviewComboChart(),
     );
   }
-
-  Widget _inlineChartBox(BuildContext context, WidgetRef ref, Widget child) =>
-      SizedBox(
-        height: 180.0.scaled(context, ref),
-        child: Center(child: child),
-      );
 
   /// 走势 / 构成 切换控件（主题色分段胶囊）。
   Widget _trendCompositionToggle(
@@ -1855,6 +1804,44 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     ref.read(statsRefreshProvider.notifier).state++;
 
     if (context.mounted) showToast(context, l10n.accountRestoredToast);
+  }
+}
+
+/// Moze 風格頁首圓形圖示按鈕(展開／新增／設定共用)。背景用中性 surface token
+/// 而非寫死顏色,深色模式下自動跟隨。
+class _CircleHeaderIcon extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  const _CircleHeaderIcon({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: Tooltip(
+        message: tooltip,
+        child: Material(
+          color: BeeTokens.surfaceCapsule(context),
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onPressed,
+            child: SizedBox(
+              width: 32,
+              height: 32,
+              child:
+                  Icon(icon, size: 18, color: BeeTokens.iconPrimary(context)),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

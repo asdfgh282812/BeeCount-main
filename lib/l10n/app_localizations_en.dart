@@ -7920,6 +7920,27 @@ class AppLocalizationsEn extends AppLocalizations {
       'Historical net worth is the raw sum of each currency, not converted';
 
   @override
+  String get accountOverviewChartExpandTooltip => 'Expand chart';
+
+  @override
+  String get accountOverviewChartPageTitle => 'Income, Expense & Net Worth';
+
+  @override
+  String get accountOverviewChartGranularityTitle => 'Time interval';
+
+  @override
+  String get accountOverviewChartByDay => 'Daily';
+
+  @override
+  String get accountOverviewChartByWeek => 'Weekly';
+
+  @override
+  String get accountOverviewChartByMonth => 'Monthly';
+
+  @override
+  String get accountOverviewChartByYear => 'Yearly';
+
+  @override
   String get txFlagExcludeFromStats => 'Exclude from income/expense';
 
   @override

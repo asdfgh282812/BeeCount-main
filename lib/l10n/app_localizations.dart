@@ -14238,6 +14238,48 @@ abstract class AppLocalizations {
   /// **'Historical net worth is the raw sum of each currency, not converted'**
   String get netWorthTrendMultiCurrencyNote;
 
+  /// No description provided for @accountOverviewChartExpandTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand chart'**
+  String get accountOverviewChartExpandTooltip;
+
+  /// No description provided for @accountOverviewChartPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Income, Expense & Net Worth'**
+  String get accountOverviewChartPageTitle;
+
+  /// No description provided for @accountOverviewChartGranularityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Time interval'**
+  String get accountOverviewChartGranularityTitle;
+
+  /// No description provided for @accountOverviewChartByDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily'**
+  String get accountOverviewChartByDay;
+
+  /// No description provided for @accountOverviewChartByWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly'**
+  String get accountOverviewChartByWeek;
+
+  /// No description provided for @accountOverviewChartByMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly'**
+  String get accountOverviewChartByMonth;
+
+  /// No description provided for @accountOverviewChartByYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Yearly'**
+  String get accountOverviewChartByYear;
+
   /// No description provided for @txFlagExcludeFromStats.
   ///
   /// In en, this message translates to:

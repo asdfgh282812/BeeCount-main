@@ -7705,6 +7705,27 @@ class AppLocalizationsKo extends AppLocalizations {
       '과거 순자산은 통화별 원 금액의 합계이며 환산되지 않았습니다';
 
   @override
+  String get accountOverviewChartExpandTooltip => 'Expand chart';
+
+  @override
+  String get accountOverviewChartPageTitle => 'Income, Expense & Net Worth';
+
+  @override
+  String get accountOverviewChartGranularityTitle => 'Time interval';
+
+  @override
+  String get accountOverviewChartByDay => 'Daily';
+
+  @override
+  String get accountOverviewChartByWeek => 'Weekly';
+
+  @override
+  String get accountOverviewChartByMonth => 'Monthly';
+
+  @override
+  String get accountOverviewChartByYear => 'Yearly';
+
+  @override
   String get txFlagExcludeFromStats => '수입/지출 통계에서 제외';
 
   @override

@@ -7621,6 +7621,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get netWorthTrendMultiCurrencyNote => '历史净值为各币种原值相加,未折算';
 
   @override
+  String get accountOverviewChartExpandTooltip => 'Expand chart';
+
+  @override
+  String get accountOverviewChartPageTitle => 'Income, Expense & Net Worth';
+
+  @override
+  String get accountOverviewChartGranularityTitle => 'Time interval';
+
+  @override
+  String get accountOverviewChartByDay => 'Daily';
+
+  @override
+  String get accountOverviewChartByWeek => 'Weekly';
+
+  @override
+  String get accountOverviewChartByMonth => 'Monthly';
+
+  @override
+  String get accountOverviewChartByYear => 'Yearly';
+
+  @override
   String get txFlagExcludeFromStats => '不计入收支';
 
   @override
@@ -17425,6 +17446,27 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get netWorthTrendMultiCurrencyNote => '歷史淨值為各幣種原值相加,未折算';
+
+  @override
+  String get accountOverviewChartExpandTooltip => '展開圖表';
+
+  @override
+  String get accountOverviewChartPageTitle => '收支與淨值走勢';
+
+  @override
+  String get accountOverviewChartGranularityTitle => '統計區間';
+
+  @override
+  String get accountOverviewChartByDay => '按日';
+
+  @override
+  String get accountOverviewChartByWeek => '按週';
+
+  @override
+  String get accountOverviewChartByMonth => '按月';
+
+  @override
+  String get accountOverviewChartByYear => '按年';
 
   @override
   String get txFlagExcludeFromStats => '不計入收支';
