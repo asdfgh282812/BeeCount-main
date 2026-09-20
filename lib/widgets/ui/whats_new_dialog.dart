@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../services/system/logger_service.dart';
 import '../../styles/tokens.dart';
 import '../../whats_new/whats_new_content.dart';
 import '../../whats_new/whats_new_store.dart';
@@ -10,9 +11,38 @@ import '../../whats_new/whats_new_store.dart';
 /// 目前 App 版本號(不含 build number)。用 Provider 包一層是為了讓 Riverpod
 /// 快取結果,「我的」頁面每次 rebuild 判斷是否顯示「新功能！」入口時
 /// 不用重複打一次 PackageInfo platform channel。
+///
+/// 這個 provider 不是 autoDispose,一旦第一次呼叫失敗,錯誤狀態會被永久快取,
+/// 導致整個 App 生命週期內「我的」頁面的入口都不會再出現,即使之後
+/// PackageInfo channel 已經就緒。第一次呼叫發生在冷啟動早期
+/// `maybeShowWhatsNewOnStartup`(`addPostFrameCallback` 觸發的
+/// `_checkStartupReminders`),這個時間點跟 iOS 端 `SceneDelegate` 呼叫
+/// `AppDelegate.registerPlugins()`(見 SceneDelegate.swift)存在競爭——
+/// release/AOT 編譯的 Dart 端啟動遠比 debug/JIT 快,曾實測 release 版在這個
+/// 時間點呼叫 `PackageInfo.fromPlatform()` 時 plugin 尚未註冊完成,拋出
+/// `MissingPluginException`,一次性地把這個 provider 永久卡在錯誤狀態
+/// (真機:debug 正常、SideStore 安裝的 release 版入口消失)。這裡用短暫重試
+/// 換取穩定性,不用再去精算兩邊啟動時序誰先誰後。
 final currentAppVersionProvider = FutureProvider<String>((ref) async {
-  final info = await PackageInfo.fromPlatform();
-  return info.version;
+  const retryDelays = [
+    Duration(milliseconds: 100),
+    Duration(milliseconds: 300),
+    Duration(milliseconds: 800),
+  ];
+  for (var attempt = 0; ; attempt++) {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      logger.info('WhatsNew', '目前 App 版本: ${info.version}(第${attempt + 1}次嘗試)');
+      return info.version;
+    } catch (e, st) {
+      if (attempt >= retryDelays.length) {
+        logger.error('WhatsNew', '取得 App 版本失敗,已重試$attempt次仍失敗', e, st);
+        rethrow;
+      }
+      logger.warning('WhatsNew', '取得 App 版本失敗(第${attempt + 1}次嘗試),稍後重試: $e');
+      await Future.delayed(retryDelays[attempt]);
+    }
+  }
 });
 
 /// 「新功能！」公告彈窗。純展示型元件,只接收已經算好的 [items],不依賴任何
