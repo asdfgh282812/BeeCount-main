@@ -18201,101 +18201,77 @@ abstract class AppLocalizations {
   /// **'When photo, voice, or chat billing can\'t auto-match an account in the same currency, the account picker now shows accounts of any currency and converts the amount correctly.'**
   String get whatsNew340AiCrossCurrencyDesc;
 
-  /// No description provided for @whatsNew355AiMerchantRewardTitle.
+  /// No description provided for @whatsNew356AiMerchantRewardTitle.
   ///
   /// In en, this message translates to:
   /// **'AI bookkeeping adds a Merchant field and auto-applies card rewards'**
-  String get whatsNew355AiMerchantRewardTitle;
+  String get whatsNew356AiMerchantRewardTitle;
 
-  /// No description provided for @whatsNew355AiMerchantRewardDesc.
+  /// No description provided for @whatsNew356AiMerchantRewardDesc.
   ///
   /// In en, this message translates to:
-  /// **'For chat, photo, voice, and background screenshot/notification billing, credit card bill cards now show the recognized merchant and auto-apply your reward rules — no more picking from the reward list yourself.'**
-  String get whatsNew355AiMerchantRewardDesc;
+  /// **'Chat, photo, voice, and background billing now show the recognized merchant and auto-apply your reward rules instead of picking from a list.'**
+  String get whatsNew356AiMerchantRewardDesc;
 
-  /// No description provided for @whatsNew355TransferAccountDisplayTitle.
+  /// No description provided for @whatsNew356AiChatTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Smarter AI chat, better-formatted replies'**
+  String get whatsNew356AiChatTitle;
+
+  /// No description provided for @whatsNew356AiChatDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'AI chat now tells questions and bookkeeping apart, finds totals across any period by note/merchant/category, renders replies properly instead of raw markdown, and logs its reasoning in Me → About → Log Center for troubleshooting.'**
+  String get whatsNew356AiChatDesc;
+
+  /// No description provided for @whatsNew356CreditCardBillDisplayTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleaner credit card bill and detail displays'**
+  String get whatsNew356CreditCardBillDisplayTitle;
+
+  /// No description provided for @whatsNew356CreditCardBillDisplayDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Bill summary rows drop the ledger tag in favor of card-name and project tags; payment transfers now match the web dashboard\'s note/category; reconciliation and card detail records now respect the note display mode setting.'**
+  String get whatsNew356CreditCardBillDisplayDesc;
+
+  /// No description provided for @whatsNew356RewardAccuracyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'More accurate credit card reward calculations'**
+  String get whatsNew356RewardAccuracyTitle;
+
+  /// No description provided for @whatsNew356RewardAccuracyDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed the reward detail page\'s billing cycle not matching the account page for merged-billing cards; refunding a transaction now recalculates the reward and spending totals from the net amount.'**
+  String get whatsNew356RewardAccuracyDesc;
+
+  /// No description provided for @whatsNew356TransferAccountDisplayTitle.
   ///
   /// In en, this message translates to:
   /// **'Transfers now show \"from → to\" accounts, and cross-currency amounts are fixed'**
-  String get whatsNew355TransferAccountDisplayTitle;
+  String get whatsNew356TransferAccountDisplayTitle;
 
-  /// No description provided for @whatsNew355TransferAccountDisplayDesc.
+  /// No description provided for @whatsNew356TransferAccountDisplayDesc.
   ///
   /// In en, this message translates to:
-  /// **'Transfers in the detail card, calendar, search results, and project/tag/category pages now show the full \"from account → to account\"; the cross-currency converted amount is now computed from the actual amount received.'**
-  String get whatsNew355TransferAccountDisplayDesc;
+  /// **'Transfers in the detail card, calendar, search results, and project/tag/category pages now show the full accounts; cross-currency amounts are computed from the actual amount received.'**
+  String get whatsNew356TransferAccountDisplayDesc;
 
-  /// No description provided for @whatsNew355CreditCardPaymentParityTitle.
+  /// No description provided for @whatsNew356MinorFixesTitle.
   ///
   /// In en, this message translates to:
-  /// **'Credit card payment transfer note/category now match the web dashboard'**
-  String get whatsNew355CreditCardPaymentParityTitle;
+  /// **'Minor fixes: initial balance and calendar week view'**
+  String get whatsNew356MinorFixesTitle;
 
-  /// No description provided for @whatsNew355CreditCardPaymentParityDesc.
+  /// No description provided for @whatsNew356MinorFixesDesc.
   ///
   /// In en, this message translates to:
-  /// **'Transfers created from \"Payment record\" on the Accounts page now use the same note and category as BeeCount Cloud\'s web dashboard.'**
-  String get whatsNew355CreditCardPaymentParityDesc;
-
-  /// No description provided for @whatsNew355AccountInitialBalanceTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Editing an account\'s initial balance now updates instantly'**
-  String get whatsNew355AccountInitialBalanceTitle;
-
-  /// No description provided for @whatsNew355AccountInitialBalanceDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'The Accounts page and \"Adjust total\" dialog now show the correct balance right after you change the initial balance, instead of waiting for the next transaction.'**
-  String get whatsNew355AccountInitialBalanceDesc;
-
-  /// No description provided for @whatsNew355CalendarWeekTodayTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Fixed \"Today\" jumping to the wrong week in calendar week view'**
-  String get whatsNew355CalendarWeekTodayTitle;
-
-  /// No description provided for @whatsNew355CalendarWeekTodayDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Tapping \"Today\" in calendar week view now correctly jumps to the week containing today.'**
-  String get whatsNew355CalendarWeekTodayDesc;
-
-  /// No description provided for @whatsNew355AiFreeChatQueryTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Smarter AI chat: ask about any spending, over any period'**
-  String get whatsNew355AiFreeChatQueryTitle;
-
-  /// No description provided for @whatsNew355AiFreeChatQueryDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'AI chat now tells questions and bookkeeping apart properly, searches by note, merchant or category name (Traditional and Simplified both match), covers all time when you don\'t give a date range, and always totals every matching record instead of just the first page.'**
-  String get whatsNew355AiFreeChatQueryDesc;
-
-  /// No description provided for @whatsNew355AiChatMarkdownTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'AI replies are now properly formatted'**
-  String get whatsNew355AiChatMarkdownTitle;
-
-  /// No description provided for @whatsNew355AiChatMarkdownDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Bold text, lists and tables in AI replies are rendered instead of showing raw markdown symbols.'**
-  String get whatsNew355AiChatMarkdownDesc;
-
-  /// No description provided for @whatsNew355AiChatDebugLogTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'AI chat now logs its reasoning for easier troubleshooting'**
-  String get whatsNew355AiChatDebugLogTitle;
-
-  /// No description provided for @whatsNew355AiChatDebugLogDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'AI free-chat routing and answers are now recorded in Me → About → Log Center, so if a reply looks wrong you can check or export the log to help report the issue.'**
-  String get whatsNew355AiChatDebugLogDesc;
+  /// **'Editing an account\'s initial balance now updates the balance immediately; tapping \"Today\" in calendar week view now jumps to the correct week.'**
+  String get whatsNew356MinorFixesDesc;
 }
 
 class _AppLocalizationsDelegate

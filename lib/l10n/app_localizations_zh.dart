@@ -9788,68 +9788,52 @@ class AppLocalizationsZh extends AppLocalizations {
       'When photo, voice, or chat billing can\'t auto-match an account in the same currency, the account picker now shows accounts of any currency and converts the amount correctly.';
 
   @override
-  String get whatsNew355AiMerchantRewardTitle =>
+  String get whatsNew356AiMerchantRewardTitle =>
       'AI bookkeeping adds a Merchant field and auto-applies card rewards';
 
   @override
-  String get whatsNew355AiMerchantRewardDesc =>
-      'For chat, photo, voice, and background screenshot/notification billing, credit card bill cards now show the recognized merchant and auto-apply your reward rules — no more picking from the reward list yourself.';
+  String get whatsNew356AiMerchantRewardDesc =>
+      'Chat, photo, voice, and background billing now show the recognized merchant and auto-apply your reward rules instead of picking from a list.';
 
   @override
-  String get whatsNew355TransferAccountDisplayTitle =>
+  String get whatsNew356AiChatTitle =>
+      'Smarter AI chat, better-formatted replies';
+
+  @override
+  String get whatsNew356AiChatDesc =>
+      'AI chat now tells questions and bookkeeping apart, finds totals across any period by note/merchant/category, renders replies properly instead of raw markdown, and logs its reasoning in Me → About → Log Center for troubleshooting.';
+
+  @override
+  String get whatsNew356CreditCardBillDisplayTitle =>
+      'Cleaner credit card bill and detail displays';
+
+  @override
+  String get whatsNew356CreditCardBillDisplayDesc =>
+      'Bill summary rows drop the ledger tag in favor of card-name and project tags; payment transfers now match the web dashboard\'s note/category; reconciliation and card detail records now respect the note display mode setting.';
+
+  @override
+  String get whatsNew356RewardAccuracyTitle =>
+      'More accurate credit card reward calculations';
+
+  @override
+  String get whatsNew356RewardAccuracyDesc =>
+      'Fixed the reward detail page\'s billing cycle not matching the account page for merged-billing cards; refunding a transaction now recalculates the reward and spending totals from the net amount.';
+
+  @override
+  String get whatsNew356TransferAccountDisplayTitle =>
       'Transfers now show \"from → to\" accounts, and cross-currency amounts are fixed';
 
   @override
-  String get whatsNew355TransferAccountDisplayDesc =>
-      'Transfers in the detail card, calendar, search results, and project/tag/category pages now show the full \"from account → to account\"; the cross-currency converted amount is now computed from the actual amount received.';
+  String get whatsNew356TransferAccountDisplayDesc =>
+      'Transfers in the detail card, calendar, search results, and project/tag/category pages now show the full accounts; cross-currency amounts are computed from the actual amount received.';
 
   @override
-  String get whatsNew355CreditCardPaymentParityTitle =>
-      'Credit card payment transfer note/category now match the web dashboard';
+  String get whatsNew356MinorFixesTitle =>
+      'Minor fixes: initial balance and calendar week view';
 
   @override
-  String get whatsNew355CreditCardPaymentParityDesc =>
-      'Transfers created from \"Payment record\" on the Accounts page now use the same note and category as BeeCount Cloud\'s web dashboard.';
-
-  @override
-  String get whatsNew355AccountInitialBalanceTitle =>
-      'Editing an account\'s initial balance now updates instantly';
-
-  @override
-  String get whatsNew355AccountInitialBalanceDesc =>
-      'The Accounts page and \"Adjust total\" dialog now show the correct balance right after you change the initial balance, instead of waiting for the next transaction.';
-
-  @override
-  String get whatsNew355CalendarWeekTodayTitle =>
-      'Fixed \"Today\" jumping to the wrong week in calendar week view';
-
-  @override
-  String get whatsNew355CalendarWeekTodayDesc =>
-      'Tapping \"Today\" in calendar week view now correctly jumps to the week containing today.';
-
-  @override
-  String get whatsNew355AiFreeChatQueryTitle =>
-      'Smarter AI chat: ask about any spending, over any period';
-
-  @override
-  String get whatsNew355AiFreeChatQueryDesc =>
-      'AI chat now tells questions and bookkeeping apart properly, searches by note, merchant or category name (Traditional and Simplified both match), covers all time when you don\'t give a date range, and always totals every matching record instead of just the first page.';
-
-  @override
-  String get whatsNew355AiChatMarkdownTitle =>
-      'AI replies are now properly formatted';
-
-  @override
-  String get whatsNew355AiChatMarkdownDesc =>
-      'Bold text, lists and tables in AI replies are rendered instead of showing raw markdown symbols.';
-
-  @override
-  String get whatsNew355AiChatDebugLogTitle =>
-      'AI chat now logs its reasoning for easier troubleshooting';
-
-  @override
-  String get whatsNew355AiChatDebugLogDesc =>
-      'AI free-chat routing and answers are now recorded in Me → About → Log Center, so if a reply looks wrong you can check or export the log to help report the issue.';
+  String get whatsNew356MinorFixesDesc =>
+      'Editing an account\'s initial balance now updates the balance immediately; tapping \"Today\" in calendar week view now jumps to the correct week.';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -19553,60 +19537,45 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
       '拍照、語音、對話記帳如果自動配對不到同幣別的帳戶,「選擇帳戶」畫面現在會列出所有幣別的帳戶,並依匯率正確換算金額。';
 
   @override
-  String get whatsNew355AiMerchantRewardTitle => 'AI 記帳新增「商家」欄位,信用卡回饋自動套用';
+  String get whatsNew356AiMerchantRewardTitle => 'AI 記帳新增「商家」欄位,信用卡回饋自動套用';
 
   @override
-  String get whatsNew355AiMerchantRewardDesc =>
-      'AI 對話、拍照、語音、背景截圖/通知記帳時,信用卡帳單卡片會顯示辨識出的商家,並自動套用你設定好的回饋規則,不用再手動點開回饋清單勾選。';
+  String get whatsNew356AiMerchantRewardDesc =>
+      'AI 對話、拍照、語音、背景記帳時會顯示辨識出的商家,並自動套用你設定好的回饋規則,不用再手動勾選。';
 
   @override
-  String get whatsNew355TransferAccountDisplayTitle =>
+  String get whatsNew356AiChatTitle => 'AI 對話更聰明,回覆也更好讀';
+
+  @override
+  String get whatsNew356AiChatDesc =>
+      '能正確分辨「提問」與「記帳」,用備註、商家或分類名稱就能查全部期間的加總金額;回覆的粗體、清單、表格正常顯示;判斷過程也會記錄到「我的→關於→日誌中心」方便回報問題。';
+
+  @override
+  String get whatsNew356CreditCardBillDisplayTitle => '信用卡帳單與明細顯示優化';
+
+  @override
+  String get whatsNew356CreditCardBillDisplayDesc =>
+      '帳單彙總交易列拿掉帳本標籤,改用卡片名+專案小標籤呈現;繳款轉帳的備註/分類改成跟網頁端一致;對帳模式與信用卡一般記錄也會套用「備註顯示方式」設定。';
+
+  @override
+  String get whatsNew356RewardAccuracyTitle => '信用卡紅利回饋計算更精準';
+
+  @override
+  String get whatsNew356RewardAccuracyDesc =>
+      '修正合併帳單子卡的紅利明細頁週期跟帳戶頁對不上的問題;交易退款後,回饋金額與消費統計現在會依退款淨額重新計算。';
+
+  @override
+  String get whatsNew356TransferAccountDisplayTitle =>
       '轉帳交易看得出「轉出→轉入」帳戶,跨幣別金額也修正了';
 
   @override
-  String get whatsNew355TransferAccountDisplayDesc =>
-      '交易明細、日曆、搜尋結果、專案/標籤/分類頁的轉帳交易,現在都會顯示完整的「轉出→轉入」帳戶;跨幣別轉帳的折算金額也改用實際入帳金額計算。';
+  String get whatsNew356TransferAccountDisplayDesc =>
+      '交易明細、日曆、搜尋結果、專案/標籤/分類頁的轉帳交易都會顯示完整的轉出→轉入帳戶;跨幣別轉帳金額改用實際入帳金額計算。';
 
   @override
-  String get whatsNew355CreditCardPaymentParityTitle =>
-      '信用卡繳款轉帳的備註與分類,修正成跟網頁端一致';
+  String get whatsNew356MinorFixesTitle => '帳戶初始資金與日曆週檢視小修正';
 
   @override
-  String get whatsNew355CreditCardPaymentParityDesc =>
-      '帳戶頁按「繳款記錄」產生的轉帳交易,備註與分類名稱現在跟 BeeCount Cloud 網頁端一致。';
-
-  @override
-  String get whatsNew355AccountInitialBalanceTitle => '編輯帳戶的初始資金,現在會立刻反映';
-
-  @override
-  String get whatsNew355AccountInitialBalanceDesc =>
-      '修改初始資金後,帳戶頁與「調整總額」對話框會立刻顯示正確餘額,不用再等到下一筆交易才更新。';
-
-  @override
-  String get whatsNew355CalendarWeekTodayTitle => '修正日曆週檢視「今天」按鈕跳錯位置的問題';
-
-  @override
-  String get whatsNew355CalendarWeekTodayDesc =>
-      '記帳頁日曆收起為週檢視時,點「今天」會正確跳到今天所在的那一週。';
-
-  @override
-  String get whatsNew355AiFreeChatQueryTitle => 'AI 對話更會查帳:任何項目、任何期間都問得出來';
-
-  @override
-  String get whatsNew355AiFreeChatQueryDesc =>
-      'AI 對話現在能正確分辨「提問」與「記帳」,可以用備註、商家或分類名稱搜尋(簡繁互通),沒指定期間時涵蓋全部期間,金額一律加總全部符合的交易,不再只算前面幾筆。';
-
-  @override
-  String get whatsNew355AiChatMarkdownTitle => 'AI 回覆的排版正常了';
-
-  @override
-  String get whatsNew355AiChatMarkdownDesc =>
-      'AI 回覆裡的粗體、清單與表格會正確呈現,不再直接顯示 Markdown 符號。';
-
-  @override
-  String get whatsNew355AiChatDebugLogTitle => 'AI 對話新增診斷日誌,回報問題更快定位';
-
-  @override
-  String get whatsNew355AiChatDebugLogDesc =>
-      'AI 自由對話的判斷與回答過程,現在會記錄到「我的→關於→日誌中心」,如果 AI 答錯或答非所問,可以到日誌中心查看或匯出紀錄,協助回報問題。';
+  String get whatsNew356MinorFixesDesc =>
+      '修改初始資金後帳戶頁會立刻反映正確餘額;日曆收起為週檢視時點「今天」會正確跳到今天所在那一週。';
 }

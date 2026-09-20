@@ -70,38 +70,30 @@ final Map<String, List<WhatsNewItem>> kWhatsNewContent = {
       description: (l10n) => l10n.whatsNew340AiCrossCurrencyDesc,
     ),
   ],
-  '3.5.5': [
+  '3.5.6': [
     WhatsNewItem(
-      title: (l10n) => l10n.whatsNew355AiMerchantRewardTitle,
-      description: (l10n) => l10n.whatsNew355AiMerchantRewardDesc,
+      title: (l10n) => l10n.whatsNew356AiMerchantRewardTitle,
+      description: (l10n) => l10n.whatsNew356AiMerchantRewardDesc,
     ),
     WhatsNewItem(
-      title: (l10n) => l10n.whatsNew355TransferAccountDisplayTitle,
-      description: (l10n) => l10n.whatsNew355TransferAccountDisplayDesc,
+      title: (l10n) => l10n.whatsNew356AiChatTitle,
+      description: (l10n) => l10n.whatsNew356AiChatDesc,
     ),
     WhatsNewItem(
-      title: (l10n) => l10n.whatsNew355CreditCardPaymentParityTitle,
-      description: (l10n) => l10n.whatsNew355CreditCardPaymentParityDesc,
+      title: (l10n) => l10n.whatsNew356CreditCardBillDisplayTitle,
+      description: (l10n) => l10n.whatsNew356CreditCardBillDisplayDesc,
     ),
     WhatsNewItem(
-      title: (l10n) => l10n.whatsNew355AccountInitialBalanceTitle,
-      description: (l10n) => l10n.whatsNew355AccountInitialBalanceDesc,
+      title: (l10n) => l10n.whatsNew356RewardAccuracyTitle,
+      description: (l10n) => l10n.whatsNew356RewardAccuracyDesc,
     ),
     WhatsNewItem(
-      title: (l10n) => l10n.whatsNew355CalendarWeekTodayTitle,
-      description: (l10n) => l10n.whatsNew355CalendarWeekTodayDesc,
+      title: (l10n) => l10n.whatsNew356TransferAccountDisplayTitle,
+      description: (l10n) => l10n.whatsNew356TransferAccountDisplayDesc,
     ),
     WhatsNewItem(
-      title: (l10n) => l10n.whatsNew355AiFreeChatQueryTitle,
-      description: (l10n) => l10n.whatsNew355AiFreeChatQueryDesc,
-    ),
-    WhatsNewItem(
-      title: (l10n) => l10n.whatsNew355AiChatMarkdownTitle,
-      description: (l10n) => l10n.whatsNew355AiChatMarkdownDesc,
-    ),
-    WhatsNewItem(
-      title: (l10n) => l10n.whatsNew355AiChatDebugLogTitle,
-      description: (l10n) => l10n.whatsNew355AiChatDebugLogDesc,
+      title: (l10n) => l10n.whatsNew356MinorFixesTitle,
+      description: (l10n) => l10n.whatsNew356MinorFixesDesc,
     ),
   ],
 };
