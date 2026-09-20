@@ -633,7 +633,7 @@ class _ProjectCategoryIcon extends ConsumerWidget {
   }
 }
 
-class _CategoryBudgetTile extends StatelessWidget {
+class _CategoryBudgetTile extends ConsumerWidget {
   final Category category;
   final Category? parent;
   final ProjectCategoryUsage usage;
@@ -653,8 +653,14 @@ class _CategoryBudgetTile extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final categoryName = CategoryUtils.getDisplayName(category.name, context);
+    final netAmount = usage.expenseTotal - usage.incomeTotal;
+    final amountColor = netAmount > 0
+        ? BeeTokens.expenseColor(context, ref)
+        : netAmount < 0
+            ? BeeTokens.incomeColor(context, ref)
+            : BeeTokens.textPrimary(context);
 
     return InkWell(
       onTap: onTap,
@@ -682,7 +688,7 @@ class _CategoryBudgetTile extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: BudgetProgressBar(
-                        used: usage.expenseTotal,
+                        used: netAmount,
                         budget: budgetAmount!,
                         showLabel: false,
                         height: 6,
@@ -695,11 +701,12 @@ class _CategoryBudgetTile extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text('$currencySymbol${usage.expenseTotal.toStringAsFixed(2)}',
+                Text(
+                    '${netAmount < 0 ? '-' : ''}$currencySymbol${netAmount.abs().toStringAsFixed(2)}',
                     style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: BeeTokens.textPrimary(context))),
+                        color: amountColor)),
                 Text(
                   unallocatedLabel ?? '${usage.recordCount}',
                   style: TextStyle(

@@ -21,6 +21,8 @@ import '../pages/ai/ai_provider_manage_page.dart'
     show aiProviderListRefreshProvider;
 import 'ai_config_providers.dart';
 import 'voice_billing_providers.dart';
+import 'smart_billing_providers.dart';
+import '../ai/core/ai_project_assign_mode.dart';
 import '../services/attachment_service.dart' show attachmentListRefreshProvider;
 import '../services/system/logger_service.dart';
 import '../services/ui/avatar_service.dart';
@@ -29,6 +31,7 @@ import '../styles/header_skins.dart'
     show boundPrimaryOf, headerSkinById, kHeaderSkinNone;
 import 'theme_providers.dart';
 import 'budget_providers.dart';
+import 'project_providers.dart';
 import 'calendar_providers.dart';
 import 'database_providers.dart';
 import 'avatar_providers.dart';
@@ -240,6 +243,7 @@ final syncServiceProvider = Provider<SyncService>((ref) {
           ref.read(syncGenerationProvider.notifier).state++;
           ref.read(statsRefreshProvider.notifier).state++;
           ref.read(budgetRefreshProvider.notifier).state++;
+          ref.read(projectRefreshProvider.notifier).state++;
           ref.read(tagListRefreshProvider.notifier).state++;
           ref.read(calendarRefreshProvider.notifier).state++;
           ref.read(attachmentListRefreshProvider.notifier).state++;
@@ -287,6 +291,23 @@ final syncServiceProvider = Provider<SyncService>((ref) {
                   // 用 reload() 重读本地 prefs 而非 invalidate：后者会重建 notifier,
                   // 期间设置页会短暂闪回默认值；reload 原地刷新更平滑。
                   ref.read(voiceBillingSettingsProvider.notifier).reload();
+                  // AI 专案指定模式：applyFromServer 已写好 prefs，这里只需把新值
+                  // 同步进 Riverpod state（StateProvider 无 reload，直接赋值即可；
+                  // 不经过 UI 的 onChanged 路径，不会触发 onConfigChanged 回推）。
+                  final prefs = await SharedPreferences.getInstance();
+                  final savedMode = prefs.getString(kAiProjectAssignModeKey);
+                  if (savedMode != null) {
+                    final mode = AiProjectAssignMode.values.firstWhere(
+                      (m) => m.name == savedMode,
+                      orElse: () => AiProjectAssignMode.none,
+                    );
+                    if (ref.read(smartBillingProjectAssignModeProvider) !=
+                        mode) {
+                      ref
+                          .read(smartBillingProjectAssignModeProvider.notifier)
+                          .state = mode;
+                    }
+                  }
                 } catch (e, st) {
                   logger.warning(
                       'CloudSync', 'AI 配置 apply 后 UI bump 失败: $e', st);
@@ -453,6 +474,7 @@ final syncServiceProvider = Provider<SyncService>((ref) {
           ref.read(syncGenerationProvider.notifier).state++;
           ref.read(statsRefreshProvider.notifier).state++;
           ref.read(budgetRefreshProvider.notifier).state++;
+          ref.read(projectRefreshProvider.notifier).state++;
           ref.read(tagListRefreshProvider.notifier).state++;
           ref.read(calendarRefreshProvider.notifier).state++;
           ref.read(homeSwitchToStreamProvider.notifier).state++;

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'ai_provider_config.dart';
 import 'ai_constants.dart';
+import '../core/ai_project_assign_mode.dart';
 import '../../services/system/logger_service.dart';
 
 /// AI 服务商管理服务
@@ -280,6 +281,10 @@ class AIProviderManager {
       snapshot['voice_silence_timeout_ms'] =
           prefs.getInt(AIConstants.keyVoiceSilenceTimeoutMs);
     }
+    // 同上：AI 专案指定模式仅在本机曾显式设置时才携带，避免清空他机配置。
+    if (prefs.containsKey(kAiProjectAssignModeKey)) {
+      snapshot['project_assign_mode'] = prefs.getString(kAiProjectAssignModeKey);
+    }
     return snapshot;
   }
 
@@ -342,6 +347,14 @@ class AIProviderManager {
             voiceSilenceTimeout) {
       await prefs.setInt(
           AIConstants.keyVoiceSilenceTimeoutMs, voiceSilenceTimeout);
+    }
+
+    // AI 专案指定模式
+    final projectAssignMode = config['project_assign_mode'] as String?;
+    if (projectAssignMode != null &&
+        projectAssignMode.isNotEmpty &&
+        prefs.getString(kAiProjectAssignModeKey) != projectAssignMode) {
+      await prefs.setString(kAiProjectAssignModeKey, projectAssignMode);
     }
     logger.info(_tag, 'AI 配置已从 server 应用到本地');
   }

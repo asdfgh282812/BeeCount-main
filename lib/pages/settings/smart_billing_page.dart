@@ -6,6 +6,7 @@ import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/biz.dart';
 import '../../styles/tokens.dart';
 import '../../ai/core/ai_project_assign_mode.dart';
+import '../../ai/providers/ai_provider_manager.dart';
 import '../../providers/smart_billing_providers.dart';
 import '../../providers/theme_providers.dart';
 import '../../providers/voice_billing_providers.dart';
@@ -262,6 +263,9 @@ class SmartBillingPage extends ConsumerWidget {
                   Navigator.pop(dialogContext);
                   ref.read(smartBillingProjectAssignModeProvider.notifier).state =
                       value;
+                  // 比照 saveCapabilityBinding 等 AI 设置：本机变更后立即推送到
+                  // server，换设备不用再选一次。
+                  AIProviderManager.onConfigChanged?.call();
                 },
               ),
           ],
