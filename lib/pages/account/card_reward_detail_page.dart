@@ -28,6 +28,7 @@ class CardRewardDetailPage extends ConsumerStatefulWidget {
   final int ruleId;
   final String currencyCode;
   final int initialOffset;
+  final int? billingDay;
 
   const CardRewardDetailPage({
     super.key,
@@ -35,6 +36,7 @@ class CardRewardDetailPage extends ConsumerStatefulWidget {
     required this.children,
     required this.ruleId,
     required this.currencyCode,
+    required this.billingDay,
     this.initialOffset = 0,
   });
 
@@ -101,7 +103,7 @@ class _CardRewardDetailPageState extends ConsumerState<CardRewardDetailPage> {
       rule: rule,
       accountId: widget.account.id,
       extraIdsKey: _extraIdsKey,
-      billingDay: widget.account.billingDay,
+      billingDay: widget.billingDay,
       offset: _offset,
     )));
 

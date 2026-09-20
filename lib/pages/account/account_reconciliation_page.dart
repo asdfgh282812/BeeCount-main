@@ -12,6 +12,7 @@ import '../../widgets/biz/amount_text.dart';
 import '../../widgets/biz/info_tag.dart';
 import '../../widgets/biz/section_card.dart';
 import '../../widgets/biz/transaction_detail_card.dart';
+import '../../widgets/biz/transaction_row_title.dart';
 import '../../widgets/ui/ui.dart';
 import '../transaction/transaction_editor_page.dart';
 
@@ -477,9 +478,17 @@ class _StatementRow extends ConsumerWidget {
     final reconciled = tx.reconciledAt != null;
     final isTransfer = tx.type == 'transfer';
     final isReward = isRewardCategoryName(category?.name);
+    final composedTitle = isTransfer
+        ? null
+        : composeTransactionRowTitle(
+            mode: ref.watch(noteDisplayModeProvider),
+            categoryName: category?.name,
+            title: tx.note ?? '',
+          );
     final title = isTransfer
         ? l10n.transferTitle
-        : (category?.name ?? (tx.note?.isNotEmpty == true ? tx.note! : '-'));
+        : (composedTitle!.primary.isNotEmpty ? composedTitle.primary : '-');
+    final noteSuffix = composedTitle?.parenNote;
     final signed = signedStatementAmount(tx);
     final amountColor = signed >= 0
         ? BeeTokens.expenseColor(context, ref)
@@ -518,14 +527,28 @@ class _StatementRow extends ConsumerWidget {
                 Row(
                   children: [
                     Flexible(
-                      child: Text(
-                        title,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: BeeTokens.textPrimary(context),
+                      child: Text.rich(
+                        TextSpan(
+                          text: title,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: BeeTokens.textPrimary(context),
+                          ),
+                          children: [
+                            if (noteSuffix != null)
+                              TextSpan(
+                                text: '  ($noteSuffix)',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.normal,
+                                  color: BeeTokens.textSecondary(context),
+                                ),
+                              ),
+                          ],
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     if (isTransfer) ...[

@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/db.dart' as db;
 import '../../providers.dart';
+import '../../providers/project_providers.dart';
 import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/biz.dart';
+import '../../widgets/biz/transaction_row_title.dart';
 import '../../styles/tokens.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/ui_scale_extensions.dart';
@@ -1249,6 +1251,7 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
                           children: children,
                           ruleId: rule.id,
                           currencyCode: currencyCode,
+                          billingDay: _effectiveBillingDay(account),
                           initialOffset: _billingPeriodOffset,
                         ),
                       ),
@@ -1665,6 +1668,7 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
                     categories: categories,
                     currentAccountId: widget.account.id,
                     accountTagName: accountNameById[tx.accountId],
+                    showLedgerBadge: false,
                     onTap: (category) =>
                         _openTransactionDetail(context, ref, tx, category),
                   ),
@@ -1960,8 +1964,15 @@ class TransactionTile extends ConsumerWidget {
   final int? currentAccountId;
 
   /// 主帳戶(合併帳單分組)聚合視圖用:這筆交易實際所屬的子帳戶名稱,非空時
-  /// 在分类/账本标签旁多渲染一个帐户名标签(参照範例圖「永豐 Sport 卡」)。
+  /// 改在時間那一行渲染「專案名 卡片名 · 時間」(2026-09-20 使用者反饋:
+  /// 卡片名擠在標題列的分類/帳本標籤旁,加上專案名前綴後容易被標題列擠爆
+  /// 版面,移到時間列(空間寬裕很多)並用 ellipsis 兜底)。
   final String? accountTagName;
+
+  /// 是否顯示帳本名稱標籤(標題列)。信用卡帳單彙總視圖(合併帳單分組)改把
+  /// 空間讓給 [accountTagName],不重複顯示帳本標籤;一般帳戶明細頁
+  /// (可能混雜多帳本交易)維持顯示,預設 true 不影響既有呼叫端。
+  final bool showLedgerBadge;
 
   const TransactionTile({
     super.key,
@@ -1973,6 +1984,7 @@ class TransactionTile extends ConsumerWidget {
     required this.onTap,
     this.currentAccountId,
     this.accountTagName,
+    this.showLedgerBadge = true,
   });
 
   @override
@@ -2042,19 +2054,25 @@ class TransactionTile extends ConsumerWidget {
     } else if (transaction.hasSplits) {
       // v38 拆帳:没有单一分类可显示,固定用「多類別」聚合标签(对齐
       // TransactionListItem 的处理)。
-      displayTitle = l10n.txSplitAggregateLabel;
-      if (transaction.note?.isNotEmpty == true) {
-        noteSuffix = transaction.note;
-      }
+      final composed = composeTransactionRowTitle(
+        mode: ref.watch(noteDisplayModeProvider),
+        categoryName: l10n.txSplitAggregateLabel,
+        title: transaction.note ?? '',
+      );
+      displayTitle = composed.primary;
+      noteSuffix = composed.parenNote;
     } else {
-      // 分类名常驻，备注接在分类名后面（对齐首页 / TransactionListItem）
-      displayTitle = category != null
-          ? category.name
+      // 分类名 / 备注哪个常驻，跟随「备注显示方式」设置（对齐首页 /
+      // TransactionListItem，见 composeTransactionRowTitle）。
+      final composed = composeTransactionRowTitle(
+        mode: ref.watch(noteDisplayModeProvider),
+        categoryName: category?.name,
+        title: transaction.note ?? '',
+      );
+      displayTitle = composed.primary.isNotEmpty
+          ? composed.primary
           : (transaction.type == 'income' ? l10n.homeIncome : l10n.homeExpense);
-      if (transaction.note?.isNotEmpty == true &&
-          transaction.note != displayTitle) {
-        noteSuffix = transaction.note;
-      }
+      noteSuffix = composed.parenNote;
     }
 
     final ledger = ledgers.cast<db.Ledger?>().firstWhere(
@@ -2064,6 +2082,34 @@ class TransactionTile extends ConsumerWidget {
     String ledgerName = ledger?.name ?? '';
     if (ledgerName == 'Default Ledger') {
       ledgerName = l10n.ledgersDefaultLedgerName;
+    }
+
+    // 專案名 + 卡片名(見 [accountTagName] 注解):比照 moze,兩個各自一個顏色
+    // 的實心邊框 pill、靠右對齊放在金額下方,而不是混進純文字的時間列。
+    // 專案透過 projectsStreamProvider 依 syncId 對回 transaction.projectSyncId
+    // (v44 專案關聯存 syncId,不是本地 int id,見 db.dart Transactions.projectSyncId)。
+    Widget? cardChipsRow;
+    if (accountTagName != null && accountTagName!.isNotEmpty) {
+      final projectSyncId = transaction.projectSyncId;
+      String? projectName;
+      if (projectSyncId != null) {
+        final projects = ref.watch(projectsStreamProvider).asData?.value ??
+            const <db.Project>[];
+        projectName = projects
+            .cast<db.Project?>()
+            .firstWhere((p) => p?.syncId == projectSyncId, orElse: () => null)
+            ?.name;
+      }
+      cardChipsRow = Wrap(
+        alignment: WrapAlignment.end,
+        spacing: 4.0.scaled(context, ref),
+        runSpacing: 4.0.scaled(context, ref),
+        children: [
+          if (projectName != null && projectName.isNotEmpty)
+            _buildTagChip(context, projectName, primaryColor),
+          _buildTagChip(context, accountTagName!, BeeTokens.info(context)),
+        ],
+      );
     }
 
     return InkWell(
@@ -2140,7 +2186,7 @@ class TransactionTile extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (ledgerName.isNotEmpty) ...[
+                      if (showLedgerBadge && ledgerName.isNotEmpty) ...[
                         SizedBox(width: 6.0.scaled(context, ref)),
                         Container(
                           padding: EdgeInsets.symmetric(
@@ -2157,30 +2203,6 @@ class TransactionTile extends ConsumerWidget {
                             style: TextStyle(
                               fontSize: 11,
                               color: primaryColor,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                      if (accountTagName != null &&
-                          accountTagName!.isNotEmpty) ...[
-                        SizedBox(width: 6.0.scaled(context, ref)),
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 6.0.scaled(context, ref),
-                            vertical: 2.0.scaled(context, ref),
-                          ),
-                          decoration: BoxDecoration(
-                            color: BeeTokens.textTertiary(context)
-                                .withValues(alpha: 0.14),
-                            borderRadius:
-                                BorderRadius.circular(4.0.scaled(context, ref)),
-                          ),
-                          child: Text(
-                            accountTagName!,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: BeeTokens.textSecondary(context),
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -2216,83 +2238,118 @@ class TransactionTile extends ConsumerWidget {
                 ],
               ),
             ),
-            Builder(builder: (context) {
-              // 交易自己的幣別可能跟這裡顯示用的帳戶幣別脫鉤(例如台幣信用卡
-              // 記一筆日圓消費)——這種情況下不能只顯示折算後的數字,要比照
-              // 首頁交易清單(transaction_list_item.dart)先顯示外幣原始金額
-              // 再顯示「≈折算金額」小字,否則使用者看不出這筆錢的原始幣別跟
-              // 實際扣款金額(2026-09-14 使用者反饋)。這裡幣種一律用縮寫文字
-              // (例如 JPY)而非貨幣符號——符號在同一符號被多種幣別共用時
-              // (¥ 同時是 JPY/CNY)會誤導,縮寫文字沒有這個歧義。轉帳不套用
-              // 這個顯示(轉帳沒有 currencyCode/nativeAmount 這組欄位,幣別
-              // 轉換走的是 toAmount)。
-              final txCurrency = transaction.currencyCode;
-              final isForeign = transaction.type != 'transfer' &&
-                  txCurrency != null &&
-                  txCurrency.isNotEmpty &&
-                  txCurrency.toUpperCase() != currencyCode.toUpperCase();
-              final amountStyle = TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: amountColor,
-              );
-              if (!isForeign) {
-                return AmountText(
-                  value: transaction.type == 'expense'
-                      ? -transaction.amount
-                      : transaction.type == 'transfer'
-                          ? (isTransferOut
-                              ? -transaction.amount
-                              : transaction.amount)
-                          : transaction.amount,
-                  signed: true,
-                  showCurrency: false,
-                  currencyCode: currencyCode,
-                  style: amountStyle,
-                );
-              }
-              final sign = transaction.type == 'expense' ? -1.0 : 1.0;
-              final convertedMagnitude =
-                  transaction.nativeAmount ?? transaction.amount;
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Builder(builder: (context) {
+                  // 交易自己的幣別可能跟這裡顯示用的帳戶幣別脫鉤(例如台幣信用卡
+                  // 記一筆日圓消費)——這種情況下不能只顯示折算後的數字,要比照
+                  // 首頁交易清單(transaction_list_item.dart)先顯示外幣原始金額
+                  // 再顯示「≈折算金額」小字,否則使用者看不出這筆錢的原始幣別跟
+                  // 實際扣款金額(2026-09-14 使用者反饋)。這裡幣種一律用縮寫文字
+                  // (例如 JPY)而非貨幣符號——符號在同一符號被多種幣別共用時
+                  // (¥ 同時是 JPY/CNY)會誤導,縮寫文字沒有這個歧義。轉帳不套用
+                  // 這個顯示(轉帳沒有 currencyCode/nativeAmount 這組欄位,幣別
+                  // 轉換走的是 toAmount)。
+                  final txCurrency = transaction.currencyCode;
+                  final isForeign = transaction.type != 'transfer' &&
+                      txCurrency != null &&
+                      txCurrency.isNotEmpty &&
+                      txCurrency.toUpperCase() != currencyCode.toUpperCase();
+                  final amountStyle = TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: amountColor,
+                  );
+                  if (!isForeign) {
+                    return AmountText(
+                      value: transaction.type == 'expense'
+                          ? -transaction.amount
+                          : transaction.type == 'transfer'
+                              ? (isTransferOut
+                                  ? -transaction.amount
+                                  : transaction.amount)
+                              : transaction.amount,
+                      signed: true,
+                      showCurrency: false,
+                      currencyCode: currencyCode,
+                      style: amountStyle,
+                    );
+                  }
+                  final sign = transaction.type == 'expense' ? -1.0 : 1.0;
+                  final convertedMagnitude =
+                      transaction.nativeAmount ?? transaction.amount;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        '$txCurrency ',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: BeeTokens.textTertiary(context),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '$txCurrency ',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: BeeTokens.textTertiary(context),
+                            ),
+                          ),
+                          AmountText(
+                            value: sign * transaction.amount,
+                            signed: true,
+                            showCurrency: false,
+                            currencyCode: txCurrency,
+                            style: amountStyle,
+                          ),
+                        ],
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          '≈${convertedMagnitude.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: BeeTokens.textTertiary(context),
+                          ),
                         ),
                       ),
-                      AmountText(
-                        value: sign * transaction.amount,
-                        signed: true,
-                        showCurrency: false,
-                        currencyCode: txCurrency,
-                        style: amountStyle,
-                      ),
                     ],
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      '≈${convertedMagnitude.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: BeeTokens.textTertiary(context),
-                      ),
-                    ),
-                  ),
+                  );
+                }),
+                if (cardChipsRow != null) ...[
+                  SizedBox(height: 4.0.scaled(context, ref)),
+                  cardChipsRow,
                 ],
-              );
-            }),
+              ],
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// 專案/卡片名 pill(比照 moze:實心邊框、對應顏色文字,靠右擺在金額下方
+  /// ——跟標題列裡帳本/延後入帳那種淺底標籤刻意做出區隔,一眼認出這是
+  /// 「歸屬」資訊而不是狀態標籤)。
+  Widget _buildTagChip(BuildContext context, String text, Color color) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 120),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: BeeTokens.isDark(context) ? 0.18 : 0.1),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color, width: 1),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 11,
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
