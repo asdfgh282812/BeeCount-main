@@ -28,16 +28,40 @@ Future<CardRewardRuleSummary> _summarizeRulePeriod(
   final matched = rule.syncId == null
       ? const <Transaction>[]
       : txs.where((t) => t.rewardRuleIds.contains(rule.syncId)).toList();
+  // 交易被退款後,已退款的部分不该继续算进回饋/消費彙總——否则退款只抵销了
+  // 帳面金額,對應的回饋金卻一直留著(2026-09-20 bugfix)。原交易本身没有
+  // 「已退款」欄位,只能反查是否有退款单指向它(refundOfSyncId),天然支持
+  // 部分退款(見 transaction_edit_utils.dart 的 refundTransaction 注釋)。
+  final refundedAmounts = <int, double>{};
+  for (final tx in matched) {
+    final syncId = tx.syncId;
+    if (syncId == null) continue;
+    final refunds = await repo.getRefundsOf(syncId);
+    if (refunds.isEmpty) continue;
+    refundedAmounts[tx.id] =
+        refunds.fold<double>(0, (sum, r) => sum + r.amount.abs());
+  }
+  Transaction netOfRefund(Transaction tx) {
+    final refunded = refundedAmounts[tx.id];
+    if (refunded == null || refunded <= 0) return tx;
+    final net = (tx.amount.abs() - refunded).clamp(0.0, tx.amount.abs());
+    return tx.copyWith(amount: tx.amount < 0 ? -net : net);
+  }
+
   // matched 是由新到舊排序(見上方查詢),累計扣減額度要照交易發生時間由舊到
-  // 新才對,所以另外排一份升冪清單餵給 estimateCardRewardCumulative。
-  final ascending = List<Transaction>.from(matched)
+  // 新才對,所以另外排一份升冪清單餵給 estimateCardRewardCumulative——同時
+  // 套用上面算出的退款淨額,讓已退款的交易不再佔用/貢獻回饋額度。
+  final ascending = matched.map(netOfRefund).toList()
     ..sort((a, b) => a.happenedAt.compareTo(b.happenedAt));
   final rewardByTransactionId = estimateCardRewardCumulative(rule, ascending);
   var totalReward = 0.0;
   var totalSpend = 0.0;
   for (final tx in matched) {
     totalReward += rewardByTransactionId[tx.id] ?? 0;
-    if (tx.type == 'expense') totalSpend += tx.amount.abs();
+    if (tx.type == 'expense') {
+      final refunded = refundedAmounts[tx.id] ?? 0;
+      totalSpend += (tx.amount.abs() - refunded).clamp(0.0, tx.amount.abs());
+    }
   }
   return CardRewardRuleSummary(
     rule: rule,
