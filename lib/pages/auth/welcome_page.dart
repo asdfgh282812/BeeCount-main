@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../styles/tokens.dart';
-import 'package:http/http.dart' as http;
-import 'package:flutter_cloud_sync/flutter_cloud_sync.dart' hide SyncStatus;
 import '../../widgets/biz/bee_icon.dart';
-import 'dart:convert';
 import 'dart:io';
 import '../../l10n/app_localizations.dart';
 import '../../utils/file_picker_helper.dart';
@@ -17,6 +14,8 @@ import '../../services/attachment_export_import_service.dart';
 import '../../utils/currencies.dart';
 import '../../widgets/ui/ui.dart';
 import '../../cloud/sync/sync_engine.dart';
+import '../../services/license/beecount_cloud_server_setup.dart';
+import '../license/license_key_form.dart';
 import 'login_page.dart';
 
 /// 首次启动欢迎页面
@@ -48,6 +47,9 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
   bool _needsCurrencyStep = false;
   // 建完帐本后发现分类还是空的（server 没有照新规则自动建）→ true，插入分类模式页
   bool _needsCategoryStep = false;
+  // 登录后发现帐号没有有效授权金钥 → true，插入输入金钥页
+  // (docs/changes/2026-09-25-license-key-and-min-sync-version.md)
+  bool _needsLicenseStep = false;
 
   @override
   void dispose() {
@@ -62,6 +64,7 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
         'lang',
         'server',
         'login',
+        if (_needsLicenseStep) 'license',
         if (_needsCurrencyStep) 'currency',
         if (_needsCategoryStep) 'category',
       ];
@@ -83,6 +86,7 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
       _buildWelcomePage(context, theme, l10n),
       _buildServerAddressPage(context, theme, l10n),
       _buildLoginPage(context, theme, l10n),
+      if (_needsLicenseStep) _buildLicensePage(context, theme, l10n),
       if (_needsCurrencyStep) _buildCurrencyPage(context, theme, l10n),
       if (_needsCategoryStep) _buildCategoryModePage(context, theme, l10n),
     ];
@@ -316,77 +320,30 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
     );
   }
 
-  /// 归一化用户输入的服务器地址：没带 scheme 就补 https://，去掉结尾斜线。
-  String _normalizeServerUrl(String raw) {
-    var url = raw.trim();
-    if (url.endsWith('/')) {
-      url = url.substring(0, url.length - 1);
-    }
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://$url';
-    }
-    return url;
-  }
-
   Future<void> _confirmServerAddress() async {
     final l10n = AppLocalizations.of(context);
-    final url = _normalizeServerUrl(_serverAddressCtrl.text);
-    if (url.isEmpty || Uri.tryParse(url)?.host.isEmpty != false) {
-      setState(() => _serverAddressError = l10n.welcomeServerAddressInvalid);
-      return;
-    }
-
     setState(() {
       _serverAddressBusy = true;
       _serverAddressError = null;
     });
 
-    const apiPrefix = '/api/v1';
     try {
-      // 探测可达性 + 确认 server 端真的开了 SSO（server 现成的
-      // GET /auth/sso/status 端点，见 BeeCount-Cloud src/routers/auth.py）。
-      final statusUri = Uri.parse('$url$apiPrefix/auth/sso/status');
-      final resp =
-          await http.get(statusUri).timeout(const Duration(seconds: 10));
-      if (resp.statusCode != 200) {
-        throw Exception('HTTP ${resp.statusCode}');
-      }
-      final body = jsonDecode(resp.body) as Map<String, dynamic>;
-      if (body['sso_enabled'] != true) {
-        throw Exception('sso_enabled=false');
-      }
-
-      final cfg = CloudServiceConfig(
-        type: CloudBackendType.beecountCloud,
-        name: 'BeeCount Cloud',
-        beecountCloudBaseUrl: url,
-        beecountCloudApiPrefix: apiPrefix,
-      );
-      if (!cfg.valid) {
-        throw Exception('invalid config');
-      }
-
-      final store = ref.read(cloudServiceStoreProvider);
-      await store.saveOnly(cfg);
-      await store.activate(CloudBackendType.beecountCloud);
-      ref.invalidate(beecountCloudConfigProvider);
-      ref.invalidate(activeCloudConfigProvider);
-      ref.invalidate(beecountCloudProviderInstance);
-      ref.invalidate(authServiceProvider);
-      ref.invalidate(syncServiceProvider);
-
+      // 探测 + 存档 + 切换同步后端的共用流程(授权页也用同一份)。
+      await configureBeeCountCloudServer(ref, _serverAddressCtrl.text);
       if (!mounted) return;
       setState(() => _serverAddressBusy = false);
       _pageController.nextPage(
         duration: BeeMotion.durationOf(context, BeeMotion.medium),
         curve: BeeMotion.standard,
       );
-    } catch (e) {
-      logger.warning('welcome', '伺服器位址校验失败: $url ($e)');
+    } on BeeCountCloudServerSetupException catch (e) {
+      logger.warning('welcome', '伺服器位址校验失败: ${_serverAddressCtrl.text} ($e)');
       if (mounted) {
         setState(() {
           _serverAddressBusy = false;
-          _serverAddressError = l10n.welcomeServerAddressUnreachable;
+          _serverAddressError = e.invalidUrl
+              ? l10n.welcomeServerAddressInvalid
+              : l10n.welcomeServerAddressUnreachable;
         });
       }
     }
@@ -438,9 +395,88 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
     );
   }
 
-  /// SSO 登录成功后的收尾：拉一次 server 端的帐本列表，帐本已存在（web 端
-  /// 已经用过）就直接结束引导；没有帐本才继续走货币选择页。
+  /// 输入授权金钥页(登录后帐号没有有效授权才会出现)。启用成功后接着走
+  /// 原本的登录收尾(拉帐本 → 视情况货币/分类页)。
+  Widget _buildLicensePage(
+      BuildContext context, ThemeData theme, AppLocalizations l10n) {
+    if (_postLoginChecking) {
+      return const Center(
+        child: CircularProgressIndicator(color: Colors.white),
+      );
+    }
+    final expiresAt = ref.watch(licenseGateProvider).expiresAt;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.vpn_key_outlined,
+                  size: 64, color: Colors.white),
+            ),
+          ),
+          const SizedBox(height: 32),
+          Text(
+            l10n.licenseGateTitle,
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            expiresAt != null
+                ? l10n.licenseGateExpiredOn(formatLicenseDate(expiresAt))
+                : l10n.licenseGateDescription,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: Colors.white.withValues(alpha: 0.9),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          LicenseKeyForm(onActivated: _afterLicenseReady),
+        ],
+      ),
+    );
+  }
+
+  /// SSO 登录成功后先确认授权：没有有效金钥就插入金钥页，等启用后再继续；
+  /// 有授权直接进 [_afterLicenseReady]。server 对没授权的帐号所有资料 API
+  /// 都回 402，不先确认的话下面拉帐本会直接失败。
   Future<void> _onSsoLoggedIn() async {
+    if (!mounted) return;
+    setState(() => _postLoginChecking = true);
+    final licensed = await ref.read(licenseGateProvider.notifier).refresh();
+    if (!mounted) return;
+    if (!licensed) {
+      setState(() {
+        _needsLicenseStep = true;
+        _postLoginChecking = false;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _pageController.nextPage(
+            duration: BeeMotion.durationOf(context, BeeMotion.medium),
+            curve: BeeMotion.standard,
+          );
+        }
+      });
+      return;
+    }
+    await _afterLicenseReady();
+  }
+
+  /// 登录 + 授权都就绪后的收尾：拉一次 server 端的帐本列表，帐本已存在（web 端
+  /// 已经用过）就直接结束引导；没有帐本才继续走货币选择页。
+  Future<void> _afterLicenseReady() async {
     if (!mounted) return;
     setState(() => _postLoginChecking = true);
     try {

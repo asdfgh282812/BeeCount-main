@@ -20,6 +20,9 @@ import 'utils/global_navigator_key.dart';
 import 'pages/auth/splash_page.dart';
 import 'pages/auth/welcome_page.dart';
 import 'pages/auth/app_lock_screen.dart';
+import 'pages/license/force_update_page.dart';
+import 'pages/license/license_gate_page.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'providers/security_providers.dart';
 import 'services/system/reminder_monitor_service.dart';
 import 'services/platform/screenshot_monitor_service.dart';
@@ -145,6 +148,21 @@ Future<void> main() async {
   // 注册 BeeCount Cloud 2FA challenge handler。当 server 返回 requires_2fa=true,
   // service 层会调这个 handler 弹出 Login2FAChallengeDialog 让用户输码。
   // 验证失败留在对话框就地展示错误,验证通过 / 用户取消才关闭。详见 .docs/2fa-design.md
+  // 授权金钥 + 最低可同步版本(docs/changes/2026-09-25-license-key-and-min-sync-version.md):
+  // 每个打到 BeeCount Cloud 的请求都带 X-App-Version;任何请求回 402/426 时
+  // 通知 licenseGateProvider / appVersionGateProvider 重新确认,确认后
+  // _getHomePage 切到授权页 / 强制更新页。版本号必须在第一个请求之前设好。
+  try {
+    BeeCountCloudClientGate.appVersion =
+        (await PackageInfo.fromPlatform()).version;
+  } catch (e) {
+    logger.warning('App', '读取 App 版本失败,请求将不带 X-App-Version: $e');
+  }
+  BeeCountCloudClientGate.onLicenseRequired = () =>
+      container.read(licenseGateProvider.notifier).onServerLicenseRequired();
+  BeeCountCloudClientGate.onAppVersionTooOld = () =>
+      container.read(appVersionGateProvider.notifier).refresh();
+
   BeeCountCloudProvider.globalTwoFactorHandler = (request) async {
     final ctx = globalNavigatorKey.currentContext;
     if (ctx == null) {
@@ -474,6 +492,12 @@ class MainApp extends ConsumerWidget {
 
   // 根据初始化状态和欢迎页面状态决定显示哪个页面
   Widget _getHomePage(AppInitState initState, WidgetRef ref) {
+    // 版本低于 server 设定的「最低可同步版本」→ 强制更新,连欢迎引导都不进
+    // (docs/changes/2026-09-25-license-key-and-min-sync-version.md)。
+    if (ref.watch(appVersionGateProvider).blocked) {
+      return const ForceUpdatePage();
+    }
+
     // 首先检查是否需要显示欢迎页面
     final shouldShowWelcome = ref.watch(shouldShowWelcomeProvider);
     if (shouldShowWelcome) {
@@ -483,6 +507,11 @@ class MainApp extends ConsumerWidget {
     // 欢迎页面完成后，根据初始化状态显示对应页面
     if (initState != AppInitState.ready) {
       return const SplashPage();
+    }
+
+    // 没有有效授权(未登录 / 没金钥 / 超过 7 天没连网验证)→ 整个 App 挡住。
+    if (!ref.watch(licenseGateProvider).isValid) {
+      return const LicenseGatePage();
     }
 
     // 检查是否需要显示锁屏
@@ -498,6 +527,21 @@ class MainApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // 首先检查是否需要显示欢迎页面
     ref.watch(welcomeCheckProvider);
+
+    // 授权失效 / 版本被挡时,把 push 在 home 之上的页面全部收掉 —— 否则
+    // 使用者停在设定页之类的子页面时,home 换成授权页也看不到、还能继续操作。
+    ref.listen<bool>(licenseGateProvider.select((s) => s.isValid),
+        (prev, next) {
+      if (prev == true && !next) {
+        globalNavigatorKey.currentState?.popUntil((r) => r.isFirst);
+      }
+    });
+    ref.listen<bool>(appVersionGateProvider.select((s) => s.blocked),
+        (prev, next) {
+      if (prev == false && next) {
+        globalNavigatorKey.currentState?.popUntil((r) => r.isFirst);
+      }
+    });
 
     // 检查应用初始化状态
     final initState = ref.watch(appInitStateProvider);

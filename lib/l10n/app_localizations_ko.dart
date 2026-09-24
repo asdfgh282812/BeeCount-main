@@ -9955,4 +9955,118 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String get whatsNew357ProjectFixesDesc =>
       'The refund category in project details no longer shows 0.00; a newly synced device\'s project list no longer stays empty until you add a transaction; and the AI \"auto-assign project\" setting now syncs across devices.';
+
+  @override
+  String get licenseGateTitle => 'License key required';
+
+  @override
+  String get licenseGateDescription =>
+      'BeeCount requires a valid license key. Enter the key you received to continue.';
+
+  @override
+  String licenseGateExpiredOn(Object date) {
+    return 'Your license expired on $date. Enter a new key to continue.';
+  }
+
+  @override
+  String get licenseKeyLabel => 'License key';
+
+  @override
+  String get licenseKeyHint => 'BC-XXXXX-XXXXX-XXXXX-XXXXX';
+
+  @override
+  String get licenseActivateButton => 'Activate';
+
+  @override
+  String get licenseErrorEmpty => 'Please enter a license key';
+
+  @override
+  String get licenseErrorInvalid => 'Invalid license key format';
+
+  @override
+  String get licenseErrorNotFound =>
+      'License key not found. Please check what you entered.';
+
+  @override
+  String get licenseErrorAlreadyRedeemed =>
+      'This license key has already been used';
+
+  @override
+  String get licenseErrorRevoked => 'This license key has been revoked';
+
+  @override
+  String get licenseErrorRateLimited =>
+      'Too many attempts. Please try again later.';
+
+  @override
+  String get licenseErrorNetwork =>
+      'Can\'t reach the server. Check your connection and try again.';
+
+  @override
+  String licenseErrorGeneric(Object error) {
+    return 'Activation failed: $error';
+  }
+
+  @override
+  String licenseActivatedToast(Object date) {
+    return 'License activated, valid until $date';
+  }
+
+  @override
+  String get licenseGateLoginTitle => 'Sign in to BeeCount Cloud';
+
+  @override
+  String get licenseGateLoginDescription =>
+      'BeeCount requires a BeeCount Cloud account with an activated license key. Enter your server address and sign in.';
+
+  @override
+  String get licenseGateNetworkTitle => 'Connect to verify your license';
+
+  @override
+  String get licenseGateNetworkDescription =>
+      'Your license must be verified online at least once every 7 days. Connect to the internet and try again.';
+
+  @override
+  String get licenseRetryButton => 'Retry';
+
+  @override
+  String get licenseSwitchAccountButton => 'Sign out and switch account';
+
+  @override
+  String get licenseCheckingText => 'Checking your license…';
+
+  @override
+  String get forceUpdateTitle => 'Please update the app';
+
+  @override
+  String forceUpdateDescription(Object current, Object min) {
+    return 'This version ($current) can no longer sync. Please update to $min or later to keep using BeeCount.';
+  }
+
+  @override
+  String get forceUpdateRetryButton => 'I\'ve updated, check again';
+
+  @override
+  String get licenseSettingsTitle => 'License key';
+
+  @override
+  String get licenseSettingsDesc => 'View license expiry or enter a new key';
+
+  @override
+  String licenseSettingsExpiresAt(Object date) {
+    return 'License valid until: $date';
+  }
+
+  @override
+  String get licenseSettingsExempt =>
+      'Administrator account, no license required';
+
+  @override
+  String licenseSettingsOfflineUntil(Object date) {
+    return 'Usable offline until: $date';
+  }
+
+  @override
+  String get licenseSettingsExtendHint =>
+      'Entering a new key extends your license by its duration, starting from the current expiry date.';
 }

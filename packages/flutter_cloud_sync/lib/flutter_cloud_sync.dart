@@ -83,6 +83,7 @@ export 'src/config/cloud_service_config.dart';
 export 'src/config/cloud_service_store.dart';
 export 'src/config/provider_factory.dart';
 export 'src/providers/beecount_cloud_provider.dart';
+export 'src/providers/beecount_cloud_gate.dart';
 
 // Utilities
 export 'src/utils/logger.dart';

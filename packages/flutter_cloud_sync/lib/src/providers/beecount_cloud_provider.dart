@@ -14,6 +14,7 @@ import '../core/cloud_provider.dart';
 import '../core/exceptions.dart';
 import '../core/storage_service.dart';
 import '../utils/path_helper.dart';
+import 'beecount_cloud_gate.dart';
 
 // ============================================================================
 // 2FA(TOTP)— 见 BeeCount 主仓 .docs/2fa-design.md
@@ -629,6 +630,28 @@ class BeeCountCloudProvider implements CloudProvider {
           'BeeCount Cloud storage is not initialized.');
     }
     return storage.fetchLatestAppVersion();
+  }
+
+  /// 目前登入帳號的授權狀態(`GET /license/status`)。沒有授權時 server 仍回
+  /// 200 + `licensed=false`(這支端點本身不受授權門檻限制)。失敗抛。
+  Future<BeeCountCloudLicenseStatus> fetchLicenseStatus() async {
+    final storage = _storage;
+    if (storage == null) {
+      throw CloudConfigurationException(
+          'BeeCount Cloud storage is not initialized.');
+    }
+    return storage.fetchLicenseStatus();
+  }
+
+  /// 輸入金鑰啟用授權(`POST /license/activate`)。失敗抛
+  /// [BeeCountCloudLicenseException],`errorCode` 是 server 的 error.code。
+  Future<BeeCountCloudLicenseStatus> activateLicense(String key) async {
+    final storage = _storage;
+    if (storage == null) {
+      throw CloudConfigurationException(
+          'BeeCount Cloud storage is not initialized.');
+    }
+    return storage.activateLicense(key);
   }
 
   // ===========================================================================
@@ -1276,7 +1299,7 @@ class BeeCountCloudAuthService implements CloudAuthService {
     required this.apiPrefix,
     http.Client? httpClient,
     TwoFactorChallengeHandler? twoFactorHandler,
-  })  : _httpClient = httpClient ?? http.Client(),
+  })  : _httpClient = BeeCountCloudGateHttpClient(httpClient),
         _twoFactorHandler = twoFactorHandler;
 
   final String baseUrl;
@@ -2107,7 +2130,7 @@ class BeeCountCloudStorageService implements CloudStorageService {
     required this.apiPrefix,
     required this.auth,
     http.Client? httpClient,
-  }) : _httpClient = httpClient ?? http.Client();
+  }) : _httpClient = BeeCountCloudGateHttpClient(httpClient);
 
   final String baseUrl;
   final String apiPrefix;
@@ -3061,6 +3084,36 @@ class BeeCountCloudStorageService implements CloudStorageService {
     }
     final payload = _decodeJsonObject(response.body);
     return BeeCountCloudLatestAppVersion.fromJson(payload);
+  }
+
+  Future<BeeCountCloudLicenseStatus> fetchLicenseStatus() async {
+    final response = await _authedRequest(method: 'GET', path: '/license/status');
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw BeeCountCloudLicenseException(
+        'Fetch license status failed: ${_extractErrorMessage(response)}',
+        statusCode: response.statusCode,
+        errorCode: _extractErrorCode(response),
+      );
+    }
+    return BeeCountCloudLicenseStatus.fromJson(
+        _decodeJsonObject(response.body));
+  }
+
+  Future<BeeCountCloudLicenseStatus> activateLicense(String key) async {
+    final response = await _authedRequest(
+      method: 'POST',
+      path: '/license/activate',
+      body: {'key': key},
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw BeeCountCloudLicenseException(
+        'Activate license failed: ${_extractErrorMessage(response)}',
+        statusCode: response.statusCode,
+        errorCode: _extractErrorCode(response),
+      );
+    }
+    return BeeCountCloudLicenseStatus.fromJson(
+        _decodeJsonObject(response.body));
   }
 
   // ===========================================================================
@@ -4303,16 +4356,75 @@ class BeeCountCloudServerVersion {
 /// `GET /app-version/latest` 的回應。`version` 可能是 null(server 從未設定
 /// 過/從未偵測成功過),App 端看到 null 就跳過提醒。
 class BeeCountCloudLatestAppVersion {
-  const BeeCountCloudLatestAppVersion({this.version});
+  const BeeCountCloudLatestAppVersion({this.version, this.minSyncVersion});
 
   final String? version;
 
+  /// 最低可同步版本。低於此版本的 App 無法同步,新版 App 啟動時比對到就
+  /// 整個擋住、強制更新。null = 不限制(或 server 版本還沒有這個欄位)。
+  final String? minSyncVersion;
+
   factory BeeCountCloudLatestAppVersion.fromJson(Map<String, dynamic> json) {
     final raw = (json['version'] as String?)?.trim();
+    final rawMin = (json['min_sync_version'] as String?)?.trim();
     return BeeCountCloudLatestAppVersion(
       version: raw == null || raw.isEmpty ? null : raw,
+      minSyncVersion: rawMin == null || rawMin.isEmpty ? null : rawMin,
     );
   }
+}
+
+/// `GET /license/status` / `POST /license/activate` 的回應。
+class BeeCountCloudLicenseStatus {
+  const BeeCountCloudLicenseStatus({
+    required this.userId,
+    required this.licensed,
+    required this.exempt,
+    required this.serverTime,
+    required this.offlineGraceDays,
+    this.expiresAt,
+  });
+
+  final String userId;
+
+  /// 目前是否可以使用(管理員永遠 true)。
+  final bool licensed;
+
+  /// 管理員免金鑰。
+  final bool exempt;
+
+  /// 名下金鑰最晚到期日(可能已過期;沒有任何金鑰 = null)。
+  final DateTime? expiresAt;
+  final DateTime serverTime;
+
+  /// App 本地授權的離線寬限天數。
+  final int offlineGraceDays;
+
+  factory BeeCountCloudLicenseStatus.fromJson(Map<String, dynamic> json) {
+    return BeeCountCloudLicenseStatus(
+      userId: json['user_id'] as String? ?? '',
+      licensed: json['licensed'] == true,
+      exempt: json['exempt'] == true,
+      expiresAt: DateTime.tryParse(json['expires_at'] as String? ?? '')?.toUtc(),
+      serverTime:
+          DateTime.tryParse(json['server_time'] as String? ?? '')?.toUtc() ??
+              DateTime.now().toUtc(),
+      offlineGraceDays: (json['offline_grace_days'] as num?)?.toInt() ?? 7,
+    );
+  }
+}
+
+/// 授權 API 失敗。`errorCode` 對應 server `error.code`(例如
+/// `LICENSE_KEY_NOT_FOUND` / `LICENSE_KEY_ALREADY_REDEEMED` / `RATE_LIMITED`)。
+class BeeCountCloudLicenseException extends CloudStorageException {
+  BeeCountCloudLicenseException(
+    super.message, {
+    required this.statusCode,
+    this.errorCode,
+  });
+
+  final int statusCode;
+  final String? errorCode;
 }
 
 class BeeCountCloudLedgerStats {
@@ -4933,7 +5045,19 @@ class BeeCountCloudRealtimeClient {
 
       _channelSub = channel.stream.listen(
         _onMessage,
-        onDone: _scheduleReconnect,
+        onDone: () {
+          // server 因授權/版本門檻關閉連線(4402/4426)時通知 App 切換畫面;
+          // 仍照常排程重連(帶退避),使用者啟用授權/更新後會自己接上。
+          final closeCode = channel.closeCode;
+          BeeCountCloudClientGate.notifyWebSocketClose(closeCode);
+          final gated =
+              closeCode == BeeCountCloudClientGate.wsCloseLicenseRequired ||
+                  closeCode == BeeCountCloudClientGate.wsCloseAppVersionTooOld;
+          _scheduleReconnect(
+              delay: gated
+                  ? const Duration(seconds: 60)
+                  : const Duration(seconds: 3));
+        },
         onError: (_, __) => _scheduleReconnect(),
         cancelOnError: true,
       );
@@ -4969,7 +5093,13 @@ class BeeCountCloudRealtimeClient {
       host: base.host,
       port: base.hasPort ? base.port : null,
       path: '/${segments.join('/')}',
-      queryParameters: {'token': token},
+      queryParameters: {
+        'token': token,
+        // WebSocket 握手沒辦法帶自訂 header,版本改用 query 帶(server
+        // `routers/ws.py` 讀 `app_version`)。
+        if (BeeCountCloudClientGate.appVersion != null)
+          'app_version': BeeCountCloudClientGate.appVersion!,
+      },
     );
   }
 
@@ -4999,7 +5129,7 @@ class BeeCountCloudRealtimeClient {
     } catch (_) {}
   }
 
-  void _scheduleReconnect([Object? _, StackTrace? __]) {
+  void _scheduleReconnect({Duration delay = const Duration(seconds: 3)}) {
     if (!_running) {
       return;
     }
@@ -5011,7 +5141,7 @@ class BeeCountCloudRealtimeClient {
     _channel = null;
 
     _reconnectTimer?.cancel();
-    _reconnectTimer = Timer(const Duration(seconds: 3), () async {
+    _reconnectTimer = Timer(delay, () async {
       if (!_running) {
         return;
       }
@@ -5057,6 +5187,16 @@ List<String> _toStringList(Object? value) {
       .map((e) => e?.toString().trim() ?? '')
       .where((e) => e.isNotEmpty)
       .toList(growable: false);
+}
+
+String? _extractErrorCode(http.Response response) {
+  try {
+    final error = _decodeJsonObject(response.body)['error'];
+    if (error is Map && error['code'] is String) {
+      return error['code'] as String;
+    }
+  } catch (_) {}
+  return null;
 }
 
 String _extractErrorMessage(http.Response response) {

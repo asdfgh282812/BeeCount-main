@@ -31,6 +31,7 @@ import '../cloud/cloud_sync_page.dart';
 import '../cloud/beecount_cloud_sync_page.dart';
 import '../../utils/website_urls.dart';
 import '../settings/data_management_page.dart';
+import '../license/license_settings_page.dart';
 import '../settings/appearance_settings_page.dart';
 import '../settings/smart_billing_page.dart';
 import '../settings/automation_page.dart';
@@ -321,6 +322,21 @@ class MinePage extends ConsumerWidget {
                           await Navigator.of(context).push(
                             MaterialPageRoute(
                                 builder: (_) => const DataManagementPage()),
+                          );
+                        },
+                      ),
+                      BeeTokens.cardDivider(context),
+                      // 授权金钥(查看到期日 / 输入新金钥延长)
+                      AppListTile(
+                        leading: Icons.vpn_key_outlined,
+                        title: AppLocalizations.of(context).licenseSettingsTitle,
+                        subtitle: AppLocalizations.of(context).licenseSettingsDesc,
+                        trailing: Icon(Icons.chevron_right,
+                            color: BeeTokens.iconTertiary(context), size: 20),
+                        onTap: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => const LicenseSettingsPage()),
                           );
                         },
                       ),

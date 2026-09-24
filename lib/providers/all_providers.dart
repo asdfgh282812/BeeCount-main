@@ -58,3 +58,6 @@ export 'installment_providers.dart';
 
 // 「建議」分頁排序演算法相关
 export 'suggestion_providers.dart';
+
+// 授權金鑰 + 最低可同步版本(docs/changes/2026-09-25-license-key-and-min-sync-version.md)
+export 'license_providers.dart';

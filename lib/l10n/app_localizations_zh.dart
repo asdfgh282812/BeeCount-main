@@ -9863,6 +9863,120 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get whatsNew357ProjectFixesDesc =>
       'The refund category in project details no longer shows 0.00; a newly synced device\'s project list no longer stays empty until you add a transaction; and the AI \"auto-assign project\" setting now syncs across devices.';
+
+  @override
+  String get licenseGateTitle => 'License key required';
+
+  @override
+  String get licenseGateDescription =>
+      'BeeCount requires a valid license key. Enter the key you received to continue.';
+
+  @override
+  String licenseGateExpiredOn(Object date) {
+    return 'Your license expired on $date. Enter a new key to continue.';
+  }
+
+  @override
+  String get licenseKeyLabel => 'License key';
+
+  @override
+  String get licenseKeyHint => 'BC-XXXXX-XXXXX-XXXXX-XXXXX';
+
+  @override
+  String get licenseActivateButton => 'Activate';
+
+  @override
+  String get licenseErrorEmpty => 'Please enter a license key';
+
+  @override
+  String get licenseErrorInvalid => 'Invalid license key format';
+
+  @override
+  String get licenseErrorNotFound =>
+      'License key not found. Please check what you entered.';
+
+  @override
+  String get licenseErrorAlreadyRedeemed =>
+      'This license key has already been used';
+
+  @override
+  String get licenseErrorRevoked => 'This license key has been revoked';
+
+  @override
+  String get licenseErrorRateLimited =>
+      'Too many attempts. Please try again later.';
+
+  @override
+  String get licenseErrorNetwork =>
+      'Can\'t reach the server. Check your connection and try again.';
+
+  @override
+  String licenseErrorGeneric(Object error) {
+    return 'Activation failed: $error';
+  }
+
+  @override
+  String licenseActivatedToast(Object date) {
+    return 'License activated, valid until $date';
+  }
+
+  @override
+  String get licenseGateLoginTitle => 'Sign in to BeeCount Cloud';
+
+  @override
+  String get licenseGateLoginDescription =>
+      'BeeCount requires a BeeCount Cloud account with an activated license key. Enter your server address and sign in.';
+
+  @override
+  String get licenseGateNetworkTitle => 'Connect to verify your license';
+
+  @override
+  String get licenseGateNetworkDescription =>
+      'Your license must be verified online at least once every 7 days. Connect to the internet and try again.';
+
+  @override
+  String get licenseRetryButton => 'Retry';
+
+  @override
+  String get licenseSwitchAccountButton => 'Sign out and switch account';
+
+  @override
+  String get licenseCheckingText => 'Checking your license…';
+
+  @override
+  String get forceUpdateTitle => 'Please update the app';
+
+  @override
+  String forceUpdateDescription(Object current, Object min) {
+    return 'This version ($current) can no longer sync. Please update to $min or later to keep using BeeCount.';
+  }
+
+  @override
+  String get forceUpdateRetryButton => 'I\'ve updated, check again';
+
+  @override
+  String get licenseSettingsTitle => 'License key';
+
+  @override
+  String get licenseSettingsDesc => 'View license expiry or enter a new key';
+
+  @override
+  String licenseSettingsExpiresAt(Object date) {
+    return 'License valid until: $date';
+  }
+
+  @override
+  String get licenseSettingsExempt =>
+      'Administrator account, no license required';
+
+  @override
+  String licenseSettingsOfflineUntil(Object date) {
+    return 'Usable offline until: $date';
+  }
+
+  @override
+  String get licenseSettingsExtendHint =>
+      'Entering a new key extends your license by its duration, starting from the current expiry date.';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -19635,4 +19749,110 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   @override
   String get whatsNew357ProjectFixesDesc =>
       '專案詳情頁的退款分類金額不再顯示 0.00;新裝置首次同步後專案列表不用先新增一筆交易才會出現;AI記帳的「AI專案指定」設定現在會跨裝置同步。';
+
+  @override
+  String get licenseGateTitle => '需要授權金鑰';
+
+  @override
+  String get licenseGateDescription => 'BeeCount 需要有效的授權金鑰才能使用，請輸入你取得的金鑰。';
+
+  @override
+  String licenseGateExpiredOn(Object date) {
+    return '你的授權已於 $date 到期，請輸入新的金鑰。';
+  }
+
+  @override
+  String get licenseKeyLabel => '授權金鑰';
+
+  @override
+  String get licenseKeyHint => 'BC-XXXXX-XXXXX-XXXXX-XXXXX';
+
+  @override
+  String get licenseActivateButton => '啟用';
+
+  @override
+  String get licenseErrorEmpty => '請輸入授權金鑰';
+
+  @override
+  String get licenseErrorInvalid => '金鑰格式不正確';
+
+  @override
+  String get licenseErrorNotFound => '找不到這把金鑰，請確認是否輸入正確';
+
+  @override
+  String get licenseErrorAlreadyRedeemed => '這把金鑰已經被使用過了';
+
+  @override
+  String get licenseErrorRevoked => '這把金鑰已被停用';
+
+  @override
+  String get licenseErrorRateLimited => '嘗試次數過多，請稍後再試';
+
+  @override
+  String get licenseErrorNetwork => '無法連線到伺服器，請檢查網路後再試';
+
+  @override
+  String licenseErrorGeneric(Object error) {
+    return '啟用失敗：$error';
+  }
+
+  @override
+  String licenseActivatedToast(Object date) {
+    return '授權已啟用，有效至 $date';
+  }
+
+  @override
+  String get licenseGateLoginTitle => '請登入 BeeCount Cloud';
+
+  @override
+  String get licenseGateLoginDescription =>
+      'BeeCount 需要登入 BeeCount Cloud 帳號並啟用授權金鑰才能使用，請輸入伺服器位址後登入。';
+
+  @override
+  String get licenseGateNetworkTitle => '需要連網驗證授權';
+
+  @override
+  String get licenseGateNetworkDescription => '授權至少每 7 天需要連網驗證一次，請連上網路後重試。';
+
+  @override
+  String get licenseRetryButton => '重試';
+
+  @override
+  String get licenseSwitchAccountButton => '登出並切換帳號';
+
+  @override
+  String get licenseCheckingText => '正在確認授權…';
+
+  @override
+  String get forceUpdateTitle => '請更新 App';
+
+  @override
+  String forceUpdateDescription(Object current, Object min) {
+    return '目前版本（$current）已無法同步，請更新至 $min 以上版本後再使用。';
+  }
+
+  @override
+  String get forceUpdateRetryButton => '我已更新，重新檢查';
+
+  @override
+  String get licenseSettingsTitle => '授權金鑰';
+
+  @override
+  String get licenseSettingsDesc => '查看授權到期日或輸入新金鑰';
+
+  @override
+  String licenseSettingsExpiresAt(Object date) {
+    return '授權到期日：$date';
+  }
+
+  @override
+  String get licenseSettingsExempt => '管理員帳號，免授權';
+
+  @override
+  String licenseSettingsOfflineUntil(Object date) {
+    return '離線可用至：$date';
+  }
+
+  @override
+  String get licenseSettingsExtendHint => '輸入新的金鑰會從目前到期日往後延長該金鑰的天數。';
 }

@@ -18326,6 +18326,192 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The refund category in project details no longer shows 0.00; a newly synced device\'s project list no longer stays empty until you add a transaction; and the AI \"auto-assign project\" setting now syncs across devices.'**
   String get whatsNew357ProjectFixesDesc;
+
+  /// No description provided for @licenseGateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'License key required'**
+  String get licenseGateTitle;
+
+  /// No description provided for @licenseGateDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'BeeCount requires a valid license key. Enter the key you received to continue.'**
+  String get licenseGateDescription;
+
+  /// No description provided for @licenseGateExpiredOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Your license expired on {date}. Enter a new key to continue.'**
+  String licenseGateExpiredOn(Object date);
+
+  /// No description provided for @licenseKeyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'License key'**
+  String get licenseKeyLabel;
+
+  /// No description provided for @licenseKeyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'BC-XXXXX-XXXXX-XXXXX-XXXXX'**
+  String get licenseKeyHint;
+
+  /// No description provided for @licenseActivateButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Activate'**
+  String get licenseActivateButton;
+
+  /// No description provided for @licenseErrorEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a license key'**
+  String get licenseErrorEmpty;
+
+  /// No description provided for @licenseErrorInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid license key format'**
+  String get licenseErrorInvalid;
+
+  /// No description provided for @licenseErrorNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'License key not found. Please check what you entered.'**
+  String get licenseErrorNotFound;
+
+  /// No description provided for @licenseErrorAlreadyRedeemed.
+  ///
+  /// In en, this message translates to:
+  /// **'This license key has already been used'**
+  String get licenseErrorAlreadyRedeemed;
+
+  /// No description provided for @licenseErrorRevoked.
+  ///
+  /// In en, this message translates to:
+  /// **'This license key has been revoked'**
+  String get licenseErrorRevoked;
+
+  /// No description provided for @licenseErrorRateLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many attempts. Please try again later.'**
+  String get licenseErrorRateLimited;
+
+  /// No description provided for @licenseErrorNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t reach the server. Check your connection and try again.'**
+  String get licenseErrorNetwork;
+
+  /// No description provided for @licenseErrorGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'Activation failed: {error}'**
+  String licenseErrorGeneric(Object error);
+
+  /// No description provided for @licenseActivatedToast.
+  ///
+  /// In en, this message translates to:
+  /// **'License activated, valid until {date}'**
+  String licenseActivatedToast(Object date);
+
+  /// No description provided for @licenseGateLoginTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to BeeCount Cloud'**
+  String get licenseGateLoginTitle;
+
+  /// No description provided for @licenseGateLoginDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'BeeCount requires a BeeCount Cloud account with an activated license key. Enter your server address and sign in.'**
+  String get licenseGateLoginDescription;
+
+  /// No description provided for @licenseGateNetworkTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to verify your license'**
+  String get licenseGateNetworkTitle;
+
+  /// No description provided for @licenseGateNetworkDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Your license must be verified online at least once every 7 days. Connect to the internet and try again.'**
+  String get licenseGateNetworkDescription;
+
+  /// No description provided for @licenseRetryButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get licenseRetryButton;
+
+  /// No description provided for @licenseSwitchAccountButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out and switch account'**
+  String get licenseSwitchAccountButton;
+
+  /// No description provided for @licenseCheckingText.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking your license…'**
+  String get licenseCheckingText;
+
+  /// No description provided for @forceUpdateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Please update the app'**
+  String get forceUpdateTitle;
+
+  /// No description provided for @forceUpdateDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'This version ({current}) can no longer sync. Please update to {min} or later to keep using BeeCount.'**
+  String forceUpdateDescription(Object current, Object min);
+
+  /// No description provided for @forceUpdateRetryButton.
+  ///
+  /// In en, this message translates to:
+  /// **'I\'ve updated, check again'**
+  String get forceUpdateRetryButton;
+
+  /// No description provided for @licenseSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'License key'**
+  String get licenseSettingsTitle;
+
+  /// No description provided for @licenseSettingsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'View license expiry or enter a new key'**
+  String get licenseSettingsDesc;
+
+  /// No description provided for @licenseSettingsExpiresAt.
+  ///
+  /// In en, this message translates to:
+  /// **'License valid until: {date}'**
+  String licenseSettingsExpiresAt(Object date);
+
+  /// No description provided for @licenseSettingsExempt.
+  ///
+  /// In en, this message translates to:
+  /// **'Administrator account, no license required'**
+  String get licenseSettingsExempt;
+
+  /// No description provided for @licenseSettingsOfflineUntil.
+  ///
+  /// In en, this message translates to:
+  /// **'Usable offline until: {date}'**
+  String licenseSettingsOfflineUntil(Object date);
+
+  /// No description provided for @licenseSettingsExtendHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Entering a new key extends your license by its duration, starting from the current expiry date.'**
+  String get licenseSettingsExtendHint;
 }
 
 class _AppLocalizationsDelegate
