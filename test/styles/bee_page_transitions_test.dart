@@ -47,4 +47,33 @@ void main() {
     ));
     expect(find.byType(SlideTransition), findsWidgets);
   });
+
+  // 回归:iOS 曾套用 BeePageTransitionsBuilder,导致整个 App 失去从左缘右滑返回。
+  testWidgets('iOS 上从左缘右滑可以返回上一页', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      theme: ThemeData(
+        platform: TargetPlatform.iOS,
+        pageTransitionsTheme: kBeePageTransitionsTheme,
+      ),
+      home: Builder(
+        builder: (context) => TextButton(
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+            builder: (_) => const Scaffold(body: Text('第二页')),
+          )),
+          child: const Text('第一页'),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('第一页'));
+    await tester.pumpAndSettle();
+    expect(find.text('第二页'), findsOneWidget);
+
+    final gesture = await tester.startGesture(const Offset(5, 300));
+    await gesture.moveBy(const Offset(400, 0));
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(find.text('第二页'), findsNothing);
+    expect(find.text('第一页'), findsOneWidget);
+  });
 }

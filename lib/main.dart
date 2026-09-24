@@ -607,13 +607,7 @@ class MainApp extends ConsumerWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         margin: EdgeInsets.zero,
       ),
-      pageTransitionsTheme: const PageTransitionsTheme(builders: {
-        TargetPlatform.android: BeePageTransitionsBuilder(),
-        TargetPlatform.iOS: BeePageTransitionsBuilder(),
-        TargetPlatform.macOS: BeePageTransitionsBuilder(),
-        TargetPlatform.windows: BeePageTransitionsBuilder(),
-        TargetPlatform.linux: BeePageTransitionsBuilder(),
-      }),
+      pageTransitionsTheme: kBeePageTransitionsTheme,
     );
     // Clamp 系统字体缩放，避免部分设备设置 1.5+ 造成 UI 溢出
     final media = MediaQuery.of(context);
@@ -646,13 +640,7 @@ class MainApp extends ConsumerWidget {
               .colorScheme
               .copyWith(primary: primary),
           primaryColor: primary,
-          pageTransitionsTheme: const PageTransitionsTheme(builders: {
-            TargetPlatform.android: BeePageTransitionsBuilder(),
-            TargetPlatform.iOS: BeePageTransitionsBuilder(),
-            TargetPlatform.macOS: BeePageTransitionsBuilder(),
-            TargetPlatform.windows: BeePageTransitionsBuilder(),
-            TargetPlatform.linux: BeePageTransitionsBuilder(),
-          }),
+          pageTransitionsTheme: kBeePageTransitionsTheme,
         ), // ⭐ 暗黑主题（使用动态主题色）
         themeMode: ref.watch(themeModeProvider), // ⭐ 使用 provider 支持手动切换
         localizationsDelegates: const [
