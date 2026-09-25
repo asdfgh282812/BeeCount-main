@@ -1010,6 +1010,8 @@ class _BeeAppState extends ConsumerState<BeeApp>
               skin: headerSkin,
               centerButtonKey: _centerButtonKey,
               onTabTap: _handleTabTap,
+              onTabDragSelect: (index) =>
+                  ref.read(bottomTabIndexProvider.notifier).state = index,
               onCenterTap: () {
                 // 中间按钮是「明細/記帳」双态(见 _BeeBottomBar._buildCenterTabItem
                 // 的说明):目前就在明細分頁时,维持原本「记一笔」行为;否则跟
@@ -1027,9 +1029,11 @@ class _BeeAppState extends ConsumerState<BeeApp>
                     ? null
                     : DateTime(selectedDate.year, selectedDate.month,
                         selectedDate.day, now.hour, now.minute, now.second);
+                // 由下往上滑入 + 遮罩淡入(見 SlideUpPageRoute),取代原本跟
+                // 一般頁面相同的側滑轉場,讓「建立」動作有方向性。
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
+                  SlideUpPageRoute(
                     builder: (_) => TransactionEditorPage(
                       initialKind: 'expense',
                       initialDate: initialDate,
@@ -1094,6 +1098,9 @@ class _BeeBottomBar extends StatelessWidget {
   final HeaderSkin? skin;
   final GlobalKey centerButtonKey;
   final ValueChanged<int> onTabTap;
+  // 按住导航列左右拖曳、放开时选定的分页(见 BeeTabDragScope)。跟 onTabTap
+  // 分开:拖曳落点不该触发双击置顶判断,落在中间「記帳」也不该开新增页。
+  final ValueChanged<int> onTabDragSelect;
   final VoidCallback onCenterTap;
   final GestureLongPressStartCallback onCenterLongPressStart;
   final GestureLongPressMoveUpdateCallback onCenterLongPressMoveUpdate;
@@ -1110,6 +1117,7 @@ class _BeeBottomBar extends StatelessWidget {
     this.skin,
     required this.centerButtonKey,
     required this.onTabTap,
+    required this.onTabDragSelect,
     required this.onCenterTap,
     required this.onCenterLongPressStart,
     required this.onCenterLongPressMoveUpdate,
@@ -1139,37 +1147,54 @@ class _BeeBottomBar extends StatelessWidget {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(28),
-            child: Stack(
-              children: [
-                // 皮肤的悬浮 tab 装饰层(垫在图标之下,不影响点按)
-                if (skin?.tabBarBuilder != null)
-                  Positioned.fill(
-                      child: IgnorePointer(
-                          child: SkinAnimationScope(
-                              child:
-                                  skin!.tabBarBuilder!(primaryColor, isDark)))),
-                Row(
-                  children: [
-                    _buildTabItem(
-                        0,
-                        Icons.account_balance_wallet_outlined,
-                        Icons.account_balance_wallet,
-                        l10n.tabAssets,
-                        inactiveColor),
-                    _buildTabItem(1, Icons.folder_outlined, Icons.folder,
-                        l10n.projectOverviewTitle, inactiveColor),
-                    // 中间按钮：明細⇄記帳雙態（见 _buildCenterTabItem）
-                    _buildCenterTabItem(inactiveColor),
-                    _buildTabItem(
-                        3,
-                        Icons.pie_chart_outline_rounded,
-                        Icons.pie_chart_rounded,
-                        l10n.tabInsights,
-                        inactiveColor),
-                    _buildAvatarTabItem(4, l10n.tabMine, inactiveColor),
-                  ],
-                ),
-              ],
+            child: BeeTabDragScope(
+              currentIndex: currentIndex,
+              tabCount: 5,
+              primaryColor: primaryColor,
+              onSelected: onTabDragSelect,
+              // activeIndex:拖曳中是手指下的分页,否则是 currentIndex
+              builder: (context, activeIndex, indicator) => Stack(
+                children: [
+                  // 皮肤的悬浮 tab 装饰层(垫在图标之下,不影响点按)
+                  if (skin?.tabBarBuilder != null)
+                    Positioned.fill(
+                        child: IgnorePointer(
+                            child: SkinAnimationScope(
+                                child: skin!.tabBarBuilder!(
+                                    primaryColor, isDark)))),
+                  // 滑动指示器:夹在皮肤装饰层与图标之间,IgnorePointer 不吃点按
+                  Positioned.fill(child: IgnorePointer(child: indicator)),
+                  Row(
+                    children: [
+                      _buildTabItem(
+                          0,
+                          activeIndex,
+                          Icons.account_balance_wallet_outlined,
+                          Icons.account_balance_wallet,
+                          l10n.tabAssets,
+                          inactiveColor),
+                      _buildTabItem(
+                          1,
+                          activeIndex,
+                          Icons.folder_outlined,
+                          Icons.folder,
+                          l10n.projectOverviewTitle,
+                          inactiveColor),
+                      // 中间按钮：明細⇄記帳雙態（见 _buildCenterTabItem）
+                      _buildCenterTabItem(activeIndex, inactiveColor),
+                      _buildTabItem(
+                          3,
+                          activeIndex,
+                          Icons.pie_chart_outline_rounded,
+                          Icons.pie_chart_rounded,
+                          l10n.tabInsights,
+                          inactiveColor),
+                      _buildAvatarTabItem(
+                          4, activeIndex, l10n.tabMine, inactiveColor),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1177,56 +1202,28 @@ class _BeeBottomBar extends StatelessWidget {
     );
   }
 
-  Widget _buildTabItem(int index, IconData icon, IconData activeIcon,
-      String label, Color inactiveColor,
+  Widget _buildTabItem(int index, int activeIndex, IconData icon,
+      IconData activeIcon, String label, Color inactiveColor,
       {String? dotAnchor}) {
-    final isActive = index == currentIndex;
-    final iconColor = isActive ? primaryColor : inactiveColor;
+    final isActive = index == activeIndex;
 
     return Expanded(
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => onTabTap(index),
         child: Center(
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
-            decoration: BoxDecoration(
-              color: isActive
-                  ? primaryColor.withValues(alpha: 0.12)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(22),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // 新功能红点挂在图标上(不是整个 tab),这样位置跟着图标走、
-                // 不会因为 label 长短漂移
-                dotAnchor == null
-                    ? Icon(isActive ? activeIcon : icon,
-                        color: iconColor, size: 22)
-                    : FeatureDot(
-                        anchor: dotAnchor,
-                        offset: const Offset(-2, 0),
-                        child: Icon(isActive ? activeIcon : icon,
-                            color: iconColor, size: 22),
-                      ),
-                const SizedBox(height: 1),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  softWrap: false,
-                  textScaler: TextScaler.noScaling,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: isActive ? primaryColor : inactiveColor,
-                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                  ),
-                ),
-              ],
-            ),
+          child: _TabItemContent(
+            isActive: isActive,
+            activeColor: primaryColor,
+            inactiveColor: inactiveColor,
+            label: label,
+            // 空心⇄实心图形切换时交叉淡入缩放
+            glyphKey: isActive,
+            // 新功能红点挂在图标上(不是整个 tab),这样位置跟着图标走、
+            // 不会因为 label 长短漂移
+            dotAnchor: dotAnchor,
+            iconBuilder: (color, _) =>
+                Icon(isActive ? activeIcon : icon, color: color, size: 22),
           ),
         ),
       ),
@@ -1238,7 +1235,13 @@ class _BeeBottomBar extends StatelessWidget {
   /// - 目前不在明細分頁 → 顯示「明細」,點擊切過去(同一般分頁)。
   /// - 目前就在明細分頁 → 顯示「記帳」,點擊開新增交易頁(維持原本行為),
   ///   長按彈相機/相簿/語音快速記帳選單。
-  Widget _buildCenterTabItem(Color inactiveColor) {
+  ///
+  /// 「記帳」态就代表目前在明細分頁,所以滑动指示器会滑到这里、图文也跟着
+  /// 进入选中色——否则切到明細時胶囊无处可去,只能凭空消失。
+  ///
+  /// 拖曳经过中间时只借用选中色(isActive 看 activeIndex),图示/文字的
+  /// 明細⇄記帳仍以实际所在分页(currentIndex)为准——放开前还没真的切过去。
+  Widget _buildCenterTabItem(int activeIndex, Color inactiveColor) {
     final isRecordMode = currentIndex == homeTabIndex;
     return Expanded(
       child: GestureDetector(
@@ -1249,105 +1252,177 @@ class _BeeBottomBar extends StatelessWidget {
         onLongPressMoveUpdate: onCenterLongPressMoveUpdate,
         onLongPressEnd: onCenterLongPressEnd,
         child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                isRecordMode
-                    ? Icons.add_circle_outline
-                    : Icons.receipt_long_outlined,
-                color: inactiveColor,
-                size: 22,
-              ),
-              const SizedBox(height: 1),
-              Text(
-                isRecordMode ? l10n.tabRecord : l10n.tabHome,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                softWrap: false,
-                textScaler: TextScaler.noScaling,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: inactiveColor,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-            ],
+          child: _TabItemContent(
+            isActive: activeIndex == homeTabIndex,
+            activeColor: primaryColor,
+            inactiveColor: inactiveColor,
+            label: isRecordMode ? l10n.tabRecord : l10n.tabHome,
+            glyphKey: isRecordMode,
+            iconBuilder: (color, _) => Icon(
+              isRecordMode
+                  ? Icons.add_circle_outline
+                  : Icons.receipt_long_outlined,
+              color: color,
+              size: 22,
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildAvatarTabItem(int index, String label, Color inactiveColor) {
-    final isActive = index == currentIndex;
+  Widget _buildAvatarTabItem(
+      int index, int activeIndex, String label, Color inactiveColor) {
+    final isActive = index == activeIndex;
     final hasAvatar = avatarPath != null;
-
-    Widget iconWidget;
-    if (hasAvatar) {
-      iconWidget = Container(
-        width: 24,
-        height: 24,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: isActive ? Border.all(color: primaryColor, width: 1.5) : null,
-          image: DecorationImage(
-            image: FileImage(File(avatarPath!)),
-            fit: BoxFit.cover,
-          ),
-        ),
-      );
-    } else {
-      iconWidget = Icon(
-          isActive ? Icons.person_rounded : Icons.person_outline_rounded,
-          color: isActive ? primaryColor : inactiveColor,
-          size: 24);
-    }
 
     return Expanded(
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => onTabTap(index),
         child: Center(
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
-            decoration: BoxDecoration(
-              color: isActive
-                  ? primaryColor.withValues(alpha: 0.12)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(22),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // 新功能红点的第一级 —— 新功能大多在「我的」这条线下面,
-                // 用户第一眼能看到的就是这里。
-                FeatureDot(
-                  anchor: 'tab_mine',
-                  offset: const Offset(-2, 0),
-                  child: iconWidget,
-                ),
-                const SizedBox(height: 1),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  softWrap: false,
-                  textScaler: TextScaler.noScaling,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: isActive ? primaryColor : inactiveColor,
-                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+          child: _TabItemContent(
+            isActive: isActive,
+            activeColor: primaryColor,
+            inactiveColor: inactiveColor,
+            label: label,
+            // 有头像时图形不变(只有外框渐变),不需要交叉淡入;
+            // 无头像时同一般分页的空心⇄实心切换。
+            glyphKey: hasAvatar ? 'avatar' : isActive,
+            // 新功能红点的第一级 —— 新功能大多在「我的」这条线下面,
+            // 用户第一眼能看到的就是这里。
+            dotAnchor: 'tab_mine',
+            iconBuilder: (color, t) {
+              if (!hasAvatar) {
+                return Icon(
+                    isActive
+                        ? Icons.person_rounded
+                        : Icons.person_outline_rounded,
+                    color: color,
+                    size: 24);
+              }
+              // 外框透明度随选中进度 t 渐变;inactive 时保留透明外框,
+              // 头像尺寸才不会在切换瞬间跳 1.5px。
+              return Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                      color: primaryColor.withValues(alpha: t), width: 1.5),
+                  image: DecorationImage(
+                    image: FileImage(File(avatarPath!)),
+                    fit: BoxFit.cover,
                   ),
                 ),
-              ],
-            ),
+              );
+            },
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 底部导航单一分页的图示+文字,负责选中态的过渡动画。
+///
+/// 用单一 0→1 的「选中进度」t 同时驱动颜色、字重与图示缩放——三者共用一条
+/// 曲线,不会各跑各的节奏。t 超过 1 会让 Color.lerp 外插出界,所以这里用
+/// 无回弹的 [BeeMotion.standard],回弹感留给滑动胶囊本身。
+class _TabItemContent extends StatelessWidget {
+  const _TabItemContent({
+    required this.isActive,
+    required this.activeColor,
+    required this.inactiveColor,
+    required this.label,
+    required this.glyphKey,
+    required this.iconBuilder,
+    this.dotAnchor,
+  });
+
+  static const Duration _stateDuration = Duration(milliseconds: 250);
+
+  /// 选中时图示放大比例(1.0 → 1.08)。
+  static const double _activeIconScale = 0.08;
+
+  final bool isActive;
+  final Color activeColor;
+  final Color inactiveColor;
+  final String label;
+
+  /// 图形身分:值改变时图示交叉淡入+缩放(例如空心→实心、明細→記帳)。
+  final Object glyphKey;
+
+  /// 依插值后的颜色与选中进度 t 建构图示。
+  final Widget Function(Color color, double t) iconBuilder;
+
+  /// 非 null 时把新功能红点挂在图示外层(在 AnimatedSwitcher 之外,
+  /// 切换图形时红点不会跟着闪)。
+  final String? dotAnchor;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      // begin 留空:首次建构直接落在 end,不会一打开 App 就播动画
+      tween: Tween<double>(end: isActive ? 1.0 : 0.0),
+      duration: BeeMotion.durationOf(context, _stateDuration),
+      curve: BeeMotion.standard, // easeOutCubic 减速
+      builder: (context, t, _) {
+        final color = Color.lerp(inactiveColor, activeColor, t)!;
+
+        Widget icon = AnimatedSwitcher(
+          duration: BeeMotion.durationOf(context, BeeMotion.fast),
+          switchInCurve: BeeMotion.standard,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) => FadeTransition(
+            opacity: animation,
+            child: ScaleTransition(
+              scale: Tween<double>(begin: 0.8, end: 1.0).animate(animation),
+              child: child,
+            ),
+          ),
+          child: KeyedSubtree(
+            key: ValueKey<Object>(glyphKey),
+            child: iconBuilder(color, t),
+          ),
+        );
+        if (dotAnchor != null) {
+          icon = FeatureDot(
+            anchor: dotAnchor!,
+            offset: const Offset(-2, 0),
+            child: icon,
+          );
+        }
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Transform.scale(scale: 1 + _activeIconScale * t, child: icon),
+            const SizedBox(height: 1),
+            // 文字内容会变的只有中间按钮(明細⇄記帳),一般分页 key 不变不会触发
+            AnimatedSwitcher(
+              duration: BeeMotion.durationOf(context, BeeMotion.fast),
+              switchInCurve: BeeMotion.standard,
+              switchOutCurve: Curves.easeInCubic,
+              child: Text(
+                label,
+                key: ValueKey<String>(label),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+                textScaler: TextScaler.noScaling,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: color,
+                  fontWeight:
+                      FontWeight.lerp(FontWeight.w400, FontWeight.w600, t),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

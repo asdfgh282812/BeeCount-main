@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/theme_providers.dart';
@@ -571,10 +573,43 @@ class BeeMotion {
   /// product_promo_card.dart 原本就是这个),不额外写 SpringSimulation。
   static const spring = Curves.easeOutBack;
 
+  /// 微阻尼弹簧:给「会跨越长距离位移」的元件用(例如底部导航列的滑动指示器)。
+  /// [spring] 的 easeOutBack 回弹量固定是位移距离的 ~10%,跨四个分页时会甩出
+  /// 快 30px,显得晃;这条曲线回弹只有 ~1.5%,约在 52% 时间点首次抵达目标、
+  /// 65% 达到峰值后收敛,手感轻快但不晃。
+  static const softSpring = BeeSpringCurve();
+
   /// 减少动画开关(或系统无障碍设定)打开时,把时长归零——单一动画元件用这个
   /// 包一层就好,不用各自写三元判断。
   static Duration durationOf(BuildContext context, Duration normal) =>
       MediaQuery.disableAnimationsOf(context) ? Duration.zero : normal;
+}
+
+/// 欠阻尼弹簧的解析解(闭式公式),归一化到 t∈[0,1]:
+///   x(t) = 1 − e^(−ζωt)·(cos(ω_d·t) + (ζω/ω_d)·sin(ω_d·t)),ω_d = ω·√(1−ζ²)
+///
+/// 刻意写成 [Curve] 而不是 SpringSimulation:这样能直接塞进
+/// AnimatedPositioned / CurvedAnimation 这类「固定时长 + curve」的隐式动画,
+/// 不必为了弹簧另外持有 AnimationController。ζω=6.4 时 t=1 的残差 <0.2%,
+/// 基类在 t==1 直接回传 1,不会有收尾跳动。
+class BeeSpringCurve extends Curve {
+  const BeeSpringCurve({this.dampingRatio = 0.8, this.stiffness = 8.0})
+      : assert(dampingRatio > 0 && dampingRatio < 1);
+
+  /// 阻尼比 ζ:越接近 1 越不回弹。0.8 ≈ 1.5% 回弹量。
+  final double dampingRatio;
+
+  /// 归一化角频率 ω:越大越快抵达目标。
+  final double stiffness;
+
+  @override
+  double transformInternal(double t) {
+    final z = dampingRatio;
+    final w = stiffness;
+    final wd = w * math.sqrt(1 - z * z);
+    final decay = math.exp(-z * w * t);
+    return 1 - decay * (math.cos(wd * t) + (z * w / wd) * math.sin(wd * t));
+  }
 }
 
 /// 阴影令牌
