@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' show Random;
 
 import 'package:crypto/crypto.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -4998,10 +4999,25 @@ class BeeCountCloudRealtimeClient {
   final StreamController<BeeCountCloudRealtimeEvent> _events =
       StreamController<BeeCountCloudRealtimeEvent>.broadcast();
 
+  /// 重連退避:3s 起跳、每次加倍、上限 60s。連線撐過 [_stableConnection]
+  /// 才把次數歸零 —— server 接受後馬上關閉(例如同一使用者連線數超過上限被
+  /// 踢,close 4001)時不能每次都退回 3s,否則每次重連都觸發一次完整 auto
+  /// sync(`ws_connected`),變成固定頻率打 /sync/pull 的迴圈。
+  static const Duration _reconnectBaseDelay = Duration(seconds: 3);
+  static const Duration _reconnectMaxDelay = Duration(seconds: 60);
+  static const Duration _stableConnection = Duration(seconds: 30);
+
+  /// server 同一使用者連線數超過上限時踢掉最舊一條的 close code
+  /// (BeeCount Cloud `src/websocket_manager.py`)。立刻重連只會回頭把另一條
+  /// (別的裝置/分頁)踢掉,所以至少等 60s。
+  static const int _wsCloseEvicted = 4001;
+
   WebSocketChannel? _channel;
   StreamSubscription<dynamic>? _channelSub;
   Timer? _reconnectTimer;
   Timer? _heartbeatTimer;
+  Timer? _stableTimer;
+  int _reconnectAttempt = 0;
   bool _running = false;
   bool _connecting = false;
 
@@ -5019,8 +5035,11 @@ class BeeCountCloudRealtimeClient {
     _running = false;
     _reconnectTimer?.cancel();
     _heartbeatTimer?.cancel();
+    _stableTimer?.cancel();
     _reconnectTimer = null;
     _heartbeatTimer = null;
+    _stableTimer = null;
+    _reconnectAttempt = 0;
     await _channelSub?.cancel();
     _channelSub = null;
     await _channel?.sink.close();
@@ -5054,9 +5073,9 @@ class BeeCountCloudRealtimeClient {
               closeCode == BeeCountCloudClientGate.wsCloseLicenseRequired ||
                   closeCode == BeeCountCloudClientGate.wsCloseAppVersionTooOld;
           _scheduleReconnect(
-              delay: gated
+              minDelay: gated || closeCode == _wsCloseEvicted
                   ? const Duration(seconds: 60)
-                  : const Duration(seconds: 3));
+                  : Duration.zero);
         },
         onError: (_, __) => _scheduleReconnect(),
         cancelOnError: true,
@@ -5067,6 +5086,12 @@ class BeeCountCloudRealtimeClient {
         try {
           _channel?.sink.add('ping');
         } catch (_) {}
+      });
+
+      _stableTimer?.cancel();
+      _stableTimer = Timer(_stableConnection, () {
+        _stableTimer = null;
+        _reconnectAttempt = 0;
       });
 
       // 发一条 "connected" 事件给业务层，让 SyncEngine 知道 WS 重连成功 ——
@@ -5129,13 +5154,27 @@ class BeeCountCloudRealtimeClient {
     } catch (_) {}
   }
 
-  void _scheduleReconnect({Duration delay = const Duration(seconds: 3)}) {
+  Duration _nextBackoffDelay() {
+    final exponent = _reconnectAttempt.clamp(0, 5);
+    final ms = (_reconnectBaseDelay.inMilliseconds * (1 << exponent))
+        .clamp(0, _reconnectMaxDelay.inMilliseconds);
+    final jitter = Random().nextInt(1000);
+    return Duration(milliseconds: ms + jitter);
+  }
+
+  void _scheduleReconnect({Duration minDelay = Duration.zero}) {
     if (!_running) {
       return;
     }
 
+    final backoff = _nextBackoffDelay();
+    final delay = backoff > minDelay ? backoff : minDelay;
+    _reconnectAttempt += 1;
+
     _heartbeatTimer?.cancel();
     _heartbeatTimer = null;
+    _stableTimer?.cancel();
+    _stableTimer = null;
     _channelSub?.cancel();
     _channelSub = null;
     _channel = null;
