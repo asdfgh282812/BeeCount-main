@@ -12,6 +12,7 @@ import '../../styles/tokens.dart';
 import '../../utils/account_type_utils.dart';
 import '../../utils/lru_cache.dart';
 import '../../utils/shared_ledger_picker_filter.dart';
+import 'account_avatar.dart';
 import 'amount_text.dart';
 
 /// 新增交易頁的「卡片選擇」介面——比照資產頁(`accounts_page.dart`)的分組
@@ -427,7 +428,7 @@ class _AccountRow extends ConsumerWidget {
               ),
               child: account.avatarPath != null
                   ? ClipOval(
-                      child: _PickerAccountAvatarImage(
+                      child: AccountAvatarImage(
                         avatarPath: account.avatarPath!,
                         size: 36,
                         fallback: AccountTypeIcon(
@@ -514,37 +515,3 @@ class _AccountRow extends ConsumerWidget {
   }
 }
 
-/// 账户头像图片,比照 `accounts_page.dart` 的 `_AccountAvatarImage`——
-/// avatarPath 是 custom_icons/ 下的相对路径,用 CustomIconService 解回绝对
-/// 路径显示;解析失败/文件被清过缓存就退回调用方传入的 [fallback](类型图标)。
-class _PickerAccountAvatarImage extends StatelessWidget {
-  final String avatarPath;
-  final double size;
-  final Widget fallback;
-
-  const _PickerAccountAvatarImage({
-    required this.avatarPath,
-    required this.size,
-    required this.fallback,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<String>(
-      future: CustomIconService().resolveIconPath(avatarPath),
-      builder: (context, snapshot) {
-        final abs = snapshot.data;
-        if (abs == null) return Center(child: fallback);
-        final file = File(abs);
-        if (!file.existsSync()) return Center(child: fallback);
-        return Image.file(
-          file,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Center(child: fallback),
-        );
-      },
-    );
-  }
-}

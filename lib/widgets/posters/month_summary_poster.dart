@@ -15,12 +15,21 @@ class MonthSummaryPoster extends StatelessWidget {
   final Color primaryColor;
   final bool hideIncome;
 
+  /// 收支顏色設定(incomeExpenseColorSchemeProvider):true = 收入紅、支出綠。
+  final bool incomeIsRed;
+
   const MonthSummaryPoster({
     super.key,
     required this.data,
     required this.primaryColor,
     this.hideIncome = false,
+    this.incomeIsRed = true,
   });
+
+  static const _kGreen = Color(0xFF51CF66);
+  static const _kRed = Color(0xFFFF6B6B);
+  Color get _incomeColor => incomeIsRed ? _kRed : _kGreen;
+  Color get _expenseColor => incomeIsRed ? _kGreen : _kRed;
 
   /// 是否显示省钱横幅
   bool get _hasSavedMoneyBanner =>
@@ -245,7 +254,7 @@ class MonthSummaryPoster extends StatelessWidget {
                   context,
                   label: l10n.sharePosterTotalExpense,
                   value: formatter.format(data.totalExpense),
-                  color: const Color(0xFFFF6B6B),
+                  color: _expenseColor,
                   icon: Icons.arrow_downward_rounded,
                 ),
               ),
@@ -259,7 +268,7 @@ class MonthSummaryPoster extends StatelessWidget {
                   context,
                   label: l10n.sharePosterTotalIncome,
                   value: hideIncome ? '**' : formatter.format(data.totalIncome),
-                  color: const Color(0xFF51CF66),
+                  color: _incomeColor,
                   icon: Icons.arrow_upward_rounded,
                 ),
               ),
@@ -279,8 +288,8 @@ class MonthSummaryPoster extends StatelessWidget {
                   label: l10n.sharePosterMonthBalance,
                   value: hideIncome ? '**' : formatter.format(data.balance),
                   color: data.balance >= 0
-                      ? const Color(0xFF51CF66)
-                      : const Color(0xFFFF6B6B),
+                      ? _incomeColor
+                      : _expenseColor,
                   icon: data.balance >= 0
                       ? Icons.trending_up_rounded
                       : Icons.trending_down_rounded,

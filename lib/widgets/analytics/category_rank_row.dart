@@ -16,10 +16,17 @@ class CategoryRankRow extends ConsumerStatefulWidget {
   final double value;
   final double percent; // 0..1 (相对于总金额的真实占比)
   final Color color;
+  /// 金額文字顏色(收入/支出色);null = 預設字色。
+  final Color? amountColor;
   final DateTime start; // 统计开始时间
   final DateTime end; // 统计结束时间
   final String scope; // 周期范围
   final DateTime selMonth; // 选中的月份
+  /// 覆寫下鑽詳情頁的期間文字(統計報表用);null 時按 scope/selMonth 推算。
+  final String? periodLabel;
+  /// 非 null 時取代預設的「開 CategoryDetailPage」下鑽(統計報表有篩選時改開
+  /// 會套用篩選的交易列表)。
+  final void Function(int categoryId, String name)? onOpenDetail;
   final List<({int id, db.Category category, String name, double total})>? subCategories; // 预计算的子分类明细
 
   const CategoryRankRow({
@@ -30,10 +37,13 @@ class CategoryRankRow extends ConsumerStatefulWidget {
     required this.value,
     required this.percent,
     required this.color,
+    this.amountColor,
     required this.start,
     required this.end,
     required this.scope,
     required this.selMonth,
+    this.periodLabel,
+    this.onOpenDetail,
     this.subCategories,
   });
 
@@ -96,6 +106,10 @@ class _CategoryRankRowState extends ConsumerState<CategoryRankRow> {
 
   void _handleTap(int? categoryId, String categoryName) {
     if (categoryId == null) return;
+    if (widget.onOpenDetail != null) {
+      widget.onOpenDetail!(categoryId, categoryName);
+      return;
+    }
 
     // 生成周期标签
     String? periodLabel;
@@ -117,6 +131,7 @@ class _CategoryRankRowState extends ConsumerState<CategoryRankRow> {
   }
 
   String _currentPeriodLabel(String scope, DateTime selMonth, BuildContext context) {
+    if (widget.periodLabel != null) return widget.periodLabel!;
     switch (scope) {
       case 'year':
         return '${selMonth.year}';
@@ -221,7 +236,11 @@ class _CategoryRankRowState extends ConsumerState<CategoryRankRow> {
                         value: value,
                         signed: false,
                         decimals: 0,
-                        style: TextStyle(fontSize: isTopLevel ? 14 : 13),
+                        style: TextStyle(
+                            fontSize: isTopLevel ? 14 : 13,
+                            fontWeight:
+                                isTopLevel ? FontWeight.w600 : FontWeight.w400,
+                            color: widget.amountColor),
                       ),
                     ],
                   ),

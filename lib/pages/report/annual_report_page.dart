@@ -208,6 +208,15 @@ class AnnualReportPage extends ConsumerStatefulWidget {
 }
 
 class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
+  // 收支顏色跟隨「外觀設定 → 收支顏色」(incomeExpenseColorSchemeProvider);
+  // 年度報告畫在主題色背景上,沿用這組較飽和的紅綠,只是依設定對調。
+  static const _kGreen = Color(0xFF4CAF50);
+  static const _kRed = Color(0xFFFF5252);
+  bool _incomeIsRed = true;
+  Color get _incomeColor => _incomeIsRed ? _kRed : _kGreen;
+  Color get _expenseColor => _incomeIsRed ? _kGreen : _kRed;
+  Color _balanceColor(double v) => v >= 0 ? _incomeColor : _expenseColor;
+
   late PageController _pageController;
   int _currentPage = 0;
   late int _selectedYear;
@@ -230,6 +239,7 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final primaryColor = ref.watch(primaryColorProvider);
+    _incomeIsRed = ref.watch(incomeExpenseColorSchemeProvider);
     final dataAsync = ref.watch(annualReportDataProvider(_selectedYear));
 
     return Scaffold(
@@ -500,6 +510,7 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
         child: AnnualReportPoster(
           data: data,
           primaryColor: primaryColor,
+          incomeIsRed: ref.read(incomeExpenseColorSchemeProvider),
         ),
       );
 
@@ -517,6 +528,7 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
           initialImageBytes: pngBytes,
           data: data,
           primaryColor: primaryColor,
+          incomeIsRed: ref.read(incomeExpenseColorSchemeProvider),
         ),
       );
     } catch (e) {
@@ -615,14 +627,14 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
             icon: Icons.trending_up_rounded,
             label: l10n.annualReportTotalIncome,
             amount: data.totalIncome,
-            color: const Color(0xFF4CAF50),
+            color: _incomeColor,
           ),
           const SizedBox(height: 12),
           _buildAmountCard(
             icon: Icons.trending_down_rounded,
             label: l10n.annualReportTotalExpense,
             amount: data.totalExpense,
-            color: const Color(0xFFFF5252),
+            color: _expenseColor,
           ),
           const SizedBox(height: 12),
           _buildAmountCard(
@@ -631,9 +643,7 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
                 : Icons.warning_rounded,
             label: l10n.annualReportNetSavings,
             amount: data.netSavings,
-            color: data.netSavings >= 0
-                ? const Color(0xFF4CAF50)
-                : const Color(0xFFFF5252),
+            color: _balanceColor(data.netSavings),
             showSign: true,
           ),
         ],
@@ -860,9 +870,7 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
               description: savingsRate >= 0
                   ? l10n.annualReportSavingsRateDescPositive
                   : l10n.annualReportSavingsRateDescNegative,
-              primaryColor: savingsRate >= 0
-                  ? const Color(0xFF4CAF50)
-                  : const Color(0xFFFF5252),
+              primaryColor: _balanceColor(savingsRate),
             ),
         ],
       ),
@@ -877,8 +885,8 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
     required Color primaryColor,
   }) {
     // 判断是否使用特殊颜色（红/绿）
-    final isSpecialColor = primaryColor == const Color(0xFF4CAF50) ||
-        primaryColor == const Color(0xFFFF5252);
+    final isSpecialColor =
+        primaryColor == _kGreen || primaryColor == _kRed;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -990,7 +998,7 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
                 width: 12,
                 height: 12,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF4CAF50),
+                  color: _incomeColor,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1007,7 +1015,7 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
                 width: 12,
                 height: 12,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFF5252),
+                  color: _expenseColor,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1053,13 +1061,13 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
                               horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color:
-                                const Color(0xFF4CAF50).withValues(alpha: 0.2),
+                                _incomeColor.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
                             l10n.annualReportIncomeHighest,
-                            style: const TextStyle(
-                              color: Color(0xFF4CAF50),
+                            style: TextStyle(
+                              color: _incomeColor,
                               fontSize: 10,
                             ),
                           ),
@@ -1071,13 +1079,13 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
                               horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color:
-                                const Color(0xFFFF5252).withValues(alpha: 0.2),
+                                _expenseColor.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
                             l10n.annualReportExpenseHighest,
-                            style: const TextStyle(
-                              color: Color(0xFFFF5252),
+                            style: TextStyle(
+                              color: _expenseColor,
                               fontSize: 10,
                             ),
                           ),
@@ -1103,7 +1111,7 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
                               child: Container(
                                 height: 16,
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF4CAF50),
+                                  color: _incomeColor,
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                               ),
@@ -1116,8 +1124,8 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
                         width: 80,
                         child: Text(
                           formatter.format(m.income),
-                          style: const TextStyle(
-                            color: Color(0xFF4CAF50),
+                          style: TextStyle(
+                            color: _incomeColor,
                             fontSize: 12,
                           ),
                           textAlign: TextAlign.right,
@@ -1144,7 +1152,7 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
                               child: Container(
                                 height: 16,
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFFF5252),
+                                  color: _expenseColor,
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                               ),
@@ -1157,8 +1165,8 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
                         width: 80,
                         child: Text(
                           formatter.format(m.expense),
-                          style: const TextStyle(
-                            color: Color(0xFFFF5252),
+                          style: TextStyle(
+                            color: _expenseColor,
                             fontSize: 12,
                           ),
                           textAlign: TextAlign.right,
@@ -1351,7 +1359,7 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
                   label: l10n.annualReportHighestMonth,
                   value: '$maxMonth月',
                   subValue: formatter.format(maxExpense),
-                  color: const Color(0xFFFF5252),
+                  color: _expenseColor,
                 ),
               ),
               const SizedBox(width: 12),
@@ -1360,7 +1368,7 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
                   label: l10n.annualReportLowestMonth,
                   value: '$minMonth月',
                   subValue: formatter.format(minExpense),
-                  color: const Color(0xFF4CAF50),
+                  color: _expenseColor,
                 ),
               ),
             ],
@@ -1394,9 +1402,10 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
                                 height: 160 * heightRatio,
                                 decoration: BoxDecoration(
                                   color: m.month == maxMonth
-                                      ? const Color(0xFFFF5252)
+                                      ? _expenseColor
                                       : m.month == minMonth
-                                          ? const Color(0xFF4CAF50)
+                                          ? _expenseColor.withValues(
+                                              alpha: 0.55)
                                           : Colors.white.withValues(alpha: 0.6),
                                   borderRadius: const BorderRadius.vertical(
                                       top: Radius.circular(4)),
@@ -1507,7 +1516,7 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
                   data.largestExpenseCategory?.name ??
                   '',
               date: dateFormatter.format(data.largestExpense!.happenedAt),
-              color: const Color(0xFFFF5252),
+              color: _expenseColor,
             ),
 
           if (data.largestIncome != null) ...[
@@ -1520,7 +1529,7 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
                   data.largestIncomeCategory?.name ??
                   '',
               date: dateFormatter.format(data.largestIncome!.happenedAt),
-              color: const Color(0xFF4CAF50),
+              color: _incomeColor,
             ),
           ],
 
@@ -1760,11 +1769,13 @@ class _AnnualReportPosterPreview extends StatefulWidget {
   final Uint8List initialImageBytes;
   final AnnualReportData data;
   final Color primaryColor;
+  final bool incomeIsRed;
 
   const _AnnualReportPosterPreview({
     required this.initialImageBytes,
     required this.data,
     required this.primaryColor,
+    required this.incomeIsRed,
   });
 
   @override
@@ -1799,6 +1810,7 @@ class _AnnualReportPosterPreviewState
           data: widget.data,
           primaryColor: widget.primaryColor,
           hideIncome: _hideIncome,
+          incomeIsRed: widget.incomeIsRed,
         ),
       );
 

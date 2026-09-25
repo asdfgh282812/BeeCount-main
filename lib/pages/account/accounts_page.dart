@@ -10,6 +10,7 @@ import '../../services/billing/post_processor.dart';
 import '../../services/custom_icon_service.dart';
 import '../../services/currency/rate_math.dart';
 import '../../widgets/ui/ui.dart';
+import '../../widgets/biz/account_avatar.dart';
 import '../../widgets/biz/amount_text.dart';
 import '../../widgets/biz/format_money.dart';
 import '../../widgets/biz/section_card.dart';
@@ -2843,7 +2844,7 @@ class _ChildAccountRowState extends ConsumerState<_ChildAccountRow> {
               ),
               child: account.avatarPath != null
                   ? ClipOval(
-                      child: _AccountAvatarImage(
+                      child: AccountAvatarImage(
                         avatarPath: account.avatarPath!,
                         size: 26.0.scaled(context, ref),
                         fallback: AccountTypeIcon(
@@ -3433,7 +3434,7 @@ class _AccountCard extends ConsumerWidget {
       ),
       child: account.avatarPath != null
           ? ClipOval(
-              child: _AccountAvatarImage(
+              child: AccountAvatarImage(
                 avatarPath: account.avatarPath!,
                 size: size,
                 fallback: AccountTypeIcon(
@@ -3569,41 +3570,6 @@ class _AccountCard extends ConsumerWidget {
   }
 }
 
-/// 账户头像图片。avatarPath 是 custom_icons/ 下的相对路径(账户头像正常
-/// 状态一定是已落盘的相对路径 —— 临时绝对路径只在编辑页保存前那一刻存在,
-/// 不会进到这张已保存的卡片里),用 CustomIconService 解回绝对路径显示;
-/// 解析失败 / 文件被清过缓存就退回调用方传入的 [fallback](类型图标)。
-class _AccountAvatarImage extends StatelessWidget {
-  final String avatarPath;
-  final double size;
-  final Widget fallback;
-
-  const _AccountAvatarImage({
-    required this.avatarPath,
-    required this.size,
-    required this.fallback,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<String>(
-      future: CustomIconService().resolveIconPath(avatarPath),
-      builder: (context, snapshot) {
-        final abs = snapshot.data;
-        if (abs == null) return Center(child: fallback);
-        final file = File(abs);
-        if (!file.existsSync()) return Center(child: fallback);
-        return Image.file(
-          file,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Center(child: fallback),
-        );
-      },
-    );
-  }
-}
 
 /// 紧凑默认账户选择行
 class _CompactDefaultAccount extends ConsumerWidget {

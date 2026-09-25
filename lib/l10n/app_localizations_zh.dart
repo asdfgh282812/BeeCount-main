@@ -9977,6 +9977,278 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get licenseSettingsExtendHint =>
       'Entering a new key extends your license by its duration, starting from the current expiry date.';
+
+  @override
+  String get reportListTitle => 'Reports';
+
+  @override
+  String get reportBuiltInWeekly => 'Weekly report';
+
+  @override
+  String get reportBuiltInMonthly => 'Monthly report';
+
+  @override
+  String get reportBuiltInYearly => 'Yearly report';
+
+  @override
+  String get reportNew => 'New report';
+
+  @override
+  String get reportEdit => 'Edit report';
+
+  @override
+  String get reportDuplicate => 'Duplicate';
+
+  @override
+  String reportCopyName(String name) {
+    return '$name copy';
+  }
+
+  @override
+  String reportDeleteConfirm(String name) {
+    return 'Delete report \"$name\"?';
+  }
+
+  @override
+  String get reportRestoreDefaults => 'Restore default reports';
+
+  @override
+  String get reportRestoreDefaultsDone => 'Default reports restored';
+
+  @override
+  String get reportNotFound => 'This report no longer exists';
+
+  @override
+  String get reportEmptyList => 'No reports yet. Tap + to create one.';
+
+  @override
+  String get reportName => 'Name';
+
+  @override
+  String get reportNameHint => 'Report name';
+
+  @override
+  String get reportReorderHint => 'Long-press and drag to reorder';
+
+  @override
+  String get reportTabOverview => 'Overview';
+
+  @override
+  String get reportTabDetails => 'Records';
+
+  @override
+  String get reportTabCategory => 'Categories';
+
+  @override
+  String get reportTabRanking => 'Ranking';
+
+  @override
+  String get reportTabAccount => 'Accounts';
+
+  @override
+  String get reportTabProject => 'Projects';
+
+  @override
+  String get reportTabAccountGroup => 'Account groups';
+
+  @override
+  String get reportTabName => 'Names';
+
+  @override
+  String get reportTabMerchant => 'Merchants';
+
+  @override
+  String get reportTabTagCounterparty => 'Tags & people';
+
+  @override
+  String get reportSectionTags => 'Tags';
+
+  @override
+  String get reportSectionCounterparties => 'People';
+
+  @override
+  String get reportNone => '(None)';
+
+  @override
+  String get reportUngrouped => 'Ungrouped';
+
+  @override
+  String get reportDeletedEntity => '(Deleted)';
+
+  @override
+  String get reportTopCategories => 'Top expense categories';
+
+  @override
+  String get reportTopExpenses => 'Top 3 expenses';
+
+  @override
+  String get reportTopMerchants => 'Top merchants';
+
+  @override
+  String reportTxCount(int count) {
+    return '$count records';
+  }
+
+  @override
+  String get reportSortNewest => 'Newest first';
+
+  @override
+  String get reportSortOldest => 'Oldest first';
+
+  @override
+  String get reportTagFootnote =>
+      'A record with several tags is counted under each of them, so the rows may add up to more than the total.';
+
+  @override
+  String get reportPeriod => 'Period';
+
+  @override
+  String get reportPeriodRecurring => 'Recurring';
+
+  @override
+  String get reportPeriodUntilToday => 'Until today';
+
+  @override
+  String get reportPeriodFixed => 'Single range';
+
+  @override
+  String get reportUnitDay => 'Day';
+
+  @override
+  String get reportUnitWeek => 'Week';
+
+  @override
+  String get reportUnitMonth => 'Month';
+
+  @override
+  String get reportUnitYear => 'Year';
+
+  @override
+  String get reportSpan => 'Cycle length';
+
+  @override
+  String reportEveryN(int count, String unit) {
+    return 'Every $count $unit';
+  }
+
+  @override
+  String get reportUnitDays => 'days';
+
+  @override
+  String get reportUnitWeeks => 'weeks';
+
+  @override
+  String get reportUnitMonths => 'months';
+
+  @override
+  String get reportUnitYears => 'years';
+
+  @override
+  String reportLastN(int count, String unit) {
+    return 'Last $count $unit';
+  }
+
+  @override
+  String get reportUntilTodayLastN => 'Last N units';
+
+  @override
+  String get reportUntilTodaySince => 'From a date';
+
+  @override
+  String get reportSinceAll => 'All time';
+
+  @override
+  String get reportSinceDate => 'Start date';
+
+  @override
+  String reportSinceLabel(String date) {
+    return '$date – Today';
+  }
+
+  @override
+  String get reportStartDate => 'Start date';
+
+  @override
+  String get reportEndDate => 'End date';
+
+  @override
+  String get reportCount => 'Count';
+
+  @override
+  String get reportUnit => 'Unit';
+
+  @override
+  String get reportFilter => 'Filters';
+
+  @override
+  String get reportFilterInclude => 'Include';
+
+  @override
+  String get reportFilterExclude => 'Exclude';
+
+  @override
+  String reportFilterSummaryInclude(int count) {
+    return 'Include $count';
+  }
+
+  @override
+  String reportFilterSummaryExclude(int count) {
+    return 'Exclude $count';
+  }
+
+  @override
+  String get reportFilterAll => 'All';
+
+  @override
+  String get reportFilterClear => 'Clear all filters';
+
+  @override
+  String get reportFilterAmountRange => 'Amount range';
+
+  @override
+  String get reportFilterMin => 'Min';
+
+  @override
+  String get reportFilterMax => 'Max';
+
+  @override
+  String get reportFilterRecordTypes => 'Record types';
+
+  @override
+  String get reportFilterSelectAll => 'Select all';
+
+  @override
+  String get reportFilterSelectNone => 'Clear';
+
+  @override
+  String reportFilterApplied(int count) {
+    return '$count filters applied';
+  }
+
+  @override
+  String get reportFilterEmptyOptions => 'Nothing to choose from';
+
+  @override
+  String get reportOtherTypes => 'Transfers & others';
+
+  @override
+  String get whatsNew358StatisticsReportTitle =>
+      'Stats tab is now full reports';
+
+  @override
+  String get whatsNew358StatisticsReportDesc =>
+      'The 4th tab now holds saved reports (weekly / monthly / yearly built in, add your own). Each report has 10 views: overview, records, categories, ranking, accounts, projects, account groups, names, merchants, and tags & people. Periods can be recurring, until today, or a fixed range, with include/exclude filters. The old charts live under the Categories view.';
+
+  @override
+  String get reportFlowReward => 'Rewards';
+
+  @override
+  String get reportRewardNote =>
+      'Rewards are estimated from your credit card reward rules, the same way as the reward detail page. The actual amount posted by your card issuer may differ.';
+
+  @override
+  String get reportTransferAccountNote =>
+      'An account\'s transfer amount is money in plus money out, so one transfer appears under both accounts.';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -19855,4 +20127,272 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get licenseSettingsExtendHint => '輸入新的金鑰會從目前到期日往後延長該金鑰的天數。';
+
+  @override
+  String get reportListTitle => '報表';
+
+  @override
+  String get reportBuiltInWeekly => '每週報表';
+
+  @override
+  String get reportBuiltInMonthly => '每月報表';
+
+  @override
+  String get reportBuiltInYearly => '每年報表';
+
+  @override
+  String get reportNew => '新增報表';
+
+  @override
+  String get reportEdit => '編輯報表';
+
+  @override
+  String get reportDuplicate => '複製';
+
+  @override
+  String reportCopyName(String name) {
+    return '$name 副本';
+  }
+
+  @override
+  String reportDeleteConfirm(String name) {
+    return '確定刪除報表「$name」？';
+  }
+
+  @override
+  String get reportRestoreDefaults => '恢復預設報表';
+
+  @override
+  String get reportRestoreDefaultsDone => '已恢復預設報表';
+
+  @override
+  String get reportNotFound => '報表已不存在';
+
+  @override
+  String get reportEmptyList => '還沒有報表，點右上角 + 新增。';
+
+  @override
+  String get reportName => '名稱';
+
+  @override
+  String get reportNameHint => '報表名稱';
+
+  @override
+  String get reportReorderHint => '長按拖曳可調整順序';
+
+  @override
+  String get reportTabOverview => '總覽';
+
+  @override
+  String get reportTabDetails => '明細';
+
+  @override
+  String get reportTabCategory => '類別';
+
+  @override
+  String get reportTabRanking => '排行';
+
+  @override
+  String get reportTabAccount => '帳戶';
+
+  @override
+  String get reportTabProject => '專案';
+
+  @override
+  String get reportTabAccountGroup => '帳戶分組';
+
+  @override
+  String get reportTabName => '名稱';
+
+  @override
+  String get reportTabMerchant => '商家';
+
+  @override
+  String get reportTabTagCounterparty => '標籤和對象';
+
+  @override
+  String get reportSectionTags => '標籤';
+
+  @override
+  String get reportSectionCounterparties => '對象';
+
+  @override
+  String get reportNone => '(無)';
+
+  @override
+  String get reportUngrouped => '未分組';
+
+  @override
+  String get reportDeletedEntity => '(已刪除)';
+
+  @override
+  String get reportTopCategories => '主要支出類別';
+
+  @override
+  String get reportTopExpenses => 'TOP 3 支出';
+
+  @override
+  String get reportTopMerchants => '商家統計';
+
+  @override
+  String reportTxCount(int count) {
+    return '$count 筆';
+  }
+
+  @override
+  String get reportSortNewest => '新到舊';
+
+  @override
+  String get reportSortOldest => '舊到新';
+
+  @override
+  String get reportTagFootnote => '一筆記錄有多個標籤時會分別計入各標籤，各列加總可能大於總額。';
+
+  @override
+  String get reportPeriod => '期間';
+
+  @override
+  String get reportPeriodRecurring => '重複循環';
+
+  @override
+  String get reportPeriodUntilToday => '截至今天';
+
+  @override
+  String get reportPeriodFixed => '單一區間';
+
+  @override
+  String get reportUnitDay => '日';
+
+  @override
+  String get reportUnitWeek => '週';
+
+  @override
+  String get reportUnitMonth => '月';
+
+  @override
+  String get reportUnitYear => '年';
+
+  @override
+  String get reportSpan => '每期長度';
+
+  @override
+  String reportEveryN(int count, String unit) {
+    return '每 $count $unit';
+  }
+
+  @override
+  String get reportUnitDays => '天';
+
+  @override
+  String get reportUnitWeeks => '週';
+
+  @override
+  String get reportUnitMonths => '個月';
+
+  @override
+  String get reportUnitYears => '年';
+
+  @override
+  String reportLastN(int count, String unit) {
+    return '最近 $count $unit';
+  }
+
+  @override
+  String get reportUntilTodayLastN => '最近 N 個單位';
+
+  @override
+  String get reportUntilTodaySince => '從指定日期起';
+
+  @override
+  String get reportSinceAll => '全部時間';
+
+  @override
+  String get reportSinceDate => '起始日';
+
+  @override
+  String reportSinceLabel(String date) {
+    return '$date – 今天';
+  }
+
+  @override
+  String get reportStartDate => '開始日期';
+
+  @override
+  String get reportEndDate => '結束日期';
+
+  @override
+  String get reportCount => '數量';
+
+  @override
+  String get reportUnit => '單位';
+
+  @override
+  String get reportFilter => '篩選條件';
+
+  @override
+  String get reportFilterInclude => '包含';
+
+  @override
+  String get reportFilterExclude => '排除';
+
+  @override
+  String reportFilterSummaryInclude(int count) {
+    return '包含 $count 項';
+  }
+
+  @override
+  String reportFilterSummaryExclude(int count) {
+    return '排除 $count 項';
+  }
+
+  @override
+  String get reportFilterAll => '全部';
+
+  @override
+  String get reportFilterClear => '清除全部篩選';
+
+  @override
+  String get reportFilterAmountRange => '金額範圍';
+
+  @override
+  String get reportFilterMin => '最小值';
+
+  @override
+  String get reportFilterMax => '最大值';
+
+  @override
+  String get reportFilterRecordTypes => '記錄類型';
+
+  @override
+  String get reportFilterSelectAll => '全選';
+
+  @override
+  String get reportFilterSelectNone => '清除';
+
+  @override
+  String reportFilterApplied(int count) {
+    return '已套用 $count 個篩選條件';
+  }
+
+  @override
+  String get reportFilterEmptyOptions => '沒有可選的項目';
+
+  @override
+  String get reportOtherTypes => '轉帳與其他';
+
+  @override
+  String get whatsNew358StatisticsReportTitle => '「報表」分頁改版為統計報表';
+
+  @override
+  String get whatsNew358StatisticsReportDesc =>
+      '底部第 4 個分頁「報表」改成可儲存多份的統計報表(內建每週/每月/每年，也可自行新增)。每份報表有總覽、明細、類別、排行、帳戶、專案、帳戶分組、名稱、商家、標籤和對象 10 個分頁；期間可選重複循環、截至今天或單一區間，並可設定包含/排除篩選。原本的圓餅圖與分類排行移到「類別」分頁。';
+
+  @override
+  String get reportFlowReward => '回饋金';
+
+  @override
+  String get reportRewardNote => '回饋金是依信用卡回饋規則估算的金額，算法跟回饋明細頁相同；實際入帳金額以發卡行為準。';
+
+  @override
+  String get reportTransferAccountNote => '帳戶的轉帳金額是轉入加轉出，同一筆轉帳會同時出現在兩個帳戶。';
 }

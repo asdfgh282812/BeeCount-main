@@ -20,6 +20,7 @@ import '../../pages/attachment/attachment_preview_page.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/attachment_service.dart';
 import '../../utils/month_range.dart';
+import '../../utils/refund_netting.dart';
 import '../../utils/transaction_edit_utils.dart';
 
 /// 可复用的交易列表组件
@@ -52,6 +53,9 @@ class TransactionList extends ConsumerStatefulWidget {
   /// 列表控制器（可选，用于精准跳转）
   final FlutterListViewController? controller;
 
+  /// 日期分组由旧到新排列(默认新到旧)。统计报表「明细」分页的排序切换用。
+  final bool ascending;
+
   const TransactionList({
     super.key,
     this.transactionsWithDetails,
@@ -61,6 +65,7 @@ class TransactionList extends ConsumerStatefulWidget {
     this.onDateVisibilityChanged,
     this.emptyWidget,
     this.controller,
+    this.ascending = false,
   }) : assert(transactionsWithDetails != null || transactions != null,
             'Either transactionsWithDetails or transactions must be provided');
 
@@ -310,6 +315,27 @@ class TransactionListState extends ConsumerState<TransactionList> {
     return false; // 没有找到目标月份
   }
 
+  /// 跳转到指定日期的分组头;该日无交易时跳到时间上最接近的一天。
+  bool jumpToDate(DateTime day) {
+    if (_dateIndexMap.isEmpty) return false;
+    final target = DateFormat('yyyy-MM-dd').format(day);
+    String? best;
+    for (final key in _dateIndexMap.keys) {
+      if (best == null || _distance(key, target) < _distance(best, target)) {
+        best = key;
+      }
+    }
+    try {
+      _controller.sliverController.jumpToIndex(_dateIndexMap[best]!);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  static int _distance(String a, String b) =>
+      DateTime.parse(a).difference(DateTime.parse(b)).inDays.abs();
+
   /// 构建扁平化的项目列表
   void _buildFlatItems() {
     final transactions = _transactionsList;
@@ -329,7 +355,8 @@ class TransactionListState extends ConsumerState<TransactionList> {
       final key = dateFmt.format(DateTime(dt.year, dt.month, dt.day));
       groups.putIfAbsent(key, () => []).add(item);
     }
-    final sortedKeys = groups.keys.toList()..sort((a, b) => b.compareTo(a));
+    final sortedKeys = groups.keys.toList()
+      ..sort((a, b) => widget.ascending ? a.compareTo(b) : b.compareTo(a));
 
     // 构建扁平的项目列表和日期索引映射
     _flatItems = <dynamic>[];
@@ -412,12 +439,15 @@ class TransactionListState extends ConsumerState<TransactionList> {
                 })>;
             double dayIncome = 0, dayExpense = 0;
             for (final it in list) {
-              // 转账不计入收支统计
-              if (it.t.type == 'income') {
-                dayIncome += it.t.nativeAmount ?? it.t.amount;
-              }
-              if (it.t.type == 'expense') {
-                dayExpense += it.t.nativeAmount ?? it.t.amount;
+              // 转账不计入收支统计;退款單記成反方向的負值(退款沖銷口徑,
+              // 見 utils/refund_netting.dart)
+              final f = statFlowOf(it.t.type, it.t.refundOfSyncId);
+              if (f == null) continue;
+              final v = f.sign * (it.t.nativeAmount ?? it.t.amount);
+              if (f.flow == 'income') {
+                dayIncome += v;
+              } else {
+                dayExpense += v;
               }
             }
             final isFirst = index == 0;

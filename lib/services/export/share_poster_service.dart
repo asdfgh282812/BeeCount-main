@@ -143,7 +143,11 @@ class SharePosterService {
 
       return await _generatePosterFromWidgetStatic(
         context,
-        YearSummaryPoster(data: data, primaryColor: primaryColor, hideIncome: hideIncome),
+        YearSummaryPoster(
+          data: data,
+          primaryColor: primaryColor,
+          hideIncome: hideIncome,
+          incomeIsRed: ref.read(incomeExpenseColorSchemeProvider)),
       );
     } catch (e) {
       return null;
@@ -172,7 +176,11 @@ class SharePosterService {
 
       return await _generatePosterFromWidgetStatic(
         context,
-        MonthSummaryPoster(data: data, primaryColor: primaryColor, hideIncome: hideIncome),
+        MonthSummaryPoster(
+          data: data,
+          primaryColor: primaryColor,
+          hideIncome: hideIncome,
+          incomeIsRed: ref.read(incomeExpenseColorSchemeProvider)),
       );
     } catch (e) {
       return null;
@@ -197,7 +205,11 @@ class SharePosterService {
 
       return await _generatePosterFromWidgetStatic(
         context,
-        LedgerSummaryPoster(data: data, primaryColor: primaryColor, hideIncome: hideIncome),
+        LedgerSummaryPoster(
+          data: data,
+          primaryColor: primaryColor,
+          hideIncome: hideIncome,
+          incomeIsRed: ref.read(incomeExpenseColorSchemeProvider)),
       );
     } catch (e) {
       return null;
@@ -591,7 +603,11 @@ class _PosterCarouselPreviewDialogState
     );
 
     return await _generatePosterFromWidget(
-      YearSummaryPoster(data: data, primaryColor: primaryColor, hideIncome: hideIncome),
+      YearSummaryPoster(
+          data: data,
+          primaryColor: primaryColor,
+          hideIncome: hideIncome,
+          incomeIsRed: ref.read(incomeExpenseColorSchemeProvider)),
     );
   }
 
@@ -619,7 +635,11 @@ class _PosterCarouselPreviewDialogState
     );
 
     return await _generatePosterFromWidget(
-      MonthSummaryPoster(data: data, primaryColor: primaryColor, hideIncome: hideIncome),
+      MonthSummaryPoster(
+          data: data,
+          primaryColor: primaryColor,
+          hideIncome: hideIncome,
+          incomeIsRed: ref.read(incomeExpenseColorSchemeProvider)),
     );
   }
 
@@ -640,7 +660,11 @@ class _PosterCarouselPreviewDialogState
     );
 
     return await _generatePosterFromWidget(
-      LedgerSummaryPoster(data: data, primaryColor: primaryColor, hideIncome: hideIncome),
+      LedgerSummaryPoster(
+          data: data,
+          primaryColor: primaryColor,
+          hideIncome: hideIncome,
+          incomeIsRed: ref.read(incomeExpenseColorSchemeProvider)),
     );
   }
 

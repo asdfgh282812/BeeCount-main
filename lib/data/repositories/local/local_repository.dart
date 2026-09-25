@@ -15,6 +15,7 @@ import '../../../services/data/recurring_rule_schedule.dart'
 import '../../../utils/shared_ledger_picker_filter.dart';
 import '../../../services/system/logger_service.dart';
 import '../../../models/note_history.dart';
+import '../../../models/report/report_dataset.dart';
 import '../../../models/merchant_history.dart';
 import '../../../models/category_suggestion.dart';
 import '../account_repository.dart' show AccountPeriodSummary;
@@ -2908,6 +2909,14 @@ class LocalRepository extends BaseRepository {
   Future<Map<int, Category>> getSharedSyntheticCategoriesForLedger(
           int ledgerId) =>
       _statisticsRepo.getSharedSyntheticCategoriesForLedger(ledgerId);
+
+  @override
+  Future<ReportDataset> loadReportDataset(ReportQuery query) =>
+      _statisticsRepo.loadReportDataset(query);
+
+  @override
+  Future<ReportFilterOptions> loadReportFilterOptions(int ledgerId) =>
+      _statisticsRepo.loadReportFilterOptions(ledgerId);
 
   // ============================================
   // RecurringRuleRepository 接口实现

@@ -16,6 +16,9 @@ class LineChart extends StatelessWidget {
   final VoidCallback? onCloseHint;
   final VoidCallback? onPrimaryLineTap; // 主线点击回调
   final VoidCallback? onSecondaryLineTap; // 副线点击回调
+  /// 點擊某個資料點(依 x 座標取最近的 index),統計報表「明細」分頁用來
+  /// 捲動交易列表到該日期。
+  final ValueChanged<int>? onPointTap;
   final bool whiteBg;
   final bool showGrid;
   final bool showDots;
@@ -51,6 +54,7 @@ class LineChart extends StatelessWidget {
     this.onCloseHint,
     this.onPrimaryLineTap,
     this.onSecondaryLineTap,
+    this.onPointTap,
     this.whiteBg = true,
     this.showGrid = true,
     this.showDots = true,
@@ -78,6 +82,14 @@ class LineChart extends StatelessWidget {
       onTapDown: !interactive
           ? null
           : (details) {
+              if (onPointTap != null && values.isNotEmpty) {
+                final w = context.size?.width ?? 0;
+                final dx = (w - 24) / (values.length - 1).clamp(1, 999);
+                final i = ((details.localPosition.dx - 12) / dx)
+                    .round()
+                    .clamp(0, values.length - 1);
+                onPointTap!(i);
+              }
               // 如果有点击回调，处理点击事件
               if (onPrimaryLineTap != null || onSecondaryLineTap != null) {
                 _handleTap(details.localPosition, context);

@@ -100,4 +100,10 @@ final Map<String, List<WhatsNewItem>> kWhatsNewContent = {
       description: (l10n) => l10n.whatsNew357ProjectFixesDesc,
     ),
   ],
+  '3.5.8': [
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew358StatisticsReportTitle,
+      description: (l10n) => l10n.whatsNew358StatisticsReportDesc,
+    ),
+  ],
 };

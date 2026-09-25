@@ -16,8 +16,8 @@ class AnalyticsSummary extends ConsumerWidget {
   final double? incomeAvg; // 汇总视角的收入平均值
   final bool showExpense; // 是否显示支出信息
   final bool showIncome; // 是否显示收入信息
-  final Color? expenseColor; // 支出颜色
-  final Color? incomeColor; // 收入颜色
+  final Color? expenseColor; // 支出颜色;null = 跟隨收支顏色設定
+  final Color? incomeColor; // 收入颜色;null = 跟隨收支顏色設定
   final bool isBalance; // 是否是结余视角
   const AnalyticsSummary({
     super.key,
@@ -83,7 +83,7 @@ class AnalyticsSummary extends ConsumerWidget {
                                   .textTheme
                                   .bodyMedium
                                   ?.copyWith(
-                                      color: incomeColor ?? Colors.green,
+                                      color: incomeColor ?? BeeTokens.incomeColor(context, ref),
                                       fontWeight: FontWeight.w600)),
                         ],
                       ),
@@ -126,7 +126,7 @@ class AnalyticsSummary extends ConsumerWidget {
                                   .textTheme
                                   .bodyMedium
                                   ?.copyWith(
-                                      color: expenseColor ?? Colors.red,
+                                      color: expenseColor ?? BeeTokens.expenseColor(context, ref),
                                       fontWeight: FontWeight.w600)),
                         ],
                       ),
@@ -164,7 +164,9 @@ class AnalyticsSummary extends ConsumerWidget {
                   value: balance,
                   signed: false,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: balance >= 0 ? Colors.green : Colors.red,
+                      color: balance >= 0
+                          ? BeeTokens.incomeColor(context, ref)
+                          : BeeTokens.expenseColor(context, ref),
                       fontWeight: FontWeight.w600)),
             ],
           ),
@@ -178,10 +180,12 @@ class AnalyticsSummary extends ConsumerWidget {
           ? l10n.analyticsBalance
           : (isExpense ? l10n.analyticsExpense : l10n.analyticsIncome);
       final color = isBalance
-          ? (total >= 0 ? Colors.green : Colors.red)
+          ? (total >= 0
+              ? BeeTokens.incomeColor(context, ref)
+              : BeeTokens.expenseColor(context, ref))
           : (isExpense
-              ? (expenseColor ?? Colors.red)
-              : (incomeColor ?? Colors.green));
+              ? (expenseColor ?? BeeTokens.expenseColor(context, ref))
+              : (incomeColor ?? BeeTokens.incomeColor(context, ref)));
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

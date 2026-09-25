@@ -464,7 +464,7 @@ class _ProjectDetailBody extends ConsumerWidget {
   }
 }
 
-class _StatsRow extends StatelessWidget {
+class _StatsRow extends ConsumerWidget {
   final double expenseTotal;
   final double incomeTotal;
   final double netTotal;
@@ -482,7 +482,7 @@ class _StatsRow extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final maxValue = [expenseTotal, incomeTotal, netTotal.abs()]
         .fold<double>(0, (m, v) => v > m ? v : m);
 
@@ -490,10 +490,10 @@ class _StatsRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _statLine(context, l10n.projectDetailExpenseLabel, expenseTotal,
-            maxValue, BeeTokens.chartExpense(context)),
+            maxValue, BeeTokens.expenseColor(context, ref)),
         const SizedBox(height: 10),
         _statLine(context, l10n.projectDetailIncomeLabel, incomeTotal, maxValue,
-            BeeTokens.chartIncome(context)),
+            BeeTokens.incomeColor(context, ref)),
         const SizedBox(height: 10),
         _statLine(context, l10n.projectDetailNetTotalLabel, netTotal, maxValue,
             BeeTokens.info(context)),

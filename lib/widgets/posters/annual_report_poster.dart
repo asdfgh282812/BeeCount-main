@@ -17,12 +17,24 @@ class AnnualReportPoster extends StatelessWidget {
   final Color primaryColor;
   final bool hideIncome;
 
+  /// 收支顏色設定(incomeExpenseColorSchemeProvider):true = 收入紅、支出綠。
+  final bool incomeIsRed;
+
   const AnnualReportPoster({
     super.key,
     required this.data,
     required this.primaryColor,
     this.hideIncome = false,
+    this.incomeIsRed = true,
   });
+
+  static const _kGreen = Color(0xFF4CAF50);
+  static const _kRed = Color(0xFFFF5252);
+  Color get _incomeColor => incomeIsRed ? _kRed : _kGreen;
+  Color get _expenseColor => incomeIsRed ? _kGreen : _kRed;
+  Color _balanceColor(double v) => v >= 0 ? _incomeColor : _expenseColor;
+  Color _softBg(Color c) =>
+      c == _kGreen ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE);
 
   @override
   Widget build(BuildContext context) {
@@ -472,8 +484,8 @@ class AnnualReportPoster extends StatelessWidget {
                         amount: hideIncome
                             ? '****'
                             : formatter.format(data.totalIncome),
-                        color: const Color(0xFF4CAF50),
-                        bgColor: const Color(0xFFE8F5E9),
+                        color: _incomeColor,
+                        bgColor: _softBg(_incomeColor),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -482,8 +494,8 @@ class AnnualReportPoster extends StatelessWidget {
                         icon: Icons.trending_down_rounded,
                         label: l10n.annualReportTotalExpense,
                         amount: formatter.format(data.totalExpense),
-                        color: const Color(0xFFFF5252),
-                        bgColor: const Color(0xFFFFEBEE),
+                        color: _expenseColor,
+                        bgColor: _softBg(_expenseColor),
                       ),
                     ),
                   ],
@@ -495,16 +507,15 @@ class AnnualReportPoster extends StatelessWidget {
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: data.netSavings >= 0
-                          ? [const Color(0xFF4CAF50), const Color(0xFF66BB6A)]
-                          : [const Color(0xFFFF5252), const Color(0xFFFF6B6B)],
+                      colors: [
+                        _balanceColor(data.netSavings),
+                        _balanceColor(data.netSavings).withValues(alpha: 0.8),
+                      ],
                     ),
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: (data.netSavings >= 0
-                                ? const Color(0xFF4CAF50)
-                                : const Color(0xFFFF5252))
+                        color: _balanceColor(data.netSavings)
                             .withValues(alpha: 0.3),
                         blurRadius: 15,
                         offset: const Offset(0, 8),
@@ -832,9 +843,7 @@ class AnnualReportPoster extends StatelessWidget {
                       ? '${data.maxConsecutiveDays}天'
                       : '${savingsRate.toStringAsFixed(1)}%',
                   // 储蓄率用红绿色区分正负
-                  color: savingsRate >= 0
-                      ? const Color(0xFF4CAF50)
-                      : const Color(0xFFFF5252),
+                  color: _balanceColor(savingsRate),
                 ),
               ),
             ],
@@ -1172,7 +1181,7 @@ class AnnualReportPoster extends StatelessWidget {
                   label: l10n.annualReportHighestMonth,
                   month: '$maxMonth月',
                   amount: formatter.format(maxExpense),
-                  color: const Color(0xFFFF5252),
+                  color: _expenseColor,
                   icon: Icons.arrow_upward_rounded,
                 ),
               ),
@@ -1182,7 +1191,7 @@ class AnnualReportPoster extends StatelessWidget {
                   label: l10n.annualReportLowestMonth,
                   month: '$minMonth月',
                   amount: formatter.format(minExpense),
-                  color: const Color(0xFF4CAF50),
+                  color: _expenseColor,
                   icon: Icons.arrow_downward_rounded,
                 ),
               ),
@@ -1232,9 +1241,9 @@ class AnnualReportPoster extends StatelessWidget {
                       final isMax = m.month == maxMonth;
                       final isMin = m.month == minMonth;
                       final barColor = isMax
-                          ? const Color(0xFFFF5252)
+                          ? _expenseColor
                           : isMin
-                              ? const Color(0xFF4CAF50)
+                              ? _expenseColor.withValues(alpha: 0.55)
                               : primaryColor.withValues(alpha: 0.6);
 
                       return Expanded(
@@ -1384,7 +1393,7 @@ class AnnualReportPoster extends StatelessWidget {
             data.largestExpenseCategory?.name ??
             '',
         date: dateFormatter.format(data.largestExpense!.happenedAt),
-        color: const Color(0xFFFF5252),
+        color: _expenseColor,
         icon: Icons.arrow_downward_rounded,
       ));
     }
@@ -1397,7 +1406,7 @@ class AnnualReportPoster extends StatelessWidget {
         note:
             data.largestIncome!.note ?? data.largestIncomeCategory?.name ?? '',
         date: dateFormatter.format(data.largestIncome!.happenedAt),
-        color: const Color(0xFF4CAF50),
+        color: _incomeColor,
         icon: Icons.arrow_upward_rounded,
       ));
     }

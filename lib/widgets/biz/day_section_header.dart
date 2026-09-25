@@ -52,6 +52,17 @@ class DaySectionHeader extends ConsumerWidget {
     final grey = BeeTokens.textSecondary(context);
     final week = getWeekday(dateText);
     final l10n = AppLocalizations.of(context);
+    // 標籤灰色、金額跟隨收支顏色設定(incomeExpenseColorSchemeProvider)。
+    Widget amountLabel(String label, String amount, Color color) => Text.rich(
+          TextSpan(children: [
+            TextSpan(text: '$label ', style: TextStyle(color: grey)),
+            TextSpan(text: amount, style: TextStyle(color: color)),
+          ]),
+          style: Theme.of(context)
+              .textTheme
+              .labelMedium
+              ?.copyWith(fontSize: 12),
+        );
     return Container(
       // 不设背景色:与交易行一样透明,显示同一外层列表背景。否则暗黑下 header
       // 是 surface 深灰(#1C1C1E)、交易行是纯黑 scaffold 底,两者不协调。
@@ -77,18 +88,12 @@ class DaySectionHeader extends ConsumerWidget {
           ]),
           Row(children: [
             if (shouldHide == false && fmt(expense).isNotEmpty)
-              Text('${l10n.homeExpense} ${fmt(expense)}',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelMedium
-                      ?.copyWith(color: grey, fontSize: 12)),
+              amountLabel(l10n.homeExpense, fmt(expense),
+                  BeeTokens.expenseColor(context, ref)),
             if (shouldHide == false && fmt(income).isNotEmpty) const SizedBox(width: 12),
             if (shouldHide == false && fmt(income).isNotEmpty)
-              Text('${l10n.homeIncome} ${fmt(income)}',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelMedium
-                      ?.copyWith(color: grey, fontSize: 12)),
+              amountLabel(l10n.homeIncome, fmt(income),
+                  BeeTokens.incomeColor(context, ref)),
           ])
         ],
       ),

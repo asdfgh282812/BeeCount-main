@@ -8,6 +8,7 @@ export 'database_providers.dart';
 
 // 统计相关
 export 'statistics_providers.dart';
+export 'report_providers.dart';
 
 // 多币种相关
 export 'currency_providers.dart';

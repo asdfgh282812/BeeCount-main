@@ -15,12 +15,21 @@ class LedgerSummaryPoster extends StatelessWidget {
   final Color primaryColor;
   final bool hideIncome;
 
+  /// 收支顏色設定(incomeExpenseColorSchemeProvider):true = 收入紅、支出綠。
+  final bool incomeIsRed;
+
   const LedgerSummaryPoster({
     super.key,
     required this.data,
     required this.primaryColor,
     this.hideIncome = false,
+    this.incomeIsRed = true,
   });
+
+  static const _kGreen = Color(0xFF51CF66);
+  static const _kRed = Color(0xFFFF6B6B);
+  Color get _incomeColor => incomeIsRed ? _kRed : _kGreen;
+  Color get _expenseColor => incomeIsRed ? _kGreen : _kRed;
 
   @override
   Widget build(BuildContext context) {
@@ -249,7 +258,7 @@ class LedgerSummaryPoster extends StatelessWidget {
                   context,
                   label: l10n.sharePosterTotalExpense,
                   value: formatter.format(data.totalExpense),
-                  color: const Color(0xFFFF6B6B),
+                  color: _expenseColor,
                   icon: Icons.arrow_downward_rounded,
                 ),
               ),
@@ -263,7 +272,7 @@ class LedgerSummaryPoster extends StatelessWidget {
                   context,
                   label: l10n.sharePosterTotalIncome,
                   value: hideIncome ? '**' : formatter.format(data.totalIncome),
-                  color: const Color(0xFF51CF66),
+                  color: _incomeColor,
                   icon: Icons.arrow_upward_rounded,
                 ),
               ),
@@ -279,7 +288,7 @@ class LedgerSummaryPoster extends StatelessWidget {
             context,
             label: l10n.sharePosterBalance,
             value: hideIncome ? '**' : formatter.format(data.balance),
-            color: data.balance >= 0 ? const Color(0xFF51CF66) : const Color(0xFFFF6B6B),
+            color: data.balance >= 0 ? _incomeColor : _expenseColor,
             icon: data.balance >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
             showSign: !hideIncome,
           ),

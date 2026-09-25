@@ -1,4 +1,5 @@
 import '../db.dart' show Category;
+import '../../models/report/report_dataset.dart';
 
 /// 统计Repository接口
 /// 定义统计相关的所有数据操作
@@ -74,4 +75,11 @@ abstract class StatisticsRepository {
   /// 图标路径。单人账本返回空 map。
   Future<Map<int, Category>> getSharedSyntheticCategoriesForLedger(
       int ledgerId);
+
+  /// 統計報表(lib/pages/statistics/)的資料集:期間內交易展開成 legs 並套用
+  /// [ReportQuery.filter]。統計口徑同 [totalsByCategoryWithHierarchy]。
+  Future<ReportDataset> loadReportDataset(ReportQuery query);
+
+  /// 統計報表篩選編輯器的可選項目。
+  Future<ReportFilterOptions> loadReportFilterOptions(int ledgerId);
 }

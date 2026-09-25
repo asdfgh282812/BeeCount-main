@@ -15,12 +15,21 @@ class YearSummaryPoster extends StatelessWidget {
   final Color primaryColor;
   final bool hideIncome;
 
+  /// 收支顏色設定(incomeExpenseColorSchemeProvider):true = 收入紅、支出綠。
+  final bool incomeIsRed;
+
   const YearSummaryPoster({
     super.key,
     required this.data,
     required this.primaryColor,
     this.hideIncome = false,
+    this.incomeIsRed = true,
   });
+
+  static const _kGreen = Color(0xFF51CF66);
+  static const _kRed = Color(0xFFFF6B6B);
+  Color get _incomeColor => incomeIsRed ? _kRed : _kGreen;
+  Color get _expenseColor => incomeIsRed ? _kGreen : _kRed;
 
   @override
   Widget build(BuildContext context) {
@@ -298,7 +307,7 @@ class YearSummaryPoster extends StatelessWidget {
             label: l10n.sharePosterTotalExpense,
             value: formatter.format(data.totalExpense),
             unit: l10n.sharePosterUnitYuan,
-            color: const Color(0xFFFF6B6B),
+            color: _expenseColor,
             isHighlight: true,
           ),
           const SizedBox(height: 16),
@@ -311,7 +320,7 @@ class YearSummaryPoster extends StatelessWidget {
             label: l10n.sharePosterTotalIncome,
             value: hideIncome ? '**' : formatter.format(data.totalIncome),
             unit: l10n.sharePosterUnitYuan,
-            color: const Color(0xFF51CF66),
+            color: _incomeColor,
             isHighlight: true,
           ),
           const SizedBox(height: 16),
@@ -434,7 +443,7 @@ class YearSummaryPoster extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final formatter = NumberFormat('#,##0.00', 'zh_CN');
     final isPositive = data.balance >= 0;
-    final balanceColor = isPositive ? const Color(0xFF51CF66) : const Color(0xFFFF6B6B);
+    final balanceColor = isPositive ? _incomeColor : _expenseColor;
     final balanceIcon = isPositive ? Icons.savings_rounded : Icons.warning_rounded;
 
     return Container(

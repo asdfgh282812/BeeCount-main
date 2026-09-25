@@ -1,84 +1,219 @@
+import 'dart:math' as math;
+
 import 'package:drift/drift.dart' as d;
 
 import '../../db.dart';
 import '../../../utils/month_range.dart';
+import '../../../utils/refund_netting.dart';
 import '../../../utils/shared_ledger_picker_filter.dart';
 import '../statistics_repository.dart';
+import '../../../models/report/report_dataset.dart';
+import 'local_report_loader.dart';
+
+typedef _CategoryInfo = ({
+  int? id,
+  String name,
+  String? icon,
+  int? parentId,
+  int level,
+});
 
 /// 本地统计Repository实现
 /// 基于 Drift 数据库实现
+///
+/// 退款沖銷(2026-09-25,docs/changes/2026-09-25-refund-netting.md):所有
+/// 收支口徑的方法都把退款單當成反方向的負值(見 [statFlowOf]),分類歸屬
+/// 扣回原交易的分類;原交易本身不計入統計(excludeFromStats)時退款也跳過。
 class LocalStatisticsRepository implements StatisticsRepository {
   final BeeDatabase db;
 
   LocalStatisticsRepository(this.db);
 
+  static const _uncategorized =
+      (id: null, name: '未分类', icon: null, parentId: null, level: 1);
+
   @override
-  Future<List<({int? id, String name, String? icon, double total})>> totalsByCategory({
+  Future<List<({int? id, String name, String? icon, double total})>>
+      totalsByCategory({
     required int ledgerId,
     required String type,
     required DateTime start,
     required DateTime end,
   }) async {
-    final q = (db.select(db.transactions)
-          ..where((t) =>
-              t.ledgerId.equals(ledgerId) &
-              t.type.equals(type) &
-              t.excludeFromStats.equals(false) &
-              t.happenedAt.isBiggerOrEqualValue(start) & t.happenedAt.isSmallerThanValue(end)))
-        .join([
-      d.leftOuterJoin(db.categories,
-          db.categories.id.equalsExp(db.transactions.categoryId)),
-    ]);
-    final rows = await q.get();
-    final shared = await _loadSharedCategoriesForLedger(ledgerId);
-    // v38 拆帳:批量预抓这批交易里 hasSplits=true 的明細,避免逐笔 await。
-    final splitsByTx = await _loadSplitsForTransactions(
-        rows.map((r) => r.readTable(db.transactions)).where((t) => t.hasSplits).map((t) => t.id).toList());
+    final legs = await _categoryLegs(
+        ledgerId: ledgerId, type: type, start: start, end: end);
     final map = <int?, double>{};
-    final names = <int?, String>{};
-    final icons = <int?, String?>{};
-    for (final r in rows) {
-      final t = r.readTable(db.transactions);
-      if (t.hasSplits) {
-        // 拆帳交易:主表没有 categoryId,改用每笔明細各自的分类累加,金额
-        // 按这笔交易的折算比例(nativeAmount/amount)缩放,跟未拆帳分支同一套
-        // 「用 nativeAmount 做本位币统计」的口径一致。
-        final ratio = t.amount == 0 ? 1.0 : (t.nativeAmount ?? t.amount) / t.amount;
-        for (final s in splitsByTx[t.id] ?? const <TransactionSplit>[]) {
-          final resolved =
-              await _resolveSplitCategory(s, shared);
-          names[resolved.id] = resolved.name;
-          icons[resolved.id] = resolved.icon;
-          final contribution = s.amount * ratio;
-          map.update(resolved.id, (v) => v + contribution,
-              ifAbsent: () => contribution);
-        }
-        continue;
-      }
-      final c = r.readTableOrNull(db.categories);
-      int? id = c?.id;
-      String name = c?.name ?? '未分类';
-      String? icon = c?.icon;
-      // §7 共享账本:Editor 写的 tx categoryId 为空,但 categorySyncIdOverride
-      // 指向 Owner 的分类 syncId — 查 SharedLedgerCategories 兜底。
-      if (c == null && t.categorySyncIdOverride != null) {
-        final s = shared[t.categorySyncIdOverride!];
-        if (s != null) {
-          id = syntheticIdForSyncId(s.syncId);
-          name = s.name;
-          icon = s.icon;
-        }
-      }
-      names[id] = name;
-      icons[id] = icon;
-      map.update(id, (v) => v + (t.nativeAmount ?? t.amount),
-          ifAbsent: () => t.nativeAmount ?? t.amount);
+    final info = <int?, _CategoryInfo>{};
+    for (final l in legs) {
+      info[l.category.id] = l.category;
+      map.update(l.category.id, (v) => v + l.amount, ifAbsent: () => l.amount);
     }
-    final list = map.entries
-        .map((e) => (id: e.key, name: names[e.key] ?? '未分类', icon: icons[e.key], total: e.value))
+    return map.entries
+        .map((e) => (
+              id: e.key,
+              name: info[e.key]?.name ?? '未分类',
+              icon: info[e.key]?.icon,
+              total: e.value,
+            ))
         .toList()
       ..sort((a, b) => b.total.compareTo(a.total));
-    return list;
+  }
+
+  @override
+  Future<
+      List<
+          ({
+            int? id,
+            String name,
+            String? icon,
+            int? parentId,
+            int level,
+            double total
+          })>> totalsByCategoryWithHierarchy({
+    required int ledgerId,
+    required String type,
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final legs = await _categoryLegs(
+        ledgerId: ledgerId, type: type, start: start, end: end);
+    final map = <int?, double>{};
+    final info = <int?, _CategoryInfo>{};
+    for (final l in legs) {
+      info[l.category.id] = l.category;
+      map.update(l.category.id, (v) => v + l.amount, ifAbsent: () => l.amount);
+    }
+    return map.entries.map((e) {
+      final c = info[e.key]!;
+      return (
+        id: e.key,
+        name: c.name,
+        icon: c.icon,
+        parentId: c.parentId,
+        level: c.level,
+        total: e.value,
+      );
+    }).toList()
+      ..sort((a, b) => b.total.compareTo(a.total));
+  }
+
+  /// [totalsByCategory]/[totalsByCategoryWithHierarchy] 共用:把區間內計入
+  /// [type] 統計的交易展開成 (分類, 帶正負號金額) legs。
+  /// - 拆帳交易:每筆明細一條 leg,金額按 nativeAmount/amount 折算比例縮放;
+  ///   查不到明細就不貢獻金額(v38 起的既有口徑)。
+  /// - 本地分類查不到時用 categorySyncIdOverride 對共享帳本 Owner 分類
+  ///   (synthetic 負 id)兜底。
+  /// - 退款單:負值,分類扣回原交易的分類(原交易有拆帳就按明細比例分攤);
+  ///   查不到原交易才用退款單自己的分類。
+  Future<List<({_CategoryInfo category, double amount})>> _categoryLegs({
+    required int ledgerId,
+    required String type,
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final rows = await (db.select(db.transactions)
+          ..where((t) =>
+              t.ledgerId.equals(ledgerId) &
+              t.type.isIn(statTypesFor(type)) &
+              t.excludeFromStats.equals(false) &
+              t.happenedAt.isBiggerOrEqualValue(start) &
+              t.happenedAt.isSmallerThanValue(end)))
+        .get();
+    final targets = await _loadRefundTargets(ledgerId, rows);
+    final shared = await _loadSharedCategoriesForLedger(ledgerId);
+    final catsById = {
+      for (final c in await db.select(db.categories).get()) c.id: c,
+    };
+    // v38 拆帳:批量预抓(含退款原交易的)明細,避免逐笔 await。
+    final splitsByTx = await _loadSplitsForTransactions([
+      for (final t in [...rows, ...targets.values])
+        if (t.hasSplits) t.id
+    ]);
+
+    final out = <({_CategoryInfo category, double amount})>[];
+    void spread(Transaction src, double total, {required bool scaleByRatio}) {
+      if (src.hasSplits) {
+        final splits = splitsByTx[src.id] ?? const <TransactionSplit>[];
+        if (scaleByRatio) {
+          final native = src.nativeAmount ?? src.amount;
+          final ratio = src.amount == 0 ? 1.0 : native / src.amount;
+          final sign = total < 0 ? -1.0 : 1.0;
+          for (final s in splits) {
+            out.add((
+              category: _resolveCategory(
+                  s.categoryId, s.categorySyncIdOverride, shared, catsById),
+              amount: sign * s.amount * ratio,
+            ));
+          }
+          return;
+        }
+        // 退款扣回原交易:按原交易明細的比例分攤退款金額。
+        final base = splits.fold<double>(0, (a, s) => a + s.amount);
+        if (splits.isNotEmpty && base != 0) {
+          for (final s in splits) {
+            out.add((
+              category: _resolveCategory(
+                  s.categoryId, s.categorySyncIdOverride, shared, catsById),
+              amount: total * s.amount / base,
+            ));
+          }
+          return;
+        }
+        out.add((category: _uncategorized, amount: total));
+        return;
+      }
+      out.add((
+        category: _resolveCategory(
+            src.categoryId, src.categorySyncIdOverride, shared, catsById),
+        amount: total,
+      ));
+    }
+
+    for (final t in rows) {
+      final signed = _signedAmount(t, type, targets);
+      if (signed == null) continue;
+      final target = signed < 0 ? targets[t.refundOfSyncId] : null;
+      if (target != null) {
+        spread(target, signed, scaleByRatio: false);
+      } else {
+        spread(t, signed, scaleByRatio: true);
+      }
+    }
+    return out;
+  }
+
+  /// 這筆交易在 [flow] 統計下的帶正負號本位幣金額;不計入 → null。退款單
+  /// 的原交易本身不計入統計時,退款也不計入(不然會憑空多出一筆負數)。
+  double? _signedAmount(
+      Transaction t, String flow, Map<String, Transaction> targets) {
+    final f = statFlowOf(t.type, t.refundOfSyncId);
+    if (f == null || f.flow != flow) return null;
+    if (f.sign < 0 && (targets[t.refundOfSyncId]?.excludeFromStats ?? false)) {
+      return null;
+    }
+    return f.sign * (t.nativeAmount ?? t.amount);
+  }
+
+  /// 批次查一批交易裡退款單指向的原交易(同帳本,不限日期——退款常常跟原
+  /// 交易不在同一期),key = 原交易 syncId。
+  Future<Map<String, Transaction>> _loadRefundTargets(
+      int ledgerId, Iterable<Transaction> txs) async {
+    final ids = {
+      for (final t in txs)
+        if (isRefundOf(t.refundOfSyncId)) t.refundOfSyncId!
+    }.toList();
+    if (ids.isEmpty) return const {};
+    final out = <String, Transaction>{};
+    for (var i = 0; i < ids.length; i += 500) {
+      final part = ids.sublist(i, math.min(i + 500, ids.length));
+      final found = await (db.select(db.transactions)
+            ..where((t) => t.ledgerId.equals(ledgerId) & t.syncId.isIn(part)))
+          .get();
+      for (final o in found) {
+        out[o.syncId!] = o;
+      }
+    }
+    return out;
   }
 
   /// v38 拆帳:批量抓一批交易 id 的拆帳明細(只需传 hasSplits=true 的 id),
@@ -86,29 +221,31 @@ class LocalStatisticsRepository implements StatisticsRepository {
   Future<Map<int, List<TransactionSplit>>> _loadSplitsForTransactions(
       List<int> hasSplitsIds) async {
     if (hasSplitsIds.isEmpty) return const {};
-    final rows = await (db.select(db.transactionSplits)
-          ..where((s) => s.transactionId.isIn(hasSplitsIds)))
-        .get();
     final map = <int, List<TransactionSplit>>{};
-    for (final s in rows) {
-      map.putIfAbsent(s.transactionId, () => []).add(s);
+    for (var i = 0; i < hasSplitsIds.length; i += 500) {
+      final part =
+          hasSplitsIds.sublist(i, math.min(i + 500, hasSplitsIds.length));
+      final rows = await (db.select(db.transactionSplits)
+            ..where((s) => s.transactionId.isIn(part)))
+          .get();
+      for (final s in rows) {
+        map.putIfAbsent(s.transactionId, () => []).add(s);
+      }
     }
     return map;
   }
 
-  /// v38 拆帳:反查一筆拆帳明細的分类 id/name/icon/parentId/level,跟主表
-  /// 未拆帳分支同一套「本地 categoryId 优先,查无再看
-  /// categorySyncIdOverride(共享账本 Owner 分类)兜底,再查无就算未分类」
-  /// 逻辑,只是来源换成 [TransactionSplit] 而不是 [Transaction]。
-  Future<({int? id, String name, String? icon, int? parentId, int level})>
-      _resolveSplitCategory(
-    TransactionSplit s,
+  /// 反查分类 id/name/icon/parentId/level:本地 categoryId 优先,查无再看
+  /// categorySyncIdOverride(共享账本 Owner 分类,synthetic 负 id)兜底,
+  /// 再查无就算未分类。交易主表与拆帳明細共用。
+  _CategoryInfo _resolveCategory(
+    int? categoryId,
+    String? overrideSyncId,
     Map<String, SharedLedgerCategory> shared,
-  ) async {
-    if (s.categoryId != null) {
-      final c = await (db.select(db.categories)
-            ..where((c) => c.id.equals(s.categoryId!)))
-          .getSingleOrNull();
+    Map<int, Category> catsById,
+  ) {
+    if (categoryId != null) {
+      final c = catsById[categoryId];
       if (c != null) {
         return (
           id: c.id,
@@ -119,14 +256,16 @@ class LocalStatisticsRepository implements StatisticsRepository {
         );
       }
     }
-    if (s.categorySyncIdOverride != null) {
-      final sh = shared[s.categorySyncIdOverride!];
+    if (overrideSyncId != null) {
+      final sh = shared[overrideSyncId];
       if (sh != null) {
         final pSyncId = sh.parentSyncId;
         return (
           id: syntheticIdForSyncId(sh.syncId),
           name: sh.name,
           icon: sh.icon,
+          // §7 二级分类 hierarchy:父分类 syncId 转 synthetic 负 id,让
+          // analytics 的 L2→L1 rollup 正确累加。
           parentId: (pSyncId != null && pSyncId.isNotEmpty)
               ? syntheticIdForSyncId(pSyncId)
               : null,
@@ -134,7 +273,7 @@ class LocalStatisticsRepository implements StatisticsRepository {
         );
       }
     }
-    return (id: null, name: '未分类', icon: null, parentId: null, level: 1);
+    return _uncategorized;
   }
 
   /// 加载当前账本的 SharedLedger 分类索引(by syncId)。单人账本返回空 map,
@@ -181,109 +320,30 @@ class LocalStatisticsRepository implements StatisticsRepository {
     };
   }
 
-  @override
-  Future<List<({int? id, String name, String? icon, int? parentId, int level, double total})>>
-      totalsByCategoryWithHierarchy({
+  /// [totalsByDay]/[totalsByMonth]/[totalsByYearSeries] 共用:撈計入 [type]
+  /// 統計的交易(含反向類型裡的退款單),回傳 (本地時間, 帶正負號金額)。
+  Future<List<({DateTime at, double amount})>> _signedRows({
     required int ledgerId,
     required String type,
-    required DateTime start,
-    required DateTime end,
+    DateTime? start,
+    DateTime? end,
   }) async {
-    final q = (db.select(db.transactions)
-          ..where((t) =>
-              t.ledgerId.equals(ledgerId) &
-              t.type.equals(type) &
-              t.excludeFromStats.equals(false) &
-              t.happenedAt.isBiggerOrEqualValue(start) & t.happenedAt.isSmallerThanValue(end)))
-        .join([
-      d.leftOuterJoin(db.categories,
-          db.categories.id.equalsExp(db.transactions.categoryId)),
-    ]);
-
-    final rows = await q.get();
-    final shared = await _loadSharedCategoriesForLedger(ledgerId);
-    // v38 拆帳:批量预抓这批交易里 hasSplits=true 的明細,避免逐笔 await。
-    final splitsByTx = await _loadSplitsForTransactions(
-        rows.map((r) => r.readTable(db.transactions)).where((t) => t.hasSplits).map((t) => t.id).toList());
-    final map = <int?, double>{};
-    final categoryInfo = <int?, ({String name, String? icon, int? parentId, int level})>{};
-
-    for (final r in rows) {
-      final t = r.readTable(db.transactions);
-      if (t.hasSplits) {
-        // 拆帳交易:比照 totalsByCategory 展开明細,金額按折算比例縮放。
-        final ratio = t.amount == 0 ? 1.0 : (t.nativeAmount ?? t.amount) / t.amount;
-        for (final s in splitsByTx[t.id] ?? const <TransactionSplit>[]) {
-          final resolved = await _resolveSplitCategory(s, shared);
-          categoryInfo[resolved.id] = (
-            name: resolved.name,
-            icon: resolved.icon,
-            parentId: resolved.parentId,
-            level: resolved.level,
-          );
-          final contribution = s.amount * ratio;
-          map.update(resolved.id, (v) => v + contribution,
-              ifAbsent: () => contribution);
-        }
-        continue;
-      }
-      final c = r.readTableOrNull(db.categories);
-      int? id = c?.id;
-
-      if (c != null) {
-        categoryInfo[id] = (
-          name: c.name,
-          icon: c.icon,
-          parentId: c.parentId,
-          level: c.level,
-        );
-      } else if (t.categorySyncIdOverride != null &&
-          shared[t.categorySyncIdOverride!] != null) {
-        // §7 共享账本:Editor 写的 tx 用 categorySyncIdOverride 指向 Owner
-        // 的分类,主表 join 不到,查 SharedLedger* 兜底。用 synthetic 负 id
-        // 做聚合 key,跟 picker filter 保持一致。
-        // §7 二级分类 hierarchy:Phase 2 加了 parent_sync_id 后,L2 SharedLedger*
-        // 行有父分类 syncId — 转 synthetic 负 id 写入 parentId,让 analytics
-        // 的 L2→L1 rollup 正确累加,而不是把 L2 当 orphan 丢掉。
-        final s = shared[t.categorySyncIdOverride!]!;
-        id = syntheticIdForSyncId(s.syncId);
-        final pSyncId = s.parentSyncId;
-        final parentSyntheticId = (pSyncId != null && pSyncId.isNotEmpty)
-            ? syntheticIdForSyncId(pSyncId)
-            : null;
-        categoryInfo[id] = (
-          name: s.name,
-          icon: s.icon,
-          parentId: parentSyntheticId,
-          level: s.level,
-        );
-      } else {
-        categoryInfo[id] = (
-          name: '未分类',
-          icon: null,
-          parentId: null,
-          level: 1,
-        );
-      }
-
-      map.update(id, (v) => v + (t.nativeAmount ?? t.amount),
-          ifAbsent: () => t.nativeAmount ?? t.amount);
-    }
-
-    final list = map.entries.map((e) {
-      final info = categoryInfo[e.key]!;
-      return (
-        id: e.key,
-        name: info.name,
-        icon: info.icon,
-        parentId: info.parentId,
-        level: info.level,
-        total: e.value,
-      );
-    }).toList()
-      ..sort((a, b) => b.total.compareTo(a.total));
-
-    return list;
+    final rows = await (db.select(db.transactions)
+          ..where((t) {
+            var w = t.ledgerId.equals(ledgerId) &
+                t.type.isIn(statTypesFor(type)) &
+                t.excludeFromStats.equals(false);
+            if (start != null) w = w & t.happenedAt.isBiggerOrEqualValue(start);
+            if (end != null) w = w & t.happenedAt.isSmallerThanValue(end);
+            return w;
+          }))
+        .get();
+    final targets = await _loadRefundTargets(ledgerId, rows);
+    return [
+      for (final t in rows)
+        if (_signedAmount(t, type, targets) case final v?)
+          (at: t.happenedAt.toLocal(), amount: v),
+    ];
   }
 
   @override
@@ -293,19 +353,12 @@ class LocalStatisticsRepository implements StatisticsRepository {
     required DateTime start,
     required DateTime end,
   }) async {
-    final rows = await (db.select(db.transactions)
-          ..where((t) =>
-              t.ledgerId.equals(ledgerId) &
-              t.type.equals(type) &
-              t.excludeFromStats.equals(false) &
-              t.happenedAt.isBiggerOrEqualValue(start) & t.happenedAt.isSmallerThanValue(end)))
-        .get();
+    final rows = await _signedRows(
+        ledgerId: ledgerId, type: type, start: start, end: end);
     final map = <DateTime, double>{};
-    for (final t in rows) {
-      final dt = t.happenedAt.toLocal();
-      final day = DateTime(dt.year, dt.month, dt.day);
-      map.update(day, (v) => v + (t.nativeAmount ?? t.amount),
-          ifAbsent: () => t.nativeAmount ?? t.amount);
+    for (final r in rows) {
+      final day = DateTime(r.at.year, r.at.month, r.at.day);
+      map.update(day, (v) => v + r.amount, ifAbsent: () => r.amount);
     }
     // ensure full range continuity
     final result = <({DateTime day, double total})>[];
@@ -325,20 +378,13 @@ class LocalStatisticsRepository implements StatisticsRepository {
   }) async {
     final sd = await _monthStartDayOf(ledgerId);
     final yr = yearRangeFor(year, sd);
-    final rows = await (db.select(db.transactions)
-          ..where((t) =>
-              t.ledgerId.equals(ledgerId) &
-              t.type.equals(type) &
-              t.excludeFromStats.equals(false) &
-              t.happenedAt.isBiggerOrEqualValue(yr.start) &
-              t.happenedAt.isSmallerThanValue(yr.end)))
-        .get();
+    final rows = await _signedRows(
+        ledgerId: ledgerId, type: type, start: yr.start, end: yr.end);
     final map = <int, double>{};
-    for (final t in rows) {
+    for (final r in rows) {
       // 年范围 [当年1月周期起点, 次年1月周期起点) 内的标签必属 year,直接取 month
-      final label = labelForDate(t.happenedAt.toLocal(), sd);
-      map.update(label.month, (v) => v + (t.nativeAmount ?? t.amount),
-          ifAbsent: () => t.nativeAmount ?? t.amount);
+      final label = labelForDate(r.at, sd);
+      map.update(label.month, (v) => v + r.amount, ifAbsent: () => r.amount);
     }
     final result = <({DateTime month, double total})>[];
     for (int m = 1; m <= 12; m++) {
@@ -352,22 +398,16 @@ class LocalStatisticsRepository implements StatisticsRepository {
     required int ledgerId,
     required String type,
   }) async {
-    final rows = await (db.select(db.transactions)
-          ..where((t) =>
-              t.ledgerId.equals(ledgerId) &
-              t.type.equals(type) &
-              t.excludeFromStats.equals(false)))
-        .get();
+    final rows = await _signedRows(ledgerId: ledgerId, type: type);
     if (rows.isEmpty) return const [];
     final sd = await _monthStartDayOf(ledgerId);
     final map = <int, double>{};
     int minYear = 9999, maxYear = 0;
-    for (final t in rows) {
-      final y = labelForDate(t.happenedAt.toLocal(), sd).year;
+    for (final r in rows) {
+      final y = labelForDate(r.at, sd).year;
       if (y < minYear) minYear = y;
       if (y > maxYear) maxYear = y;
-      map.update(y, (v) => v + (t.nativeAmount ?? t.amount),
-          ifAbsent: () => t.nativeAmount ?? t.amount);
+      map.update(y, (v) => v + r.amount, ifAbsent: () => r.amount);
     }
     final out = <({int year, double total})>[];
     for (int y = minYear; y <= maxYear; y++) {
@@ -376,21 +416,36 @@ class LocalStatisticsRepository implements StatisticsRepository {
     return out;
   }
 
-  @override
-  Future<(double income, double expense)> totalsInRange({
-    required int ledgerId,
-    required DateTime start,
-    required DateTime end,
-  }) async {
-    // 使用 SQL 聚合查询，比查出全部数据再累加快得多
+  /// [totalsInRange]/[monthlyTotals]/[yearlyTotals] 共用的 SQL 聚合(比查出
+  /// 全部資料再累加快得多)。退款單記成反方向的負值;原交易本身不計入統計
+  /// 時退款也不計入(子查詢走 idx_transactions_sync_id)。
+  Future<(double income, double expense)> _rangeTotals(
+      int ledgerId, DateTime start, DateTime end) async {
     final result = await db.customSelect(
       '''
       SELECT
-        COALESCE(SUM(CASE WHEN type = 'income' THEN COALESCE(native_amount, amount) ELSE 0 END), 0) AS income,
-        COALESCE(SUM(CASE WHEN type = 'expense' THEN COALESCE(native_amount, amount) ELSE 0 END), 0) AS expense
-      FROM transactions
-      WHERE ledger_id = ?1 AND happened_at >= ?2 AND happened_at < ?3
-        AND exclude_from_stats = 0
+        COALESCE(SUM(CASE
+          WHEN r = 0 AND type = 'income' THEN amt
+          WHEN r = 1 AND type = 'expense' AND ox = 0 THEN -amt
+          ELSE 0 END), 0) AS income,
+        COALESCE(SUM(CASE
+          WHEN r = 0 AND type = 'expense' THEN amt
+          WHEN r = 1 AND type = 'income' AND ox = 0 THEN -amt
+          ELSE 0 END), 0) AS expense
+      FROM (
+        SELECT
+          t.type AS type,
+          COALESCE(t.native_amount, t.amount) AS amt,
+          CASE WHEN COALESCE(t.refund_of_sync_id, '') = '' THEN 0 ELSE 1 END AS r,
+          CASE WHEN COALESCE(t.refund_of_sync_id, '') = '' THEN 0 ELSE COALESCE(
+            (SELECT o.exclude_from_stats FROM transactions o
+              WHERE o.sync_id = t.refund_of_sync_id AND o.ledger_id = t.ledger_id
+              LIMIT 1), 0) END AS ox
+        FROM transactions t
+        WHERE t.ledger_id = ?1 AND t.happened_at >= ?2 AND t.happened_at < ?3
+          AND t.exclude_from_stats = 0
+          AND t.type IN ('income', 'expense')
+      )
       ''',
       variables: [
         d.Variable<int>(ledgerId),
@@ -404,6 +459,14 @@ class LocalStatisticsRepository implements StatisticsRepository {
     final expense = (result.data['expense'] as num?)?.toDouble() ?? 0.0;
     return (income, expense);
   }
+
+  @override
+  Future<(double income, double expense)> totalsInRange({
+    required int ledgerId,
+    required DateTime start,
+    required DateTime end,
+  }) =>
+      _rangeTotals(ledgerId, start, end);
 
   /// 读取账本的自定义每月起始日(1-28);账本缺失或查询异常时按 1(自然月)降级
   /// —— watch 流经 Stream.fromFuture 包裹,这里抛错会让流永久进 error 态。
@@ -425,30 +488,7 @@ class LocalStatisticsRepository implements StatisticsRepository {
   }) async {
     final sd = await _monthStartDayOf(ledgerId);
     final range = periodForLabel(month.year, month.month, sd);
-    final start = range.start;
-    final end = range.end;
-
-    // 使用 SQL 聚合查询，比查出全部数据再累加快得多
-    final result = await db.customSelect(
-      '''
-      SELECT
-        COALESCE(SUM(CASE WHEN type = 'income' THEN COALESCE(native_amount, amount) ELSE 0 END), 0) AS income,
-        COALESCE(SUM(CASE WHEN type = 'expense' THEN COALESCE(native_amount, amount) ELSE 0 END), 0) AS expense
-      FROM transactions
-      WHERE ledger_id = ?1 AND happened_at >= ?2 AND happened_at < ?3
-        AND exclude_from_stats = 0
-      ''',
-      variables: [
-        d.Variable<int>(ledgerId),
-        d.Variable<DateTime>(start),
-        d.Variable<DateTime>(end),
-      ],
-      readsFrom: {db.transactions},
-    ).getSingle();
-
-    final income = (result.data['income'] as num?)?.toDouble() ?? 0.0;
-    final expense = (result.data['expense'] as num?)?.toDouble() ?? 0.0;
-    return (income, expense);
+    return _rangeTotals(ledgerId, range.start, range.end);
   }
 
   @override
@@ -458,29 +498,16 @@ class LocalStatisticsRepository implements StatisticsRepository {
   }) async {
     final sd = await _monthStartDayOf(ledgerId);
     final range = yearRangeFor(year, sd);
-    final start = range.start;
-    final end = range.end;
-
-    // 使用 SQL 聚合查询，比查出全部数据再累加快得多
-    final result = await db.customSelect(
-      '''
-      SELECT
-        COALESCE(SUM(CASE WHEN type = 'income' THEN COALESCE(native_amount, amount) ELSE 0 END), 0) AS income,
-        COALESCE(SUM(CASE WHEN type = 'expense' THEN COALESCE(native_amount, amount) ELSE 0 END), 0) AS expense
-      FROM transactions
-      WHERE ledger_id = ?1 AND happened_at >= ?2 AND happened_at < ?3
-        AND exclude_from_stats = 0
-      ''',
-      variables: [
-        d.Variable<int>(ledgerId),
-        d.Variable<DateTime>(start),
-        d.Variable<DateTime>(end),
-      ],
-      readsFrom: {db.transactions},
-    ).getSingle();
-
-    final income = (result.data['income'] as num?)?.toDouble() ?? 0.0;
-    final expense = (result.data['expense'] as num?)?.toDouble() ?? 0.0;
-    return (income, expense);
+    return _rangeTotals(ledgerId, range.start, range.end);
   }
+
+  @override
+  Future<ReportDataset> loadReportDataset(ReportQuery query) =>
+      LocalReportLoader(db).load(query,
+          sharedSyntheticCategories: getSharedSyntheticCategoriesForLedger);
+
+  @override
+  Future<ReportFilterOptions> loadReportFilterOptions(int ledgerId) =>
+      LocalReportLoader(db).loadFilterOptions(ledgerId,
+          sharedSyntheticCategories: getSharedSyntheticCategoriesForLedger);
 }

@@ -18512,6 +18512,504 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Entering a new key extends your license by its duration, starting from the current expiry date.'**
   String get licenseSettingsExtendHint;
+
+  /// No description provided for @reportListTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reports'**
+  String get reportListTitle;
+
+  /// No description provided for @reportBuiltInWeekly.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly report'**
+  String get reportBuiltInWeekly;
+
+  /// No description provided for @reportBuiltInMonthly.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly report'**
+  String get reportBuiltInMonthly;
+
+  /// No description provided for @reportBuiltInYearly.
+  ///
+  /// In en, this message translates to:
+  /// **'Yearly report'**
+  String get reportBuiltInYearly;
+
+  /// No description provided for @reportNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New report'**
+  String get reportNew;
+
+  /// No description provided for @reportEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit report'**
+  String get reportEdit;
+
+  /// No description provided for @reportDuplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate'**
+  String get reportDuplicate;
+
+  /// No description provided for @reportCopyName.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} copy'**
+  String reportCopyName(String name);
+
+  /// No description provided for @reportDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete report \"{name}\"?'**
+  String reportDeleteConfirm(String name);
+
+  /// No description provided for @reportRestoreDefaults.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore default reports'**
+  String get reportRestoreDefaults;
+
+  /// No description provided for @reportRestoreDefaultsDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Default reports restored'**
+  String get reportRestoreDefaultsDone;
+
+  /// No description provided for @reportNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'This report no longer exists'**
+  String get reportNotFound;
+
+  /// No description provided for @reportEmptyList.
+  ///
+  /// In en, this message translates to:
+  /// **'No reports yet. Tap + to create one.'**
+  String get reportEmptyList;
+
+  /// No description provided for @reportName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get reportName;
+
+  /// No description provided for @reportNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Report name'**
+  String get reportNameHint;
+
+  /// No description provided for @reportReorderHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Long-press and drag to reorder'**
+  String get reportReorderHint;
+
+  /// No description provided for @reportTabOverview.
+  ///
+  /// In en, this message translates to:
+  /// **'Overview'**
+  String get reportTabOverview;
+
+  /// No description provided for @reportTabDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Records'**
+  String get reportTabDetails;
+
+  /// No description provided for @reportTabCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Categories'**
+  String get reportTabCategory;
+
+  /// No description provided for @reportTabRanking.
+  ///
+  /// In en, this message translates to:
+  /// **'Ranking'**
+  String get reportTabRanking;
+
+  /// No description provided for @reportTabAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Accounts'**
+  String get reportTabAccount;
+
+  /// No description provided for @reportTabProject.
+  ///
+  /// In en, this message translates to:
+  /// **'Projects'**
+  String get reportTabProject;
+
+  /// No description provided for @reportTabAccountGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Account groups'**
+  String get reportTabAccountGroup;
+
+  /// No description provided for @reportTabName.
+  ///
+  /// In en, this message translates to:
+  /// **'Names'**
+  String get reportTabName;
+
+  /// No description provided for @reportTabMerchant.
+  ///
+  /// In en, this message translates to:
+  /// **'Merchants'**
+  String get reportTabMerchant;
+
+  /// No description provided for @reportTabTagCounterparty.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags & people'**
+  String get reportTabTagCounterparty;
+
+  /// No description provided for @reportSectionTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags'**
+  String get reportSectionTags;
+
+  /// No description provided for @reportSectionCounterparties.
+  ///
+  /// In en, this message translates to:
+  /// **'People'**
+  String get reportSectionCounterparties;
+
+  /// No description provided for @reportNone.
+  ///
+  /// In en, this message translates to:
+  /// **'(None)'**
+  String get reportNone;
+
+  /// No description provided for @reportUngrouped.
+  ///
+  /// In en, this message translates to:
+  /// **'Ungrouped'**
+  String get reportUngrouped;
+
+  /// No description provided for @reportDeletedEntity.
+  ///
+  /// In en, this message translates to:
+  /// **'(Deleted)'**
+  String get reportDeletedEntity;
+
+  /// No description provided for @reportTopCategories.
+  ///
+  /// In en, this message translates to:
+  /// **'Top expense categories'**
+  String get reportTopCategories;
+
+  /// No description provided for @reportTopExpenses.
+  ///
+  /// In en, this message translates to:
+  /// **'Top 3 expenses'**
+  String get reportTopExpenses;
+
+  /// No description provided for @reportTopMerchants.
+  ///
+  /// In en, this message translates to:
+  /// **'Top merchants'**
+  String get reportTopMerchants;
+
+  /// No description provided for @reportTxCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} records'**
+  String reportTxCount(int count);
+
+  /// No description provided for @reportSortNewest.
+  ///
+  /// In en, this message translates to:
+  /// **'Newest first'**
+  String get reportSortNewest;
+
+  /// No description provided for @reportSortOldest.
+  ///
+  /// In en, this message translates to:
+  /// **'Oldest first'**
+  String get reportSortOldest;
+
+  /// No description provided for @reportTagFootnote.
+  ///
+  /// In en, this message translates to:
+  /// **'A record with several tags is counted under each of them, so the rows may add up to more than the total.'**
+  String get reportTagFootnote;
+
+  /// No description provided for @reportPeriod.
+  ///
+  /// In en, this message translates to:
+  /// **'Period'**
+  String get reportPeriod;
+
+  /// No description provided for @reportPeriodRecurring.
+  ///
+  /// In en, this message translates to:
+  /// **'Recurring'**
+  String get reportPeriodRecurring;
+
+  /// No description provided for @reportPeriodUntilToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Until today'**
+  String get reportPeriodUntilToday;
+
+  /// No description provided for @reportPeriodFixed.
+  ///
+  /// In en, this message translates to:
+  /// **'Single range'**
+  String get reportPeriodFixed;
+
+  /// No description provided for @reportUnitDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Day'**
+  String get reportUnitDay;
+
+  /// No description provided for @reportUnitWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Week'**
+  String get reportUnitWeek;
+
+  /// No description provided for @reportUnitMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Month'**
+  String get reportUnitMonth;
+
+  /// No description provided for @reportUnitYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Year'**
+  String get reportUnitYear;
+
+  /// No description provided for @reportSpan.
+  ///
+  /// In en, this message translates to:
+  /// **'Cycle length'**
+  String get reportSpan;
+
+  /// No description provided for @reportEveryN.
+  ///
+  /// In en, this message translates to:
+  /// **'Every {count} {unit}'**
+  String reportEveryN(int count, String unit);
+
+  /// No description provided for @reportUnitDays.
+  ///
+  /// In en, this message translates to:
+  /// **'days'**
+  String get reportUnitDays;
+
+  /// No description provided for @reportUnitWeeks.
+  ///
+  /// In en, this message translates to:
+  /// **'weeks'**
+  String get reportUnitWeeks;
+
+  /// No description provided for @reportUnitMonths.
+  ///
+  /// In en, this message translates to:
+  /// **'months'**
+  String get reportUnitMonths;
+
+  /// No description provided for @reportUnitYears.
+  ///
+  /// In en, this message translates to:
+  /// **'years'**
+  String get reportUnitYears;
+
+  /// No description provided for @reportLastN.
+  ///
+  /// In en, this message translates to:
+  /// **'Last {count} {unit}'**
+  String reportLastN(int count, String unit);
+
+  /// No description provided for @reportUntilTodayLastN.
+  ///
+  /// In en, this message translates to:
+  /// **'Last N units'**
+  String get reportUntilTodayLastN;
+
+  /// No description provided for @reportUntilTodaySince.
+  ///
+  /// In en, this message translates to:
+  /// **'From a date'**
+  String get reportUntilTodaySince;
+
+  /// No description provided for @reportSinceAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All time'**
+  String get reportSinceAll;
+
+  /// No description provided for @reportSinceDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Start date'**
+  String get reportSinceDate;
+
+  /// No description provided for @reportSinceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{date} – Today'**
+  String reportSinceLabel(String date);
+
+  /// No description provided for @reportStartDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Start date'**
+  String get reportStartDate;
+
+  /// No description provided for @reportEndDate.
+  ///
+  /// In en, this message translates to:
+  /// **'End date'**
+  String get reportEndDate;
+
+  /// No description provided for @reportCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Count'**
+  String get reportCount;
+
+  /// No description provided for @reportUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'Unit'**
+  String get reportUnit;
+
+  /// No description provided for @reportFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Filters'**
+  String get reportFilter;
+
+  /// No description provided for @reportFilterInclude.
+  ///
+  /// In en, this message translates to:
+  /// **'Include'**
+  String get reportFilterInclude;
+
+  /// No description provided for @reportFilterExclude.
+  ///
+  /// In en, this message translates to:
+  /// **'Exclude'**
+  String get reportFilterExclude;
+
+  /// No description provided for @reportFilterSummaryInclude.
+  ///
+  /// In en, this message translates to:
+  /// **'Include {count}'**
+  String reportFilterSummaryInclude(int count);
+
+  /// No description provided for @reportFilterSummaryExclude.
+  ///
+  /// In en, this message translates to:
+  /// **'Exclude {count}'**
+  String reportFilterSummaryExclude(int count);
+
+  /// No description provided for @reportFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get reportFilterAll;
+
+  /// No description provided for @reportFilterClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all filters'**
+  String get reportFilterClear;
+
+  /// No description provided for @reportFilterAmountRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount range'**
+  String get reportFilterAmountRange;
+
+  /// No description provided for @reportFilterMin.
+  ///
+  /// In en, this message translates to:
+  /// **'Min'**
+  String get reportFilterMin;
+
+  /// No description provided for @reportFilterMax.
+  ///
+  /// In en, this message translates to:
+  /// **'Max'**
+  String get reportFilterMax;
+
+  /// No description provided for @reportFilterRecordTypes.
+  ///
+  /// In en, this message translates to:
+  /// **'Record types'**
+  String get reportFilterRecordTypes;
+
+  /// No description provided for @reportFilterSelectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Select all'**
+  String get reportFilterSelectAll;
+
+  /// No description provided for @reportFilterSelectNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get reportFilterSelectNone;
+
+  /// No description provided for @reportFilterApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} filters applied'**
+  String reportFilterApplied(int count);
+
+  /// No description provided for @reportFilterEmptyOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to choose from'**
+  String get reportFilterEmptyOptions;
+
+  /// No description provided for @reportOtherTypes.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfers & others'**
+  String get reportOtherTypes;
+
+  /// No description provided for @whatsNew358StatisticsReportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Stats tab is now full reports'**
+  String get whatsNew358StatisticsReportTitle;
+
+  /// No description provided for @whatsNew358StatisticsReportDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'The 4th tab now holds saved reports (weekly / monthly / yearly built in, add your own). Each report has 10 views: overview, records, categories, ranking, accounts, projects, account groups, names, merchants, and tags & people. Periods can be recurring, until today, or a fixed range, with include/exclude filters. The old charts live under the Categories view.'**
+  String get whatsNew358StatisticsReportDesc;
+
+  /// No description provided for @reportFlowReward.
+  ///
+  /// In en, this message translates to:
+  /// **'Rewards'**
+  String get reportFlowReward;
+
+  /// No description provided for @reportRewardNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Rewards are estimated from your credit card reward rules, the same way as the reward detail page. The actual amount posted by your card issuer may differ.'**
+  String get reportRewardNote;
+
+  /// No description provided for @reportTransferAccountNote.
+  ///
+  /// In en, this message translates to:
+  /// **'An account\'s transfer amount is money in plus money out, so one transfer appears under both accounts.'**
+  String get reportTransferAccountNote;
 }
 
 class _AppLocalizationsDelegate

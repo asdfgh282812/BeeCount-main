@@ -331,3 +331,44 @@ final cardRewardForDraftProvider = FutureProvider.family.autoDispose<
     return fallback > remaining ? remaining : fallback;
   },
 );
+
+/// 統計報表「回饋金」用:一批交易各自的估算回饋金(勾選的所有規則加總),
+/// 回傳 `{交易 id: 回饋金}`。每筆的算法跟交易詳情卡
+/// [cardRewardForTransactionProvider] 相同(所屬帳單週期內按時間累積扣減
+/// capAmount、已退款部分不算,見 [_summarizeRuleWindow]);同一條規則、同一
+/// 帳戶情境、同一期帳單只查一次。沒掛帳戶(共享帳本 Editor 的交易)或找不到
+/// 規則的略過。
+Future<Map<int, double>> estimateCardRewardsForTransactions(
+  BaseRepository repo,
+  Iterable<Transaction> txs,
+) async {
+  final rules = <String, CardRewardRule?>{};
+  final contexts =
+      <int, ({int accountId, List<int>? extraIds, int? billingDay})>{};
+  final windows = <String, CardRewardRuleSummary>{};
+  final out = <int, double>{};
+  for (final tx in txs) {
+    final accountId = tx.accountId;
+    if (accountId == null || tx.rewardRuleIds.isEmpty) continue;
+    final ctx = contexts[accountId] ??=
+        await _resolveRewardAccountContext(repo, accountId);
+    var total = 0.0;
+    for (final ruleSyncId in tx.rewardRuleIds) {
+      final rule = rules.containsKey(ruleSyncId)
+          ? rules[ruleSyncId]
+          : (rules[ruleSyncId] = await repo.getCardRewardRuleBySyncId(ruleSyncId));
+      if (rule == null) continue;
+      final offset = billingCycleOffsetForDate(ctx.billingDay, tx.happenedAt);
+      if (offset == null) {
+        total += estimateCardRewardForRule(rule, tx.amount);
+        continue;
+      }
+      final key = '$ruleSyncId|${ctx.accountId}|$offset';
+      final summary = windows[key] ??= await _summarizeRuleWindow(
+          repo, rule, ctx.accountId, ctx.extraIds, ctx.billingDay, offset);
+      total += summary.rewardByTransactionId[tx.id] ?? 0;
+    }
+    if (total != 0) out[tx.id] = total;
+  }
+  return out;
+}

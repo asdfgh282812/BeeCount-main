@@ -59,13 +59,29 @@ const double _kMaxOuterRadius = 130;
 /// 分类占比饼图（环形图 + 仿 Moze 风格的外部引线百分比标签）
 class CategoryPieChart extends ConsumerStatefulWidget {
   final List<PieCategoryItem> data;
+
+  /// 扇形角度/百分比的分母(正值分類合計)。
   final double sum;
+
+  /// 中間未選取時顯示的總額;null = [sum]。統計報表有退款沖銷時傳淨額。
+  final double? centerTotal;
+
+  /// 中間金額的顏色(收入/支出色);null = 主要字色。
+  final Color? centerColor;
 
   /// 统计区间信息：用于点击扇区跳转到该分类的交易明细页
   final DateTime start;
   final DateTime end;
   final String scope; // month | year | all
   final DateTime selMonth;
+
+  /// 覆寫下鑽詳情頁顯示的期間文字(統計報表傳自己的期間標籤;null 時按
+  /// [scope]/[selMonth] 推算,舊行為)。
+  final String? periodLabel;
+
+  /// 非 null 時取代預設的「開 CategoryDetailPage」下鑽(統計報表有篩選時用)。
+  final void Function(int categoryId, String name, List<int> childIds)?
+      onOpenDetail;
 
   /// 选中扇区回调，返回分类索引（-1 表示取消选中）
   final ValueChanged<int>? onSectionTap;
@@ -74,10 +90,14 @@ class CategoryPieChart extends ConsumerStatefulWidget {
     super.key,
     required this.data,
     required this.sum,
+    this.centerTotal,
+    this.centerColor,
     required this.start,
     required this.end,
     required this.scope,
     required this.selMonth,
+    this.periodLabel,
+    this.onOpenDetail,
     this.onSectionTap,
   });
 
@@ -139,6 +159,7 @@ class _CategoryPieChartState extends ConsumerState<CategoryPieChart> {
   }
 
   String _currentPeriodLabel(BuildContext context) {
+    if (widget.periodLabel != null) return widget.periodLabel!;
     switch (widget.scope) {
       case 'year':
         return '${widget.selMonth.year}';
@@ -181,6 +202,10 @@ class _CategoryPieChartState extends ConsumerState<CategoryPieChart> {
     // item 是一级分类且有子分类时，交易实际记在子分类上、item.id 自身查不到
     // 任何交易——把子分类 id 一并带过去，让详情页把二者聚合展示。
     final childCategoryIds = item.subCategories.map((s) => s.id).toList();
+    if (widget.onOpenDetail != null) {
+      widget.onOpenDetail!(item.id!, item.name, childCategoryIds);
+      return;
+    }
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => CategoryDetailPage(
@@ -353,13 +378,15 @@ class _CategoryPieChartState extends ConsumerState<CategoryPieChart> {
                       const SizedBox(height: 2),
                     ],
                     AmountText(
-                      value: selectedSlice?.total ?? widget.sum,
+                      value: selectedSlice?.total ??
+                          widget.centerTotal ??
+                          widget.sum,
                       signed: false,
                       decimals: 0,
                       style: TextStyle(
                         fontSize: selectedSlice != null ? 16 : 22,
                         fontWeight: FontWeight.w700,
-                        color: BeeTokens.textPrimary(context),
+                        color: widget.centerColor ?? BeeTokens.textPrimary(context),
                       ),
                     ),
                   ],

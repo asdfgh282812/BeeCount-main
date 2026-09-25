@@ -10069,4 +10069,276 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String get licenseSettingsExtendHint =>
       'Entering a new key extends your license by its duration, starting from the current expiry date.';
+
+  @override
+  String get reportListTitle => 'Reports';
+
+  @override
+  String get reportBuiltInWeekly => 'Weekly report';
+
+  @override
+  String get reportBuiltInMonthly => 'Monthly report';
+
+  @override
+  String get reportBuiltInYearly => 'Yearly report';
+
+  @override
+  String get reportNew => 'New report';
+
+  @override
+  String get reportEdit => 'Edit report';
+
+  @override
+  String get reportDuplicate => 'Duplicate';
+
+  @override
+  String reportCopyName(String name) {
+    return '$name copy';
+  }
+
+  @override
+  String reportDeleteConfirm(String name) {
+    return 'Delete report \"$name\"?';
+  }
+
+  @override
+  String get reportRestoreDefaults => 'Restore default reports';
+
+  @override
+  String get reportRestoreDefaultsDone => 'Default reports restored';
+
+  @override
+  String get reportNotFound => 'This report no longer exists';
+
+  @override
+  String get reportEmptyList => 'No reports yet. Tap + to create one.';
+
+  @override
+  String get reportName => 'Name';
+
+  @override
+  String get reportNameHint => 'Report name';
+
+  @override
+  String get reportReorderHint => 'Long-press and drag to reorder';
+
+  @override
+  String get reportTabOverview => 'Overview';
+
+  @override
+  String get reportTabDetails => 'Records';
+
+  @override
+  String get reportTabCategory => 'Categories';
+
+  @override
+  String get reportTabRanking => 'Ranking';
+
+  @override
+  String get reportTabAccount => 'Accounts';
+
+  @override
+  String get reportTabProject => 'Projects';
+
+  @override
+  String get reportTabAccountGroup => 'Account groups';
+
+  @override
+  String get reportTabName => 'Names';
+
+  @override
+  String get reportTabMerchant => 'Merchants';
+
+  @override
+  String get reportTabTagCounterparty => 'Tags & people';
+
+  @override
+  String get reportSectionTags => 'Tags';
+
+  @override
+  String get reportSectionCounterparties => 'People';
+
+  @override
+  String get reportNone => '(None)';
+
+  @override
+  String get reportUngrouped => 'Ungrouped';
+
+  @override
+  String get reportDeletedEntity => '(Deleted)';
+
+  @override
+  String get reportTopCategories => 'Top expense categories';
+
+  @override
+  String get reportTopExpenses => 'Top 3 expenses';
+
+  @override
+  String get reportTopMerchants => 'Top merchants';
+
+  @override
+  String reportTxCount(int count) {
+    return '$count records';
+  }
+
+  @override
+  String get reportSortNewest => 'Newest first';
+
+  @override
+  String get reportSortOldest => 'Oldest first';
+
+  @override
+  String get reportTagFootnote =>
+      'A record with several tags is counted under each of them, so the rows may add up to more than the total.';
+
+  @override
+  String get reportPeriod => 'Period';
+
+  @override
+  String get reportPeriodRecurring => 'Recurring';
+
+  @override
+  String get reportPeriodUntilToday => 'Until today';
+
+  @override
+  String get reportPeriodFixed => 'Single range';
+
+  @override
+  String get reportUnitDay => 'Day';
+
+  @override
+  String get reportUnitWeek => 'Week';
+
+  @override
+  String get reportUnitMonth => 'Month';
+
+  @override
+  String get reportUnitYear => 'Year';
+
+  @override
+  String get reportSpan => 'Cycle length';
+
+  @override
+  String reportEveryN(int count, String unit) {
+    return 'Every $count $unit';
+  }
+
+  @override
+  String get reportUnitDays => 'days';
+
+  @override
+  String get reportUnitWeeks => 'weeks';
+
+  @override
+  String get reportUnitMonths => 'months';
+
+  @override
+  String get reportUnitYears => 'years';
+
+  @override
+  String reportLastN(int count, String unit) {
+    return 'Last $count $unit';
+  }
+
+  @override
+  String get reportUntilTodayLastN => 'Last N units';
+
+  @override
+  String get reportUntilTodaySince => 'From a date';
+
+  @override
+  String get reportSinceAll => 'All time';
+
+  @override
+  String get reportSinceDate => 'Start date';
+
+  @override
+  String reportSinceLabel(String date) {
+    return '$date – Today';
+  }
+
+  @override
+  String get reportStartDate => 'Start date';
+
+  @override
+  String get reportEndDate => 'End date';
+
+  @override
+  String get reportCount => 'Count';
+
+  @override
+  String get reportUnit => 'Unit';
+
+  @override
+  String get reportFilter => 'Filters';
+
+  @override
+  String get reportFilterInclude => 'Include';
+
+  @override
+  String get reportFilterExclude => 'Exclude';
+
+  @override
+  String reportFilterSummaryInclude(int count) {
+    return 'Include $count';
+  }
+
+  @override
+  String reportFilterSummaryExclude(int count) {
+    return 'Exclude $count';
+  }
+
+  @override
+  String get reportFilterAll => 'All';
+
+  @override
+  String get reportFilterClear => 'Clear all filters';
+
+  @override
+  String get reportFilterAmountRange => 'Amount range';
+
+  @override
+  String get reportFilterMin => 'Min';
+
+  @override
+  String get reportFilterMax => 'Max';
+
+  @override
+  String get reportFilterRecordTypes => 'Record types';
+
+  @override
+  String get reportFilterSelectAll => 'Select all';
+
+  @override
+  String get reportFilterSelectNone => 'Clear';
+
+  @override
+  String reportFilterApplied(int count) {
+    return '$count filters applied';
+  }
+
+  @override
+  String get reportFilterEmptyOptions => 'Nothing to choose from';
+
+  @override
+  String get reportOtherTypes => 'Transfers & others';
+
+  @override
+  String get whatsNew358StatisticsReportTitle =>
+      'Stats tab is now full reports';
+
+  @override
+  String get whatsNew358StatisticsReportDesc =>
+      'The 4th tab now holds saved reports (weekly / monthly / yearly built in, add your own). Each report has 10 views: overview, records, categories, ranking, accounts, projects, account groups, names, merchants, and tags & people. Periods can be recurring, until today, or a fixed range, with include/exclude filters. The old charts live under the Categories view.';
+
+  @override
+  String get reportFlowReward => 'Rewards';
+
+  @override
+  String get reportRewardNote =>
+      'Rewards are estimated from your credit card reward rules, the same way as the reward detail page. The actual amount posted by your card issuer may differ.';
+
+  @override
+  String get reportTransferAccountNote =>
+      'An account\'s transfer amount is money in plus money out, so one transfer appears under both accounts.';
 }
