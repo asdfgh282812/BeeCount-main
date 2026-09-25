@@ -10266,12 +10266,65 @@ class AppLocalizationsZh extends AppLocalizations {
   String get reportOtherTypes => 'Transfers & others';
 
   @override
-  String get whatsNew358StatisticsReportTitle =>
-      'Stats tab is now full reports';
+  String get whatsNew360StatisticsReportTitle =>
+      'The Report tab is now full statistics reports';
 
   @override
-  String get whatsNew358StatisticsReportDesc =>
-      'The 4th tab now holds saved reports (weekly / monthly / yearly built in, add your own). Each report has 10 views: overview, records, categories, ranking, accounts, projects, account groups, names, merchants, and tags & people. Periods can be recurring, until today, or a fixed range, with include/exclude filters. The old charts live under the Categories view.';
+  String get whatsNew360StatisticsReportDesc =>
+      'The 4th tab (Report) now holds saved reports — weekly / monthly / yearly built in, tap + to add your own. Each report has views for overview, records, categories, ranking, accounts, projects, account groups, names, merchants, and tags & people. Periods can be recurring, until today, or a fixed range, with include/exclude filters, and most views switch between expense / income / transfer / rewards. The old charts live under the Categories view.';
+
+  @override
+  String get whatsNew360RefundNettingTitle =>
+      'Refunds now net out, matching the web dashboard';
+
+  @override
+  String get whatsNew360RefundNettingDesc =>
+      'A refund no longer counts as both an expense and an income — it\'s deducted from the original transaction\'s category, so reports, the home monthly totals, and the annual report match the web dashboard. Refunding in the app and syncing now also reverses the card reward. Report and share-poster amounts follow Me → Personalization → Income/Expense Color Scheme.';
+
+  @override
+  String get whatsNew360IosShareImageTitle => 'Bill from the iOS share sheet';
+
+  @override
+  String get whatsNew360IosShareImageDesc =>
+      'After taking a screenshot, tap the thumbnail → Share (or share a picture from Photos) and pick BeeCount — the app opens and runs image bookkeeping on it (one image at a time). The first time, BeeCount may be hidden under \"More\" at the end of the share sheet\'s app row.';
+
+  @override
+  String get whatsNew360AccountGroupTitle =>
+      'Account groups can now be plain groups';
+
+  @override
+  String get whatsNew360AccountGroupDesc =>
+      'The Group Settings of a parent account now have a \"Credit Card Combined Billing\" switch. Turn it off to use the group for, say, a bank\'s local and foreign-currency accounts: the detail page shows the combined balance (foreign currencies converted) and every sub-account\'s transactions instead of a billing cycle. Find it in Accounts → edit the parent account → Group Settings.';
+
+  @override
+  String get whatsNew360AccountSwitcherTitle =>
+      'Switch between sibling accounts on the detail page';
+
+  @override
+  String get whatsNew360AccountSwitcherDesc =>
+      'The account detail title is now centered. For a sub-account under a parent account, tap the ▼ next to the title to jump to another sub-account in the same group without going back to Accounts.';
+
+  @override
+  String get whatsNew360NavMotionTitle =>
+      'New motion for the tab bar and the record page';
+
+  @override
+  String get whatsNew360NavMotionDesc =>
+      'The tab bar\'s highlight now slides to the selected tab, and you can press and drag along the bar to pick a tab. Tapping \"+ Record\" in the Details tab now slides the record page up from the bottom — drag it down to close.';
+
+  @override
+  String get whatsNew360LicenseKeyTitle => 'License keys';
+
+  @override
+  String get whatsNew360LicenseKeyDesc =>
+      'Using the app now requires signing in to BeeCount Cloud with a license key; once verified online, it works offline for 7 days. Check the expiry date or enter a new key in Me → License key. If your app version is too old, you\'ll be asked to update before syncing.';
+
+  @override
+  String get whatsNew360FixesTitle => 'Other fixes';
+
+  @override
+  String get whatsNew360FixesDesc =>
+      'Swiping from the left edge on iOS goes back again; a new device\'s first sync no longer fails on duplicate categories; tapping a top-level category in the report\'s pie chart no longer shows an empty list; the report period menu only goes back to the ledger\'s first transaction; fresh installs default to TWD; the Android home screen label now reads 蜜蜂記帳.';
 
   @override
   String get reportFlowReward => 'Rewards';
@@ -20446,11 +20499,60 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get reportOtherTypes => '轉帳與其他';
 
   @override
-  String get whatsNew358StatisticsReportTitle => '「報表」分頁改版為統計報表';
+  String get whatsNew360StatisticsReportTitle => '「報表」分頁改版為統計報表';
 
   @override
-  String get whatsNew358StatisticsReportDesc =>
-      '底部第 4 個分頁「報表」改成可儲存多份的統計報表(內建每週/每月/每年，也可自行新增)。每份報表有總覽、明細、類別、排行、帳戶、專案、帳戶分組、名稱、商家、標籤和對象 10 個分頁；期間可選重複循環、截至今天或單一區間，並可設定包含/排除篩選。原本的圓餅圖與分類排行移到「類別」分頁。';
+  String get whatsNew360StatisticsReportDesc =>
+      '底部第 4 個分頁「報表」改成可儲存多份的統計報表(內建每週/每月/每年，右上「+」可自行新增)。每份報表有總覽、明細、類別、排行、帳戶、專案、帳戶分組、名稱、商家、標籤和對象等分頁，期間可選重複循環、截至今天或單一區間，並可設定包含/排除篩選；各分頁可切換支出/收入/轉帳/回饋金。原本的圓餅圖與分類排行移到「類別」分頁。';
+
+  @override
+  String get whatsNew360RefundNettingTitle => '退款自動沖銷，收支統計與網頁版一致';
+
+  @override
+  String get whatsNew360RefundNettingDesc =>
+      '退款不再同時算成一筆支出和一筆收入，而是直接扣回原交易的分類，報表、首頁月收支、年度報告的數字都跟網頁版一致；在 App 按退款並同步後，信用卡回饋金也會一併沖銷。報表與分享海報的收支金額改為跟隨「我的 → 個性化設定 → 收支顏色方案」。';
+
+  @override
+  String get whatsNew360IosShareImageTitle => 'iOS 分享選單直接圖片記帳';
+
+  @override
+  String get whatsNew360IosShareImageDesc =>
+      '截圖後點左下角縮圖 → 分享，或在「照片」App 分享圖片時選「蜜蜂記帳」，App 會自動打開並用圖片記帳辨識建帳(一次 1 張)。第一次使用時，「蜜蜂記帳」可能在分享列最右邊的「更多」裡，需要先開啟。';
+
+  @override
+  String get whatsNew360AccountGroupTitle => '主帳戶(群組)可當一般群組使用';
+
+  @override
+  String get whatsNew360AccountGroupDesc =>
+      '主帳戶的「群組設定」多了「信用卡合併帳單」開關。關閉後可當一般群組(例如銀行底下的台幣戶 + 外幣戶),明細頁會顯示子帳戶合計餘額(外幣自動折算)與全部子帳戶的交易，不再出現信用卡帳單週期。入口：資產頁 → 編輯主帳戶 → 群組設定。';
+
+  @override
+  String get whatsNew360AccountSwitcherTitle => '帳戶明細頁可直接切換同群組子帳戶';
+
+  @override
+  String get whatsNew360AccountSwitcherDesc =>
+      '帳戶明細頁的標題改為置中。掛在主帳戶底下的子帳戶，標題旁會出現 ▼，點一下就能切換到同一個主帳戶底下的其他子帳戶，不用退回資產頁。';
+
+  @override
+  String get whatsNew360NavMotionTitle => '底部導覽列與記帳頁的新動畫';
+
+  @override
+  String get whatsNew360NavMotionDesc =>
+      '底部導覽列選中的膠囊會滑到新分頁，也可以按住導覽列左右拖曳、放開就切換分頁。在「明細」分頁點中間的「+ 記帳」，記帳頁改由下往上滑入，往下拖即可關閉。';
+
+  @override
+  String get whatsNew360LicenseKeyTitle => '新增授權金鑰';
+
+  @override
+  String get whatsNew360LicenseKeyDesc =>
+      '使用 App 需要登入 BeeCount Cloud 並輸入授權金鑰，連網確認後可離線使用 7 天。查看到期日或輸入新金鑰延長，請到「我的 → 授權金鑰」。App 版本過舊時會提示先更新才能同步。';
+
+  @override
+  String get whatsNew360FixesTitle => '其他修正';
+
+  @override
+  String get whatsNew360FixesDesc =>
+      '修正 iOS 無法從螢幕左緣右滑返回上一頁；修正新裝置首次同步時可能因重複分類而同步失敗；報表點圓餅圖的一級分類不再顯示「暫無交易記錄」；報表期間選單只列到帳本第一筆交易那一期；全新安裝的預設幣種改為新台幣；Android 桌面圖示名稱改為「蜜蜂記帳」。';
 
   @override
   String get reportFlowReward => '回饋金';

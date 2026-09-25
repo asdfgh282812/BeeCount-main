@@ -100,10 +100,38 @@ final Map<String, List<WhatsNewItem>> kWhatsNewContent = {
       description: (l10n) => l10n.whatsNew357ProjectFixesDesc,
     ),
   ],
-  '3.5.8': [
+  '3.6.0': [
     WhatsNewItem(
-      title: (l10n) => l10n.whatsNew358StatisticsReportTitle,
-      description: (l10n) => l10n.whatsNew358StatisticsReportDesc,
+      title: (l10n) => l10n.whatsNew360StatisticsReportTitle,
+      description: (l10n) => l10n.whatsNew360StatisticsReportDesc,
+    ),
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew360RefundNettingTitle,
+      description: (l10n) => l10n.whatsNew360RefundNettingDesc,
+    ),
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew360IosShareImageTitle,
+      description: (l10n) => l10n.whatsNew360IosShareImageDesc,
+    ),
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew360AccountGroupTitle,
+      description: (l10n) => l10n.whatsNew360AccountGroupDesc,
+    ),
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew360AccountSwitcherTitle,
+      description: (l10n) => l10n.whatsNew360AccountSwitcherDesc,
+    ),
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew360NavMotionTitle,
+      description: (l10n) => l10n.whatsNew360NavMotionDesc,
+    ),
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew360LicenseKeyTitle,
+      description: (l10n) => l10n.whatsNew360LicenseKeyDesc,
+    ),
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew360FixesTitle,
+      description: (l10n) => l10n.whatsNew360FixesDesc,
     ),
   ],
 };

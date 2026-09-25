@@ -10358,12 +10358,65 @@ class AppLocalizationsKo extends AppLocalizations {
   String get reportOtherTypes => 'Transfers & others';
 
   @override
-  String get whatsNew358StatisticsReportTitle =>
-      'Stats tab is now full reports';
+  String get whatsNew360StatisticsReportTitle =>
+      'The Report tab is now full statistics reports';
 
   @override
-  String get whatsNew358StatisticsReportDesc =>
-      'The 4th tab now holds saved reports (weekly / monthly / yearly built in, add your own). Each report has 10 views: overview, records, categories, ranking, accounts, projects, account groups, names, merchants, and tags & people. Periods can be recurring, until today, or a fixed range, with include/exclude filters. The old charts live under the Categories view.';
+  String get whatsNew360StatisticsReportDesc =>
+      'The 4th tab (Report) now holds saved reports — weekly / monthly / yearly built in, tap + to add your own. Each report has views for overview, records, categories, ranking, accounts, projects, account groups, names, merchants, and tags & people. Periods can be recurring, until today, or a fixed range, with include/exclude filters, and most views switch between expense / income / transfer / rewards. The old charts live under the Categories view.';
+
+  @override
+  String get whatsNew360RefundNettingTitle =>
+      'Refunds now net out, matching the web dashboard';
+
+  @override
+  String get whatsNew360RefundNettingDesc =>
+      'A refund no longer counts as both an expense and an income — it\'s deducted from the original transaction\'s category, so reports, the home monthly totals, and the annual report match the web dashboard. Refunding in the app and syncing now also reverses the card reward. Report and share-poster amounts follow Me → Personalization → Income/Expense Color Scheme.';
+
+  @override
+  String get whatsNew360IosShareImageTitle => 'Bill from the iOS share sheet';
+
+  @override
+  String get whatsNew360IosShareImageDesc =>
+      'After taking a screenshot, tap the thumbnail → Share (or share a picture from Photos) and pick BeeCount — the app opens and runs image bookkeeping on it (one image at a time). The first time, BeeCount may be hidden under \"More\" at the end of the share sheet\'s app row.';
+
+  @override
+  String get whatsNew360AccountGroupTitle =>
+      'Account groups can now be plain groups';
+
+  @override
+  String get whatsNew360AccountGroupDesc =>
+      'The Group Settings of a parent account now have a \"Credit Card Combined Billing\" switch. Turn it off to use the group for, say, a bank\'s local and foreign-currency accounts: the detail page shows the combined balance (foreign currencies converted) and every sub-account\'s transactions instead of a billing cycle. Find it in Accounts → edit the parent account → Group Settings.';
+
+  @override
+  String get whatsNew360AccountSwitcherTitle =>
+      'Switch between sibling accounts on the detail page';
+
+  @override
+  String get whatsNew360AccountSwitcherDesc =>
+      'The account detail title is now centered. For a sub-account under a parent account, tap the ▼ next to the title to jump to another sub-account in the same group without going back to Accounts.';
+
+  @override
+  String get whatsNew360NavMotionTitle =>
+      'New motion for the tab bar and the record page';
+
+  @override
+  String get whatsNew360NavMotionDesc =>
+      'The tab bar\'s highlight now slides to the selected tab, and you can press and drag along the bar to pick a tab. Tapping \"+ Record\" in the Details tab now slides the record page up from the bottom — drag it down to close.';
+
+  @override
+  String get whatsNew360LicenseKeyTitle => 'License keys';
+
+  @override
+  String get whatsNew360LicenseKeyDesc =>
+      'Using the app now requires signing in to BeeCount Cloud with a license key; once verified online, it works offline for 7 days. Check the expiry date or enter a new key in Me → License key. If your app version is too old, you\'ll be asked to update before syncing.';
+
+  @override
+  String get whatsNew360FixesTitle => 'Other fixes';
+
+  @override
+  String get whatsNew360FixesDesc =>
+      'Swiping from the left edge on iOS goes back again; a new device\'s first sync no longer fails on duplicate categories; tapping a top-level category in the report\'s pie chart no longer shows an empty list; the report period menu only goes back to the ledger\'s first transaction; fresh installs default to TWD; the Android home screen label now reads 蜜蜂記帳.';
 
   @override
   String get reportFlowReward => 'Rewards';
