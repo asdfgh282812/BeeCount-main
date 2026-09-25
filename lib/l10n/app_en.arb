@@ -29,7 +29,7 @@
     "description": "The application title"
   },
   "tabHome": "Home",
-  "tabInsights": "Stats",
+  "tabInsights": "Report",
   "tabAssets": "Assets",
   "tabRecord": "Record",
   "tabMine": "Mine",

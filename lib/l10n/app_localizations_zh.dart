@@ -10036,7 +10036,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get tabHome => '明細';
 
   @override
-  String get tabInsights => '洞察';
+  String get tabInsights => '報表';
 
   @override
   String get tabAssets => '資產';

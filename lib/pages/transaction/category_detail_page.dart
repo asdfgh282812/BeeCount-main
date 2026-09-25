@@ -24,6 +24,10 @@ class CategoryDetailPage extends ConsumerStatefulWidget {
   final DateTime? endDate; // 周期结束时间（可选）
   final String? periodLabel; // 周期标签（如"2024年11月"）
   final bool allLedgers; // true=全部账本(从分类管理进入)，false=当前账本(从明细进入)
+  // 子分类ID列表(可选)。从洞察页点击一级分类(有子分类)进入时传入,页面会把
+  // categoryId 自身 + 这些子分类一起聚合统计/列出交易,而不是只查 categoryId
+  // 自身——一级分类一旦有子分类,交易实际上都记在子分类上,只查自身会永远是空的。
+  final List<int>? childCategoryIds;
 
   const CategoryDetailPage({
     super.key,
@@ -33,6 +37,7 @@ class CategoryDetailPage extends ConsumerStatefulWidget {
     this.endDate,
     this.periodLabel,
     this.allLedgers = false,
+    this.childCategoryIds,
   });
 
   @override
@@ -42,13 +47,23 @@ class CategoryDetailPage extends ConsumerStatefulWidget {
 class _CategoryDetailPageState extends ConsumerState<CategoryDetailPage> {
   // 注意：不再需要SortType状态，因为现在由StateProvider管理
 
+  // 本次聚合查询涉及的全部分类ID(自身+子分类)。在 initState 里算好存成
+  // state 字段,保持同一个 List 实例贯穿整个页面生命周期,这样作为
+  // Riverpod family 的参数每次 build 都能命中同一份缓存(List 默认按引用判等)。
+  late final List<int> _categoryIds = [
+    widget.categoryId,
+    ...?widget.childCategoryIds,
+  ];
+
   @override
   Widget build(BuildContext context) {
     final categoryAsync = ref.watch(_categoryStreamProvider(widget.categoryId));
     final ledgerScope =
         widget.allLedgers ? null : ref.watch(currentLedgerIdProvider);
     final transactionsAsync = ref.watch(_categoryTransactionsWithSortProvider(
-        (categoryId: widget.categoryId, ledgerId: ledgerScope)));
+        (categoryIds: _categoryIds,
+          sortKey: widget.categoryId,
+          ledgerId: ledgerScope)));
     final currentSortType =
         ref.watch(_categorySortTypeProvider(widget.categoryId));
 
@@ -369,6 +384,13 @@ class _CategoryDetailPageState extends ConsumerState<CategoryDetailPage> {
       );
     }
 
+    // 聚合(自身+子分类)场景下,列表里的交易实际分属不同的具体分类,不能再统一
+    // 用 widget.categoryId 的图标/名称——按每笔交易自己的 categoryId 查表取值。
+    final categoriesById = {
+      for (final c in (ref.watch(categoriesProvider).valueOrNull ?? const []))
+        c.id: c
+    };
+
     // 全部账本模式下，构建账本名映射，用于在交易项展示账本标签
     final ledgerNames = widget.allLedgers
         ? {
@@ -447,9 +469,10 @@ class _CategoryDetailPageState extends ConsumerState<CategoryDetailPage> {
             );
           } else {
             final transaction = item.transaction!;
-            final category = _getTransactionCategory();
+            final category =
+                categoriesById[transaction.categoryId] ?? _getTransactionCategory();
             return TransactionListItem(
-              icon: _getTransactionIcon(transaction),
+              icon: _getTransactionIcon(category),
               category: category,
               title: transaction.note ?? '',
               categoryName: CategoryUtils.getDisplayName(
@@ -465,12 +488,13 @@ class _CategoryDetailPageState extends ConsumerState<CategoryDetailPage> {
               hasSplits: transaction.hasSplits,
               onTap: () async {
                 final categoryData =
-                    ref.read(_categoryStreamProvider(widget.categoryId));
+                    categoriesById[transaction.categoryId] ??
+                        ref.read(_categoryStreamProvider(widget.categoryId)).value;
                 await showTransactionDetailCard(
                   context,
                   ref,
                   transaction,
-                  categoryData.value,
+                  categoryData,
                 );
               },
               onDelete: () async {
@@ -540,9 +564,10 @@ class _CategoryDetailPageState extends ConsumerState<CategoryDetailPage> {
                   .fold(0.0, (sum, t) => sum + (t.nativeAmount ?? t.amount)),
             ),
             ...dayTransactions.map((transaction) {
-              final category = _getTransactionCategory();
+              final category =
+                  categoriesById[transaction.categoryId] ?? _getTransactionCategory();
               return TransactionListItem(
-                icon: _getTransactionIcon(transaction),
+                icon: _getTransactionIcon(category),
                 category: category,
                 title: transaction.note ?? '',
                 categoryName: CategoryUtils.getDisplayName(
@@ -558,12 +583,13 @@ class _CategoryDetailPageState extends ConsumerState<CategoryDetailPage> {
                 hasSplits: transaction.hasSplits,
                 onTap: () async {
                   final categoryData =
-                      ref.read(_categoryStreamProvider(widget.categoryId));
+                      categoriesById[transaction.categoryId] ??
+                          ref.read(_categoryStreamProvider(widget.categoryId)).value;
                   await showTransactionDetailCard(
                     context,
                     ref,
                     transaction,
-                    categoryData.value,
+                    categoryData,
                   );
                   // 注意：现在无需手动刷新！
                   // 数据库变化会自动通过Stream推送到UI
@@ -604,9 +630,7 @@ class _CategoryDetailPageState extends ConsumerState<CategoryDetailPage> {
     return categoryAsync.value;
   }
 
-  IconData _getTransactionIcon(db.Transaction transaction) {
-    final categoryAsync = ref.read(_categoryStreamProvider(widget.categoryId));
-    final category = categoryAsync.value;
+  IconData _getTransactionIcon(db.Category? category) {
     final categoryName = category?.name ?? widget.categoryName;
     // 使用统一的图标获取逻辑,优先使用分类对象的icon字段
     return getCategoryIconData(category: category, categoryName: categoryName);
@@ -674,11 +698,12 @@ final _categoryStreamProvider =
   return repo.watchCategory(categoryId);
 });
 
-// 基础数据流：监听分类下交易变化（仅当前账本）
+// 基础数据流：监听(一组)分类下交易变化（仅当前账本）
 final _categoryTransactionsStreamProvider = StreamProvider.family<
-    List<db.Transaction>, ({int categoryId, int? ledgerId})>((ref, params) {
+    List<db.Transaction>,
+    ({List<int> categoryIds, int? ledgerId})>((ref, params) {
   final repo = ref.watch(repositoryProvider);
-  return repo.watchTransactionsByCategory(params.categoryId,
+  return repo.watchTransactionsByCategories(params.categoryIds,
       ledgerId: params.ledgerId);
 });
 
@@ -691,10 +716,10 @@ final _categorySortTypeProvider =
 // 派生数据：排序后的交易列表（自动响应排序状态变化）
 final _categoryTransactionsWithSortProvider = Provider.family<
     AsyncValue<List<db.Transaction>>,
-    ({int categoryId, int? ledgerId})>((ref, params) {
-  final transactionsAsync =
-      ref.watch(_categoryTransactionsStreamProvider(params));
-  final sortType = ref.watch(_categorySortTypeProvider(params.categoryId));
+    ({List<int> categoryIds, int sortKey, int? ledgerId})>((ref, params) {
+  final transactionsAsync = ref.watch(_categoryTransactionsStreamProvider(
+      (categoryIds: params.categoryIds, ledgerId: params.ledgerId)));
+  final sortType = ref.watch(_categorySortTypeProvider(params.sortKey));
 
   return transactionsAsync.when(
     loading: () => const AsyncValue.loading(),

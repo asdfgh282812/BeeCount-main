@@ -147,6 +147,11 @@ abstract class CategoryRepository {
   /// 响应式监听分类下的交易变化
   Stream<List<Transaction>> watchTransactionsByCategory(int categoryId, {int? ledgerId});
 
+  /// 响应式监听多个分类下的交易变化(用于聚合一级分类自身 + 其所有二级分类的交易)
+  Stream<List<Transaction>> watchTransactionsByCategories(
+      List<int> categoryIds,
+      {int? ledgerId});
+
   /// 响应式监听分类及其子分类的变化
   Stream<List<Category>> watchCategoryWithSubs(int categoryId);
 

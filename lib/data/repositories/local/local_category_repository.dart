@@ -675,6 +675,96 @@ class LocalCategoryRepository implements CategoryRepository {
     return query.watch();
   }
 
+  @override
+  Stream<List<Transaction>> watchTransactionsByCategories(
+      List<int> categoryIds,
+      {int? ledgerId}) {
+    if (categoryIds.isEmpty) return Stream.value(const []);
+    if (categoryIds.length == 1) {
+      return watchTransactionsByCategory(categoryIds.first,
+          ledgerId: ledgerId);
+    }
+
+    final positiveIds = categoryIds.where((id) => id >= 0).toList();
+    final negativeIds = categoryIds.where((id) => id < 0).toList();
+
+    // 一级分类的子分类里可能混有共享账本的 synthetic 负 id(§7),这些不走
+    // categoryId 直接匹配,要跟单 id 版本一样反查 categorySyncIdOverride。
+    if (negativeIds.isNotEmpty) {
+      return _watchTxByCategoriesWithSynthetic(
+          positiveIds, negativeIds, ledgerId);
+    }
+
+    final query = db.select(db.transactions)
+      ..where((t) => t.categoryId.isIn(positiveIds));
+
+    if (ledgerId != null) {
+      query.where((t) => t.ledgerId.equals(ledgerId));
+    }
+
+    query.orderBy([
+      (t) => d.OrderingTerm(
+            expression: t.happenedAt,
+            mode: d.OrderingMode.desc,
+          )
+    ]);
+
+    return query.watch();
+  }
+
+  Stream<List<Transaction>> _watchTxByCategoriesWithSynthetic(
+      List<int> positiveIds, List<int> negativeIds, int? ledgerId) {
+    final ctrl = StreamController<List<Transaction>>();
+    StreamSubscription? sub;
+
+    Future<void> emit() async {
+      final sharedRows = await db.select(db.sharedLedgerCategories).get();
+      final matchedSyncIds = <String>{
+        for (final s in sharedRows)
+          if (negativeIds.contains(syntheticIdForSyncId(s.syncId))) s.syncId,
+      }.toList();
+
+      if (positiveIds.isEmpty && matchedSyncIds.isEmpty) {
+        if (!ctrl.isClosed) ctrl.add(const []);
+        return;
+      }
+
+      final query = db.select(db.transactions);
+      if (positiveIds.isNotEmpty && matchedSyncIds.isNotEmpty) {
+        query.where((t) =>
+            t.categoryId.isIn(positiveIds) |
+            t.categorySyncIdOverride.isIn(matchedSyncIds));
+      } else if (positiveIds.isNotEmpty) {
+        query.where((t) => t.categoryId.isIn(positiveIds));
+      } else {
+        query.where((t) => t.categorySyncIdOverride.isIn(matchedSyncIds));
+      }
+      if (ledgerId != null) {
+        query.where((t) => t.ledgerId.equals(ledgerId));
+      }
+      query.orderBy([
+        (t) => d.OrderingTerm(
+              expression: t.happenedAt,
+              mode: d.OrderingMode.desc,
+            )
+      ]);
+      final list = await query.get();
+      if (!ctrl.isClosed) ctrl.add(list);
+    }
+
+    ctrl.onListen = () {
+      emit();
+      sub = db.tableUpdates(d.TableUpdateQuery.onAllTables([
+        db.transactions,
+        db.sharedLedgerCategories,
+      ])).listen((_) => emit());
+    };
+    ctrl.onCancel = () async {
+      await sub?.cancel();
+    };
+    return ctrl.stream;
+  }
+
   Stream<List<Transaction>> _watchTxByCategorySyntheticId(
       int syntheticId, int? ledgerId) {
     final ctrl = StreamController<List<Transaction>>();

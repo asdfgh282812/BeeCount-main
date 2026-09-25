@@ -2058,6 +2058,12 @@ class LocalRepository extends BaseRepository {
       _categoryRepo.watchTransactionsByCategory(categoryId, ledgerId: ledgerId);
 
   @override
+  Stream<List<Transaction>> watchTransactionsByCategories(
+          List<int> categoryIds, {int? ledgerId}) =>
+      _categoryRepo.watchTransactionsByCategories(categoryIds,
+          ledgerId: ledgerId);
+
+  @override
   Stream<List<Category>> watchCategoryWithSubs(int categoryId) =>
       _categoryRepo.watchCategoryWithSubs(categoryId);
 

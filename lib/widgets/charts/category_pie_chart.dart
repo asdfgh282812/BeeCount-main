@@ -178,11 +178,16 @@ class _CategoryPieChartState extends ConsumerState<CategoryPieChart> {
     if (item.id == null) return;
     final periodLabel =
         widget.scope != 'all' ? _currentPeriodLabel(context) : null;
+    // item 是一级分类且有子分类时，交易实际记在子分类上、item.id 自身查不到
+    // 任何交易——把子分类 id 一并带过去，让详情页把二者聚合展示。
+    final childCategoryIds = item.subCategories.map((s) => s.id).toList();
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => CategoryDetailPage(
           categoryId: item.id!,
           categoryName: item.name,
+          childCategoryIds:
+              childCategoryIds.isNotEmpty ? childCategoryIds : null,
           startDate: widget.scope != 'all' ? widget.start : null,
           endDate: widget.scope != 'all' ? widget.end : null,
           periodLabel: periodLabel,

@@ -200,7 +200,7 @@ abstract class AppLocalizations {
   /// No description provided for @tabInsights.
   ///
   /// In en, this message translates to:
-  /// **'Stats'**
+  /// **'Report'**
   String get tabInsights;
 
   /// No description provided for @tabAssets.
