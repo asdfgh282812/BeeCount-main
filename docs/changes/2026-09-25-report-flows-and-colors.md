@@ -59,6 +59,13 @@
 - **名稱、商家、標籤、對象**:本來就只是文字,不加圖標。`ShareBarRow.leading` 改成可為 null。
 - 資產頁 `accounts_page.dart` 與帳戶選擇器 `account_card_picker.dart` 原本各有一份相同的私有頭像元件,抽成共用的 `lib/widgets/biz/account_avatar.dart`(`AccountAvatarImage` + `AccountAvatar`),三處共用。
 
+## 5. 明細分頁的列表跟著上方切換
+
+- **舊行為**:「明細」分頁的「支出/收入/結餘」只切換上方趨勢圖,下方列表永遠列出期間內全部記錄。
+- **新行為**(`lib/pages/statistics/tabs/details_tab.dart`):
+  - 支出、收入:只列該類的 leg,用 `ReportAggregator.transactions((e) => e.type == _type)` 篩選。扣在支出上的退款單也會列出,跟每日小計、下鑽的沖銷口徑一致。
+  - 結餘:列出全部記錄,包含轉帳。這是轉帳在明細分頁唯一出現的地方。
+
 ## 範圍外
 
 - 類別分頁維持「支出/收入/結餘」,沒有加轉帳和回饋金:轉帳通常沒有分類,依分類看回饋金的需求也還沒提出。
@@ -68,4 +75,4 @@
 ## 測試
 
 - `test/providers/report_flows_test.dart`:下鑽依 flow 過濾、帳戶轉帳 = 轉入 + 轉出、回饋金套用上限並分到各維度與排行。
-- `test/widgets/statistics_report_page_test.dart`:四種切換都能渲染;支出下鑽的表頭不含收入。
+- `test/widgets/statistics_report_page_test.dart`:四種切換都能渲染;支出下鑽的表頭不含收入;明細分頁切換支出/收入/結餘時,傳給 `TransactionList` 的交易跟著變。

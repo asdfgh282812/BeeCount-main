@@ -9,8 +9,11 @@ import '../../../widgets/ui/capsule_switcher.dart';
 import '../report_view.dart';
 import 'report_trend.dart';
 
-/// 「明細」分頁:可收合的趨勢圖 + 期間內全部記錄(含轉帳),可切換新→舊 /
-/// 舊→新;點趨勢圖上的點會把列表捲到那一天。
+/// 「明細」分頁:可收合的趨勢圖 + 期間內記錄,可切換新→舊 / 舊→新;點趨勢
+/// 圖上的點會把列表捲到那一天。
+///
+/// 上方切換同時決定趨勢圖與列表:支出/收入只列該類 leg(扣在該類上的退款單
+/// 也會列出,跟每日小計、下鑽一致);結餘列出全部記錄(含轉帳)。
 class ReportDetailsTab extends ConsumerStatefulWidget {
   final ReportView view;
   const ReportDetailsTab({super.key, required this.view});
@@ -34,7 +37,9 @@ class _ReportDetailsTabState extends ConsumerState<ReportDetailsTab>
     super.build(context);
     final l10n = AppLocalizations.of(context);
     final v = widget.view;
-    final txs = v.agg.transactions();
+    final txs = _type == 'balance'
+        ? v.agg.transactions()
+        : v.agg.transactions((e) => e.type == _type);
     final trend = ReportTrendData.build(context, v, _type);
 
     return Column(

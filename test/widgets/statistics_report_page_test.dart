@@ -13,7 +13,9 @@ import 'package:beecount/pages/statistics/statistics_report_list_page.dart';
 import 'package:beecount/providers/database_providers.dart';
 import 'package:beecount/providers/sync_providers.dart';
 import 'package:beecount/widgets/biz/account_avatar.dart';
+import 'package:beecount/widgets/biz/transaction_list.dart';
 import 'package:beecount/widgets/statistics/share_bar_row.dart';
+import 'package:beecount/widgets/ui/capsule_switcher.dart';
 
 String _ym() {
   final n = DateTime.now();
@@ -134,6 +136,28 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
       await settle();
       expect(tester.takeException(), isNull, reason: '分頁 $tab 渲染失敗');
+      if (tab == '明細') {
+        // 列表跟著上方切換:支出只列支出,收入只列收入,結餘全列
+        List<String> listed() => tester
+            .widget<TransactionList>(find.byType(TransactionList))
+            .transactions!
+            .map((v) => v.t.type)
+            .toList();
+        await tester.pump(const Duration(seconds: 1));
+        expect(listed(), ['expense']);
+        for (final (label, types) in [
+          ('收入', ['income']),
+          ('結餘', ['expense', 'income']),
+          ('支出', ['expense']),
+        ]) {
+          await tester.tap(find.descendant(
+              of: find.byType(CapsuleSwitcher<String>),
+              matching: find.text(label)));
+          await tester.pump(const Duration(milliseconds: 300));
+          await settle();
+          expect(listed(), types, reason: '明細切到 $label');
+        }
+      }
     }
     expect(find.text('出差'), findsOneWidget);
     expect(
