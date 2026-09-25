@@ -19,6 +19,9 @@ iOS 完全不受影響：所有 APK 相關程式碼都在 `Platform.isAndroid` �
   按「稍後」後同一版本 24 小時內不再自動跳出。
 - **手動**：我的 → 關於 → 「檢查更新」（只在 Android 顯示）。手動檢查不受 24 小時
   暫緩限制，並會顯示「已是最新版本」或錯誤訊息。
+- **強制更新頁**：版本低於 BeeCount Cloud 後台的「最低可同步版本」時，整個 App 會被
+  擋在強制更新頁（`lib/pages/license/force_update_page.dart`）。Android 在這頁多一顆
+  「立即更新」，走同一套 R2 下載安裝流程；iOS 仍只有「我已更新，重新檢查」。
 
 ## version.json 格式
 
@@ -74,6 +77,9 @@ iOS 完全不受影響：所有 APK 相關程式碼都在 `Platform.isAndroid` �
   `UpdateService.checkUpdateWithUI(silent: true)`，iOS 維持 `maybeShowAppUpdateReminder`。
   Android 不再呼叫 Cloud 的 `/app-version/latest`，避免同時跳兩種提醒。
 - `lib/pages/settings/about_page.dart`：Android 才顯示「檢查更新」列。
+- `lib/pages/license/force_update_page.dart`：改成 `ConsumerStatefulWidget`，Android 多
+  一顆「立即更新」（主按鈕），「重新檢查」降為次要按鈕。這頁會取代整個首頁，`app.dart`
+  的啟動自動檢查跑不到，沒有這顆按鈕的話被擋住的 Android 使用者只能自己去找 APK。
 - l10n：新增 `updateNowButton` / `updateOpenInBrowser` / `updateChecksumMismatch` /
   `updateNotApplicableBuild` / `aboutCheckUpdateSubtitle`（只維護 en + zh_TW）。
 
@@ -105,6 +111,13 @@ Archive，而是抓 Xcode 最新的 `.xcarchive` 打包 IPA；版本號跟 pubsp
    依檔名 `beecount-x.y.z.apk` 找已下載的舊檔，所以主包檔名格式不能改。
 6. 寫出 `version.json`，列出上傳清單，**version.json 排最後**：先傳 APK 再傳描述檔，
    才不會有使用者讀到新描述檔卻下載不到 APK 的空窗。
+
+## 跟 BeeCount Cloud 後台「App 版本更新提醒」頁的關係
+
+- 「目前最新版本號」與 NAS WebDAV 自動偵測：Android 不再讀取，只影響 iOS 的提醒。
+  Android 的最新版本以 R2 的 `version.json` 為準。
+- 「最低可同步版本」：Android 照樣生效。調高之前要先把新版 APK 和 `version.json` 傳到
+  R2，否則被擋住的 Android 使用者按「立即更新」只會看到「已是最新版本」。
 
 ## 刻意不做 / 已知限制
 
