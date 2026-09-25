@@ -2594,6 +2594,7 @@
   "attachmentTakePhoto": "Take Photo",
   "attachmentChooseFromGallery": "Choose from Gallery",
   "imageBillingPasteFromClipboard": "Paste from Clipboard",
+  "imageBillingSharedImageMissing": "Shared image not found, please share it again",
   "attachmentMaxReached": "Maximum attachments reached",
   "attachmentDeleteConfirm": "Delete this attachment?",
   "attachmentCount": "{count} images",

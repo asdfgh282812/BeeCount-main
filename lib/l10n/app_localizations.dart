@@ -11548,6 +11548,12 @@ abstract class AppLocalizations {
   /// **'Paste from Clipboard'**
   String get imageBillingPasteFromClipboard;
 
+  /// No description provided for @imageBillingSharedImageMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared image not found, please share it again'**
+  String get imageBillingSharedImageMissing;
+
   /// No description provided for @attachmentMaxReached.
   ///
   /// In en, this message translates to:

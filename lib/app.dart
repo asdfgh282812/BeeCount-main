@@ -632,6 +632,9 @@ class _BeeAppState extends ConsumerState<BeeApp>
       case AppLinkAction.camera:
         ImageBillingHelper.openCameraForBilling(context, ref);
         break;
+      case AppLinkAction.shareImage:
+        ImageBillingHelper.billSharedImage(context, ref);
+        break;
       case AppLinkAction.aiChat:
         nav.push(MaterialPageRoute(builder: (_) => const AIChatPage()));
         break;

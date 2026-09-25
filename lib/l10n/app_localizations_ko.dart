@@ -6185,6 +6185,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get imageBillingPasteFromClipboard => 'Paste from Clipboard';
 
   @override
+  String get imageBillingSharedImageMissing =>
+      'Shared image not found, please share it again';
+
+  @override
   String get attachmentMaxReached => '첨부 가능한 최대 개수에 도달했습니다';
 
   @override

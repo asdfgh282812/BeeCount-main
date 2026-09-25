@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -63,6 +63,39 @@ class ImageBillingHelper {
     }
 
     await _processImageBilling(context, ref, ImageSource.gallery);
+  }
+
+  /// iOS 分享扩充功能(ios/BeeCountShare)交过来、原生端已解码成暂存档的图片;
+  /// 取出即清空
+  static const _shareImageChannel =
+      MethodChannel('com.beecount.app/share_image');
+
+  /// 系统分享选单把图片分享给 App(`beecount://share-image`)后自动记账。
+  /// 流程与相册记账相同,只是图片来源换成分享扩充功能交过来的那张。
+  static Future<void> billSharedImage(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    String? path;
+    try {
+      path = await _shareImageChannel.invokeMethod<String>('takeSharedImage');
+    } catch (_) {
+      path = null;
+    }
+    if (!context.mounted) return;
+    if (path == null) {
+      showToast(
+        context,
+        AppLocalizations.of(context).imageBillingSharedImageMissing,
+      );
+      return;
+    }
+    await _processImageBilling(
+      context,
+      ref,
+      ImageSource.gallery,
+      pickedImage: File(path),
+    );
   }
 
   /// 打开相机拍照并自动记账

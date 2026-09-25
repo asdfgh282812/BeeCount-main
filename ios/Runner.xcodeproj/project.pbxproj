@@ -14,6 +14,7 @@
 		66AF1DC82EBBA3CE00AD602F /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 66AF1DC72EBBA3CE00AD602F /* WidgetKit.framework */; };
 		66AF1DCA2EBBA3CE00AD602F /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 66AF1DC92EBBA3CE00AD602F /* SwiftUI.framework */; };
 		66AF1DD52EBBA3CF00AD602F /* BeeCountWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 66AF1DC62EBBA3CE00AD602F /* BeeCountWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		66BC5E0100000000000000AC /* BeeCountShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 66BC5E0100000000000000A2 /* BeeCountShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		66BFFB7C2ED4A01A00CE5BB0 /* LoggerPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66BFFB7B2ED4A01A00CE5BB0 /* LoggerPlugin.swift */; };
 		66BFFCBA2ED6036500CE5BB0 /* AutoBillingAppIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66BFFCB92ED6036500CE5BB0 /* AutoBillingAppIntent.swift */; };
 		66BFFD0C2ED6082D00CE5BB0 /* AppIntentsBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66BFFD0B2ED6082D00CE5BB0 /* AppIntentsBridge.swift */; };
@@ -42,6 +43,13 @@
 			remoteGlobalIDString = 66AF1DC52EBBA3CE00AD602F;
 			remoteInfo = BeeCountWidgetExtension;
 		};
+		66BC5E0100000000000000AD /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 66BC5E0100000000000000A1;
+			remoteInfo = BeeCountShare;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -52,6 +60,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				66AF1DD52EBBA3CF00AD602F /* BeeCountWidgetExtension.appex in Embed Foundation Extensions */,
+				66BC5E0100000000000000AC /* BeeCountShare.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -76,6 +85,7 @@
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
 		541B370749497EDF036CA042 /* Pods_RunnerTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RunnerTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		66AF1DC62EBBA3CE00AD602F /* BeeCountWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = BeeCountWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		66BC5E0100000000000000A2 /* BeeCountShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = BeeCountShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		66AF1DC72EBBA3CE00AD602F /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		66AF1DC92EBBA3CE00AD602F /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		66AF1DDC2EBBA47100AD602F /* Runner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Runner.entitlements; sourceTree = "<group>"; };
@@ -115,6 +125,13 @@
 			);
 			target = 66AF1DC52EBBA3CE00AD602F /* BeeCountWidgetExtension */;
 		};
+		66BC5E0100000000000000A4 /* Exceptions for "BeeCountShare" folder in "BeeCountShare" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 66BC5E0100000000000000A1 /* BeeCountShare */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -130,9 +147,28 @@
 			path = BeeCountWidget;
 			sourceTree = "<group>";
 		};
+		66BC5E0100000000000000A3 /* BeeCountShare */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				66BC5E0100000000000000A4 /* Exceptions for "BeeCountShare" folder in "BeeCountShare" target */,
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = BeeCountShare;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		66BC5E0100000000000000A6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		66AF1DC32EBBA3CE00AD602F /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -202,6 +238,7 @@
 				9740EEB11CF90186004384FC /* Flutter */,
 				97C146F01CF9000F007C117D /* Runner */,
 				66AF1DCB2EBBA3CE00AD602F /* BeeCountWidget */,
+				66BC5E0100000000000000A3 /* BeeCountShare */,
 				97C146EF1CF9000F007C117D /* Products */,
 				331C8082294A63A400263BE5 /* RunnerTests */,
 				828B803F0F044AED86DBBCD4 /* Pods */,
@@ -215,6 +252,7 @@
 				97C146EE1CF9000F007C117D /* Runner.app */,
 				331C8081294A63A400263BE5 /* RunnerTests.xctest */,
 				66AF1DC62EBBA3CE00AD602F /* BeeCountWidgetExtension.appex */,
+				66BC5E0100000000000000A2 /* BeeCountShare.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -254,6 +292,26 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		66BC5E0100000000000000A1 /* BeeCountShare */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 66BC5E0100000000000000A8 /* Build configuration list for PBXNativeTarget "BeeCountShare" */;
+			buildPhases = (
+				66BC5E0100000000000000A5 /* Sources */,
+				66BC5E0100000000000000A6 /* Frameworks */,
+				66BC5E0100000000000000A7 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				66BC5E0100000000000000A3 /* BeeCountShare */,
+			);
+			name = BeeCountShare;
+			productName = BeeCountShare;
+			productReference = 66BC5E0100000000000000A2 /* BeeCountShare.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		331C8080294A63A400263BE5 /* RunnerTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 331C8087294A63A400263BE5 /* Build configuration list for PBXNativeTarget "RunnerTests" */;
@@ -312,6 +370,7 @@
 			);
 			dependencies = (
 				66AF1DD42EBBA3CF00AD602F /* PBXTargetDependency */,
+				66BC5E0100000000000000AE /* PBXTargetDependency */,
 			);
 			name = Runner;
 			packageProductDependencies = (
@@ -337,6 +396,9 @@
 						TestTargetID = 97C146ED1CF9000F007C117D;
 					};
 					66AF1DC52EBBA3CE00AD602F = {
+						CreatedOnToolsVersion = 16.4;
+					};
+					66BC5E0100000000000000A1 = {
 						CreatedOnToolsVersion = 16.4;
 					};
 					97C146ED1CF9000F007C117D = {
@@ -366,11 +428,19 @@
 				97C146ED1CF9000F007C117D /* Runner */,
 				331C8080294A63A400263BE5 /* RunnerTests */,
 				66AF1DC52EBBA3CE00AD602F /* BeeCountWidgetExtension */,
+				66BC5E0100000000000000A1 /* BeeCountShare */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		66BC5E0100000000000000A7 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		331C807F294A63A400263BE5 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -512,6 +582,13 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		66BC5E0100000000000000A5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		331C807D294A63A400263BE5 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -553,6 +630,11 @@
 			target = 66AF1DC52EBBA3CE00AD602F /* BeeCountWidgetExtension */;
 			targetProxy = 66AF1DD32EBBA3CF00AD602F /* PBXContainerItemProxy */;
 		};
+		66BC5E0100000000000000AE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 66BC5E0100000000000000A1 /* BeeCountShare */;
+			targetProxy = 66BC5E0100000000000000AD /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
@@ -585,6 +667,120 @@
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
+		66BC5E0100000000000000A9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9740EEB31CF90195004384FC /* Generated.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = D87CYP5V3A;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = BeeCountShare/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = BeeCount;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				PRODUCT_BUNDLE_IDENTIFIER = com.andy.beecount.dev.BeeCountShare;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		66BC5E0100000000000000AA /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9740EEB31CF90195004384FC /* Generated.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = D87CYP5V3A;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = BeeCountShare/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = BeeCount;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.andy.beecount.dev.BeeCountShare;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		66BC5E0100000000000000AB /* Profile */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9740EEB31CF90195004384FC /* Generated.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = D87CYP5V3A;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = BeeCountShare/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = BeeCount;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.andy.beecount.dev.BeeCountShare;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Profile;
+		};
 		249021D3217E4FDB00AE95B9 /* Profile */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1010,6 +1206,16 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		66BC5E0100000000000000A8 /* Build configuration list for PBXNativeTarget "BeeCountShare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				66BC5E0100000000000000A9 /* Debug */,
+				66BC5E0100000000000000AA /* Release */,
+				66BC5E0100000000000000AB /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		331C8087294A63A400263BE5 /* Build configuration list for PBXNativeTarget "RunnerTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

@@ -6118,6 +6118,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get imageBillingPasteFromClipboard => 'Paste from Clipboard';
 
   @override
+  String get imageBillingSharedImageMissing =>
+      'Shared image not found, please share it again';
+
+  @override
   String get attachmentMaxReached => '已达到最大附件数量';
 
   @override
@@ -16374,6 +16378,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get imageBillingPasteFromClipboard => '從剪貼簿貼上';
+
+  @override
+  String get imageBillingSharedImageMissing => '沒有收到分享的圖片，請重新分享一次';
 
   @override
   String get attachmentMaxReached => '已達到最大附件數量';

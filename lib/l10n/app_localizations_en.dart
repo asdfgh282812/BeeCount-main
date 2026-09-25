@@ -6370,6 +6370,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get imageBillingPasteFromClipboard => 'Paste from Clipboard';
 
   @override
+  String get imageBillingSharedImageMissing =>
+      'Shared image not found, please share it again';
+
+  @override
   String get attachmentMaxReached => 'Maximum attachments reached';
 
   @override

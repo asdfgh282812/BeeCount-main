@@ -33,6 +33,10 @@ import UserNotifications
     guard !didRegisterPlugins else { return }
     didRegisterPlugins = true
     GeneratedPluginRegistrant.register(with: self)
+    // UIScene 生命週期下 applicationDidBecomeActive 不保證會被呼叫（實測模擬器上
+    // 從未觸發，badge / share_image 等 channel 全部 MissingPluginException），
+    // 這裡 window.rootViewController 已就緒，直接完成 controller 相依的初始化。
+    setupControllerDependentFeaturesIfNeeded()
   }
 
   // 採用 UIScene 生命週期後，window/rootViewController 要等 Scene 連線完成才就緒，
@@ -80,6 +84,22 @@ import UserNotifications
       }
     }
 
+    // 系統分享選單「蜜蜂記帳」擴充功能（ios/BeeCountShare）把圖片編進
+    // beecount://share-image#<base64url> 喚起 App；SceneDelegate 先把圖片解碼
+    // 成暫存檔（storeSharedImage），Flutter 收到不帶資料的深鏈後再來這裡取。
+    // 取完即清空，避免同一張圖被重複記帳。
+    let shareImageChannel = FlutterMethodChannel(
+      name: "com.beecount.app/share_image",
+      binaryMessenger: controller.binaryMessenger
+    )
+    shareImageChannel.setMethodCallHandler { call, result in
+      guard call.method == "takeSharedImage" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      result(AppDelegate.takeSharedImage())
+    }
+
     // 监听 iCloud 日志（从插件模块发送）
     NotificationCenter.default.addObserver(
       forName: NSNotification.Name("ICloudLog"),
@@ -90,6 +110,36 @@ import UserNotifications
         LoggerPlugin.info(tag: "iCloud", message: message)
       }
     }
+  }
+
+  /// SceneDelegate 攔截分享深鏈時解碼出的圖片暫存檔路徑，等 Flutter 來取
+  private static var pendingSharedImagePath: String?
+
+  /// 把分享擴充功能編在網址 fragment 裡的 base64url JPEG 寫成暫存檔。
+  /// 由 SceneDelegate 在 URL 交給 app_links 之前呼叫，見 `interceptSharedImageURL`。
+  static func storeSharedImage(base64URL encoded: String) {
+    var base64 = encoded
+      .replacingOccurrences(of: "-", with: "+")
+      .replacingOccurrences(of: "_", with: "/")
+    base64 += String(repeating: "=", count: (4 - base64.count % 4) % 4)
+    guard let data = Data(base64Encoded: base64) else {
+      LoggerPlugin.info(tag: "ShareImage", message: "分享圖片資料解碼失敗")
+      return
+    }
+    let path = FileManager.default.temporaryDirectory
+      .appendingPathComponent("share_bill_\(Int(Date().timeIntervalSince1970 * 1000)).jpg")
+    do {
+      try data.write(to: path)
+      pendingSharedImagePath = path.path
+    } catch {
+      LoggerPlugin.info(tag: "ShareImage", message: "寫入分享圖片失敗: \(error)")
+    }
+  }
+
+  /// 取出待處理的分享圖片路徑並清空；沒有圖片回傳 nil
+  private static func takeSharedImage() -> String? {
+    defer { pendingSharedImagePath = nil }
+    return pendingSharedImagePath
   }
 
   // 前台显示通知

@@ -23,6 +23,13 @@ enum AppLinkAction {
   /// 拍照记账
   camera,
 
+  /// iOS 系统分享选单「蜜蜂记账」扩充功能分享进来的图片记账：
+  /// `beecount://share-image`。扩充功能把图片编在 URL fragment 里，原生端
+  /// 在交给 app_links 之前就解码成暂存档并去掉 fragment（见
+  /// ios/Runner/SceneDelegate.swift 的 interceptSharedImageURL），Dart 端
+  /// 收到的是不带资料的 URL，再经 `com.beecount.app/share_image` channel 取图。
+  shareImage,
+
   /// AI 小助手
   aiChat,
 
@@ -187,6 +194,7 @@ class AppLinkResult {
 /// - beecount://voice - 语音记账
 /// - beecount://image - 图片记账（从相册）
 /// - beecount://camera - 拍照记账
+/// - beecount://share-image - iOS 分享选单传入的图片记账（图片由原生端先取下）
 /// - beecount://ai-chat - AI 小助手
 /// - beecount://new?type=expense - 手动记账（支出/收入）
 /// - beecount://new?type=expense&category=12 - 手动记账并预填分类（小组件
@@ -313,6 +321,8 @@ class AppLinkService {
         return AppLinkAction.image;
       case 'camera':
         return AppLinkAction.camera;
+      case 'share-image':
+        return AppLinkAction.shareImage;
       case 'ai-chat':
       case 'aichat':
       case 'ai':
@@ -358,6 +368,11 @@ class AppLinkService {
         logger.info('AppLink', '打开拍照记账');
         onNavigate?.call(AppLinkAction.camera);
         return AppLinkResult.success(message: '打开拍照记账');
+
+      case AppLinkAction.shareImage:
+        logger.info('AppLink', '分享图片记账');
+        onNavigate?.call(AppLinkAction.shareImage);
+        return AppLinkResult.success(message: '分享图片记账');
 
       case AppLinkAction.aiChat:
         logger.info('AppLink', '打开AI小助手');

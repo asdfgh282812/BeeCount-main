@@ -497,6 +497,7 @@
   },
   "attachmentChooseFromGallery": "從相簿選擇",
   "imageBillingPasteFromClipboard": "從剪貼簿貼上",
+  "imageBillingSharedImageMissing": "沒有收到分享的圖片，請重新分享一次",
   "attachmentCount": "{count}張圖片",
   "@attachmentCount": {
     "placeholders": {

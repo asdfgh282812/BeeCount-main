@@ -83,7 +83,20 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
   private func handleOpenURL(_ url: URL) {
     guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
-    _ = appDelegate.application(UIApplication.shared, open: url, options: [:])
+    _ = appDelegate.application(
+      UIApplication.shared, open: interceptSharedImageURL(url), options: [:])
+  }
+
+  /// 系統分享選單「蜜蜂記帳」擴充功能（ios/BeeCountShare）把圖片以 base64url
+  /// 編在 `beecount://share-image#...` 的 fragment 裡。這裡先把圖片取下來交給
+  /// AppDelegate 暫存，再只把不帶資料的 `beecount://share-image` 轉給 app_links，
+  /// 避免好幾百 KB 的網址進到 Flutter 被 AppLink 日誌整串印出、存進待處理深鏈。
+  private func interceptSharedImageURL(_ url: URL) -> URL {
+    guard url.scheme == "beecount", url.host == "share-image",
+      let payload = url.fragment, !payload.isEmpty
+    else { return url }
+    AppDelegate.storeSharedImage(base64URL: payload)
+    return URL(string: "beecount://share-image")!
   }
 
   private func handleUserActivity(_ userActivity: NSUserActivity) {
