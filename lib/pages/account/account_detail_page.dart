@@ -6,6 +6,7 @@ import '../../providers.dart';
 import '../../providers/project_providers.dart';
 import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/biz.dart';
+import '../../widgets/biz/account_avatar.dart';
 import '../../widgets/biz/transaction_row_title.dart';
 import '../../styles/tokens.dart';
 import '../../l10n/app_localizations.dart';
@@ -217,6 +218,9 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
   int _billingPeriodOffset = 0;
   bool _billingPeriodOffsetResolved = false;
 
+  /// 標題下拉(切換同一主帳戶底下的其它子帳戶)是否展開。
+  bool _siblingMenuOpen = false;
+
   @override
   void initState() {
     super.initState();
@@ -236,6 +240,36 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
 
   /// Riverpod family key 用:子帳戶 id 逗號分隔(已排序,保證同一組子帳戶不
   /// 論 stream 回傳順序如何都命中同一個 provider 實例)。
+  /// 這個帳戶掛在某個主帳戶(群組)底下時,回傳同群組的全部子帳戶(含自己,
+  /// 依 sortOrder 排,隱藏的子帳戶除了自己以外不列);不是子帳戶則回傳空清單
+  /// ——標題旁的下拉箭頭只對子帳戶顯示。
+  List<db.Account> _siblings(List<db.Account> allAccounts) {
+    final parentSyncId = widget.account.parentAccountId;
+    if (parentSyncId == null || parentSyncId.isEmpty) return const [];
+    final parent = allAccounts
+        .where((a) => a.type == 'account_group' && a.syncId == parentSyncId)
+        .firstOrNull;
+    if (parent == null) return const [];
+    return accountGroupChildren(parent, allAccounts)
+        .where((a) => !a.hidden || a.id == widget.account.id)
+        .toList()
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+  }
+
+  /// 下拉選單選了另一個子帳戶:直接用無動畫的 pushReplacement 換成那個
+  /// 帳戶的明細頁(返回鍵仍回到原本的上一頁,不會一路疊明細頁)。刻意用頁內
+  /// 面板 + 一般點擊回呼觸發,不用 PopupMenuButton/showMenu——macOS 版從
+  /// popup route 的 onSelected 直接 push 新頁面會撞到 framework 斷言而當掉。
+  void _switchToSibling(db.Account sibling) {
+    setState(() => _siblingMenuOpen = false);
+    if (sibling.id == widget.account.id) return;
+    Navigator.of(context).pushReplacement(PageRouteBuilder(
+      pageBuilder: (_, __, ___) => AccountDetailPage(account: sibling),
+      transitionDuration: Duration.zero,
+      reverseTransitionDuration: Duration.zero,
+    ));
+  }
+
   String _extraIdsKey(List<db.Account> children) {
     final ids = children.map((a) => a.id).toList()..sort();
     return ids.join(',');
@@ -273,6 +307,8 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     final allAccounts = ref.watch(allAccountsStreamProvider).valueOrNull ??
         const <db.Account>[];
     final children = _children(allAccounts);
+    final siblings = _siblings(allAccounts);
+    final hasSiblingMenu = siblings.length > 1;
     // 「調整總額」對所有帳戶類型的餘額計算方式都一樣(initialBalance + 交易
     // 加總,對齊 BeeCount Cloud 的 compute_account_balance),只有帳戶群組
     // 沒有自己的餘額,不顯示這個入口。
@@ -288,6 +324,20 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
             subtitle: getAccountTypeLabel(context, account.type),
             showBack: true,
             compact: true,
+            centerTitle: true,
+            // 子帳戶:標題旁加下拉箭頭,點標題列展開同群組子帳戶清單(比照
+            // MOZE 帳戶明細頁)。
+            titleTrailing: hasSiblingMenu
+                ? Icon(
+                    _siblingMenuOpen
+                        ? Icons.arrow_drop_up
+                        : Icons.arrow_drop_down,
+                    color: BeeTokens.iconPrimary(context),
+                  )
+                : null,
+            onTitleTap: hasSiblingMenu
+                ? () => setState(() => _siblingMenuOpen = !_siblingMenuOpen)
+                : null,
             actions: [
               // 「調整總額」跟「編輯」各自是獨立的 IconButton(不用
               // PopupMenuButton 收在同一個選單裡)——PopupMenuButton 選完後
@@ -334,30 +384,125 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
               ),
             ],
           ),
-          // ======== 交易明細 / 帳戶資訊 tab ========
-          Container(
-            color: BeeTokens.surface(context),
-            child: TabBar(
-              controller: _tabController,
-              labelColor: ref.watch(primaryColorProvider),
-              unselectedLabelColor: BeeTokens.textSecondary(context),
-              indicatorColor: ref.watch(primaryColorProvider),
-              tabs: [
-                Tab(text: l10n.accountDetailTabTransactions),
-                Tab(text: l10n.accountDetailTabInfo),
-              ],
-            ),
-          ),
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
+            child: Stack(
               children: [
-                _buildTransactionsTab(context, account, children, l10n),
-                _buildInfoTab(context, account, children, l10n),
+                Column(
+                  children: [
+                    // ======== 交易明細 / 帳戶資訊 tab ========
+                    Container(
+                      color: BeeTokens.surface(context),
+                      child: TabBar(
+                        controller: _tabController,
+                        labelColor: ref.watch(primaryColorProvider),
+                        unselectedLabelColor: BeeTokens.textSecondary(context),
+                        indicatorColor: ref.watch(primaryColorProvider),
+                        tabs: [
+                          Tab(text: l10n.accountDetailTabTransactions),
+                          Tab(text: l10n.accountDetailTabInfo),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: TabBarView(
+                        controller: _tabController,
+                        children: [
+                          _buildTransactionsTab(
+                              context, account, children, l10n),
+                          _buildInfoTab(context, account, children, l10n),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                if (hasSiblingMenu && _siblingMenuOpen) ...[
+                  // 點面板以外的地方收起。
+                  Positioned.fill(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => setState(() => _siblingMenuOpen = false),
+                      child: ColoredBox(color: BeeTokens.overlayLight(context)),
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.topCenter,
+                    child: _buildSiblingMenu(context, siblings),
+                  ),
+                ],
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// 標題下拉面板:同群組子帳戶清單(頭像 + 名稱),目前帳戶打勾。
+  Widget _buildSiblingMenu(BuildContext context, List<db.Account> siblings) {
+    final primaryColor = ref.watch(primaryColorProvider);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        24.0.scaled(context, ref),
+        4.0.scaled(context, ref),
+        24.0.scaled(context, ref),
+        0,
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 360,
+          maxHeight: MediaQuery.of(context).size.height * 0.5,
+        ),
+        child: Material(
+          color: BeeTokens.surfaceElevated(context),
+          elevation: 8,
+          borderRadius: BorderRadius.circular(14),
+          clipBehavior: Clip.antiAlias,
+          child: ListView.separated(
+            shrinkWrap: true,
+            padding: EdgeInsets.zero,
+            itemCount: siblings.length,
+            separatorBuilder: (_, __) =>
+                Divider(height: 1, color: BeeTokens.divider(context)),
+            itemBuilder: (context, i) {
+              final a = siblings[i];
+              final isCurrent = a.id == widget.account.id;
+              return InkWell(
+                onTap: () => _switchToSibling(a),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 16.0.scaled(context, ref),
+                    vertical: 12.0.scaled(context, ref),
+                  ),
+                  child: Row(
+                    children: [
+                      AccountAvatar(
+                        account: a,
+                        primaryColor: primaryColor,
+                        size: 32,
+                      ),
+                      SizedBox(width: 12.0.scaled(context, ref)),
+                      Expanded(
+                        child: Text(
+                          a.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight:
+                                isCurrent ? FontWeight.w600 : FontWeight.w500,
+                            color: BeeTokens.textPrimary(context),
+                          ),
+                        ),
+                      ),
+                      if (isCurrent)
+                        Icon(Icons.check_circle, size: 20, color: primaryColor),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
       ),
     );
   }

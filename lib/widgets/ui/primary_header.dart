@@ -26,6 +26,12 @@ class PrimaryHeader extends ConsumerWidget {
   // 隐藏内置标题/副标题行，仅渲染自定义 content（用于首页）
   final bool showTitleSection;
 
+  /// 標題/副標題置中(左邊返回鍵、右邊 actions 不動)。預設 false 維持靠左。
+  final bool centerTitle;
+
+  /// 點擊標題列(含 [titleTrailing])的回呼,例如帳戶明細頁切換同群組子帳戶。
+  final VoidCallback? onTitleTap;
+
   const PrimaryHeader({
     super.key,
     required this.title,
@@ -44,6 +50,8 @@ class PrimaryHeader extends ConsumerWidget {
     this.decoration,
     this.leadingPlain = false,
     this.showTitleSection = true,
+    this.centerTitle = false,
+    this.onTitleTap,
   });
 
   @override
@@ -68,6 +76,57 @@ class PrimaryHeader extends ConsumerWidget {
     final textColor = BeeTokens.textPrimary(context);
     final iconColor = BeeTokens.iconPrimary(context);
 
+    final titleRow = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: Text(
+            title,
+            style: titleStyle.copyWith(color: textColor), // ⭐ 自适应颜色
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        if (titleTrailing != null) ...[
+          SizedBox(width: centerTitle ? 2 : 6),
+          titleTrailing!,
+        ],
+      ],
+    );
+    final titleColumn = Column(
+      crossAxisAlignment:
+          centerTitle ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (onTitleTap != null)
+          InkWell(
+            onTap: onTitleTap,
+            borderRadius: BorderRadius.circular(8),
+            child: titleRow,
+          )
+        else
+          titleRow,
+        if (subtitle != null)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  subtitle!,
+                  style: subStyle.copyWith(
+                    color: BeeTokens.textSecondary(context),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (subtitleTrailing != null) ...[
+                const SizedBox(width: 6),
+                subtitleTrailing!,
+              ]
+            ],
+          ),
+      ],
+    );
+
     // ⭐ 状态栏图标颜色：亮色模式用深色图标，暗黑模式用浅色图标
     final statusBarBrightness = statusBarIconBrightness ??
         (isDark ? Brightness.light : Brightness.dark);
@@ -85,7 +144,8 @@ class PrimaryHeader extends ConsumerWidget {
       child: Material(
         color: Colors.transparent,
         child: Container(
-          decoration: decoration ?? BoxDecoration(color: headerBg), // ⭐ 根据设置决定背景色
+          decoration:
+              decoration ?? BoxDecoration(color: headerBg), // ⭐ 根据设置决定背景色
           child: Stack(
             children: [
               // ⭐ 头部皮肤层(主题色之上的装饰);未选皮肤时为纯主题色 / 纯黑
@@ -99,105 +159,90 @@ class PrimaryHeader extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                if (showTitleSection)
-                  Padding(
-                    padding: effectivePadding,
-                    child: Row(
-                      children: [
-                        if (showBack) ...[
-                          IconButton(
-                            icon: Icon(Icons.arrow_back, color: iconColor), // ⭐ 自适应颜色
-                            onPressed: () => Navigator.of(context).maybePop(),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            style: IconButton.styleFrom(
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                        ],
-                        if (leadingIcon != null) ...[
-                          leadingPlain
-                              ? Icon(leadingIcon, color: iconColor)
-                              : Container(
-                                  width: 36,
-                                  height: 36,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.2),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(leadingIcon, color: iconColor),
-                                ),
-                          const SizedBox(width: 8),
-                        ],
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                      title,
-                                      style: titleStyle.copyWith(color: textColor), // ⭐ 自适应颜色
-                                      overflow: TextOverflow.ellipsis,
+                    if (showTitleSection)
+                      Padding(
+                        padding: effectivePadding,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Row(
+                              children: [
+                                if (showBack) ...[
+                                  IconButton(
+                                    icon: Icon(Icons.arrow_back,
+                                        color: iconColor), // ⭐ 自适应颜色
+                                    onPressed: () =>
+                                        Navigator.of(context).maybePop(),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    style: IconButton.styleFrom(
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
                                     ),
                                   ),
-                                  if (titleTrailing != null) ...[
-                                    const SizedBox(width: 6),
-                                    titleTrailing!,
-                                  ],
+                                  const SizedBox(width: 8),
                                 ],
-                              ),
-                              if (subtitle != null)
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Flexible(
-                                      child: Text(
-                                        subtitle!,
-                                        style: subStyle.copyWith(
-                                          color: BeeTokens.textSecondary(context),
+                                if (leadingIcon != null) ...[
+                                  leadingPlain
+                                      ? Icon(leadingIcon, color: iconColor)
+                                      : Container(
+                                          width: 36,
+                                          height: 36,
+                                          decoration: BoxDecoration(
+                                            color: Colors.white
+                                                .withValues(alpha: 0.2),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Icon(leadingIcon,
+                                              color: iconColor),
                                         ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    if (subtitleTrailing != null) ...[
-                                      const SizedBox(width: 6),
-                                      subtitleTrailing!,
-                                    ]
-                                  ],
-                                ),
-                            ],
+                                  const SizedBox(width: 8),
+                                ],
+                                if (centerTitle)
+                                  const Spacer()
+                                else
+                                  Expanded(child: titleColumn),
+                                if (center != null) ...[
+                                  const SizedBox(width: 6),
+                                  DefaultTextStyle(
+                                    style: Theme.of(context)
+                                            .textTheme
+                                            .labelMedium
+                                            ?.copyWith(
+                                              color: iconColor, // ⭐ 自适应颜色
+                                            ) ??
+                                        TextStyle(
+                                            fontSize: 12, color: iconColor),
+                                    child: center!,
+                                  ),
+                                ],
+                                if (actions != null) ...actions!,
+                              ],
+                            ),
+                            // 置中標題疊在按鈕列上方;左右留白讓出返回鍵與 actions
+                            // (Padding 的留白不吃點擊,下層按鈕照常可點)。
+                            if (centerTitle)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 100),
+                                child: titleColumn,
+                              ),
+                          ],
+                        ),
+                      ),
+                    if (content != null)
+                      Padding(
+                        padding: effectivePadding,
+                        child: DefaultTextStyle(
+                          style: DefaultTextStyle.of(context).style.copyWith(
+                                color: textColor, // ⭐ 自适应颜色
+                              ),
+                          child: IconTheme(
+                            data: IconThemeData(color: iconColor), // ⭐ 自适应颜色
+                            child: content!,
                           ),
                         ),
-                        if (center != null) ...[
-                          const SizedBox(width: 6),
-                          DefaultTextStyle(
-                            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                              color: iconColor, // ⭐ 自适应颜色
-                            ) ?? TextStyle(fontSize: 12, color: iconColor),
-                            child: center!,
-                          ),
-                        ],
-                        if (actions != null) ...actions!,
-                      ],
-                    ),
-                  ),
-                if (content != null)
-                  Padding(
-                    padding: effectivePadding,
-                    child: DefaultTextStyle(
-                      style: DefaultTextStyle.of(context).style.copyWith(
-                        color: textColor, // ⭐ 自适应颜色
                       ),
-                      child: IconTheme(
-                        data: IconThemeData(color: iconColor), // ⭐ 自适应颜色
-                        child: content!,
-                      ),
-                    ),
-                  ),
                     if (bottom != null) bottom!,
                   ],
                 ),
