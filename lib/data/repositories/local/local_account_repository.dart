@@ -91,7 +91,7 @@ class LocalAccountRepository implements AccountRepository {
     required int ledgerId,
     required String name,
     String type = 'cash',
-    String currency = 'CNY',
+    String currency = 'TWD',
     double initialBalance = 0.0,
     double? creditLimit,
     int? billingDay,
@@ -164,7 +164,7 @@ class LocalAccountRepository implements AccountRepository {
     required String name,
     int ledgerId = 0,
     String type = 'cash',
-    String currency = 'CNY',
+    String currency = 'TWD',
     double initialBalance = 0.0,
   }) async {
     final existing =

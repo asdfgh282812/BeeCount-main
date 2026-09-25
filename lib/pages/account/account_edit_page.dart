@@ -131,7 +131,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         TextEditingController(text: widget.account?.cardLastFour ?? '');
     _noteController = TextEditingController(text: widget.account?.note ?? '');
     _selectedType = widget.account?.type ?? 'cash';
-    _selectedCurrency = widget.account?.currency ?? 'CNY';
+    _selectedCurrency = widget.account?.currency ?? 'TWD';
     _billingDay = widget.account?.billingDay;
     _paymentDueDay = widget.account?.paymentDueDay;
     _parentAccountId = widget.account?.parentAccountId;

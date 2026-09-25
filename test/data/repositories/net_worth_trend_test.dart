@@ -42,7 +42,7 @@ void main() {
     final series = await repo.getNetWorthTrendSeries(
         startDate: DateTime(2026, 6, 10),
         endDate: DateTime(2026, 6, 10),
-        ratesToBase: const {'CNY': 1.0});
+        ratesToBase: const {'TWD': 1.0});
 
     expect(series.length, 1);
     expect(series.first.assets, 800.0);
@@ -59,7 +59,7 @@ void main() {
   });
 
   test('多币种折算到主币种:各账户余额 × 汇率,缺汇率币种整条剔除', () async {
-    // CNY 现金 1000(主币种,× 1.0)
+    // TWD 现金 1000(主币种,× 1.0)
     await db.into(db.accounts).insert(AccountsCompanion.insert(
         ledgerId: 1,
         name: '现金',
@@ -83,10 +83,10 @@ void main() {
     final series = await repo.getNetWorthTrendSeries(
         startDate: DateTime(2026, 6, 10),
         endDate: DateTime(2026, 6, 10),
-        ratesToBase: const {'CNY': 1.0, 'USD': 7.0}); // 故意不含 EUR
+        ratesToBase: const {'TWD': 1.0, 'USD': 7.0}); // 故意不含 EUR
 
     expect(series.length, 1);
-    // 1000(CNY) + 100×7(USD) = 1700;EUR 缺汇率被剔除,不计入
+    // 1000(TWD) + 100×7(USD) = 1700;EUR 缺汇率被剔除,不计入
     expect(series.first.assets, 1700.0);
     expect(series.first.liabilities, 0.0);
     expect(series.first.net, 1700.0);

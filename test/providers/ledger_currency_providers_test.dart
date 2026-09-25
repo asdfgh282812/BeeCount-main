@@ -1,5 +1,5 @@
 /// 交易级多币种 provider 层:
-///   ① currentLedgerCurrencyProvider:账本本位币别名(大写/兜底 CNY)
+///   ① currentLedgerCurrencyProvider:账本本位币别名(大写/兜底 TWD)
 ///   ② effectiveRatesForLedgerProvider:以账本本位币为 base 合成有效汇率
 ///      (与 effectiveRatesProvider 的差异仅在 base 来源)
 import 'package:drift/native.dart';
@@ -36,7 +36,7 @@ void main() {
         monthStartDay: 1,
       );
 
-  test('currentLedgerCurrencyProvider:账本币种大写;无账本兜底 CNY', () async {
+  test('currentLedgerCurrencyProvider:账本币种大写;无账本兜底 TWD', () async {
     final container = ProviderContainer(overrides: [
       currentLedgerProvider
           .overrideWith((ref) => Stream<Ledger?>.value(ledgerWith('usd'))),
@@ -50,7 +50,7 @@ void main() {
     ]);
     addTearDown(empty.dispose);
     await empty.read(currentLedgerProvider.future);
-    expect(empty.read(currentLedgerCurrencyProvider), 'CNY');
+    expect(empty.read(currentLedgerCurrencyProvider), 'TWD');
   });
 
   test('effectiveRatesForLedger 以账本本位币为 base(≠ 用户主币种)', () async {

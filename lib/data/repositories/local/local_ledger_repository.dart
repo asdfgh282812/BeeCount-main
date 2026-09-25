@@ -141,7 +141,7 @@ class LocalLedgerRepository implements LedgerRepository {
   @override
   Future<int> createLedger({
     required String name,
-    String currency = 'CNY',
+    String currency = 'TWD',
   }) async {
     // syncId 是跨设备稳定外键。新建账本必须现场写入 UUID，否则 push 侧
     // 的 `ledger.syncId ?? ledger.id.toString()` 会 fallback 到本地 int id，

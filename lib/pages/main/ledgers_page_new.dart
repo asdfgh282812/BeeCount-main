@@ -1174,7 +1174,7 @@ class _LedgersPageNewState extends ConsumerState<LedgersPageNew> {
     int? initialMonthStartDay,
   }) async {
     String name = initialName ?? '';
-    String currency = initialCurrency ?? 'CNY';
+    String currency = initialCurrency ?? 'TWD';
     int monthStartDay = initialMonthStartDay ?? 1;
     final nameCtrl = TextEditingController(text: name);
 

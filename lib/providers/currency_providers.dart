@@ -17,7 +17,7 @@ import 'theme_providers.dart' show isApplyingFromServer;
 
 /// 用户主币种(大写 ISO code)。本地真值存 prefs 'baseCurrency';BeeCount Cloud
 /// 模式下改动会推到 server,其余云模式 / 纯本地只存本地。
-final baseCurrencyProvider = StateProvider<String>((ref) => 'CNY');
+final baseCurrencyProvider = StateProvider<String>((ref) => 'TWD');
 
 /// 汇率数据变更信号:拉取成功 / 手动编辑后 bump,触发 effectiveRates 重算。
 final rateRefreshTickProvider = StateProvider<int>((ref) => 0);
@@ -26,7 +26,7 @@ final exchangeRateServiceProvider =
     Provider<ExchangeRateService>((ref) => ExchangeRateService());
 
 /// 启动初始化:读 prefs;主币种未设置时按
-/// ① Welcome 选币(selected_currency) → ② 当前账本币种 → ③ CNY 初始化。
+/// ① Welcome 选币(selected_currency) → ② 当前账本币种 → ③ TWD 初始化。
 final baseCurrencyInitProvider = FutureProvider<void>((ref) async {
   // WS profile 回流可能先于本 init 执行(写 provider+prefs):两种交错最终都收敛到
   // server 值,仅存在毫秒级 UI 闪烁窗口,自愈;详见 Task5+6 评审 I1。
@@ -37,7 +37,7 @@ final baseCurrencyInitProvider = FutureProvider<void>((ref) async {
     if (saved == null || saved.isEmpty) {
       saved = ref.read(currentLedgerProvider).valueOrNull?.currency;
     }
-    if (saved == null || saved.isEmpty) saved = 'CNY';
+    if (saved == null || saved.isEmpty) saved = 'TWD';
     await prefs.setString('baseCurrency', saved);
   }
   ref.read(baseCurrencyProvider.notifier).state = saved.toUpperCase();
@@ -140,7 +140,7 @@ final currencyPickerRatesProvider =
 final currentLedgerCurrencyProvider = Provider<String>((ref) {
   final ledger = ref.watch(currentLedgerProvider).valueOrNull;
   final c = ledger?.currency;
-  return (c == null || c.isEmpty) ? 'CNY' : c.toUpperCase();
+  return (c == null || c.isEmpty) ? 'TWD' : c.toUpperCase();
 });
 
 /// 币种选择弹窗的优先展示顺序:账本本位币恒居首,其后按账户使用数量降序

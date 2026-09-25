@@ -29,7 +29,7 @@ class $LedgersTable extends Ledgers with TableInfo<$LedgersTable, Ledger> {
       'currency', aliasedName, false,
       type: DriftSqlType.string,
       requiredDuringInsert: false,
-      defaultValue: const Constant('CNY'));
+      defaultValue: const Constant('TWD'));
   static const VerificationMeta _typeMeta = const VerificationMeta('type');
   @override
   late final GeneratedColumn<String> type = GeneratedColumn<String>(
@@ -576,7 +576,7 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
       'currency', aliasedName, false,
       type: DriftSqlType.string,
       requiredDuringInsert: false,
-      defaultValue: const Constant('CNY'));
+      defaultValue: const Constant('TWD'));
   static const VerificationMeta _initialBalanceMeta =
       const VerificationMeta('initialBalance');
   @override
@@ -9668,7 +9668,7 @@ class $SharedLedgerAccountsTable extends SharedLedgerAccounts
       'currency', aliasedName, false,
       type: DriftSqlType.string,
       requiredDuringInsert: false,
-      defaultValue: const Constant('CNY'));
+      defaultValue: const Constant('TWD'));
   static const VerificationMeta _noteMeta = const VerificationMeta('note');
   @override
   late final GeneratedColumn<String> note = GeneratedColumn<String>(

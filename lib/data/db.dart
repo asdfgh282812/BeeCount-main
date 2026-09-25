@@ -18,7 +18,7 @@ part 'db.g.dart';
 class Ledgers extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text()();
-  TextColumn get currency => text().withDefault(const Constant('CNY'))();
+  TextColumn get currency => text().withDefault(const Constant('TWD'))();
   TextColumn get type =>
       text().withDefault(const Constant('personal'))(); // personal / shared
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
@@ -46,7 +46,7 @@ class Accounts extends Table {
   TextColumn get name => text()();
   TextColumn get type => text().withDefault(const Constant('cash'))();
   TextColumn get currency =>
-      text().withDefault(const Constant('CNY'))(); // v1.15.0新增：币种
+      text().withDefault(const Constant('TWD'))(); // v1.15.0新增：币种
   RealColumn get initialBalance => real().withDefault(const Constant(0.0))();
   DateTimeColumn get createdAt =>
       dateTime().nullable()(); // v1.15.0: 改为可空，避免迁移问题
@@ -1131,7 +1131,7 @@ class SharedLedgerAccounts extends Table {
   TextColumn get syncId => text()();
   TextColumn get name => text()();
   TextColumn get accountType => text().withDefault(const Constant('cash'))();
-  TextColumn get currency => text().withDefault(const Constant('CNY'))();
+  TextColumn get currency => text().withDefault(const Constant('TWD'))();
   TextColumn get note => text().nullable()();
   RealColumn get initialBalance => real().nullable()();
   RealColumn get creditLimit => real().nullable()();
@@ -2652,7 +2652,7 @@ class BeeDatabase extends _$BeeDatabase {
   /// 注意：此方法只应在真正的首次初始化时调用（欢迎页完成时）
   Future<void> ensureSeed({
     AppLocalizations? l10n,
-    String currency = 'CNY',
+    String currency = 'TWD',
     bool useHierarchicalCategories = false,
     bool skipCategories = false,
     bool createDefaultLedger = true,

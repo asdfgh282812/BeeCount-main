@@ -749,7 +749,7 @@ class SeedService {
   static Future<void> seedDatabase(
     BeeDatabase db,
     AppLocalizations l10n, {
-    String currency = 'CNY',
+    String currency = 'TWD',
     bool useHierarchicalCategories = false,
     bool skipCategories = false,
     bool createDefaultLedger = true,

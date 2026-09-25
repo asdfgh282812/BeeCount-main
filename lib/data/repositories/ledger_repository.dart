@@ -40,7 +40,7 @@ abstract class LedgerRepository {
   /// 创建账本
   Future<int> createLedger({
     required String name,
-    String currency = 'CNY',
+    String currency = 'TWD',
   });
 
   /// 更新账本名称

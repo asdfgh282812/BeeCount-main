@@ -148,7 +148,7 @@ class LocalRepository extends BaseRepository {
       );
 
   @override
-  Future<int> createLedger({required String name, String currency = 'CNY'}) =>
+  Future<int> createLedger({required String name, String currency = 'TWD'}) =>
       _ledgerRepo.createLedger(name: name, currency: currency);
 
   @override
@@ -830,7 +830,7 @@ class LocalRepository extends BaseRepository {
     }
     final ledger = await getLedgerById(ledgerId);
     final base =
-        ((ledger?.currency.isNotEmpty ?? false) ? ledger!.currency : 'CNY')
+        ((ledger?.currency.isNotEmpty ?? false) ? ledger!.currency : 'TWD')
             .toUpperCase();
     var cc = currencyCode?.toUpperCase();
     if (cc == null || cc.isEmpty) {
@@ -952,7 +952,7 @@ class LocalRepository extends BaseRepository {
   Future<int> recomputeForeignTxForLedger(int ledgerId) async {
     final ledger = await getLedgerById(ledgerId);
     final base =
-        ((ledger?.currency.isNotEmpty ?? false) ? ledger!.currency : 'CNY')
+        ((ledger?.currency.isNotEmpty ?? false) ? ledger!.currency : 'TWD')
             .toUpperCase();
     return _recalcNativeAmounts(ledgerId, base, onlyUnconverted: true);
   }
@@ -961,7 +961,7 @@ class LocalRepository extends BaseRepository {
   Future<int> countUnconvertedForeignTx(int ledgerId) async {
     final ledger = await getLedgerById(ledgerId);
     final base =
-        ((ledger?.currency.isNotEmpty ?? false) ? ledger!.currency : 'CNY')
+        ((ledger?.currency.isNotEmpty ?? false) ? ledger!.currency : 'TWD')
             .toUpperCase();
     // currency_code IS NULL 的行(绕过 repo 的历史写入)LEFT JOIN 账户币种兜底
     final row = await db.customSelect(
@@ -980,7 +980,7 @@ class LocalRepository extends BaseRepository {
   Future<int> countForeignCurrencyTx(int ledgerId) async {
     final ledger = await getLedgerById(ledgerId);
     final base =
-        ((ledger?.currency.isNotEmpty ?? false) ? ledger!.currency : 'CNY')
+        ((ledger?.currency.isNotEmpty ?? false) ? ledger!.currency : 'TWD')
             .toUpperCase();
     final row = await db.customSelect(
       'SELECT COUNT(*) AS cnt FROM transactions t '
@@ -1443,7 +1443,7 @@ class LocalRepository extends BaseRepository {
     if (tx == null) return;
     final ledger = await getLedgerById(ledgerId);
     final base =
-        ((ledger?.currency.isNotEmpty ?? false) ? ledger!.currency : 'CNY')
+        ((ledger?.currency.isNotEmpty ?? false) ? ledger!.currency : 'TWD')
             .toUpperCase();
     final cc = (tx.currencyCode ?? base).toUpperCase();
     double na;
@@ -1479,7 +1479,7 @@ class LocalRepository extends BaseRepository {
   Future<Set<String>> getLedgerForeignCurrencies(int ledgerId) async {
     final ledger = await getLedgerById(ledgerId);
     final base =
-        ((ledger?.currency.isNotEmpty ?? false) ? ledger!.currency : 'CNY')
+        ((ledger?.currency.isNotEmpty ?? false) ? ledger!.currency : 'TWD')
             .toUpperCase();
     final rows = await db.customSelect(
       'SELECT DISTINCT UPPER(COALESCE(t.currency_code, a.currency, ?2)) AS cc '
@@ -2305,7 +2305,7 @@ class LocalRepository extends BaseRepository {
     required int ledgerId,
     required String name,
     String type = 'cash',
-    String currency = 'CNY',
+    String currency = 'TWD',
     double initialBalance = 0.0,
     double? creditLimit,
     int? billingDay,
@@ -2358,7 +2358,7 @@ class LocalRepository extends BaseRepository {
     required String name,
     int ledgerId = 0,
     String type = 'cash',
-    String currency = 'CNY',
+    String currency = 'TWD',
     double initialBalance = 0.0,
   }) async {
     // 委托底层 upsert(同名复用)。新建分支会自动记 sync change(走 createAccount
@@ -2748,7 +2748,7 @@ class LocalRepository extends BaseRepository {
       final ledger = await (db.select(db.ledgers)
             ..where((l) => l.id.equals(b.ledgerId)))
           .getSingleOrNull();
-      final currency = (ledger?.currency ?? 'CNY').toUpperCase();
+      final currency = (ledger?.currency ?? 'TWD').toUpperCase();
       final prev = result[currency] ??
           (totalAssets: 0.0, totalLiabilities: 0.0, netWorth: 0.0);
       result[currency] = (
