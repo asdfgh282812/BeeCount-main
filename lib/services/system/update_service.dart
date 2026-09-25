@@ -12,6 +12,7 @@ import '../update/update_dialogs.dart';
 import '../update/update_downloader.dart';
 import '../update/update_installer.dart';
 import '../update/update_cache.dart';
+import '../update/apk_update_snooze_store.dart';
 
 /// 本地化UpdateResult消息的辅助函数
 String _localizeUpdateMessage(BuildContext context, String? message) {
@@ -51,6 +52,8 @@ String _localizeUpdateMessage(BuildContext context, String? message) {
       return AppLocalizations.of(context).updateNoApkFound;
     case '__UPDATE_ALREADY_LATEST_SIMPLE__':
       return AppLocalizations.of(context).updateAlreadyLatest;
+    case '__UPDATE_NOT_APPLICABLE__':
+      return AppLocalizations.of(context).updateNotApplicableBuild;
     default:
       return message;
   }
@@ -69,6 +72,7 @@ class UpdateService {
     BuildContext context,
     String downloadUrl, {
     Function(double progress, String status)? onProgress,
+    String? expectedSha256,
   }) async {
     try {
       // 检查权限
@@ -99,7 +103,17 @@ class UpdateService {
         logger.info('UpdateService', '从URL提取的版本号: $version');
       }
 
-      final cachedApkPath = await UpdateCache.checkCachedApkForUrl(downloadUrl);
+      var cachedApkPath = await UpdateCache.checkCachedApkForUrl(downloadUrl);
+
+      // 同版本号重新打包过(或缓存文件损坏)时,缓存 APK 跟 version.json 的
+      // SHA-256 对不上 —— 直接丢掉重下,不要把旧包装回去。
+      if (cachedApkPath != null &&
+          expectedSha256 != null &&
+          !await UpdateCache.matchesSha256(cachedApkPath, expectedSha256)) {
+        logger.info('UpdateService', '缓存APK与version.json的SHA-256不符,删除后重新下载');
+        await UpdateCache.deleteApkFile(cachedApkPath);
+        cachedApkPath = null;
+      }
 
       if (cachedApkPath != null) {
         logger.info('UpdateService', '找到缓存的APK: $cachedApkPath');
@@ -171,6 +185,20 @@ class UpdateService {
         fileName,
         onProgress: onProgress,
       );
+
+      if (downloadResult.success &&
+          downloadResult.filePath != null &&
+          expectedSha256 != null &&
+          !await UpdateCache.matchesSha256(downloadResult.filePath!, expectedSha256)) {
+        await UpdateCache.deleteApkFile(downloadResult.filePath!);
+        return UpdateResult(
+          hasUpdate: false,
+          success: false,
+          message: context.mounted
+              ? AppLocalizations.of(context).updateChecksumMismatch
+              : 'SHA-256 mismatch',
+        );
+      }
 
       if (downloadResult.success && downloadResult.filePath != null) {
         // 下载成功，询问是否立即安装
@@ -304,106 +332,106 @@ class UpdateService {
     }
   }
 
-  /// 完整的更新检查流程，包含UI交互
+  /// 完整的更新检查流程，包含UI交互（仅 Android;iOS 直接返回）
+  ///
+  /// [silent] = true 用于 App 启动 / 回到前景的自动检查:没有新版本、检查失败、
+  /// 或同一版本 24 小时内按过「稍后」([ApkUpdateSnoozeStore])时都静默返回,
+  /// 不打扰使用者。手动检查([silent] = false,「关于 → 检查更新」)则会把
+  /// 「已是最新版本」或错误信息显示出来。
   static Future<void> checkUpdateWithUI(
     BuildContext context, {
-    required Function(bool loading) setLoading,
-    required Function(double progress, String status) setProgress,
+    bool silent = false,
+    Function(bool loading)? setLoading,
+    Function(double progress, String status)? setProgress,
   }) async {
-    // 防重复点击
-    if (Platform.isAndroid) {
-      setLoading(true);
-      setProgress(0.0, AppLocalizations.of(context).updateCheckingUpdate);
+    if (!Platform.isAndroid) return;
 
-      try {
-        // Android: 检查远程更新
-        final checkResult = await checkUpdate();
+    void loading(bool v) => setLoading?.call(v);
+    void progress(double p, String s) => setProgress?.call(p, s);
 
-        if (!context.mounted) return;
+    loading(true);
+    progress(0.0, AppLocalizations.of(context).updateCheckingUpdate);
 
-        if (!checkResult.hasUpdate) {
-          // 检查是否是网络错误或API错误，提供兜底方案
-          final localizedMessage = _localizeUpdateMessage(context, checkResult.message);
-          final message = localizedMessage.isEmpty ? AppLocalizations.of(context).updateCurrentLatestVersion : localizedMessage;
-          final isNetworkError = message.contains(AppLocalizations.of(context).updateCheckFailedGeneric) ||
-              message.contains('HTTP') ||
-              checkResult.message?.startsWith('__UPDATE_CHECK') == true;
-          if (isNetworkError) {
-            // 网络错误或API错误，提供去GitHub的兜底选项
-            await UpdateDialogs.showUpdateErrorWithFallback(context, message);
-          } else {
-            // 正常情况（已是最新版本）
-            await AppDialog.info(
-              context,
-              title: AppLocalizations.of(context).updateCheckTitle,
-              message: message,
-            );
-          }
-          return;
+    try {
+      final checkResult = await checkUpdate();
+
+      if (!context.mounted) return;
+
+      if (!checkResult.hasUpdate) {
+        if (silent) return;
+        final localizedMessage = _localizeUpdateMessage(context, checkResult.message);
+        final message = localizedMessage.isEmpty
+            ? AppLocalizations.of(context).updateCurrentLatestVersion
+            : localizedMessage;
+        if (checkResult.message?.startsWith('__UPDATE_CHECK') == true) {
+          await UpdateDialogs.showUpdateErrorWithFallback(context, message);
+        } else {
+          await AppDialog.info(
+            context,
+            title: AppLocalizations.of(context).updateCheckTitle,
+            message: message,
+          );
         }
-
-        // 发现有新版本，显示确认对话框
-        // 重置进度和加载状态，显示确认对话框
-        setLoading(false);
-        setProgress(0.0, '');
-
-        final shouldDownload = await UpdateDialogs.showDownloadConfirmDialog(
-          context,
-          checkResult.version ?? '',
-          checkResult.releaseNotes ?? '',
-        );
-
-        if (!shouldDownload || !context.mounted) {
-          // 用户取消下载，完全清除状态显示
-          setLoading(false);
-          setProgress(0.0, '');
-          return;
-        }
-
-        // 用户确认下载，开始下载过程
-        final downloadResult = await downloadAndInstallUpdate(
-          context,
-          checkResult.downloadUrl!,
-          onProgress: setProgress,
-        );
-
-        if (!context.mounted) return;
-
-        logger.info('UpdateService', 'UPDATE_CRASH: 📊 downloadResult检查 - success: ${downloadResult.success}, message: ${downloadResult.message}, type: ${downloadResult.type}');
-
-        if (!downloadResult.success && downloadResult.message != null) {
-          logger.warning('UpdateService', 'UPDATE_CRASH: ⚠️ 检测到下载结果为失败，准备显示错误弹窗');
-
-          // 检查是否是用户取消，如果是则不显示错误弹窗
-          if (downloadResult.type == UpdateResultType.userCancelled) {
-            // 用户取消下载，什么都不做，静默返回
-            logger.info('UpdateService', 'UPDATE_CRASH: 🚫 用户取消下载，静默返回');
-            return;
-          }
-
-          // 等待一段时间确保下载对话框完全关闭，避免黑屏
-          await Future.delayed(const Duration(milliseconds: 500));
-
-          // 再次检查context是否仍然有效
-          if (!context.mounted) return;
-
-          // 显示下载错误信息，并提供GitHub fallback
-          logger.warning('UpdateService', 'UPDATE_CRASH: 🚨 即将显示下载失败弹窗');
-          final localizedError = _localizeUpdateMessage(context, downloadResult.message!);
-          await UpdateDialogs.showDownloadErrorWithFallback(
-              context, localizedError.isNotEmpty ? localizedError : downloadResult.message!);
-        } else if (downloadResult.success) {
-          logger.info('UpdateService', 'UPDATE_CRASH: ✅ 下载和安装流程成功完成');
-        }
-        // 成功下载的情况不需要额外提示，UpdateService内部已处理
-      } catch (e) {
-        if (context.mounted) {
-          await UpdateDialogs.showUpdateErrorWithFallback(context, AppLocalizations.of(context).updateCheckingUpdateError('$e'));
-        }
-      } finally {
-        setLoading(false);
-        setProgress(0.0, '');
+        return;
       }
+
+      final version = checkResult.version ?? '';
+      if (silent && await ApkUpdateSnoozeStore.isSnoozed(version)) {
+        logger.info('UpdateService', '版本 $version 在暂缓期内,跳过自动提示');
+        return;
+      }
+      if (!context.mounted) return;
+
+      loading(false);
+      progress(0.0, '');
+
+      final shouldDownload = await UpdateDialogs.showDownloadConfirmDialog(
+        context,
+        version,
+        checkResult.releaseNotes ?? '',
+      );
+
+      if (!shouldDownload) {
+        await ApkUpdateSnoozeStore.snooze(version);
+        return;
+      }
+      if (!context.mounted) return;
+
+      final downloadResult = await downloadAndInstallUpdate(
+        context,
+        checkResult.downloadUrl!,
+        onProgress: setProgress,
+        expectedSha256: checkResult.sha256,
+      );
+
+      if (!context.mounted) return;
+
+      logger.info('UpdateService', 'UPDATE_CRASH: 📊 downloadResult检查 - success: ${downloadResult.success}, message: ${downloadResult.message}, type: ${downloadResult.type}');
+
+      if (!downloadResult.success && downloadResult.message != null) {
+        // 用户取消下载,静默返回
+        if (downloadResult.type == UpdateResultType.userCancelled) return;
+
+        // 等待一段时间确保下载对话框完全关闭，避免黑屏
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (!context.mounted) return;
+
+        final localizedError = _localizeUpdateMessage(context, downloadResult.message!);
+        await UpdateDialogs.showDownloadErrorWithFallback(
+          context,
+          localizedError.isNotEmpty ? localizedError : downloadResult.message!,
+          browserUrl: checkResult.downloadUrl,
+        );
+      }
+      // 成功下载的情况不需要额外提示，downloadAndInstallUpdate 内部已处理
+    } catch (e) {
+      if (!silent && context.mounted) {
+        await UpdateDialogs.showUpdateErrorWithFallback(
+            context, AppLocalizations.of(context).updateCheckingUpdateError('$e'));
+      }
+    } finally {
+      loading(false);
+      progress(0.0, '');
     }
   }
 

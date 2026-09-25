@@ -4493,5 +4493,11 @@
   "whatsNew360FixesDesc": "Swiping from the left edge on iOS goes back again; a new device's first sync no longer fails on duplicate categories; tapping a top-level category in the report's pie chart no longer shows an empty list; the report period menu only goes back to the ledger's first transaction; fresh installs default to TWD; the Android home screen label now reads 蜜蜂記帳.",
   "reportFlowReward": "Rewards",
   "reportRewardNote": "Rewards are estimated from your credit card reward rules, the same way as the reward detail page. The actual amount posted by your card issuer may differ.",
-  "reportTransferAccountNote": "An account's transfer amount is money in plus money out, so one transfer appears under both accounts."
+  "reportTransferAccountNote": "An account's transfer amount is money in plus money out, so one transfer appears under both accounts.",
+  "updateNowButton": "Update Now",
+  "updateOpenInBrowser": "Download in Browser",
+  "updateChecksumMismatch": "The downloaded installer failed verification and may be incomplete. Please try again.",
+  "updateNotApplicableBuild": "This is a test build and can't update itself. Install the official release to get in-app updates.",
+  "aboutCheckUpdateSubtitle": "Current version {version}",
+  "@aboutCheckUpdateSubtitle": {"placeholders": {"version": {"type": "String"}}}
 }

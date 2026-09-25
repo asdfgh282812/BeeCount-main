@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import '../system/logger_service.dart';
 import '../../l10n/app_localizations.dart';
+import '../../styles/tokens.dart';
 import 'update_result.dart';
 import 'update_notifications.dart';
 import 'github_mirror_service.dart';
@@ -49,10 +50,13 @@ class UpdateDownloader {
     Function(double progress, String status)? onProgress,
   }) async {
     try {
-      // 获取选择的镜像并转换 URL
-      final mirror = await GitHubMirrorService.getSelectedMirror();
-      final downloadUrl = GitHubMirrorService.convertToMirrorUrl(url, mirror);
-      logger.info('UpdateDownloader', '使用镜像: ${mirror.name}');
+      // GitHub 加速镜像只对 GitHub 下载链接有意义;version.json 给的 R2 链接
+      // 直连即可,套上镜像前缀反而会 404。
+      final isGitHubUrl = Uri.parse(url).host.endsWith('github.com');
+      final mirror = isGitHubUrl ? await GitHubMirrorService.getSelectedMirror() : null;
+      final downloadUrl =
+          mirror != null ? GitHubMirrorService.convertToMirrorUrl(url, mirror) : url;
+      logger.info('UpdateDownloader', '使用镜像: ${mirror?.name ?? '(直连)'}');
       logger.info('UpdateDownloader', '原始URL: $url');
       logger.info('UpdateDownloader', '下载URL: $downloadUrl');
 
@@ -77,7 +81,6 @@ class UpdateDownloader {
       double progress = 0.0;
       bool cancelled = false;
       late StateSetter dialogSetState;
-      String currentMirrorName = mirror.name;
 
       // 重置进度记录
       UpdateNotifications.resetProgress();
@@ -103,15 +106,17 @@ class UpdateDownloader {
                     Text(AppLocalizations.of(context).updateDownloading((progress * 100).toStringAsFixed(1))),
                     const SizedBox(height: 16),
                     LinearProgressIndicator(value: progress),
-                    const SizedBox(height: 8),
-                    // 显示当前使用的镜像
-                    Text(
-                      AppLocalizations.of(context).updateDownloadMirror(currentMirrorName),
-                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                    ),
+                    // 显示当前使用的镜像(仅 GitHub 下载链接)
+                    if (mirror != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        AppLocalizations.of(context).updateDownloadMirror(mirror.name),
+                        style: TextStyle(fontSize: 11, color: BeeTokens.textTertiary(context)),
+                      ),
+                    ],
                     const SizedBox(height: 8),
                     Text(AppLocalizations.of(context).updateDownloadBackgroundHint,
-                        style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        style: TextStyle(fontSize: 12, color: BeeTokens.textTertiary(context))),
                   ],
                 ),
                 actions: [
@@ -148,7 +153,6 @@ class UpdateDownloader {
             'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
             'Cache-Control': 'no-cache',
             'Pragma': 'no-cache',
-            'Referer': 'https://github.com/TNT-Likely/BeeCount/releases',
           },
         ),
         onReceiveProgress: (received, total) {

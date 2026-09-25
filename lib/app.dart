@@ -30,6 +30,7 @@ import 'pages/ai/ai_chat_page.dart';
 import 'services/platform/app_link_service.dart';
 import 'services/platform/quick_actions_service.dart';
 import 'services/system/logger_service.dart';
+import 'services/system/update_service.dart';
 import 'services/security/app_lock_service.dart';
 import 'providers/security_providers.dart';
 import 'styles/tokens.dart';
@@ -139,8 +140,9 @@ class _BeeAppState extends ConsumerState<BeeApp>
   /// 分支)共用的統一提醒檢查入口,依序呼叫:
   /// 1. 雲端同步未登入提醒([maybeShowCloudLoginReminder])——優先權較高,
   ///    影響資料同步正確性。
-  /// 2. 若第 1 步沒有顯示對話框,才呼叫 App 新版本提醒
-  ///    ([maybeShowAppUpdateReminder])。
+  /// 2. 若第 1 步沒有顯示對話框,才檢查 App 新版本:Android 走
+  ///    [UpdateService.checkUpdateWithUI](`silent: true`,讀 R2 `version.json`,
+  ///    可一鍵下載安裝 APK);iOS 走 [maybeShowAppUpdateReminder](純提醒)。
   /// 3. 新功能公告([maybeShowWhatsNewOnStartup])——優先權最低,單純告知性質,
   ///    不像前兩者影響資料正確性或提醒使用者升級,因此不比照第 2 步用回傳值
   ///    互相 gate,一律接在第 2 步後面呼叫。
@@ -157,7 +159,13 @@ class _BeeAppState extends ConsumerState<BeeApp>
         final loginReminderShown =
             await maybeShowCloudLoginReminder(context, ref);
         if (!loginReminderShown && mounted) {
-          await maybeShowAppUpdateReminder(context, ref);
+          if (Platform.isAndroid) {
+            // Android:读 R2 的 version.json,可直接下载 APK 覆盖安装
+            await UpdateService.checkUpdateWithUI(context, silent: true);
+          } else {
+            // iOS:沙盒不允许自行安装,只提醒去 SideStore / 原管道更新
+            await maybeShowAppUpdateReminder(context, ref);
+          }
         }
         if (mounted) {
           await maybeShowWhatsNewOnStartup(context, ref);

@@ -154,53 +154,25 @@ class UpdateDialogs {
     return result ?? false;
   }
 
-  /// 显示更新检测失败的错误弹窗，提供去GitHub的兜底选项
+  /// 显示更新检测失败的错误弹窗
   static Future<void> showUpdateErrorWithFallback(
     BuildContext context,
     String error,
   ) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context).updateCheckFailedTitle),
-        content: Text(error),
-        actions: [
-          OutlinedButton(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Theme.of(context).primaryColor,
-              side: BorderSide(color: Theme.of(context).primaryColor),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(AppLocalizations.of(context).updateCancelButton),
-          ),
-          const SizedBox(width: 12),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            onPressed: () => Navigator.of(context).pop(true),
-            icon: const Icon(Icons.open_in_new, size: 18),
-            label: Text(AppLocalizations.of(context).updateGoToGitHub),
-          ),
-        ],
-      ),
+    await AppDialog.error(
+      context,
+      title: AppLocalizations.of(context).updateCheckFailedTitle,
+      message: error,
     );
-
-    if (result == true) {
-      await launchGitHubReleases(context);
-    }
   }
 
-  /// 显示下载失败的错误弹窗，提供去GitHub的兜底选项
+  /// 显示下载失败的错误弹窗;提供 [browserUrl] 时附带「用浏览器下载」兜底按钮,
+  /// 让 App 内下载失败(网络中断、校验不通过等)时仍有办法拿到 APK。
   static Future<void> showDownloadErrorWithFallback(
     BuildContext context,
-    String error,
-  ) async {
+    String error, {
+    String? browserUrl,
+  }) async {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -218,44 +190,39 @@ class UpdateDialogs {
             onPressed: () => Navigator.of(context).pop(false),
             child: Text(AppLocalizations.of(context).updateCancelButton),
           ),
-          const SizedBox(width: 12),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+          if (browserUrl != null) ...[
+            const SizedBox(width: 12),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
+              onPressed: () => Navigator.of(context).pop(true),
+              icon: const Icon(Icons.open_in_new, size: 18),
+              label: Text(AppLocalizations.of(context).updateOpenInBrowser),
             ),
-            onPressed: () => Navigator.of(context).pop(true),
-            icon: const Icon(Icons.open_in_new, size: 18),
-            label: Text(AppLocalizations.of(context).updateGoToGitHub),
-          ),
+          ],
         ],
       ),
     );
 
-    if (result == true) {
-      await launchGitHubReleases(context);
+    if (result == true && browserUrl != null && context.mounted) {
+      await _launchExternal(context, browserUrl);
     }
   }
 
-  /// 启动GitHub Releases页面
-  static Future<void> launchGitHubReleases(BuildContext context) async {
-    const url = 'https://github.com/TNT-Likely/BeeCount/releases';
+  static Future<void> _launchExternal(BuildContext context, String url) async {
     try {
-      if (await canLaunchUrl(Uri.parse(url))) {
-        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-      } else {
-        throw Exception('Cannot open link');
-      }
+      final ok = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      if (!ok) throw Exception('Cannot open link');
     } catch (e) {
-      logger.error('UpdateDialogs', '打开GitHub链接失败', e);
-
-      // 如果无法打开，显示提示
+      logger.error('UpdateDialogs', '打开下载链接失败', e);
       if (context.mounted) {
         await AppDialog.info(
           context,
           title: AppLocalizations.of(context).updateCannotOpenLinkTitle,
-          message: AppLocalizations.of(context).updateManualVisit,
+          message: url,
         );
       }
     }
@@ -476,8 +443,8 @@ class _MirrorSelectDialogState extends State<_MirrorSelectDialog> {
   }
 }
 
-/// 下载确认对话框（带镜像选择）
-class _DownloadConfirmDialog extends StatefulWidget {
+/// 下载确认对话框
+class _DownloadConfirmDialog extends StatelessWidget {
   final String version;
   final String releaseNotes;
 
@@ -487,135 +454,15 @@ class _DownloadConfirmDialog extends StatefulWidget {
   });
 
   @override
-  State<_DownloadConfirmDialog> createState() => _DownloadConfirmDialogState();
-}
-
-class _DownloadConfirmDialogState extends State<_DownloadConfirmDialog> {
-  String _currentMirrorName = 'GitHub 直连';
-
-  @override
-  void initState() {
-    super.initState();
-    _loadCurrentMirror();
-  }
-
-  Future<void> _loadCurrentMirror() async {
-    final mirror = await GitHubMirrorService.getSelectedMirror();
-    if (mounted) {
-      setState(() {
-        _currentMirrorName = mirror.name;
-      });
-    }
-  }
-
-  Future<void> _openMirrorSelect() async {
-    final result = await UpdateDialogs.showMirrorSelectDialog(context);
-    if (result != null && mounted) {
-      setState(() {
-        _currentMirrorName = result.name;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
 
     return AlertDialog(
-      title: Text(l10n.updateNewVersionTitle(widget.version)),
+      title: Text(l10n.updateNewVersionTitle(version)),
       content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(widget.releaseNotes.isEmpty ? l10n.updateConfirmDownload : widget.releaseNotes),
-            const SizedBox(height: 16),
-            // 镜像选择入口
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: _openMirrorSelect,
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
-                        Theme.of(context).colorScheme.primary.withValues(alpha: 0.03),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
-                      width: 1,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      // 图标容器
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                          Icons.rocket_launch_rounded,
-                          size: 20,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      // 文字内容
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              l10n.updateMirrorSettingTitle,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: BeeTokens.textPrimary(context),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              _currentMirrorName,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Theme.of(context).colorScheme.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                      // 箭头
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Icon(
-                          Icons.chevron_right_rounded,
-                          size: 18,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
+        child: Text(
+          releaseNotes.isEmpty ? l10n.updateConfirmDownload : releaseNotes,
+          style: TextStyle(height: 1.5, color: BeeTokens.textSecondary(context)),
         ),
       ),
       actions: [
@@ -638,7 +485,7 @@ class _DownloadConfirmDialogState extends State<_DownloadConfirmDialog> {
             ),
           ),
           onPressed: () => Navigator.of(context).pop(true),
-          child: Text(l10n.updateDownloadButton),
+          child: Text(l10n.updateNowButton),
         ),
       ],
     );

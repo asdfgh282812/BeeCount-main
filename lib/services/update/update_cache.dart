@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:crypto/crypto.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../system/logger_service.dart';
@@ -203,6 +204,21 @@ class UpdateCache {
       logger.info('UpdateCache', '已清理APK缓存');
     } catch (e) {
       logger.error('UpdateCache', '清理APK缓存失败', e);
+    }
+  }
+
+  /// 文件的 SHA-256 是否等于 [expectedHex](version.json 里的小写 hex)
+  static Future<bool> matchesSha256(String filePath, String expectedHex) async {
+    try {
+      final digest = await sha256.bind(File(filePath).openRead()).first;
+      final ok = digest.toString() == expectedHex.toLowerCase();
+      if (!ok) {
+        logger.warning('UpdateCache', 'SHA-256 不符: $filePath, 实际 $digest, 预期 $expectedHex');
+      }
+      return ok;
+    } catch (e) {
+      logger.error('UpdateCache', '计算 SHA-256 失败', e);
+      return false;
     }
   }
 

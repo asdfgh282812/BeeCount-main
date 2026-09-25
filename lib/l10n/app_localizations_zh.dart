@@ -10336,6 +10336,25 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get reportTransferAccountNote =>
       'An account\'s transfer amount is money in plus money out, so one transfer appears under both accounts.';
+
+  @override
+  String get updateNowButton => 'Update Now';
+
+  @override
+  String get updateOpenInBrowser => 'Download in Browser';
+
+  @override
+  String get updateChecksumMismatch =>
+      'The downloaded installer failed verification and may be incomplete. Please try again.';
+
+  @override
+  String get updateNotApplicableBuild =>
+      'This is a test build and can\'t update itself. Install the official release to get in-app updates.';
+
+  @override
+  String aboutCheckUpdateSubtitle(String version) {
+    return 'Current version $version';
+  }
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -20562,4 +20581,21 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get reportTransferAccountNote => '帳戶的轉帳金額是轉入加轉出，同一筆轉帳會同時出現在兩個帳戶。';
+
+  @override
+  String get updateNowButton => '立即更新';
+
+  @override
+  String get updateOpenInBrowser => '用瀏覽器下載';
+
+  @override
+  String get updateChecksumMismatch => '下載的安裝檔校驗失敗，檔案可能不完整，請再試一次。';
+
+  @override
+  String get updateNotApplicableBuild => '目前安裝的是測試版，無法在 App 內更新。請改裝正式版。';
+
+  @override
+  String aboutCheckUpdateSubtitle(String version) {
+    return '目前版本 $version';
+  }
 }

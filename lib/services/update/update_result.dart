@@ -7,6 +7,8 @@ class UpdateResult {
   final String? version;
   final String? downloadUrl;
   final String? releaseNotes;
+  /// version.json 里该 APK 的 SHA-256(小写 hex),下载后用于校验完整性
+  final String? sha256;
   final UpdateResultType? type;
 
   UpdateResult({
@@ -17,6 +19,7 @@ class UpdateResult {
     this.version,
     this.downloadUrl,
     this.releaseNotes,
+    this.sha256,
     this.type,
   });
 
@@ -29,7 +32,7 @@ class UpdateResult {
     this.downloadUrl,
     this.releaseNotes,
     required this.type,
-  });
+  }) : sha256 = null;
 
   factory UpdateResult.downloadSuccess(String filePath) => UpdateResult._(
         success: true,

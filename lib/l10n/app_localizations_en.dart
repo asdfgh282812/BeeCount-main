@@ -10655,4 +10655,23 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get reportTransferAccountNote =>
       'An account\'s transfer amount is money in plus money out, so one transfer appears under both accounts.';
+
+  @override
+  String get updateNowButton => 'Update Now';
+
+  @override
+  String get updateOpenInBrowser => 'Download in Browser';
+
+  @override
+  String get updateChecksumMismatch =>
+      'The downloaded installer failed verification and may be incomplete. Please try again.';
+
+  @override
+  String get updateNotApplicableBuild =>
+      'This is a test build and can\'t update itself. Install the official release to get in-app updates.';
+
+  @override
+  String aboutCheckUpdateSubtitle(String version) {
+    return 'Current version $version';
+  }
 }

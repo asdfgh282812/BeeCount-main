@@ -19148,6 +19148,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'An account\'s transfer amount is money in plus money out, so one transfer appears under both accounts.'**
   String get reportTransferAccountNote;
+
+  /// No description provided for @updateNowButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Update Now'**
+  String get updateNowButton;
+
+  /// No description provided for @updateOpenInBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Download in Browser'**
+  String get updateOpenInBrowser;
+
+  /// No description provided for @updateChecksumMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'The downloaded installer failed verification and may be incomplete. Please try again.'**
+  String get updateChecksumMismatch;
+
+  /// No description provided for @updateNotApplicableBuild.
+  ///
+  /// In en, this message translates to:
+  /// **'This is a test build and can\'t update itself. Install the official release to get in-app updates.'**
+  String get updateNotApplicableBuild;
+
+  /// No description provided for @aboutCheckUpdateSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Current version {version}'**
+  String aboutCheckUpdateSubtitle(String version);
 }
 
 class _AppLocalizationsDelegate

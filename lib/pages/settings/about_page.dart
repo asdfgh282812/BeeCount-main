@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -10,6 +12,7 @@ import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/biz.dart';
 import '../../styles/tokens.dart';
 import '../../services/system/logger_service.dart';
+import '../../services/system/update_service.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/ui_scale_extensions.dart';
 import 'log_center_page.dart';
@@ -26,6 +29,7 @@ class AboutPage extends ConsumerStatefulWidget {
 
 class _AboutPageState extends ConsumerState<AboutPage> {
   String _versionDisplay = '';
+  bool _checkingUpdate = false;
 
   @override
   void initState() {
@@ -165,6 +169,32 @@ class _AboutPageState extends ConsumerState<AboutPage> {
                     margin: EdgeInsets.zero,
                     child: Column(
                       children: [
+                        // Android 才有 App 内 APK 更新;iOS 沙盒不允许自行安装
+                        if (Platform.isAndroid) ...[
+                          AppListTile(
+                            leading: Icons.system_update_outlined,
+                            title: l10n.mineUpdate,
+                            subtitle: _checkingUpdate
+                                ? l10n.mineCheckUpdateDetecting
+                                : l10n.aboutCheckUpdateSubtitle(_versionDisplay),
+                            trailing: _checkingUpdate
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : null,
+                            onTap: _checkingUpdate
+                                ? null
+                                : () => UpdateService.checkUpdateWithUI(
+                                      context,
+                                      setLoading: (v) {
+                                        if (mounted) setState(() => _checkingUpdate = v);
+                                      },
+                                    ),
+                          ),
+                          BeeTokens.cardDivider(context),
+                        ],
                         AppListTile(
                           leading: Icons.feedback_outlined,
                           title: l10n.mineFeedback,
