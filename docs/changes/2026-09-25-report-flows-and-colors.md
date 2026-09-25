@@ -66,6 +66,16 @@
   - 支出、收入:只列該類的 leg,用 `ReportAggregator.transactions((e) => e.type == _type)` 篩選。扣在支出上的退款單也會列出,跟每日小計、下鑽的沖銷口徑一致。
   - 結餘:列出全部記錄,包含轉帳。這是轉帳在明細分頁唯一出現的地方。
 
+## 6. 期間選單只列到第一筆交易
+
+- **舊行為**:點報表頁首的期間標籤,選單固定往前列 36 期。沒記帳的年份(例如 2023)也列出來,點進去全是空的。「上一期」箭頭也能一直往前翻。
+- **新行為**(`lib/pages/statistics/statistics_report_page.dart`):
+  - 選單從當期往前列到**目前帳本第一筆交易**所在的那一期。沒有任何交易就只列當期。
+  - 「上一期」箭頭和類別趨勢圖的左右滑,到第一筆交易那一期就停住。
+  - 第一筆交易由新的 `reportFirstTxDateProvider(ledgerId)` 查詢(`lib/providers/report_providers.dart`,沿用 `getFirstTransactionByLedger`)。它不看報表篩選,也不看 `excludeFromStats`,只看帳本本身什麼時候開始有資料。
+  - 目前停在更早的期間時(例如第一筆交易後來被刪了),選單仍會列到那一期,打勾才對得上。
+  - 選單最多 520 期,防止第一筆交易很早又是週報表時列出上千項。
+
 ## 範圍外
 
 - 類別分頁維持「支出/收入/結餘」,沒有加轉帳和回饋金:轉帳通常沒有分類,依分類看回饋金的需求也還沒提出。
@@ -75,4 +85,4 @@
 ## 測試
 
 - `test/providers/report_flows_test.dart`:下鑽依 flow 過濾、帳戶轉帳 = 轉入 + 轉出、回饋金套用上限並分到各維度與排行。
-- `test/widgets/statistics_report_page_test.dart`:四種切換都能渲染;支出下鑽的表頭不含收入;明細分頁切換支出/收入/結餘時,傳給 `TransactionList` 的交易跟著變。
+- `test/widgets/statistics_report_page_test.dart`:四種切換都能渲染;支出下鑽的表頭不含收入;明細分頁切換支出/收入/結餘時,傳給 `TransactionList` 的交易跟著變;期間選單只列到第一筆交易那一期,到了那一期「上一期」會停用。

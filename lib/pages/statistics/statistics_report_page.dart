@@ -52,23 +52,28 @@ class _StatisticsReportPageState extends ConsumerState<StatisticsReportPage>
   void _setOffset(int o) =>
       ref.read(reportOffsetProvider.notifier).set(widget.reportId, o);
 
+  /// 期間選單上限(防呆:第一筆交易很久以前、又是週報表時不至於列上千期)。
+  static const _maxPickerEntries = 520;
+
   Future<void> _pickRecurring(
-      ReportDefinition def, int sd, bool weekMon) async {
+      ReportDefinition def, int sd, bool weekMon, DateTime? firstTx) async {
     final l10n = AppLocalizations.of(context);
     final current = _offset;
-    final entries = [
-      for (var o = 0; o > -36; o--)
-        (
-          offset: o,
-          label: reportPeriodLabel(
-            l10n,
-            def.period,
-            resolveReportPeriod(def.period,
-                offset: o, monthStartDay: sd, weekStartsOnMonday: weekMon),
-            monthStartDay: sd,
-          ),
-        ),
-    ];
+    // 從當期往前列到第一筆交易所在的那一期;沒有交易就只列當期。目前停在
+    // 更早的期間(例如第一筆交易被刪了)也照樣列出,打勾才對得上。
+    final entries = <({int offset, String label})>[];
+    for (var o = 0; o > -_maxPickerEntries; o--) {
+      final r = resolveReportPeriod(def.period,
+          offset: o, monthStartDay: sd, weekStartsOnMonday: weekMon);
+      final beforeFirst = firstTx == null || !r.nominalEnd.isAfter(firstTx);
+      if (o < current && beforeFirst) {
+        break;
+      }
+      entries.add((
+        offset: o,
+        label: reportPeriodLabel(l10n, def.period, r, monthStartDay: sd),
+      ));
+    }
     final picked = await showModalBottomSheet<int>(
       context: context,
       backgroundColor: BeeTokens.surfaceElevated(context),
@@ -177,7 +182,13 @@ class _StatisticsReportPageState extends ConsumerState<StatisticsReportPage>
     final periodLabel =
         reportPeriodLabel(l10n, def.period, resolved, monthStartDay: sd);
     final isRecurring = def.period is RecurringPeriod;
-    final onPrev = resolved.canPrev ? () => _setOffset(offset - 1) : null;
+    // 上一期停在第一筆交易那一期;還在查第一筆交易時先不擋
+    final firstTxAsync = ref.watch(reportFirstTxDateProvider(ledgerId));
+    final firstTx = firstTxAsync.valueOrNull;
+    final hasEarlier = !firstTxAsync.hasValue ||
+        (firstTx != null && firstTx.isBefore(resolved.start));
+    final onPrev =
+        resolved.canPrev && hasEarlier ? () => _setOffset(offset - 1) : null;
     final onNext = resolved.canNext ? () => _setOffset(offset + 1) : null;
     final canShare = def.period is RecurringPeriod &&
         (def.period as RecurringPeriod).span == 1 &&
@@ -223,7 +234,8 @@ class _StatisticsReportPageState extends ConsumerState<StatisticsReportPage>
                       label: periodLabel,
                       onPrev: onPrev,
                       onNext: onNext,
-                      onTapLabel: () => _pickRecurring(def, sd, weekMon),
+                      onTapLabel: () =>
+                          _pickRecurring(def, sd, weekMon, firstTx),
                     )
                   : TextButton(
                       onPressed: () => _openEdit(def),

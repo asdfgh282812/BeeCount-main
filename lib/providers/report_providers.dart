@@ -174,3 +174,12 @@ class ReportOffsetNotifier extends StateNotifier<Map<String, int>> {
 final reportOffsetProvider =
     StateNotifierProvider<ReportOffsetNotifier, Map<String, int>>(
         (ref) => ReportOffsetNotifier());
+
+/// 帳本第一筆交易的時間。報表的期間選單只列到這一期、「上一期」也停在這一期,
+/// 不會翻到還沒開始記帳的空月份。無交易回 null。
+final reportFirstTxDateProvider =
+    FutureProvider.autoDispose.family<DateTime?, int>((ref, ledgerId) async {
+  final repo = ref.watch(repositoryProvider);
+  ref.watch(statsRefreshProvider);
+  return (await repo.getFirstTransactionByLedger(ledgerId))?.happenedAt;
+});

@@ -81,6 +81,14 @@ void main() {
           categoryId: salary,
           accountId: acc,
           happenedAt: DateTime(now.year, now.month, now.day, 7));
+      // 帳本第一筆交易在上個月:期間選單只列到上個月
+      await repo.addTransaction(
+          ledgerId: 1,
+          type: 'income',
+          amount: 1,
+          categoryId: salary,
+          accountId: acc,
+          happenedAt: DateTime(now.year, now.month - 1, 15));
     });
 
     await tester.pumpWidget(ProviderScope(
@@ -196,9 +204,26 @@ void main() {
     await settle();
     expect(find.text('${_ym()} · 支出'), findsNothing, reason: '已返回報表頁');
 
-    // 上一期:本月的交易不在上個月
+    // 期間選單只列到第一筆交易那一期(本月 + 上月),不列還沒記帳的月份
+    IconButton prevButton() => tester.widget<IconButton>(find.ancestor(
+        of: find.byIcon(Icons.chevron_left),
+        matching: find.byType(IconButton)));
+    expect(prevButton().onPressed, isNotNull);
+    await tester.tap(find.text(_ym()));
+    await tester.pump(const Duration(milliseconds: 400));
+    await settle();
+    expect(
+        find.descendant(
+            of: find.byType(BottomSheet), matching: find.byType(ListTile)),
+        findsNWidgets(2));
+    tester.state<NavigatorState>(find.byType(Navigator).first).pop();
+    await tester.pump(const Duration(milliseconds: 400));
+    await settle();
+
+    // 上一期:本月的交易不在上個月;上個月已是第一筆交易那期,不能再往前
     await tester.tap(find.byIcon(Icons.chevron_left));
     await settle();
-    expect(find.text('現金'), findsNothing);
+    expect(find.text('午餐'), findsNothing);
+    expect(prevButton().onPressed, isNull);
   });
 }
