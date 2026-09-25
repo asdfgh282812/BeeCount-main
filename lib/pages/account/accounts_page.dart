@@ -18,6 +18,7 @@ import '../../data/db.dart' as db;
 import '../../l10n/app_localizations.dart';
 import '../../styles/tokens.dart';
 import '../../utils/ui_scale_extensions.dart';
+import '../../utils/account_group_utils.dart';
 import '../../utils/account_type_utils.dart';
 import '../../utils/currencies.dart';
 import '../../widgets/charts/asset_composition_chart.dart';
@@ -336,9 +337,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     return grouped;
   }
 
-  /// 主帳戶(account_group)的展示類型:底下子帳戶類型一致就跟著子帳戶;
-  /// 子帳戶類型不一致時信用卡優先(合併帳單分組多半是信用卡場景);還沒有
-  /// 任何子帳戶同步下來時,靠自己身上是否設了信用額度粗略判斷。非
+  /// 主帳戶(account_group)的展示類型,規則見
+  /// [resolveAccountGroupDisplayType](明細頁/編輯頁共用同一套判斷)。非
   /// account_group 帳戶原樣返回自己的 type。
   String _resolveDisplayType(
     db.Account account,
@@ -347,12 +347,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     if (account.type != 'account_group') return account.type;
     final syncId = account.syncId;
     final children = syncId != null ? childrenByParentSyncId[syncId] : null;
-    if (children == null || children.isEmpty) {
-      return account.creditLimit != null ? 'credit_card' : 'bank_card';
-    }
-    final childTypes = children.map((c) => c.type).toSet();
-    if (childTypes.length == 1) return childTypes.first;
-    return childTypes.contains('credit_card') ? 'credit_card' : 'bank_card';
+    return resolveAccountGroupDisplayType(account, children ?? const []);
   }
 
   /// 拖曳排序:重排某分類裡「頂層帳戶」(獨立帳戶 + 合併帳單主帳戶,含孤兒

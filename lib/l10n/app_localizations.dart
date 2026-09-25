@@ -12882,6 +12882,54 @@ abstract class AppLocalizations {
   /// **'These settings are shared by the whole group\'s credit limit/billing day/payment due day — child cards (credit cards) don\'t need to set them individually.'**
   String get accountGroupSettingsHint;
 
+  /// No description provided for @accountGroupCardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Group Settings'**
+  String get accountGroupCardTitle;
+
+  /// No description provided for @accountGroupCardHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep several accounts under one group — the Assets page shows their combined balance, and the detail page merges their transactions.'**
+  String get accountGroupCardHint;
+
+  /// No description provided for @accountGroupMergedBillingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Credit Card Combined Billing'**
+  String get accountGroupMergedBillingLabel;
+
+  /// No description provided for @accountGroupMergedBillingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on to set a shared credit limit, billing day and payment due day; the detail page then uses billing cycles. Leave off for bank or cash groups.'**
+  String get accountGroupMergedBillingHint;
+
+  /// No description provided for @accountGroupMergedBillingLockedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This group contains credit cards, so combined billing is always on.'**
+  String get accountGroupMergedBillingLockedHint;
+
+  /// No description provided for @accountGroupBalanceTotalLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get accountGroupBalanceTotalLabel;
+
+  /// No description provided for @accountGroupNoChildrenHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No sub-accounts yet. Choose this group as the parent in an account\'s edit page.'**
+  String get accountGroupNoChildrenHint;
+
+  /// No description provided for @accountGroupUnconvertedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'{currencies} has no exchange rate and is not included in the totals'**
+  String accountGroupUnconvertedHint(String currencies);
+
   /// No description provided for @accountIndependentCardHint.
   ///
   /// In en, this message translates to:

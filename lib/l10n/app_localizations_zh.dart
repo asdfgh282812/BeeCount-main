@@ -6830,6 +6830,36 @@ class AppLocalizationsZh extends AppLocalizations {
       'These settings are shared by the whole group\'s credit limit/billing day/payment due day — child cards (credit cards) don\'t need to set them individually.';
 
   @override
+  String get accountGroupCardTitle => 'Group Settings';
+
+  @override
+  String get accountGroupCardHint =>
+      'Keep several accounts under one group — the Assets page shows their combined balance, and the detail page merges their transactions.';
+
+  @override
+  String get accountGroupMergedBillingLabel => 'Credit Card Combined Billing';
+
+  @override
+  String get accountGroupMergedBillingHint =>
+      'Turn on to set a shared credit limit, billing day and payment due day; the detail page then uses billing cycles. Leave off for bank or cash groups.';
+
+  @override
+  String get accountGroupMergedBillingLockedHint =>
+      'This group contains credit cards, so combined billing is always on.';
+
+  @override
+  String get accountGroupBalanceTotalLabel => 'Total';
+
+  @override
+  String get accountGroupNoChildrenHint =>
+      'No sub-accounts yet. Choose this group as the parent in an account\'s edit page.';
+
+  @override
+  String accountGroupUnconvertedHint(String currencies) {
+    return '$currencies has no exchange rate and is not included in the totals';
+  }
+
+  @override
   String get accountIndependentCardHint =>
       'This card isn\'t linked to any parent account, so the settings below are its own billing cycle. If it\'s linked to a parent account later, the parent\'s shared settings will apply instead.';
 
@@ -17052,6 +17082,34 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   @override
   String get accountGroupSettingsHint =>
       '這裡設定的是整組共用的信用額度/帳單日/還款日，子帳戶(信用卡)自己不用再各自設定。';
+
+  @override
+  String get accountGroupCardTitle => '群組設定';
+
+  @override
+  String get accountGroupCardHint =>
+      '把多個帳戶收在同一個群組底下，資產頁會顯示合計餘額，明細頁會合併顯示子帳戶的交易。';
+
+  @override
+  String get accountGroupMergedBillingLabel => '信用卡合併帳單';
+
+  @override
+  String get accountGroupMergedBillingHint =>
+      '開啟後可設定整組共用的信用額度、帳單日與還款日，明細頁改用帳單週期檢視。銀行、現金等群組不需要開啟。';
+
+  @override
+  String get accountGroupMergedBillingLockedHint => '群組內有信用卡，固定使用合併帳單。';
+
+  @override
+  String get accountGroupBalanceTotalLabel => '合計';
+
+  @override
+  String get accountGroupNoChildrenHint => '尚無子帳戶，可在帳戶編輯頁把主帳戶設為這個群組。';
+
+  @override
+  String accountGroupUnconvertedHint(String currencies) {
+    return '$currencies 缺少匯率，未納入合計';
+  }
 
   @override
   String get accountIndependentCardHint =>

@@ -85,3 +85,57 @@ final accountBalanceTrendProvider = FutureProvider.family.autoDispose<
     );
   },
 );
+
+/// 一般主帳戶群組(非信用卡合併帳單,見 `account_group_utils.dart`)明細頁
+/// 用:[memberIdsKey] 是群組自己 + 全部子帳戶 id,逗號分隔且已排序(同
+/// `accountTransactionsPaginatedProvider` 的 `extraIdsKey` 慣例,字串才有值
+/// 相等,family key 才命中同一個實例)。
+typedef AccountGroupPeriodParams = ({
+  String memberIdsKey,
+  DateTime start,
+  DateTime end,
+});
+
+List<int> _parseIdsKey(String key) =>
+    key.isEmpty ? const [] : key.split(',').map(int.parse).toList();
+
+/// 群組各成員帳戶各自的期間摘要(原幣)。不在這裡加總——成員可能是不同
+/// 幣種,折算要用到 [effectiveRatesProvider],交給呼叫端跟資產頁同一套
+/// `convertBetweenCurrencies` 處理,缺匯率的成員才能被明確標示出來。
+final accountGroupPeriodSummariesProvider = FutureProvider.family
+    .autoDispose<Map<int, AccountPeriodSummary>, AccountGroupPeriodParams>(
+  (ref, params) async {
+    ref.watch(syncGenerationProvider);
+    ref.watch(statsRefreshProvider);
+    final repo = ref.watch(repositoryProvider);
+    final result = <int, AccountPeriodSummary>{};
+    for (final id in _parseIdsKey(params.memberIdsKey)) {
+      result[id] = await repo.getAccountPeriodSummary(
+        id,
+        startDate: params.start,
+        endDate: params.end,
+      );
+    }
+    return result;
+  },
+);
+
+/// 群組各成員帳戶各自的每日餘額(原幣),折算/加總同樣交給呼叫端。
+final accountGroupBalanceTrendsProvider = FutureProvider.family.autoDispose<
+    Map<int, List<({DateTime date, double balance})>>,
+    AccountGroupPeriodParams>(
+  (ref, params) async {
+    ref.watch(syncGenerationProvider);
+    ref.watch(statsRefreshProvider);
+    final repo = ref.watch(repositoryProvider);
+    final result = <int, List<({DateTime date, double balance})>>{};
+    for (final id in _parseIdsKey(params.memberIdsKey)) {
+      result[id] = await repo.getAccountDailyBalances(
+        id,
+        startDate: params.start,
+        endDate: params.end,
+      );
+    }
+    return result;
+  },
+);

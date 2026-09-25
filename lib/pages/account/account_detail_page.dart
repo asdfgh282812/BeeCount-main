@@ -11,6 +11,7 @@ import '../../styles/tokens.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/ui_scale_extensions.dart';
 import '../../widgets/category_icon.dart';
+import '../../utils/account_group_utils.dart';
 import '../../utils/account_type_utils.dart';
 import '../../utils/card_reward_period.dart';
 import '../../utils/credit_card_payment.dart';
@@ -230,11 +231,8 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
 
   /// 主帳戶(合併帳單分組)的子帳戶清單:同幣種與否都算,只要 parentAccountId
   /// 指向這張卡的 syncId。找不到 syncId(理論上不會發生)時視為沒有子帳戶。
-  List<db.Account> _children(List<db.Account> allAccounts) {
-    final syncId = widget.account.syncId;
-    if (syncId == null || syncId.isEmpty) return const [];
-    return allAccounts.where((a) => a.parentAccountId == syncId).toList();
-  }
+  List<db.Account> _children(List<db.Account> allAccounts) =>
+      accountGroupChildren(widget.account, allAccounts);
 
   /// Riverpod family key 用:子帳戶 id 逗號分隔(已排序,保證同一組子帳戶不
   /// 論 stream 回傳順序如何都命中同一個 provider 實例)。
@@ -384,7 +382,12 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     // 導致點開主帳戶卡片(accounts_page.dart `_viewAccountDetail` 對
     // account_group 行照樣導到這頁)會落到下面的一般帳戶分支,`children`
     // (靠 `_children()` 用 parentAccountId 反查)永遠用不上。
-    if (account.type == 'credit_card' || account.type == 'account_group') {
+    //
+    // 只有「信用卡合併帳單」群組才走這裡;一般群組(例如同一家銀行的台幣戶+
+    // 外幣戶)沒有帳單週期可言,改走下面的一般帳戶期間版面(聚合子帳戶),
+    // 判斷規則見 [isCreditCardAccountGroup]。
+    if (account.type == 'credit_card' ||
+        isCreditCardAccountGroup(account, children)) {
       if (!_billingPeriodOffsetResolved) {
         final extraIdsKey = _extraIdsKey(children);
         final defaultOffsetAsync =
@@ -453,6 +456,8 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
     return GeneralAccountPeriodView(
       account: account,
       categories: categoriesAsync.asData?.value ?? const [],
+      groupChildren:
+          account.type == 'account_group' ? children : const <db.Account>[],
     );
   }
 
@@ -1418,6 +1423,21 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
             style: _infoValueStyle(context)),
       ),
     ];
+
+    // 一般群組(非合併帳單):補一行子帳戶數量;合併帳單群組沿用下面信用卡
+    // 那組欄位之外的預設欄位(維持原行為)。
+    if (account.type == 'account_group' &&
+        !isCreditCardAccountGroup(account, children)) {
+      rows.add(_InfoRow(
+        label: l10n.accountSubAccountsLabel,
+        value: Text(
+          children.isEmpty
+              ? '-'
+              : l10n.accountSubAccountsCount(children.length),
+          style: _infoValueStyle(context),
+        ),
+      ));
+    }
 
     if (account.type == 'credit_card') {
       final period = _billingPeriod(account, 0);

@@ -6908,6 +6908,36 @@ class AppLocalizationsKo extends AppLocalizations {
       'These settings are shared by the whole group\'s credit limit/billing day/payment due day — child cards (credit cards) don\'t need to set them individually.';
 
   @override
+  String get accountGroupCardTitle => 'Group Settings';
+
+  @override
+  String get accountGroupCardHint =>
+      'Keep several accounts under one group — the Assets page shows their combined balance, and the detail page merges their transactions.';
+
+  @override
+  String get accountGroupMergedBillingLabel => 'Credit Card Combined Billing';
+
+  @override
+  String get accountGroupMergedBillingHint =>
+      'Turn on to set a shared credit limit, billing day and payment due day; the detail page then uses billing cycles. Leave off for bank or cash groups.';
+
+  @override
+  String get accountGroupMergedBillingLockedHint =>
+      'This group contains credit cards, so combined billing is always on.';
+
+  @override
+  String get accountGroupBalanceTotalLabel => 'Total';
+
+  @override
+  String get accountGroupNoChildrenHint =>
+      'No sub-accounts yet. Choose this group as the parent in an account\'s edit page.';
+
+  @override
+  String accountGroupUnconvertedHint(String currencies) {
+    return '$currencies has no exchange rate and is not included in the totals';
+  }
+
+  @override
   String get accountIndependentCardHint =>
       'This card isn\'t linked to any parent account, so the settings below are its own billing cycle. If it\'s linked to a parent account later, the parent\'s shared settings will apply instead.';
 

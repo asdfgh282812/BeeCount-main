@@ -16,6 +16,7 @@ import '../../services/system/logger_service.dart';
 import '../../utils/currencies.dart';
 import '../../styles/tokens.dart';
 import '../../utils/ui_scale_extensions.dart';
+import '../../utils/account_group_utils.dart';
 import '../../utils/account_type_utils.dart';
 import '../../widgets/currency/currency_picker_sheet.dart';
 
@@ -82,6 +83,13 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
   // 裡算(同一次 getAllAccounts() 查詢)。
   List<db.Account> _autoPaySourceCandidates = [];
 
+  // 主帳戶(群組)是否為「信用卡合併帳單」群組。群組本身沒有存種類欄位,
+  // 規則見 account_group_utils.dart:有信用卡子帳戶 → 固定是(開關鎖定);
+  // 沒有信用卡子帳戶 → 看這個開關,關掉時存檔會清空額度/帳單日/還款日/
+  // 自動扣繳,明細頁就會改走一般帳戶的期間版面。
+  bool _groupMergedBilling = false;
+  bool _groupHasCreditChild = false;
+
   // 日常账户类型（走流水）
   static const List<String> tradableAccountTypes = [
     'cash',
@@ -132,6 +140,11 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     _autoPayEnabled = widget.account?.autoPayEnabled ?? false;
     _autoPayFromAccountId = widget.account?.autoPayFromAccountId;
     _typeTab = valuationAccountTypes.contains(_selectedType) ? 1 : 0;
+    // 子帳戶要等 _loadAccountCandidates 查完才知道,先用主帳戶自己身上的帳單
+    // 欄位當初值,避免畫面先閃一下「關」。
+    _groupMergedBilling = widget.account != null &&
+        widget.account!.type == 'account_group' &&
+        hasAccountGroupBillingFields(widget.account!);
     _loadAccountCandidates();
   }
 
@@ -156,10 +169,18 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
       if (widget.account != null && a.id == widget.account!.id) return false;
       return a.syncId != null && a.syncId!.isNotEmpty;
     }).toList();
+    final groupChildren = widget.account != null
+        ? accountGroupChildren(widget.account!, all)
+        : const <db.Account>[];
     if (mounted) {
       setState(() {
         _parentCandidates = candidates;
         _autoPaySourceCandidates = autoPaySources;
+        _groupHasCreditChild = accountGroupHasCreditCardChild(groupChildren);
+        if (widget.account?.type == 'account_group') {
+          _groupMergedBilling =
+              isCreditCardAccountGroup(widget.account!, groupChildren);
+        }
       });
     }
   }
@@ -421,6 +442,9 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
       builder: (_) => _QuickCreateGroupSheet(
         ledgerId: widget.ledgerId,
         initialCurrency: _selectedCurrency,
+        // 只有信用卡掛靠群組時才需要合併帳單欄位;銀行卡/現金等建立的是
+        // 一般群組,不顯示額度/帳單日/還款日。
+        showBillingFields: _selectedType == 'credit_card',
       ),
     );
     if (created == null || !mounted) return;
@@ -541,6 +565,10 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
       final hadBillingFields =
           oldType == 'credit_card' || oldType == 'account_group';
       final hasBillingFields = type == 'credit_card' || type == 'account_group';
+      // 信用卡改成群組:原本的帳單欄位直接沿用,合併帳單開關預設打開。
+      if (oldType == 'credit_card' && type == 'account_group') {
+        _groupMergedBilling = true;
+      }
       if (hadBillingFields && !hasBillingFields) {
         _creditLimitController.clear();
         _billingDay = null;
@@ -617,6 +645,10 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     final isBankCard = _selectedType == 'bank_card';
     final isAccountGroup = _selectedType == 'account_group';
     final hasParentAccount = _parentAccountId != null;
+    // 群組沒有自己的餘額(資產頁顯示的是子帳戶合計),不顯示「初始資金」;
+    // 舊資料若已經有非零初始資金,保留欄位讓使用者還能改回 0。
+    final showInitialBalance =
+        !isAccountGroup || (widget.account?.initialBalance ?? 0) != 0;
 
     return Scaffold(
       backgroundColor: BeeTokens.scaffoldBackground(context),
@@ -724,87 +756,99 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              SizedBox(
-                                width: 120.0.scaled(context, ref),
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(12),
-                                  onTap: () async {
-                                    // 同账单日：开选择器前先收键盘
-                                    FocusManager.instance.primaryFocus
-                                        ?.unfocus();
-                                    if (isEditing) {
-                                      final repo = ref.read(repositoryProvider);
-                                      final hasTransactions = await repo
-                                          .hasTransactions(widget.account!.id);
-                                      if (hasTransactions) {
-                                        if (!context.mounted) return;
-                                        await AppDialog.info(
-                                          context,
-                                          title: l10n.commonNotice,
-                                          message: l10n.accountCurrencyLocked,
-                                        );
-                                        return;
+                              // 群組不顯示初始資金時,幣種欄位撐滿整列:flex 0
+                              // = 固定 120 寬,flex 1 + tight = 佔滿剩餘寬度。
+                              Flexible(
+                                flex: showInitialBalance ? 0 : 1,
+                                fit: FlexFit.tight,
+                                child: SizedBox(
+                                  width: showInitialBalance
+                                      ? 120.0.scaled(context, ref)
+                                      : null,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(12),
+                                    onTap: () async {
+                                      // 同账单日：开选择器前先收键盘
+                                      FocusManager.instance.primaryFocus
+                                          ?.unfocus();
+                                      if (isEditing) {
+                                        final repo =
+                                            ref.read(repositoryProvider);
+                                        final hasTransactions =
+                                            await repo.hasTransactions(
+                                                widget.account!.id);
+                                        if (hasTransactions) {
+                                          if (!context.mounted) return;
+                                          await AppDialog.info(
+                                            context,
+                                            title: l10n.commonNotice,
+                                            message: l10n.accountCurrencyLocked,
+                                          );
+                                          return;
+                                        }
                                       }
-                                    }
-                                    if (!context.mounted) return;
-                                    final picked = await _showCurrencyPicker(
-                                        context,
-                                        initial: _selectedCurrency);
-                                    if (picked != null) {
-                                      setState(
-                                          () => _selectedCurrency = picked);
-                                    }
-                                  },
-                                  child: InputDecorator(
-                                    decoration:
-                                        filledDec(label: l10n.ledgersCurrency),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            displayCurrency(
-                                                _selectedCurrency, context),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style:
-                                                const TextStyle(fontSize: 16),
+                                      if (!context.mounted) return;
+                                      final picked = await _showCurrencyPicker(
+                                          context,
+                                          initial: _selectedCurrency);
+                                      if (picked != null) {
+                                        setState(
+                                            () => _selectedCurrency = picked);
+                                      }
+                                    },
+                                    child: InputDecorator(
+                                      decoration: filledDec(
+                                          label: l10n.ledgersCurrency),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              displayCurrency(
+                                                  _selectedCurrency, context),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style:
+                                                  const TextStyle(fontSize: 16),
+                                            ),
                                           ),
-                                        ),
-                                        Icon(Icons.expand_more,
-                                            size: 18.0.scaled(context, ref),
-                                            color: BeeTokens.iconTertiary(
-                                                context)),
-                                      ],
+                                          Icon(Icons.expand_more,
+                                              size: 18.0.scaled(context, ref),
+                                              color: BeeTokens.iconTertiary(
+                                                  context)),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
-                              SizedBox(width: 12.0.scaled(context, ref)),
-                              Expanded(
-                                child: TextFormField(
-                                  controller: _initialBalanceController,
-                                  decoration: filledDec(
-                                    label: _getInitialBalanceLabel(l10n),
-                                    hint: _getInitialBalanceHint(l10n),
-                                    prefix:
-                                        '${getCurrencySymbol(_selectedCurrency)} ',
-                                  ),
-                                  style: const TextStyle(fontSize: 16),
-                                  keyboardType:
-                                      const TextInputType.numberWithOptions(
-                                          decimal: true, signed: true),
-                                  validator: (value) {
-                                    if (value != null &&
-                                        value.trim().isNotEmpty) {
-                                      if (double.tryParse(value.trim()) ==
-                                          null) {
-                                        return '请输入有效的金额';
+                              if (showInitialBalance) ...[
+                                SizedBox(width: 12.0.scaled(context, ref)),
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _initialBalanceController,
+                                    decoration: filledDec(
+                                      label: _getInitialBalanceLabel(l10n),
+                                      hint: _getInitialBalanceHint(l10n),
+                                      prefix:
+                                          '${getCurrencySymbol(_selectedCurrency)} ',
+                                    ),
+                                    style: const TextStyle(fontSize: 16),
+                                    keyboardType:
+                                        const TextInputType.numberWithOptions(
+                                            decimal: true, signed: true),
+                                    validator: (value) {
+                                      if (value != null &&
+                                          value.trim().isNotEmpty) {
+                                        if (double.tryParse(value.trim()) ==
+                                            null) {
+                                          return '请输入有效的金额';
+                                        }
                                       }
-                                    }
-                                    return null;
-                                  },
+                                      return null;
+                                    },
+                                  ),
                                 ),
-                              ),
+                              ],
                             ],
                           ),
                         ],
@@ -827,64 +871,127 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(l10n.accountGroupSettingsTitle,
+                            Text(l10n.accountGroupCardTitle,
                                 style: _sectionTitle(context)),
                             SizedBox(height: 4.0.scaled(context, ref)),
                             Text(
-                              l10n.accountGroupSettingsHint,
+                              l10n.accountGroupCardHint,
                               style: TextStyle(
                                 fontSize: 12,
                                 color: BeeTokens.textTertiary(context),
                               ),
                             ),
                             SizedBox(height: 12.0.scaled(context, ref)),
-                            TextFormField(
-                              controller: _creditLimitController,
-                              decoration: filledDec(
-                                label: l10n.creditLimit,
-                                hint: l10n.creditLimitHint,
-                                prefix:
-                                    '${getCurrencySymbol(_selectedCurrency)} ',
-                              ),
-                              style: const TextStyle(fontSize: 16),
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                      decimal: true),
-                              validator: (value) {
-                                final t = value?.trim() ?? '';
-                                if (t.isEmpty) return null;
-                                final parsed = double.tryParse(t);
-                                if (parsed == null || parsed <= 0) {
-                                  return l10n.creditLimitHint;
-                                }
-                                return null;
-                              },
-                            ),
-                            SizedBox(height: 12.0.scaled(context, ref)),
+                            // 信用卡合併帳單開關:有信用卡子帳戶時鎖定為開
+                            // (那組子卡一定要共用帳單設定)。
                             Row(
                               children: [
                                 Expanded(
-                                  child: _DayPickerTile(
-                                    label: l10n.billingDay,
-                                    value: _billingDay,
-                                    primaryColor: primaryColor,
-                                    onChanged: (day) =>
-                                        setState(() => _billingDay = day),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        l10n.accountGroupMergedBillingLabel,
+                                        style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500),
+                                      ),
+                                      SizedBox(
+                                          height: 2.0.scaled(context, ref)),
+                                      Text(
+                                        _groupHasCreditChild
+                                            ? l10n
+                                                .accountGroupMergedBillingLockedHint
+                                            : l10n
+                                                .accountGroupMergedBillingHint,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color:
+                                              BeeTokens.textTertiary(context),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                SizedBox(width: 12.0.scaled(context, ref)),
-                                Expanded(
-                                  child: _DayPickerTile(
-                                    label: l10n.paymentDueDay,
-                                    value: _paymentDueDay,
-                                    primaryColor: primaryColor,
-                                    onChanged: (day) =>
-                                        setState(() => _paymentDueDay = day),
-                                  ),
+                                Switch(
+                                  value: _groupMergedBilling ||
+                                      _groupHasCreditChild,
+                                  activeThumbColor: primaryColor,
+                                  onChanged: _groupHasCreditChild
+                                      ? null
+                                      : (value) => setState(
+                                          () => _groupMergedBilling = value),
                                 ),
                               ],
                             ),
-                            _buildAutoPaySection(context, l10n, primaryColor),
+                            if (_groupMergedBilling ||
+                                _groupHasCreditChild) ...[
+                              SizedBox(height: 12.0.scaled(context, ref)),
+                              Divider(
+                                height:
+                                    BeeTokens.cardInnerDividerHeight(context),
+                                thickness:
+                                    BeeTokens.cardInnerDividerHeight(context),
+                                color: BeeTokens.cardInnerDividerColor(context),
+                              ),
+                              SizedBox(height: 12.0.scaled(context, ref)),
+                              Text(
+                                l10n.accountGroupSettingsHint,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: BeeTokens.textTertiary(context),
+                                ),
+                              ),
+                              SizedBox(height: 12.0.scaled(context, ref)),
+                              TextFormField(
+                                controller: _creditLimitController,
+                                decoration: filledDec(
+                                  label: l10n.creditLimit,
+                                  hint: l10n.creditLimitHint,
+                                  prefix:
+                                      '${getCurrencySymbol(_selectedCurrency)} ',
+                                ),
+                                style: const TextStyle(fontSize: 16),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true),
+                                validator: (value) {
+                                  final t = value?.trim() ?? '';
+                                  if (t.isEmpty) return null;
+                                  final parsed = double.tryParse(t);
+                                  if (parsed == null || parsed <= 0) {
+                                    return l10n.creditLimitHint;
+                                  }
+                                  return null;
+                                },
+                              ),
+                              SizedBox(height: 12.0.scaled(context, ref)),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _DayPickerTile(
+                                      label: l10n.billingDay,
+                                      value: _billingDay,
+                                      primaryColor: primaryColor,
+                                      onChanged: (day) =>
+                                          setState(() => _billingDay = day),
+                                    ),
+                                  ),
+                                  SizedBox(width: 12.0.scaled(context, ref)),
+                                  Expanded(
+                                    child: _DayPickerTile(
+                                      label: l10n.paymentDueDay,
+                                      value: _paymentDueDay,
+                                      primaryColor: primaryColor,
+                                      onChanged: (day) =>
+                                          setState(() => _paymentDueDay = day),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              _buildAutoPaySection(context, l10n, primaryColor),
+                            ],
                           ],
                         ),
                       ),
@@ -1354,7 +1461,11 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
       // 信用卡/主帳戶(群組)共用同一組额度/帳單日/還款日欄位
       final isCreditCard = _selectedType == 'credit_card';
       final isAccountGroup = _selectedType == 'account_group';
-      final hasBillingFields = isCreditCard || isAccountGroup;
+      // 群組只有開了「信用卡合併帳單」(或底下有信用卡子帳戶)才保留帳單
+      // 欄位;一般群組存檔時清空,下次判斷種類才不會被殘留欄位誤判成信用卡
+      // 群組(見 account_group_utils.dart hasAccountGroupBillingFields)。
+      final hasBillingFields = isCreditCard ||
+          (isAccountGroup && (_groupMergedBilling || _groupHasCreditChild));
       final creditLimitText = _creditLimitController.text.trim();
       final creditLimit = hasBillingFields && creditLimitText.isNotEmpty
           ? double.parse(creditLimitText)
@@ -1937,9 +2048,14 @@ class _QuickCreateGroupSheet extends ConsumerStatefulWidget {
   final int ledgerId;
   final String initialCurrency;
 
+  /// 是否顯示合併帳單欄位(額度/帳單日/還款日):只有從信用卡編輯頁開這個
+  /// 彈窗時才需要,其它類型建立的是一般群組。
+  final bool showBillingFields;
+
   const _QuickCreateGroupSheet({
     required this.ledgerId,
     required this.initialCurrency,
+    this.showBillingFields = true,
   });
 
   @override
@@ -2035,54 +2151,57 @@ class _QuickCreateGroupSheetState
                     ? l10n.accountNameRequired
                     : null,
               ),
-              const SizedBox(height: 12),
-              Text(l10n.accountGroupSettingsHint,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: BeeTokens.textTertiary(context),
-                  )),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _creditLimitController,
-                decoration: filledDec(
-                  label: l10n.creditLimit,
-                  hint: l10n.creditLimitHint,
-                  prefix: '${getCurrencySymbol(widget.initialCurrency)} ',
+              if (widget.showBillingFields) ...[
+                const SizedBox(height: 12),
+                Text(l10n.accountGroupSettingsHint,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: BeeTokens.textTertiary(context),
+                    )),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _creditLimitController,
+                  decoration: filledDec(
+                    label: l10n.creditLimit,
+                    hint: l10n.creditLimitHint,
+                    prefix: '${getCurrencySymbol(widget.initialCurrency)} ',
+                  ),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  validator: (value) {
+                    final t = value?.trim() ?? '';
+                    if (t.isEmpty) return null;
+                    final parsed = double.tryParse(t);
+                    if (parsed == null || parsed <= 0) {
+                      return l10n.creditLimitHint;
+                    }
+                    return null;
+                  },
                 ),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                validator: (value) {
-                  final t = value?.trim() ?? '';
-                  if (t.isEmpty) return null;
-                  final parsed = double.tryParse(t);
-                  if (parsed == null || parsed <= 0) {
-                    return l10n.creditLimitHint;
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _DayPickerTile(
-                      label: l10n.billingDay,
-                      value: _billingDay,
-                      primaryColor: primaryColor,
-                      onChanged: (day) => setState(() => _billingDay = day),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _DayPickerTile(
+                        label: l10n.billingDay,
+                        value: _billingDay,
+                        primaryColor: primaryColor,
+                        onChanged: (day) => setState(() => _billingDay = day),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _DayPickerTile(
-                      label: l10n.paymentDueDay,
-                      value: _paymentDueDay,
-                      primaryColor: primaryColor,
-                      onChanged: (day) => setState(() => _paymentDueDay = day),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _DayPickerTile(
+                        label: l10n.paymentDueDay,
+                        value: _paymentDueDay,
+                        primaryColor: primaryColor,
+                        onChanged: (day) =>
+                            setState(() => _paymentDueDay = day),
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
