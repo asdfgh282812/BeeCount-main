@@ -1085,4 +1085,98 @@ void main() {
       engine.stopListeningRealtime();
     });
   });
+
+  group('分类重复数据合并(全历史回放踩到历史脏数据)', () {
+    // 模拟真实场景:两台设备在互相同步前各自离线建了同名顶层分类「投资」,
+    // 云端历史上因此存在两笔同名 category(不同 syncId)。全新设备第一次
+    // 同步做全历史回放时,本地会依序 insert 出这两笔重复数据——这里直接
+    // 手动造出"已经重复"的本地状态,模拟回放走到这一步之后的样子,再验证
+    // 后续 pull 到一条 parentName="投资" 的子分类 upsert 时不会再让
+    // getSingleOrNull() 因为命中两笔而抛例外,而是自动 keeper 合并。
+    test('parentName 反查命中 2 笔同名顶层分类 → 合并成 1 笔且子分类挂到 keeper',
+        () async {
+      final keeperId = await db.into(db.categories).insert(
+            CategoriesCompanion.insert(
+              name: '投资',
+              kind: 'expense',
+              syncId: const Value('cat-dup-A'),
+            ),
+          );
+      final dupeId = await db.into(db.categories).insert(
+            CategoriesCompanion.insert(
+              name: '投资',
+              kind: 'expense',
+              syncId: const Value('cat-dup-B'),
+            ),
+          );
+      // 造一笔挂在 dupe(后建的那笔,syncId=cat-dup-B)底下的交易,验证合并时
+      // 会把引用一并搬到 keeper,而不是留下断链的 categoryId。
+      final ledgerId = await db.into(db.ledgers).insert(
+            LedgersCompanion.insert(name: 'L', syncId: const Value('L1')),
+          );
+      final orphanTxId = await db.into(db.transactions).insert(
+            TransactionsCompanion.insert(
+              ledgerId: ledgerId,
+              type: 'expense',
+              amount: 100,
+              happenedAt: Value(DateTime.utc(2026, 5, 1)),
+              categoryId: Value(dupeId),
+            ),
+          );
+
+      // server 推一条子分类 upsert,parentName 指向那个重复的名字。
+      provider.pushFakeChange(
+        entityType: 'category',
+        entitySyncId: 'cat-sub-1',
+        payload: {
+          'syncId': 'cat-sub-1',
+          'name': '股票',
+          'kind': 'expense',
+          'level': 2,
+          'parentName': '投资',
+        },
+      );
+
+      // 不应该抛 "Bad state: Too many elements"。
+      final applied = await engine.pull('1');
+      expect(applied, 1);
+
+      final topLevel = await (db.select(db.categories)
+            ..where((c) => c.name.equals('投资'))
+            ..where((c) => c.kind.equals('expense'))
+            ..where((c) => c.level.equals(1)))
+          .get();
+      expect(topLevel, hasLength(1), reason: '两笔重复的顶层分类应该被合并成 1 笔');
+      final keeper = topLevel.single;
+      expect(keeper.id, keeperId, reason: 'keeper 应该是 id 最小(最早建立)的那笔');
+
+      final sub = await (db.select(db.categories)
+            ..where((c) => c.syncId.equals('cat-sub-1')))
+          .getSingle();
+      expect(sub.parentId, keeperId, reason: '子分类应该挂到合并后的 keeper 上');
+
+      final orphanTx =
+          await (db.select(db.transactions)..where((t) => t.id.equals(orphanTxId)))
+              .getSingle();
+      expect(orphanTx.categoryId, keeperId,
+          reason: '原本挂在 dupe 底下的交易要跟着搬到 keeper,不留断链');
+
+      // dupe 应该已经被删除。
+      final dupeStillExists = await (db.select(db.categories)
+            ..where((c) => c.id.equals(dupeId)))
+          .getSingleOrNull();
+      expect(dupeStillExists, isNull);
+
+      // dupe 带 syncId,应该记一笔 delete change 推给其它设备收敛。
+      final pending = await changeTracker.getUnpushedChangesForLedger(0);
+      expect(
+        pending.any((c) =>
+            c.entityType == 'category' &&
+            c.entitySyncId == 'cat-dup-B' &&
+            c.action == 'delete'),
+        isTrue,
+        reason: 'dupe 的删除要推给其它设备,否则它们下次全历史回放也会撞同一个坑',
+      );
+    });
+  });
 }
