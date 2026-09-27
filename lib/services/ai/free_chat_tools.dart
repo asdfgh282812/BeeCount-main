@@ -1,4 +1,4 @@
-import '../../data/db.dart' show Category, Transaction;
+import '../../data/db.dart' show Account, Category, Transaction;
 import '../../data/repositories/base_repository.dart';
 import '../../data/repositories/budget_repository.dart' show BudgetUsage;
 import '../../utils/zh_variants.dart';
@@ -93,7 +93,7 @@ const List<FreeChatToolSpec> freeChatTools = [
     name: 'query_transactions',
     description: '查詢符合條件的交易,回傳**完整彙總**(總筆數/總金額/各分類小計)'
         '加上一小段明細樣本。適合「我在復健科總共花多少」「上個月餐飲幾筆」'
-        '這種帶關鍵字或分類的提問',
+        '「這個月用國泰卡花多少」這種帶關鍵字、分類或帳戶(信用卡/銀行帳戶)的提問',
     params: [
       FreeChatToolParam(
           name: 'startDate', type: 'date', description: _startDateDesc),
@@ -113,6 +113,12 @@ const List<FreeChatToolSpec> freeChatTools = [
         type: 'string',
         description: '限定分類名稱。完全相同優先,沒有完全相同時退化為包含比對;'
             '指定父分類會自動含所有子分類。省略則不限分類',
+      ),
+      FreeChatToolParam(
+        name: 'accountName',
+        type: 'string',
+        description: '限定帳戶名稱(信用卡、銀行帳戶、現金等,不是分類)。'
+            '完全相同優先,沒有完全相同時退化為包含比對。省略則不限帳戶',
       ),
       FreeChatToolParam(
         name: 'type',
@@ -283,6 +289,7 @@ class FreeChatToolExecutor {
     final range = _resolveRange(params);
     final keywords = _optionalStringList(params, 'keyword');
     final categoryName = _optionalString(params, 'categoryName');
+    final accountName = _optionalString(params, 'accountName');
     final typeFilter = _optionalType(params, 'type');
     final limit = _clampLimit(params['limit']);
 
@@ -298,10 +305,18 @@ class FreeChatToolExecutor {
     final categories = await repo.getAllCategoriesIncludingShared();
     final catById = {for (final c in categories) c.id: c};
 
+    // 帳戶表同樣只有幾十列,一次載入;sample 標註帳戶名稱也要用同一份 Map。
+    final accounts = await repo.getAllAccounts();
+    final accById = {for (final a in accounts) a.id: a.name};
+
     final resolved = _resolveCategories(
       categories: categories,
       query: categoryName,
       typeFilter: typeFilter,
+    );
+    final resolvedAccounts = _resolveAccounts(
+      accounts: accounts,
+      query: accountName,
     );
 
     final matched = <Transaction>[];
@@ -313,6 +328,10 @@ class FreeChatToolExecutor {
       final cat = t.categoryId == null ? null : catById[t.categoryId!];
 
       if (resolved != null && !resolved.ids.contains(t.categoryId)) continue;
+      if (resolvedAccounts != null &&
+          !resolvedAccounts.ids.contains(t.accountId)) {
+        continue;
+      }
 
       if (keywords != null && !_matchesKeyword(t, cat, keywords)) continue;
 
@@ -352,14 +371,7 @@ class FreeChatToolExecutor {
       );
     }
 
-    // 帳戶名稱只有樣本用得到,limit == 0 時完全不必載入
     final sample = matched.take(limit).toList();
-    Map<int, String> accById = const {};
-    if (sample.isNotEmpty) {
-      accById = {
-        for (final a in await repo.getAllAccounts()) a.id: a.name,
-      };
-    }
 
     return {
       'range': range.toJson(
@@ -370,6 +382,8 @@ class FreeChatToolExecutor {
         'keyword': keywords,
         'categoryName': categoryName,
         'resolvedCategories': resolved?.names,
+        'accountName': accountName,
+        'resolvedAccounts': resolvedAccounts?.names,
         'type': typeFilter,
       },
       'matchedCount': matched.length,
@@ -458,6 +472,37 @@ class FreeChatToolExecutor {
       if (c.parentId != null && ids.contains(c.parentId) && ids.add(c.id)) {
         names.add(c.name);
       }
+    }
+    return (ids: ids, names: names);
+  }
+
+  /// 分級解析帳戶名稱,邏輯同 [_resolveCategories]。回傳 null 代表呼叫端沒指定
+  /// 帳戶(不過濾)。
+  ///
+  /// 排除 `account_group`:那只是合併帳單用的管理容器,從來不會是任何交易的
+  /// `accountId`(真正入帳的一定是底下的子帳戶),納入比對池只會產生「解析到
+  /// 帳戶、但永遠 matchedCount=0」的假陽性。做法與 `ai_extraction_context.dart`
+  /// 挑記帳候選帳戶、`bill_creation_service.dart` 用名稱回填帳戶 id 時一致。
+  ({Set<int?> ids, List<String> names})? _resolveAccounts({
+    required List<Account> accounts,
+    required String? query,
+  }) {
+    if (query == null) return null;
+
+    final pool = accounts.where((a) => a.type != 'account_group').toList();
+    final folded = foldZh(query);
+
+    List<Account> pick(bool Function(String name) test) =>
+        pool.where((a) => test(foldZh(a.name))).toList();
+
+    var hits = pick((n) => n == folded);
+    if (hits.isEmpty) hits = pick((n) => n.contains(folded));
+    if (hits.isEmpty) hits = pick((n) => folded.contains(n));
+
+    final ids = <int?>{};
+    final names = <String>[];
+    for (final a in hits) {
+      if (ids.add(a.id)) names.add(a.name);
     }
     return (ids: ids, names: names);
   }

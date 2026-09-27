@@ -747,6 +747,95 @@ void main() {
     });
   });
 
+  group('query_transactions 帳戶解析', () {
+    test('依帳戶名稱過濾(完全相等)', () async {
+      final bankId = await repo.createAccount(ledgerId: ledgerId, name: '銀行');
+      await repo.addTransaction(
+        ledgerId: ledgerId,
+        type: 'expense',
+        amount: 300,
+        categoryId: foodCategoryId,
+        accountId: bankId,
+        happenedAt: DateTime(2026, 5, 10),
+      );
+      await repo.addTransaction(
+        ledgerId: ledgerId,
+        type: 'expense',
+        amount: 100,
+        categoryId: foodCategoryId,
+        accountId: accountId,
+        happenedAt: DateTime(2026, 5, 11),
+      );
+
+      final result = await executor.execute(
+        'query_transactions',
+        {'allTime': true, 'accountName': '銀行'},
+        repo: repo,
+        ledgerId: ledgerId,
+      );
+
+      expect(result['matchedCount'], 1);
+      expect(result['totalExpense'], 300.0);
+      expect((result['filters'] as Map)['resolvedAccounts'], ['銀行']);
+    });
+
+    test('沒有完全相等時退化為包含比對,並回報解析結果', () async {
+      final cardId =
+          await repo.createAccount(ledgerId: ledgerId, name: '星展英雄聯盟卡');
+      await repo.addTransaction(
+        ledgerId: ledgerId,
+        type: 'expense',
+        amount: 888,
+        categoryId: foodCategoryId,
+        accountId: cardId,
+        happenedAt: DateTime(2026, 5, 10),
+      );
+
+      final result = await executor.execute(
+        'query_transactions',
+        {'allTime': true, 'accountName': '星展'},
+        repo: repo,
+        ledgerId: ledgerId,
+      );
+
+      expect(result['matchedCount'], 1);
+      expect(result['totalExpense'], 888.0);
+      expect((result['filters'] as Map)['resolvedAccounts'],
+          contains('星展英雄聯盟卡'));
+    });
+
+    test('account_group 型別的容器帳戶不會被比對命中', () async {
+      await repo.createAccount(
+        ledgerId: ledgerId,
+        name: '信用卡群組',
+        type: 'account_group',
+      );
+
+      final result = await executor.execute(
+        'query_transactions',
+        {'allTime': true, 'accountName': '信用卡群組'},
+        repo: repo,
+        ledgerId: ledgerId,
+      );
+
+      expect((result['filters'] as Map)['resolvedAccounts'], isEmpty,
+          reason: 'account_group 只是管理容器,從來不是交易的 accountId');
+      expect(result['matchedCount'], 0);
+    });
+
+    test('查無此帳戶名稱時 resolvedAccounts 為空、matchedCount 為 0', () async {
+      final result = await executor.execute(
+        'query_transactions',
+        {'allTime': true, 'accountName': '不存在的帳戶'},
+        repo: repo,
+        ledgerId: ledgerId,
+      );
+
+      expect((result['filters'] as Map)['resolvedAccounts'], isEmpty);
+      expect(result['matchedCount'], 0);
+    });
+  });
+
   group('query_transactions 統計口徑', () {
     test('excludeFromStats 的交易在彙總與樣本中一致地被排除', () async {
       await repo.addTransaction(

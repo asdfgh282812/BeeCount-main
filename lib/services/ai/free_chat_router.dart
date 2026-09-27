@@ -273,14 +273,21 @@ class FreeChatRouter {
     final categorySection = context.toPromptSection(isEn: isEn);
     final categoryBlock = categorySection.isEmpty
         ? ''
-        : (isEn ? "\nThis ledger's categories:\n" : '\n這個帳本現有的分類:\n') +
+        : (isEn
+                ? "\nThis ledger's categories and accounts:\n"
+                : '\n這個帳本現有的分類與帳戶:\n') +
             categorySection +
             (isEn
-                ? '\nIf the user names one of these, use categoryName. '
-                    'Otherwise use keyword. If the thing they ask about is not '
-                    'a category here, you may answer directly and say so.\n'
+                ? '\nIf the user names one of the categories above, use '
+                    'categoryName. If the user names one of the accounts above '
+                    '(e.g. a credit card or bank account), use accountName — '
+                    'never put an account name into keyword. Otherwise use '
+                    'keyword. If the thing they ask about is not a category or '
+                    'account here, you may answer directly and say so.\n'
                 : '\n使用者提到的詞如果是上面的分類,就用 categoryName;'
-                    '否則用 keyword。如果帳本裡根本沒有相關分類,可以直接回答並說明。\n');
+                    '如果是上面的帳戶(例如信用卡、銀行帳戶名稱),就用 accountName,'
+                    '不要把帳戶名塞進 keyword;都不是的話用 keyword。'
+                    '如果帳本裡根本沒有相關分類或帳戶,可以直接回答並說明。\n');
 
     final formatInstruction = isEn
         ? 'Reply with exactly one JSON object:\n'
@@ -320,6 +327,9 @@ class FreeChatRouter {
             '{"type":"tool_call","tools":['
             '{"tool":"query_transactions","params":{"keyword":["復健","复健"],"limit":0}},'
             '{"tool":"query_transactions","params":{"keyword":["牙科","牙醫"],"limit":0}}]}\n'
+            '使用者：這個月用星展英雄聯盟卡花了多少(帳戶清單裡有這個帳戶名)→ '
+            '{"type":"tool_call","tool":"query_transactions",'
+            '"params":{"accountName":"星展英雄聯盟卡","limit":0}}\n'
             '使用者：星巴克 150 → '
             '{"type":"record_transaction","text":"星巴克 150",'
             '"fallbackText":"我看不出金額,可以再說一次嗎?"}';

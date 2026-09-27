@@ -208,7 +208,7 @@ class AIChatService {
           '需要配置 API Key 才能使用对话功能。\n\n前往 设置 > AI设置 进行配置。',
         );
       }
-      return AIResponse.error('AI服务暂时不可用,请稍后重试');
+      return AIResponse.error('AI 服務暫時無法使用，請稍後再試');
     } catch (e, st) {
       logger.error('AIChat', '自由对话失败', e, st);
       return AIResponse.error('网络连接失败,请检查网络');
