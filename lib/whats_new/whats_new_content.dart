@@ -134,4 +134,17 @@ final Map<String, List<WhatsNewItem>> kWhatsNewContent = {
       description: (l10n) => l10n.whatsNew360FixesDesc,
     ),
   ],
+  // 股票持股(docs/changes/2026-09-28-stock-holdings.md)。pubspec 升到 3.7.0
+  // 時才會跳出;3.6.0 的公告已經發過,不放進去以免已看過的使用者漏看。
+  '3.7.0': [
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew370StockHoldingsTitle,
+      description: (l10n) => l10n.whatsNew370StockHoldingsDesc,
+    ),
+    // 股利(docs/changes/2026-09-28-stock-dividends.md)。
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew370StockDividendsTitle,
+      description: (l10n) => l10n.whatsNew370StockDividendsDesc,
+    ),
+  ],
 };

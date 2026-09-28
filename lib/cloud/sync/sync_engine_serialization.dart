@@ -408,6 +408,24 @@ extension SyncEngineSerializationExt on SyncEngine {
           categorySyncId: debtCategorySyncId,
         );
 
+      case 'stock_trade':
+        final trade = await (db.select(db.stockTrades)
+              ..where((t) => t.id.equals(entityId)))
+            .getSingleOrNull();
+        if (trade == null) return <String, dynamic>{};
+        String? tradeAccountSyncId;
+        if (trade.accountId != null) {
+          final acc = await (db.select(db.accounts)
+                ..where((a) => a.id.equals(trade.accountId!)))
+              .getSingleOrNull();
+          tradeAccountSyncId = acc?.syncId;
+        }
+        return EntitySerializer.serializeStockTrade(
+          trade,
+          ledgerSyncId: parentLedgerSyncId,
+          accountSyncId: tradeAccountSyncId,
+        );
+
       case 'project':
         final project = await (db.select(db.projects)
               ..where((t) => t.id.equals(entityId)))
@@ -783,6 +801,38 @@ extension SyncEngineSerializationExt on SyncEngine {
           debt,
           ledgerSyncId: ledger.syncId,
           categorySyncId: debtCategorySyncId,
+        ),
+        'updated_at': now,
+      });
+    }
+
+    // 股票交易明細(v63):按账本过滤推,同 debt 同一套模式。排在交易之後
+    // (txId 引用 transaction)——fullPush 的 transaction 段在更前面。
+    final stockTrades = await (db.select(db.stockTrades)
+          ..where((t) => t.ledgerId.equals(ledger.id)))
+        .get();
+    for (final trade in stockTrades) {
+      final syncId = trade.syncId ?? _uuid.v4();
+      if (trade.syncId == null) {
+        await (db.update(db.stockTrades)..where((t) => t.id.equals(trade.id)))
+            .write(StockTradesCompanion(syncId: d.Value(syncId)));
+      }
+      String? tradeAccountSyncId;
+      if (trade.accountId != null) {
+        final acc = accounts
+            .cast<Account?>()
+            .firstWhere((a) => a?.id == trade.accountId, orElse: () => null);
+        tradeAccountSyncId = acc?.syncId;
+      }
+      syncChanges.add({
+        'ledger_id': ledgerId,
+        'entity_type': 'stock_trade',
+        'entity_sync_id': syncId,
+        'action': 'upsert',
+        'payload': EntitySerializer.serializeStockTrade(
+          trade.copyWith(syncId: d.Value(syncId)),
+          ledgerSyncId: ledger.syncId,
+          accountSyncId: tradeAccountSyncId,
         ),
         'updated_at': now,
       });

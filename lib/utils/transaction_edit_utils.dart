@@ -16,6 +16,7 @@ import '../widgets/biz/installment_edit_choice_dialog.dart';
 import '../widgets/biz/recurring_occurrence_dialogs.dart';
 import '../widgets/ui/ui.dart' show showToast, AppDialog;
 import 'shared_ledger_picker_filter.dart' show syntheticIdForSyncId;
+import '../pages/investment/stock_trade_editor_page.dart';
 
 /// 解析交易的标签/类别/账户(含 §7 共享账本 override → synthetic id)三元组,
 /// 供编辑/复制共用。
@@ -92,6 +93,23 @@ class TransactionEditUtils {
     // `_submit`),使用者從明細頁點編輯鉛筆會直接看到表單,體感上像是
     // 「完全沒有彈窗」。此處先問清楚,選擇結果透過
     // `initialRecurringEditScope` 帶進編輯頁,存檔時直接沿用,不再重問。
+    // v63 股票持股:由股票交易產生的轉帳(交割帳戶 ⇄ 投資理財帳戶)不能在
+    // 一般轉帳表單裡改——金額/帳戶改了但股數沒跟著改,持股就對不上。直接
+    // 導去股票交易編輯頁,那邊存檔會一起重算這筆轉帳。
+    if (transaction.type == 'transfer' && transaction.syncId != null) {
+      final repo = ref.read(repositoryProvider);
+      final trade = await repo.getStockTradeByTxSyncId(transaction.syncId!);
+      if (trade != null && trade.accountId != null) {
+        final account = await repo.getAccount(trade.accountId!);
+        if (account != null && context.mounted) {
+          await Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => StockTradeEditorPage(account: account, trade: trade),
+          ));
+          return;
+        }
+      }
+    }
+
     RecurringEditScope? recurringScope = forcedScope;
     if (recurringScope == null && transaction.recurringRuleId != null) {
       recurringScope = await showRecurringEditChoiceSheet(context);

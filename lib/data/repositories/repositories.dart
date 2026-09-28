@@ -8,6 +8,7 @@ export 'statistics_repository.dart';
 export 'recurring_rule_repository.dart';
 export 'ai_repository.dart';
 export 'tag_repository.dart';
+export 'stock_trade_repository.dart';
 
 // Local 实现
 //

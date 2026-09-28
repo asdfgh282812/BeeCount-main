@@ -10447,4 +10447,538 @@ class AppLocalizationsKo extends AppLocalizations {
   String aboutCheckUpdateSubtitle(String version) {
     return 'Current version $version';
   }
+
+  @override
+  String get stockHoldingsTab => 'Holdings';
+
+  @override
+  String get stockMarketValueCardTitle => 'Investment value (est.)';
+
+  @override
+  String get stockMarketValueCardHint =>
+      'Shown separately; not included in net worth';
+
+  @override
+  String get stockCost => 'Cost basis';
+
+  @override
+  String get stockUnrealizedPnl => 'Unrealized P/L';
+
+  @override
+  String get stockRealizedPnl => 'Realized P/L';
+
+  @override
+  String get stockDividends => 'Dividends';
+
+  @override
+  String stockQuoteAsOf(String time) {
+    return 'Quotes as of $time';
+  }
+
+  @override
+  String get stockQuoteClose => 'Close';
+
+  @override
+  String get stockQuoteIntraday => 'Delayed';
+
+  @override
+  String get stockQuoteManual => 'Manual';
+
+  @override
+  String stockUnpricedCount(int count) {
+    return '$count holding(s) without a price are excluded';
+  }
+
+  @override
+  String stockMissingRates(String currencies) {
+    return 'Excluded (no exchange rate): $currencies';
+  }
+
+  @override
+  String get stockRefreshQuotes => 'Refresh quotes';
+
+  @override
+  String get stockRefreshFailed => 'Couldn\'t refresh quotes';
+
+  @override
+  String get stockNoCloudHint =>
+      'Connect BeeCount Cloud for automatic quotes, or set prices manually in each holding.';
+
+  @override
+  String get stockNoHoldings =>
+      'No holdings yet. Add a trade to start tracking shares and market value.';
+
+  @override
+  String get stockAddTrade => 'Add stock trade';
+
+  @override
+  String get stockEditTrade => 'Edit stock trade';
+
+  @override
+  String get stockTradeTypeBuy => 'Buy';
+
+  @override
+  String get stockTradeTypeSell => 'Sell';
+
+  @override
+  String get stockTradeTypeOpening => 'Opening position';
+
+  @override
+  String get stockTradeTypeStockDividend => 'Stock dividend';
+
+  @override
+  String get stockTradeTypeCashDividend => 'Cash dividend';
+
+  @override
+  String get stockTradeTypeReinvest => 'Dividend reinvestment';
+
+  @override
+  String get stockTradeTypeOpeningHint =>
+      'Shares you already held before using BeeCount. No money moves.';
+
+  @override
+  String get stockTradeTypeStockDividendHint =>
+      'Bonus shares received. Cost stays the same, so the average cost goes down.';
+
+  @override
+  String get stockMarket => 'Market';
+
+  @override
+  String get stockSymbol => 'Symbol';
+
+  @override
+  String get stockSymbolSearchHint => 'Search by symbol or name';
+
+  @override
+  String get stockSearchNoResult =>
+      'No match. You can type the symbol directly.';
+
+  @override
+  String get stockSecurityName => 'Name';
+
+  @override
+  String get stockShares => 'Shares';
+
+  @override
+  String get stockPrice => 'Price';
+
+  @override
+  String get stockFee => 'Commission';
+
+  @override
+  String get stockTax => 'Transaction tax';
+
+  @override
+  String get stockAutoFeeHint =>
+      'Estimated from this account\'s fee settings. You can edit it.';
+
+  @override
+  String get stockSettlementAccount => 'Settlement account';
+
+  @override
+  String stockSettlementAmount(String currency) {
+    return 'Settlement amount ($currency)';
+  }
+
+  @override
+  String get stockSettlementAmountHint =>
+      'What the settlement account actually paid or received, fees included';
+
+  @override
+  String get stockTradeDate => 'Trade date';
+
+  @override
+  String get stockNote => 'Note';
+
+  @override
+  String get stockTotalCost => 'Total cost';
+
+  @override
+  String get stockNetProceeds => 'Net proceeds';
+
+  @override
+  String stockOversellError(String held) {
+    return 'You can\'t sell more than you hold ($held shares).';
+  }
+
+  @override
+  String get stockSettlementRequired => 'Choose a settlement account.';
+
+  @override
+  String get stockSettlementAmountRequired =>
+      'The settlement account uses a different currency. Enter the settlement amount.';
+
+  @override
+  String get stockSymbolRequired => 'Enter a symbol.';
+
+  @override
+  String get stockSharesRequired => 'Enter the number of shares.';
+
+  @override
+  String get stockPriceRequired => 'Enter the price.';
+
+  @override
+  String get stockDeleteTradeConfirm =>
+      'Delete this trade? The transfer or dividend income it created will be deleted too.';
+
+  @override
+  String get stockAvgCost => 'Avg cost';
+
+  @override
+  String stockSharesCount(String shares) {
+    return '$shares sh';
+  }
+
+  @override
+  String get stockMarketValue => 'Market value';
+
+  @override
+  String get stockCurrentPrice => 'Price';
+
+  @override
+  String get stockSetManualPrice => 'Set price manually';
+
+  @override
+  String get stockManualPriceSaved => 'Price saved';
+
+  @override
+  String get stockTradeHistory => 'Trades';
+
+  @override
+  String get stockClosedPositions => 'Sold out';
+
+  @override
+  String get stockFeeSettings => 'Fee settings';
+
+  @override
+  String get stockFeeSettingsDesc =>
+      'Commission, taxes and dividend charges for this account. New trades are prefilled from these; you can still edit each trade.';
+
+  @override
+  String get stockFeeRate => 'Commission rate (%)';
+
+  @override
+  String get stockFeeDiscount => 'Commission discount (% of full rate)';
+
+  @override
+  String get stockFeeMin => 'Minimum commission';
+
+  @override
+  String get stockSellTaxRate => 'Tax on sales (%)';
+
+  @override
+  String get stockDividendSection => 'Dividends';
+
+  @override
+  String get stockDividendFeeFixed => 'Dividend fee (per payment)';
+
+  @override
+  String get stockDividendFeeRate => 'Dividend fee rate (%)';
+
+  @override
+  String get stockDividendWithholding => 'Dividend withholding tax (%)';
+
+  @override
+  String get stockNhiRate => 'NHI supplementary premium (%)';
+
+  @override
+  String get stockNhiThreshold => 'NHI premium threshold';
+
+  @override
+  String get stockReinvestDividends => 'Reinvest dividends by default';
+
+  @override
+  String get stockDefaultMarket => 'Default market';
+
+  @override
+  String get stockFeeSettingsSaved => 'Fee settings saved';
+
+  @override
+  String stockMarketDefault(String value) {
+    return 'Default: $value';
+  }
+
+  @override
+  String get stockExcludeFromTotalTitle =>
+      'Exclude this account from net worth?';
+
+  @override
+  String get stockExcludeFromTotalDesc =>
+      'Stock value is shown separately under \"Investment value (est.)\". Keeping this account in net worth would count your cost basis as spendable money.';
+
+  @override
+  String get stockExcludeFromTotalYes => 'Exclude';
+
+  @override
+  String get stockExcludeFromTotalNo => 'Keep';
+
+  @override
+  String get stockLinkedTxHint => 'This transfer was created by a stock trade.';
+
+  @override
+  String get stockLinkedTxEdit => 'Edit stock trade';
+
+  @override
+  String get stockOverviewTitle => 'Investments';
+
+  @override
+  String get stockDayChange => 'Today';
+
+  @override
+  String stockDefaultTxNoteBuy(String symbol, String name, String shares) {
+    return 'Buy $symbol $name ×$shares';
+  }
+
+  @override
+  String stockDefaultTxNoteSell(String symbol, String name, String shares) {
+    return 'Sell $symbol $name ×$shares';
+  }
+
+  @override
+  String get stockNotInvestmentAccount =>
+      'Stock trades can only be recorded in Investment accounts.';
+
+  @override
+  String get stockMarketTW => 'Taiwan (TWSE)';
+
+  @override
+  String get stockMarketTWO => 'Taiwan (TPEx)';
+
+  @override
+  String get stockMarketUS => 'US';
+
+  @override
+  String get stockMarketHK => 'Hong Kong';
+
+  @override
+  String get stockMarketJP => 'Japan';
+
+  @override
+  String get stockMarketSS => 'Shanghai';
+
+  @override
+  String get stockMarketSZ => 'Shenzhen';
+
+  @override
+  String get stockMarketKS => 'Korea (KOSPI)';
+
+  @override
+  String get stockMarketKQ => 'Korea (KOSDAQ)';
+
+  @override
+  String get stockMarketLSE => 'London';
+
+  @override
+  String get whatsNew370StockHoldingsTitle => 'Stock holdings';
+
+  @override
+  String get whatsNew370StockHoldingsDesc =>
+      'Record stock buys and sells in an Investment account: each trade is saved as a transfer from your settlement account, and BeeCount tracks your shares, average cost and market value. With BeeCount Cloud, quotes for Taiwan, US and other markets update after each close. Market value appears in its own card on the Accounts page and isn\'t counted in net worth. Open an Investment account → Holdings to start.';
+
+  @override
+  String get stockTradeTypeCashDividendHint =>
+      'Record a cash dividend you received. It\'s saved as \"股利\" income into the receiving account.';
+
+  @override
+  String get stockTradeTypeReinvestHint =>
+      'Dividend used to buy more shares. It\'s saved as \"股利\" income into this investment account and adds shares and cost.';
+
+  @override
+  String stockDefaultTxNoteDividend(String symbol, String name, String shares) {
+    return 'Dividend $symbol $name ×$shares';
+  }
+
+  @override
+  String stockDefaultTxNoteReinvest(String symbol, String name, String shares) {
+    return 'Dividend reinvested $symbol $name ×$shares';
+  }
+
+  @override
+  String get stockDividendPerShare => 'Dividend per share';
+
+  @override
+  String get stockDividendTax => 'Withholding / health insurance';
+
+  @override
+  String get stockDividendGross => 'Gross';
+
+  @override
+  String get stockDividendNet => 'Net received';
+
+  @override
+  String get stockReceivingAccount => 'Receiving account';
+
+  @override
+  String get stockReceivingAccountRequired => 'Choose a receiving account.';
+
+  @override
+  String stockPendingDividendsBanner(int count) {
+    return '$count dividends to confirm';
+  }
+
+  @override
+  String get stockPendingDividendsTitle => 'Dividends to confirm';
+
+  @override
+  String get stockPendingDividendsDesc =>
+      'BeeCount Cloud found these dividends from the shares you held the day before each ex-date. Confirm the amount you actually received, or choose to reinvest it.';
+
+  @override
+  String get stockPendingDividendsEmpty =>
+      'No dividends waiting for confirmation.';
+
+  @override
+  String get stockDividendConfirm => 'Confirm';
+
+  @override
+  String get stockDividendDismiss => 'Dismiss';
+
+  @override
+  String get stockDividendRestore => 'Restore';
+
+  @override
+  String get stockDividendShowDismissed => 'Show dismissed dividends';
+
+  @override
+  String get stockDividendHideDismissed => 'Hide dismissed';
+
+  @override
+  String get stockDividendDismissedToast => 'Dividend dismissed';
+
+  @override
+  String get stockDividendConfirmedToast => 'Dividend recorded';
+
+  @override
+  String stockDividendExDate(String date) {
+    return 'Ex-date $date';
+  }
+
+  @override
+  String stockDividendPayDate(String date) {
+    return 'Pay date $date';
+  }
+
+  @override
+  String stockDividendRecordShares(String shares) {
+    return '$shares shares held';
+  }
+
+  @override
+  String stockDividendPerShareValue(String amount) {
+    return '$amount per share';
+  }
+
+  @override
+  String stockDividendStockShares(String shares) {
+    return '$shares bonus shares';
+  }
+
+  @override
+  String stockDividendEstimateLine(String gross, String deductions) {
+    return 'Gross $gross, deductions $deductions';
+  }
+
+  @override
+  String get stockDividendConfirmTitle => 'Confirm dividend';
+
+  @override
+  String get stockDividendModeCash => 'Receive cash';
+
+  @override
+  String get stockDividendModeReinvest => 'Reinvest';
+
+  @override
+  String get stockDividendReinvestPrice => 'Purchase price';
+
+  @override
+  String get stockDividendReinvestShares => 'Shares bought';
+
+  @override
+  String stockDividendReinvestHint(String amount) {
+    return 'Reinvested cost $amount. It\'s saved as \"股利\" income into the investment account.';
+  }
+
+  @override
+  String stockDividendReceivedAmount(String currency) {
+    return 'Amount received ($currency)';
+  }
+
+  @override
+  String get stockDividendStockSharesField => 'Bonus shares';
+
+  @override
+  String stockDividendStockSharesHint(String ratio) {
+    return '$ratio shares per share. Enter 0 to skip.';
+  }
+
+  @override
+  String get stockDividendDate => 'Date received';
+
+  @override
+  String get stockDividendReinvestRequired =>
+      'Enter the shares and price for the reinvestment.';
+
+  @override
+  String get whatsNew370StockDividendsTitle => 'Dividends';
+
+  @override
+  String get whatsNew370StockDividendsDesc =>
+      'After an ex-dividend date, BeeCount Cloud works out the dividend from the shares you held and asks you to confirm it. Record it as cash or reinvest it. Find it in Accounts → the Investment market value card.';
+
+  @override
+  String stockPricePrefilled(String when) {
+    return 'Filled in the latest quote ($when). You can change it.';
+  }
+
+  @override
+  String stockSellTaxRateHint(String rate) {
+    return 'Tax rate $rate';
+  }
+
+  @override
+  String stockSellTaxRateHintWithKind(String rate, String kind) {
+    return 'Securities transaction tax $rate ($kind)';
+  }
+
+  @override
+  String get stockSecurityKindStock => 'stock';
+
+  @override
+  String get stockSecurityKindEtf => 'ETF';
+
+  @override
+  String get stockSecurityKindBondEtf => 'bond ETF';
+
+  @override
+  String get stockSellTaxRateStock => 'Tax on sales: stocks (%)';
+
+  @override
+  String get stockEtfSellTaxRate => 'Tax on sales: ETFs (%)';
+
+  @override
+  String get stockBondEtfSellTaxRate => 'Tax on sales: bond ETFs (%)';
+
+  @override
+  String get stockSellTaxKindHint =>
+      'The rate is picked from the symbol: codes starting with 00 are ETFs, and ones ending in B are bond ETFs.';
+
+  @override
+  String get stockPnlAfterSellCosts =>
+      'Deduct estimated selling costs from P/L';
+
+  @override
+  String get stockPnlAfterSellCostsDesc =>
+      'Unrealized P/L = market value − estimated fee and tax if you sold now, the same way broker apps show it.';
+
+  @override
+  String get stockNetValue => 'Est. net proceeds';
+
+  @override
+  String get stockEstSellFee => 'Est. selling fee';
+
+  @override
+  String get stockEstSellTax => 'Est. transaction tax';
+
+  @override
+  String get stockPnlAfterSellCostsNote => 'After estimated selling costs';
 }

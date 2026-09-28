@@ -246,6 +246,79 @@ class BeeCountCloudProvider implements CloudProvider {
     return storage.fetchExchangeRates(base: base);
   }
 
+  /// 股票持股(BeeCount 主 App v63):證券搜尋(GET /read/securities/search)。
+  /// 回傳 server body 原樣:[{market, symbol, name, currency, kind}]。
+  Future<List<Map<String, dynamic>>> searchSecurities({
+    required String query,
+    String? market,
+  }) async {
+    final storage = _storage;
+    if (storage == null) {
+      throw CloudConfigurationException(
+          'BeeCount Cloud storage is not initialized.');
+    }
+    return storage.searchSecurities(query: query, market: market);
+  }
+
+  /// 股票報價(GET /read/securities/quotes?symbols=TW:2330,US:AAPL)。盤中
+  /// server 快取超過 15 分鐘會自動向上游補抓。回傳 body 原樣:
+  /// [{market, symbol, name, currency, price, prev_close, change,
+  ///   change_percent, quote_time, session, source, fetched_at, stale}]。
+  Future<List<Map<String, dynamic>>> fetchSecurityQuotes({
+    required List<String> symbolKeys,
+    bool refresh = true,
+  }) async {
+    final storage = _storage;
+    if (storage == null) {
+      throw CloudConfigurationException(
+          'BeeCount Cloud storage is not initialized.');
+    }
+    return storage.fetchSecurityQuotes(symbolKeys: symbolKeys, refresh: refresh);
+  }
+
+  /// 待確認股利(股票持股 Phase 2,GET /read/securities/pending-dividends)。
+  /// [status]:'pending' / 'confirmed' / 'dismissed' / 'all'。回傳 body 原樣。
+  Future<List<Map<String, dynamic>>> fetchPendingDividends({String status = 'pending'}) async {
+    final storage = _storage;
+    if (storage == null) {
+      throw CloudConfigurationException(
+          'BeeCount Cloud storage is not initialized.');
+    }
+    return storage.fetchPendingDividends(status: status);
+  }
+
+  /// 確認待確認股利:server 建 cash_dividend/reinvest(+配股)明細與 income
+  /// 交易,App 之後 sync pull 拿回。[body] 欄位見 Cloud
+  /// `schemas.PendingDividendConfirmRequest`(snake_case)。
+  Future<void> confirmPendingDividend({required int id, required Map<String, dynamic> body}) async {
+    final storage = _storage;
+    if (storage == null) {
+      throw CloudConfigurationException(
+          'BeeCount Cloud storage is not initialized.');
+    }
+    return storage.confirmPendingDividend(id: id, body: body);
+  }
+
+  /// 忽略([restore] = false)或把已忽略的放回待確認([restore] = true)。
+  Future<void> setPendingDividendDismissed({required int id, required bool dismissed}) async {
+    final storage = _storage;
+    if (storage == null) {
+      throw CloudConfigurationException(
+          'BeeCount Cloud storage is not initialized.');
+    }
+    return storage.setPendingDividendDismissed(id: id, dismissed: dismissed);
+  }
+
+  /// 某檔的除權息事件(GET /read/securities/dividend-events?symbol=TW:2330)。
+  Future<List<Map<String, dynamic>>> fetchDividendEvents({required String symbolKey}) async {
+    final storage = _storage;
+    if (storage == null) {
+      throw CloudConfigurationException(
+          'BeeCount Cloud storage is not initialized.');
+    }
+    return storage.fetchDividendEvents(symbolKey: symbolKey);
+  }
+
   Future<BeeCountCloudAvatarUploadResult> uploadMyAvatar({
     required Uint8List bytes,
     required String fileName,
@@ -2558,6 +2631,111 @@ class BeeCountCloudStorageService implements CloudStorageService {
           'Fetch exchange rates failed: ${_extractErrorMessage(response)}');
     }
     return _decodeJsonObject(response.body);
+  }
+
+  List<Map<String, dynamic>> _decodeJsonObjectList(String body) {
+    final decoded = jsonDecode(body);
+    if (decoded is! List) {
+      throw CloudStorageException('Unexpected response: expected a JSON array');
+    }
+    return decoded.whereType<Map<String, dynamic>>().toList();
+  }
+
+  /// GET /read/securities/search?q=&market=(股票持股)。
+  Future<List<Map<String, dynamic>>> searchSecurities({
+    required String query,
+    String? market,
+  }) async {
+    final response = await _authedRequest(
+      method: 'GET',
+      path: '/read/securities/search',
+      query: {
+        'q': query.trim(),
+        if (market != null && market.isNotEmpty) 'market': market.toUpperCase(),
+      },
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw CloudStorageException(
+          'Search securities failed: ${_extractErrorMessage(response)}');
+    }
+    return _decodeJsonObjectList(response.body);
+  }
+
+  /// GET /read/securities/quotes?symbols=MARKET:SYMBOL,...(股票持股)。
+  /// server 一次最多 100 檔,這裡自動分批。
+  Future<List<Map<String, dynamic>>> fetchSecurityQuotes({
+    required List<String> symbolKeys,
+    bool refresh = true,
+  }) async {
+    final out = <Map<String, dynamic>>[];
+    for (var i = 0; i < symbolKeys.length; i += 100) {
+      final chunk = symbolKeys.sublist(i, i + 100 > symbolKeys.length ? symbolKeys.length : i + 100);
+      final response = await _authedRequest(
+        method: 'GET',
+        path: '/read/securities/quotes',
+        query: {'symbols': chunk.join(','), 'refresh': refresh ? 'true' : 'false'},
+      );
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw CloudStorageException(
+            'Fetch security quotes failed: ${_extractErrorMessage(response)}');
+      }
+      out.addAll(_decodeJsonObjectList(response.body));
+    }
+    return out;
+  }
+
+  /// GET /read/securities/pending-dividends?status=(股票持股 Phase 2)。
+  Future<List<Map<String, dynamic>>> fetchPendingDividends({String status = 'pending'}) async {
+    final response = await _authedRequest(
+      method: 'GET',
+      path: '/read/securities/pending-dividends',
+      query: {'status': status},
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw CloudStorageException(
+          'Fetch pending dividends failed: ${_extractErrorMessage(response)}');
+    }
+    return _decodeJsonObjectList(response.body);
+  }
+
+  /// POST /write/securities/pending-dividends/{id}/confirm。base_change_id 給 0
+  /// (server 預設不做嚴格版本比對,同 Web 首次寫入)。
+  Future<void> confirmPendingDividend({required int id, required Map<String, dynamic> body}) async {
+    final response = await _authedRequest(
+      method: 'POST',
+      path: '/write/securities/pending-dividends/$id/confirm',
+      body: {'base_change_id': 0, ...body},
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw CloudStorageException(
+          'Confirm dividend failed: ${_extractErrorMessage(response)}');
+    }
+  }
+
+  Future<void> setPendingDividendDismissed({required int id, required bool dismissed}) async {
+    final response = await _authedRequest(
+      method: 'POST',
+      path: '/write/securities/pending-dividends/$id/${dismissed ? 'dismiss' : 'restore'}',
+      body: const {},
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw CloudStorageException(
+          'Update dividend failed: ${_extractErrorMessage(response)}');
+    }
+  }
+
+  /// GET /read/securities/dividend-events?symbol=MARKET:SYMBOL。
+  Future<List<Map<String, dynamic>>> fetchDividendEvents({required String symbolKey}) async {
+    final response = await _authedRequest(
+      method: 'GET',
+      path: '/read/securities/dividend-events',
+      query: {'symbol': symbolKey},
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw CloudStorageException(
+          'Fetch dividend events failed: ${_extractErrorMessage(response)}');
+    }
+    return _decodeJsonObjectList(response.body);
   }
 
   /// 推送收支颜色方案偏好到服务端。mobile 端 `incomeExpenseColorSchemeProvider`

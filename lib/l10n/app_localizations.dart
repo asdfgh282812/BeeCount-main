@@ -19178,6 +19178,930 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Current version {version}'**
   String aboutCheckUpdateSubtitle(String version);
+
+  /// No description provided for @stockHoldingsTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Holdings'**
+  String get stockHoldingsTab;
+
+  /// No description provided for @stockMarketValueCardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Investment value (est.)'**
+  String get stockMarketValueCardTitle;
+
+  /// No description provided for @stockMarketValueCardHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Shown separately; not included in net worth'**
+  String get stockMarketValueCardHint;
+
+  /// No description provided for @stockCost.
+  ///
+  /// In en, this message translates to:
+  /// **'Cost basis'**
+  String get stockCost;
+
+  /// No description provided for @stockUnrealizedPnl.
+  ///
+  /// In en, this message translates to:
+  /// **'Unrealized P/L'**
+  String get stockUnrealizedPnl;
+
+  /// No description provided for @stockRealizedPnl.
+  ///
+  /// In en, this message translates to:
+  /// **'Realized P/L'**
+  String get stockRealizedPnl;
+
+  /// No description provided for @stockDividends.
+  ///
+  /// In en, this message translates to:
+  /// **'Dividends'**
+  String get stockDividends;
+
+  /// No description provided for @stockQuoteAsOf.
+  ///
+  /// In en, this message translates to:
+  /// **'Quotes as of {time}'**
+  String stockQuoteAsOf(String time);
+
+  /// No description provided for @stockQuoteClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get stockQuoteClose;
+
+  /// No description provided for @stockQuoteIntraday.
+  ///
+  /// In en, this message translates to:
+  /// **'Delayed'**
+  String get stockQuoteIntraday;
+
+  /// No description provided for @stockQuoteManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get stockQuoteManual;
+
+  /// No description provided for @stockUnpricedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} holding(s) without a price are excluded'**
+  String stockUnpricedCount(int count);
+
+  /// No description provided for @stockMissingRates.
+  ///
+  /// In en, this message translates to:
+  /// **'Excluded (no exchange rate): {currencies}'**
+  String stockMissingRates(String currencies);
+
+  /// No description provided for @stockRefreshQuotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh quotes'**
+  String get stockRefreshQuotes;
+
+  /// No description provided for @stockRefreshFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t refresh quotes'**
+  String get stockRefreshFailed;
+
+  /// No description provided for @stockNoCloudHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect BeeCount Cloud for automatic quotes, or set prices manually in each holding.'**
+  String get stockNoCloudHint;
+
+  /// No description provided for @stockNoHoldings.
+  ///
+  /// In en, this message translates to:
+  /// **'No holdings yet. Add a trade to start tracking shares and market value.'**
+  String get stockNoHoldings;
+
+  /// No description provided for @stockAddTrade.
+  ///
+  /// In en, this message translates to:
+  /// **'Add stock trade'**
+  String get stockAddTrade;
+
+  /// No description provided for @stockEditTrade.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit stock trade'**
+  String get stockEditTrade;
+
+  /// No description provided for @stockTradeTypeBuy.
+  ///
+  /// In en, this message translates to:
+  /// **'Buy'**
+  String get stockTradeTypeBuy;
+
+  /// No description provided for @stockTradeTypeSell.
+  ///
+  /// In en, this message translates to:
+  /// **'Sell'**
+  String get stockTradeTypeSell;
+
+  /// No description provided for @stockTradeTypeOpening.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening position'**
+  String get stockTradeTypeOpening;
+
+  /// No description provided for @stockTradeTypeStockDividend.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock dividend'**
+  String get stockTradeTypeStockDividend;
+
+  /// No description provided for @stockTradeTypeCashDividend.
+  ///
+  /// In en, this message translates to:
+  /// **'Cash dividend'**
+  String get stockTradeTypeCashDividend;
+
+  /// No description provided for @stockTradeTypeReinvest.
+  ///
+  /// In en, this message translates to:
+  /// **'Dividend reinvestment'**
+  String get stockTradeTypeReinvest;
+
+  /// No description provided for @stockTradeTypeOpeningHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Shares you already held before using BeeCount. No money moves.'**
+  String get stockTradeTypeOpeningHint;
+
+  /// No description provided for @stockTradeTypeStockDividendHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Bonus shares received. Cost stays the same, so the average cost goes down.'**
+  String get stockTradeTypeStockDividendHint;
+
+  /// No description provided for @stockMarket.
+  ///
+  /// In en, this message translates to:
+  /// **'Market'**
+  String get stockMarket;
+
+  /// No description provided for @stockSymbol.
+  ///
+  /// In en, this message translates to:
+  /// **'Symbol'**
+  String get stockSymbol;
+
+  /// No description provided for @stockSymbolSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by symbol or name'**
+  String get stockSymbolSearchHint;
+
+  /// No description provided for @stockSearchNoResult.
+  ///
+  /// In en, this message translates to:
+  /// **'No match. You can type the symbol directly.'**
+  String get stockSearchNoResult;
+
+  /// No description provided for @stockSecurityName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get stockSecurityName;
+
+  /// No description provided for @stockShares.
+  ///
+  /// In en, this message translates to:
+  /// **'Shares'**
+  String get stockShares;
+
+  /// No description provided for @stockPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Price'**
+  String get stockPrice;
+
+  /// No description provided for @stockFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Commission'**
+  String get stockFee;
+
+  /// No description provided for @stockTax.
+  ///
+  /// In en, this message translates to:
+  /// **'Transaction tax'**
+  String get stockTax;
+
+  /// No description provided for @stockAutoFeeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated from this account\'s fee settings. You can edit it.'**
+  String get stockAutoFeeHint;
+
+  /// No description provided for @stockSettlementAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Settlement account'**
+  String get stockSettlementAccount;
+
+  /// No description provided for @stockSettlementAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Settlement amount ({currency})'**
+  String stockSettlementAmount(String currency);
+
+  /// No description provided for @stockSettlementAmountHint.
+  ///
+  /// In en, this message translates to:
+  /// **'What the settlement account actually paid or received, fees included'**
+  String get stockSettlementAmountHint;
+
+  /// No description provided for @stockTradeDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Trade date'**
+  String get stockTradeDate;
+
+  /// No description provided for @stockNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Note'**
+  String get stockNote;
+
+  /// No description provided for @stockTotalCost.
+  ///
+  /// In en, this message translates to:
+  /// **'Total cost'**
+  String get stockTotalCost;
+
+  /// No description provided for @stockNetProceeds.
+  ///
+  /// In en, this message translates to:
+  /// **'Net proceeds'**
+  String get stockNetProceeds;
+
+  /// No description provided for @stockOversellError.
+  ///
+  /// In en, this message translates to:
+  /// **'You can\'t sell more than you hold ({held} shares).'**
+  String stockOversellError(String held);
+
+  /// No description provided for @stockSettlementRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a settlement account.'**
+  String get stockSettlementRequired;
+
+  /// No description provided for @stockSettlementAmountRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'The settlement account uses a different currency. Enter the settlement amount.'**
+  String get stockSettlementAmountRequired;
+
+  /// No description provided for @stockSymbolRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a symbol.'**
+  String get stockSymbolRequired;
+
+  /// No description provided for @stockSharesRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the number of shares.'**
+  String get stockSharesRequired;
+
+  /// No description provided for @stockPriceRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the price.'**
+  String get stockPriceRequired;
+
+  /// No description provided for @stockDeleteTradeConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this trade? The transfer or dividend income it created will be deleted too.'**
+  String get stockDeleteTradeConfirm;
+
+  /// No description provided for @stockAvgCost.
+  ///
+  /// In en, this message translates to:
+  /// **'Avg cost'**
+  String get stockAvgCost;
+
+  /// No description provided for @stockSharesCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{shares} sh'**
+  String stockSharesCount(String shares);
+
+  /// No description provided for @stockMarketValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Market value'**
+  String get stockMarketValue;
+
+  /// No description provided for @stockCurrentPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Price'**
+  String get stockCurrentPrice;
+
+  /// No description provided for @stockSetManualPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Set price manually'**
+  String get stockSetManualPrice;
+
+  /// No description provided for @stockManualPriceSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Price saved'**
+  String get stockManualPriceSaved;
+
+  /// No description provided for @stockTradeHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Trades'**
+  String get stockTradeHistory;
+
+  /// No description provided for @stockClosedPositions.
+  ///
+  /// In en, this message translates to:
+  /// **'Sold out'**
+  String get stockClosedPositions;
+
+  /// No description provided for @stockFeeSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee settings'**
+  String get stockFeeSettings;
+
+  /// No description provided for @stockFeeSettingsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Commission, taxes and dividend charges for this account. New trades are prefilled from these; you can still edit each trade.'**
+  String get stockFeeSettingsDesc;
+
+  /// No description provided for @stockFeeRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Commission rate (%)'**
+  String get stockFeeRate;
+
+  /// No description provided for @stockFeeDiscount.
+  ///
+  /// In en, this message translates to:
+  /// **'Commission discount (% of full rate)'**
+  String get stockFeeDiscount;
+
+  /// No description provided for @stockFeeMin.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum commission'**
+  String get stockFeeMin;
+
+  /// No description provided for @stockSellTaxRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Tax on sales (%)'**
+  String get stockSellTaxRate;
+
+  /// No description provided for @stockDividendSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Dividends'**
+  String get stockDividendSection;
+
+  /// No description provided for @stockDividendFeeFixed.
+  ///
+  /// In en, this message translates to:
+  /// **'Dividend fee (per payment)'**
+  String get stockDividendFeeFixed;
+
+  /// No description provided for @stockDividendFeeRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Dividend fee rate (%)'**
+  String get stockDividendFeeRate;
+
+  /// No description provided for @stockDividendWithholding.
+  ///
+  /// In en, this message translates to:
+  /// **'Dividend withholding tax (%)'**
+  String get stockDividendWithholding;
+
+  /// No description provided for @stockNhiRate.
+  ///
+  /// In en, this message translates to:
+  /// **'NHI supplementary premium (%)'**
+  String get stockNhiRate;
+
+  /// No description provided for @stockNhiThreshold.
+  ///
+  /// In en, this message translates to:
+  /// **'NHI premium threshold'**
+  String get stockNhiThreshold;
+
+  /// No description provided for @stockReinvestDividends.
+  ///
+  /// In en, this message translates to:
+  /// **'Reinvest dividends by default'**
+  String get stockReinvestDividends;
+
+  /// No description provided for @stockDefaultMarket.
+  ///
+  /// In en, this message translates to:
+  /// **'Default market'**
+  String get stockDefaultMarket;
+
+  /// No description provided for @stockFeeSettingsSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee settings saved'**
+  String get stockFeeSettingsSaved;
+
+  /// No description provided for @stockMarketDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Default: {value}'**
+  String stockMarketDefault(String value);
+
+  /// No description provided for @stockExcludeFromTotalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Exclude this account from net worth?'**
+  String get stockExcludeFromTotalTitle;
+
+  /// No description provided for @stockExcludeFromTotalDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock value is shown separately under \"Investment value (est.)\". Keeping this account in net worth would count your cost basis as spendable money.'**
+  String get stockExcludeFromTotalDesc;
+
+  /// No description provided for @stockExcludeFromTotalYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Exclude'**
+  String get stockExcludeFromTotalYes;
+
+  /// No description provided for @stockExcludeFromTotalNo.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep'**
+  String get stockExcludeFromTotalNo;
+
+  /// No description provided for @stockLinkedTxHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This transfer was created by a stock trade.'**
+  String get stockLinkedTxHint;
+
+  /// No description provided for @stockLinkedTxEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit stock trade'**
+  String get stockLinkedTxEdit;
+
+  /// No description provided for @stockOverviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Investments'**
+  String get stockOverviewTitle;
+
+  /// No description provided for @stockDayChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get stockDayChange;
+
+  /// No description provided for @stockDefaultTxNoteBuy.
+  ///
+  /// In en, this message translates to:
+  /// **'Buy {symbol} {name} ×{shares}'**
+  String stockDefaultTxNoteBuy(String symbol, String name, String shares);
+
+  /// No description provided for @stockDefaultTxNoteSell.
+  ///
+  /// In en, this message translates to:
+  /// **'Sell {symbol} {name} ×{shares}'**
+  String stockDefaultTxNoteSell(String symbol, String name, String shares);
+
+  /// No description provided for @stockNotInvestmentAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock trades can only be recorded in Investment accounts.'**
+  String get stockNotInvestmentAccount;
+
+  /// No description provided for @stockMarketTW.
+  ///
+  /// In en, this message translates to:
+  /// **'Taiwan (TWSE)'**
+  String get stockMarketTW;
+
+  /// No description provided for @stockMarketTWO.
+  ///
+  /// In en, this message translates to:
+  /// **'Taiwan (TPEx)'**
+  String get stockMarketTWO;
+
+  /// No description provided for @stockMarketUS.
+  ///
+  /// In en, this message translates to:
+  /// **'US'**
+  String get stockMarketUS;
+
+  /// No description provided for @stockMarketHK.
+  ///
+  /// In en, this message translates to:
+  /// **'Hong Kong'**
+  String get stockMarketHK;
+
+  /// No description provided for @stockMarketJP.
+  ///
+  /// In en, this message translates to:
+  /// **'Japan'**
+  String get stockMarketJP;
+
+  /// No description provided for @stockMarketSS.
+  ///
+  /// In en, this message translates to:
+  /// **'Shanghai'**
+  String get stockMarketSS;
+
+  /// No description provided for @stockMarketSZ.
+  ///
+  /// In en, this message translates to:
+  /// **'Shenzhen'**
+  String get stockMarketSZ;
+
+  /// No description provided for @stockMarketKS.
+  ///
+  /// In en, this message translates to:
+  /// **'Korea (KOSPI)'**
+  String get stockMarketKS;
+
+  /// No description provided for @stockMarketKQ.
+  ///
+  /// In en, this message translates to:
+  /// **'Korea (KOSDAQ)'**
+  String get stockMarketKQ;
+
+  /// No description provided for @stockMarketLSE.
+  ///
+  /// In en, this message translates to:
+  /// **'London'**
+  String get stockMarketLSE;
+
+  /// No description provided for @whatsNew370StockHoldingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock holdings'**
+  String get whatsNew370StockHoldingsTitle;
+
+  /// No description provided for @whatsNew370StockHoldingsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Record stock buys and sells in an Investment account: each trade is saved as a transfer from your settlement account, and BeeCount tracks your shares, average cost and market value. With BeeCount Cloud, quotes for Taiwan, US and other markets update after each close. Market value appears in its own card on the Accounts page and isn\'t counted in net worth. Open an Investment account → Holdings to start.'**
+  String get whatsNew370StockHoldingsDesc;
+
+  /// No description provided for @stockTradeTypeCashDividendHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Record a cash dividend you received. It\'s saved as \"股利\" income into the receiving account.'**
+  String get stockTradeTypeCashDividendHint;
+
+  /// No description provided for @stockTradeTypeReinvestHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Dividend used to buy more shares. It\'s saved as \"股利\" income into this investment account and adds shares and cost.'**
+  String get stockTradeTypeReinvestHint;
+
+  /// No description provided for @stockDefaultTxNoteDividend.
+  ///
+  /// In en, this message translates to:
+  /// **'Dividend {symbol} {name} ×{shares}'**
+  String stockDefaultTxNoteDividend(String symbol, String name, String shares);
+
+  /// No description provided for @stockDefaultTxNoteReinvest.
+  ///
+  /// In en, this message translates to:
+  /// **'Dividend reinvested {symbol} {name} ×{shares}'**
+  String stockDefaultTxNoteReinvest(String symbol, String name, String shares);
+
+  /// No description provided for @stockDividendPerShare.
+  ///
+  /// In en, this message translates to:
+  /// **'Dividend per share'**
+  String get stockDividendPerShare;
+
+  /// No description provided for @stockDividendTax.
+  ///
+  /// In en, this message translates to:
+  /// **'Withholding / health insurance'**
+  String get stockDividendTax;
+
+  /// No description provided for @stockDividendGross.
+  ///
+  /// In en, this message translates to:
+  /// **'Gross'**
+  String get stockDividendGross;
+
+  /// No description provided for @stockDividendNet.
+  ///
+  /// In en, this message translates to:
+  /// **'Net received'**
+  String get stockDividendNet;
+
+  /// No description provided for @stockReceivingAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Receiving account'**
+  String get stockReceivingAccount;
+
+  /// No description provided for @stockReceivingAccountRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a receiving account.'**
+  String get stockReceivingAccountRequired;
+
+  /// No description provided for @stockPendingDividendsBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} dividends to confirm'**
+  String stockPendingDividendsBanner(int count);
+
+  /// No description provided for @stockPendingDividendsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Dividends to confirm'**
+  String get stockPendingDividendsTitle;
+
+  /// No description provided for @stockPendingDividendsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'BeeCount Cloud found these dividends from the shares you held the day before each ex-date. Confirm the amount you actually received, or choose to reinvest it.'**
+  String get stockPendingDividendsDesc;
+
+  /// No description provided for @stockPendingDividendsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No dividends waiting for confirmation.'**
+  String get stockPendingDividendsEmpty;
+
+  /// No description provided for @stockDividendConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get stockDividendConfirm;
+
+  /// No description provided for @stockDividendDismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get stockDividendDismiss;
+
+  /// No description provided for @stockDividendRestore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get stockDividendRestore;
+
+  /// No description provided for @stockDividendShowDismissed.
+  ///
+  /// In en, this message translates to:
+  /// **'Show dismissed dividends'**
+  String get stockDividendShowDismissed;
+
+  /// No description provided for @stockDividendHideDismissed.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide dismissed'**
+  String get stockDividendHideDismissed;
+
+  /// No description provided for @stockDividendDismissedToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Dividend dismissed'**
+  String get stockDividendDismissedToast;
+
+  /// No description provided for @stockDividendConfirmedToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Dividend recorded'**
+  String get stockDividendConfirmedToast;
+
+  /// No description provided for @stockDividendExDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Ex-date {date}'**
+  String stockDividendExDate(String date);
+
+  /// No description provided for @stockDividendPayDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay date {date}'**
+  String stockDividendPayDate(String date);
+
+  /// No description provided for @stockDividendRecordShares.
+  ///
+  /// In en, this message translates to:
+  /// **'{shares} shares held'**
+  String stockDividendRecordShares(String shares);
+
+  /// No description provided for @stockDividendPerShareValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} per share'**
+  String stockDividendPerShareValue(String amount);
+
+  /// No description provided for @stockDividendStockShares.
+  ///
+  /// In en, this message translates to:
+  /// **'{shares} bonus shares'**
+  String stockDividendStockShares(String shares);
+
+  /// No description provided for @stockDividendEstimateLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Gross {gross}, deductions {deductions}'**
+  String stockDividendEstimateLine(String gross, String deductions);
+
+  /// No description provided for @stockDividendConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm dividend'**
+  String get stockDividendConfirmTitle;
+
+  /// No description provided for @stockDividendModeCash.
+  ///
+  /// In en, this message translates to:
+  /// **'Receive cash'**
+  String get stockDividendModeCash;
+
+  /// No description provided for @stockDividendModeReinvest.
+  ///
+  /// In en, this message translates to:
+  /// **'Reinvest'**
+  String get stockDividendModeReinvest;
+
+  /// No description provided for @stockDividendReinvestPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Purchase price'**
+  String get stockDividendReinvestPrice;
+
+  /// No description provided for @stockDividendReinvestShares.
+  ///
+  /// In en, this message translates to:
+  /// **'Shares bought'**
+  String get stockDividendReinvestShares;
+
+  /// No description provided for @stockDividendReinvestHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Reinvested cost {amount}. It\'s saved as \"股利\" income into the investment account.'**
+  String stockDividendReinvestHint(String amount);
+
+  /// No description provided for @stockDividendReceivedAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount received ({currency})'**
+  String stockDividendReceivedAmount(String currency);
+
+  /// No description provided for @stockDividendStockSharesField.
+  ///
+  /// In en, this message translates to:
+  /// **'Bonus shares'**
+  String get stockDividendStockSharesField;
+
+  /// No description provided for @stockDividendStockSharesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'{ratio} shares per share. Enter 0 to skip.'**
+  String stockDividendStockSharesHint(String ratio);
+
+  /// No description provided for @stockDividendDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Date received'**
+  String get stockDividendDate;
+
+  /// No description provided for @stockDividendReinvestRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the shares and price for the reinvestment.'**
+  String get stockDividendReinvestRequired;
+
+  /// No description provided for @whatsNew370StockDividendsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Dividends'**
+  String get whatsNew370StockDividendsTitle;
+
+  /// No description provided for @whatsNew370StockDividendsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'After an ex-dividend date, BeeCount Cloud works out the dividend from the shares you held and asks you to confirm it. Record it as cash or reinvest it. Find it in Accounts → the Investment market value card.'**
+  String get whatsNew370StockDividendsDesc;
+
+  /// No description provided for @stockPricePrefilled.
+  ///
+  /// In en, this message translates to:
+  /// **'Filled in the latest quote ({when}). You can change it.'**
+  String stockPricePrefilled(String when);
+
+  /// No description provided for @stockSellTaxRateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tax rate {rate}'**
+  String stockSellTaxRateHint(String rate);
+
+  /// No description provided for @stockSellTaxRateHintWithKind.
+  ///
+  /// In en, this message translates to:
+  /// **'Securities transaction tax {rate} ({kind})'**
+  String stockSellTaxRateHintWithKind(String rate, String kind);
+
+  /// No description provided for @stockSecurityKindStock.
+  ///
+  /// In en, this message translates to:
+  /// **'stock'**
+  String get stockSecurityKindStock;
+
+  /// No description provided for @stockSecurityKindEtf.
+  ///
+  /// In en, this message translates to:
+  /// **'ETF'**
+  String get stockSecurityKindEtf;
+
+  /// No description provided for @stockSecurityKindBondEtf.
+  ///
+  /// In en, this message translates to:
+  /// **'bond ETF'**
+  String get stockSecurityKindBondEtf;
+
+  /// No description provided for @stockSellTaxRateStock.
+  ///
+  /// In en, this message translates to:
+  /// **'Tax on sales: stocks (%)'**
+  String get stockSellTaxRateStock;
+
+  /// No description provided for @stockEtfSellTaxRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Tax on sales: ETFs (%)'**
+  String get stockEtfSellTaxRate;
+
+  /// No description provided for @stockBondEtfSellTaxRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Tax on sales: bond ETFs (%)'**
+  String get stockBondEtfSellTaxRate;
+
+  /// No description provided for @stockSellTaxKindHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The rate is picked from the symbol: codes starting with 00 are ETFs, and ones ending in B are bond ETFs.'**
+  String get stockSellTaxKindHint;
+
+  /// No description provided for @stockPnlAfterSellCosts.
+  ///
+  /// In en, this message translates to:
+  /// **'Deduct estimated selling costs from P/L'**
+  String get stockPnlAfterSellCosts;
+
+  /// No description provided for @stockPnlAfterSellCostsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Unrealized P/L = market value − estimated fee and tax if you sold now, the same way broker apps show it.'**
+  String get stockPnlAfterSellCostsDesc;
+
+  /// No description provided for @stockNetValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Est. net proceeds'**
+  String get stockNetValue;
+
+  /// No description provided for @stockEstSellFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Est. selling fee'**
+  String get stockEstSellFee;
+
+  /// No description provided for @stockEstSellTax.
+  ///
+  /// In en, this message translates to:
+  /// **'Est. transaction tax'**
+  String get stockEstSellTax;
+
+  /// No description provided for @stockPnlAfterSellCostsNote.
+  ///
+  /// In en, this message translates to:
+  /// **'After estimated selling costs'**
+  String get stockPnlAfterSellCostsNote;
 }
 
 class _AppLocalizationsDelegate

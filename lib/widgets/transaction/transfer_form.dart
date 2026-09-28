@@ -9,6 +9,7 @@ import '../../data/db.dart';
 import '../../data/repositories/local/local_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../pages/attachment/attachment_preview_page.dart';
+import '../../pages/investment/stock_trade_editor_page.dart';
 import '../../pages/tag/widgets/tag_selector.dart';
 import '../../providers.dart';
 import '../../services/attachment_service.dart';
@@ -16,6 +17,7 @@ import '../../services/billing/post_processor.dart';
 import '../../services/currency/rate_math.dart';
 import '../../services/custom_icon_service.dart';
 import '../../services/data/tx_author_service.dart';
+import '../../services/investment/stock_trade_types.dart';
 import '../../styles/tokens.dart';
 import '../../utils/account_type_utils.dart';
 import '../../utils/amount_calculator.dart';
@@ -399,6 +401,43 @@ class TransferFormState extends ConsumerState<TransferForm>
     if (shouldSuggestFromAccount) {
       await _loadLastFromAccountForToAccount(id);
     }
+    // 選到投資理財帳戶:轉入=買入、轉出=賣出,直接導去股票交易頁,不繼續
+    // 走一般轉帳流程(這個帳戶類型的股數/報價沒辦法用一般轉帳表達)。
+    final picked = isFrom ? _fromAccount : _toAccount;
+    if (picked != null && picked.type == 'investment') {
+      await _redirectToStockTrade(account: picked, isBuy: !isFrom);
+    }
+  }
+
+  /// 買入用「轉出帳戶」當交割戶(付款方),賣出用「轉入帳戶」當交割戶
+  /// (收款方)——另一側帳戶還沒選時交回 [StockTradeEditorPage] 自己的
+  /// `_loadDefaultSettlement` 兜底。存檔成功(`pop(true)`)視同這筆轉帳已經
+  /// 完成,直接關閉整個交易編輯器;使用者取消的話把剛選的投資理財帳戶
+  /// 退回未選狀態,不留在一個沒辦法送出的轉帳表單裡。
+  Future<void> _redirectToStockTrade(
+      {required Account account, required bool isBuy}) async {
+    final settlement = isBuy ? _fromAccount : _toAccount;
+    final result = await Navigator.of(context).push<bool>(MaterialPageRoute(
+      builder: (_) => StockTradeEditorPage(
+        account: account,
+        initialTradeType: isBuy ? kStockTradeBuy : kStockTradeSell,
+        initialSettlement: settlement,
+      ),
+    ));
+    if (!mounted) return;
+    if (result == true) {
+      widget.onTransferComplete();
+      return;
+    }
+    setState(() {
+      if (isBuy) {
+        _toAccountId = null;
+        _toAccount = null;
+      } else {
+        _fromAccountId = null;
+        _fromAccount = null;
+      }
+    });
   }
 
   void _swapAccounts() {

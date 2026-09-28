@@ -114,6 +114,14 @@ class Accounts extends Table {
   /// 2026-09-13-account-hide-amount-design.md)。實際顯示與否還要跟全域
   /// `hideAmountsProvider` 做 OR:全域開著時無論這裡是什麼值都遮蔽。
   BoolColumn get hideAmount => boolean().withDefault(const Constant(false))();
+
+  /// v63 股票持股:投資理財(`investment`)帳戶的使用者自訂費用設定(手續費率/
+  /// 折扣/最低手續費/證交稅/股利手續費/預扣稅/二代健保/預設再投入/交割帳戶),
+  /// JSON 文字。對齊 BeeCount Cloud `user_account_projection.
+  /// investment_settings_json`,wire key `investmentSettings`(物件)。解析見
+  /// [InvestmentSettings](lib/models/investment_settings.dart)。null = 沒設定
+  /// 過,套各市場預設值。
+  TextColumn get investmentSettingsJson => text().nullable()();
 }
 
 /// 自动汇率本地缓存。日期键 append-only;可随时整表重建 → **不进同步**(README D2)。
@@ -444,6 +452,72 @@ class Debts extends Table {
 
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+/// v63 股票交易明細(對齊 BeeCount Cloud `stock_trade` sync entity,
+/// docs/changes/2026-09-28-stock-holdings.md)。ledger-scoped,同 [Debts]。
+///
+/// **持股不落庫**:股數/平均成本/已實現損益一律由這張表即時彙總
+/// ([HoldingsCalculator],移動平均成本法),理由同 [Debts] 不存
+/// remainingAmount——避免多條寫入路徑各自維護衍生欄位漂移。
+///
+/// 「買股票就是一筆轉帳」:buy/sell 同時會有一筆 transfer 交易(交割帳戶 ⇄
+/// 投資理財帳戶),[txSyncId] 指回那筆交易的 syncId(syncId 對 syncId 的純文字
+/// 連結,同 [Debts.originTransactionSyncId],不解析成本地 id)。兩者由
+/// [LocalRepository.createStockTrade] 一起建立、一起刪除。
+///
+/// [amount] = 以證券幣別計的現金影響(正數):buy/opening = 股數×價格+手續費,
+/// sell = 股數×價格−手續費−交易稅,cash_dividend/reinvest = 實收,
+/// stock_dividend = 0。
+class StockTrades extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get syncId => text().nullable()();
+  IntColumn get ledgerId => integer()();
+
+  /// 投資理財帳戶本地 id(不宣告 FK,同 Transactions.accountId)。
+  IntColumn get accountId => integer().nullable()();
+
+  /// 市場代碼(TW/TWO/US/HK…),見 lib/services/investment/markets.dart。
+  TextColumn get market => text()();
+  TextColumn get symbol => text()();
+  TextColumn get securityName => text().nullable()();
+
+  /// buy / sell / opening / cash_dividend / stock_dividend / reinvest,見
+  /// [kStockTradeTypes]。
+  TextColumn get tradeType => text()();
+  RealColumn get shares => real()();
+  RealColumn get price => real().nullable()();
+  RealColumn get fee => real().withDefault(const Constant(0.0))();
+  RealColumn get tax => real().withDefault(const Constant(0.0))();
+  RealColumn get amount => real().withDefault(const Constant(0.0))();
+  TextColumn get currency => text().nullable()();
+  DateTimeColumn get tradeDate => dateTime()();
+  TextColumn get txSyncId => text().nullable()();
+
+  /// Phase 2 股利明細對應的除權息事件(Cloud `security_dividend_events.id`)。
+  TextColumn get dividendEventRef => text().nullable()();
+  TextColumn get note => text().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+/// v63 股票報價本地快取(從 BeeCount Cloud `/read/securities/quotes` 拉,或非
+/// Cloud 使用者手動輸入)。可隨時整表重建 → **不進同步**,同 [ExchangeRates]。
+/// [session]:'close' 收盤價 / 'intraday' 盤中延遲報價 / 'manual' 手動輸入。
+class SecurityQuotes extends Table {
+  TextColumn get market => text()();
+  TextColumn get symbol => text()();
+  TextColumn get name => text().nullable()();
+  TextColumn get currency => text().nullable()();
+  RealColumn get price => real().nullable()();
+  RealColumn get prevClose => real().nullable()();
+  DateTimeColumn get quoteTime => dateTime().nullable()();
+  TextColumn get session => text().nullable()();
+  TextColumn get source => text().nullable()();
+  DateTimeColumn get fetchedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {market, symbol};
 }
 
 /// v49 分期付款(§2.12.1 MOZE_FEATURE_GAP_SD.md,對齐 BeeCount Cloud
@@ -1209,6 +1283,8 @@ class RewardChoiceCaches extends Table {
   RewardChoiceCaches,
   InstallmentPlans,
   InstallmentPeriods,
+  StockTrades,
+  SecurityQuotes,
 ])
 class BeeDatabase extends _$BeeDatabase {
   BeeDatabase() : super(_openConnection());
@@ -1219,7 +1295,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 62; // v62: 回填轉帳 native_amount 快照(跨幣別≈金額對不上）
+  int get schemaVersion => 63; // v63: 股票持股(stock_trades/security_quotes/accounts.investment_settings_json)
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2580,6 +2656,20 @@ class BeeDatabase extends _$BeeDatabase {
             ''');
             logger.info('DBMigration', 'v62 迁移完成');
           }
+          if (from < 63) {
+            // v63:股票持股(docs/changes/2026-09-28-stock-holdings.md)。全部是
+            // 新表/nullable 新欄位,不需要回填。
+            logger.info('DBMigration', '开始迁移到 v63: 股票持股');
+            await _addColumnIfMissing('accounts', 'investment_settings_json',
+                'ALTER TABLE accounts ADD COLUMN investment_settings_json TEXT;');
+            await _createTableIfMissing(migrator, 'stock_trades', stockTrades);
+            await _createTableIfMissing(
+                migrator, 'security_quotes', securityQuotes);
+            await customStatement(
+                'CREATE INDEX IF NOT EXISTS idx_stock_trades_account '
+                'ON stock_trades(account_id, market, symbol);');
+            logger.info('DBMigration', 'v63 迁移完成');
+          }
         },
         onCreate: (m) async {
           await m.createAll();
@@ -2609,6 +2699,10 @@ class BeeDatabase extends _$BeeDatabase {
           await customStatement(
               'CREATE UNIQUE INDEX IF NOT EXISTS idx_project_category_budgets_unique '
               'ON project_category_budgets(project_id, category_id);');
+          // v63 的索引只在 onUpgrade 建,全新安裝補建(同上面 v48/v49 的理由)。
+          await customStatement(
+              'CREATE INDEX IF NOT EXISTS idx_stock_trades_account '
+              'ON stock_trades(account_id, market, symbol);');
         },
       );
 

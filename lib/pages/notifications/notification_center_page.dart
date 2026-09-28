@@ -12,6 +12,7 @@ import '../../widgets/ui/ui.dart';
 import '../account/account_detail_page.dart';
 import '../debt/debt_list_page.dart';
 import '../debt/debt_repayment_page.dart';
+import '../investment/pending_dividends_page.dart';
 import '../transaction/recurring_rule_list_page.dart';
 
 /// [_handleTap] 的 payload 解析結果。跟 Navigator 完全解耦,方便直接用真的
@@ -22,6 +23,7 @@ class NotificationJumpTarget {
     this.hasRuleTarget = false,
     this.debt,
     this.hasCounterpartyTarget = false,
+    this.hasPendingDividendsTarget = false,
     this.notFound = false,
     this.ledgerNotSynced = false,
   });
@@ -52,7 +54,13 @@ class NotificationJumpTarget {
   static const counterparty =
       NotificationJumpTarget._(hasCounterpartyTarget: true);
 
+  /// 股利待確認(category='dividend',股票持股 Phase 2)——payload 帶
+  /// pendingDividendId,導去待確認股利頁。
+  static const pendingDividends =
+      NotificationJumpTarget._(hasPendingDividendsTarget: true);
+
   final Account? account;
+  final bool hasPendingDividendsTarget;
   final bool hasRuleTarget;
   final DebtWithStatus? debt;
   final bool hasCounterpartyTarget;
@@ -76,6 +84,9 @@ Future<NotificationJumpTarget> resolveNotificationJumpTarget(
   required void Function(int ledgerId) onSwitchLedger,
 }) async {
   if (payload == null) return NotificationJumpTarget.none;
+  // 股利待確認的 payload 也帶了 accountId(投資理財帳戶),要排在前面。
+  if (payload['pendingDividendId'] != null)
+    return NotificationJumpTarget.pendingDividends;
   final accountSyncId = payload['accountId'] as String?;
   final recurringRuleSyncId = payload['recurringRuleId'] as String?;
   final debtSyncId = payload['debtId'] as String?;
@@ -237,7 +248,12 @@ class _NotificationCenterPageState
     );
     if (!mounted) return;
 
-    if (target.account != null) {
+    if (target.hasPendingDividendsTarget) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const PendingDividendsPage()),
+      );
+    } else if (target.account != null) {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -288,6 +304,8 @@ class _NotificationTile extends StatelessWidget {
         return Icons.card_giftcard;
       case 'debt_unsettled':
         return Icons.groups_outlined;
+      case 'dividend':
+        return Icons.payments_outlined;
       default:
         return Icons.info_outline;
     }

@@ -252,6 +252,34 @@ class AssetTrendViewNotifier extends StateNotifier<AssetTrendView> {
   }
 }
 
+/// 资产页可折叠区块的折叠状态（true = 已折叠），按区块 key 分别持久化。
+/// 目前用到的 key：`netWorthChart`（净值走势/资产构成图表）、
+/// `investmentValue`（投资市值卡）。预设展开。
+final sectionCollapsedProvider =
+    StateNotifierProvider.family<SectionCollapsedNotifier, bool, String>(
+        (ref, key) => SectionCollapsedNotifier(key));
+
+class SectionCollapsedNotifier extends StateNotifier<bool> {
+  final String _key;
+  SectionCollapsedNotifier(String key)
+      : _key = 'sectionCollapsed.$key',
+        super(false) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getBool(_key);
+    if (saved != null && mounted) state = saved;
+  }
+
+  Future<void> toggle() async {
+    state = !state;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_key, state);
+  }
+}
+
 /// 类别图示风格：Material（现行）或 Cute（新的手绘可爱线稿主题）。
 /// 现在会推云端（跨装置 + web 同步），`select()` 比照 reduceMotionProvider 的
 /// 写法接 echo 抑制（`isApplyingFromServer` + `beginThemePush`），下行 apply

@@ -72,6 +72,9 @@ extension SyncEngineApplyExt on SyncEngine {
       case 'debt':
         await _applyDebtChange(change);
         return true;
+      case 'stock_trade':
+        await _applyStockTradeChange(change);
+        return true;
       case 'project':
         await _applyProjectChange(change);
         return true;
@@ -676,6 +679,14 @@ extension SyncEngineApplyExt on SyncEngine {
         ? (payload['hideAmount'] as bool? ?? false)
         : null;
 
+    // v63 股票持股:投資理財帳戶費用設定(物件)。containsKey 保護,缺鍵不動
+    // 本地;null/非物件 → 清空。
+    final hasInvestmentSettingsKey = payload.containsKey('investmentSettings');
+    final investmentSettingsRaw = payload['investmentSettings'];
+    final investmentSettingsJson = investmentSettingsRaw is Map
+        ? jsonEncode(investmentSettingsRaw)
+        : null;
+
     // 主帳戶(合併帳單,§2.9 Phase 4):跟 hidden 同款 containsKey 保护 ——
     // 老版本 App / 早于本次改动落的历史 sync_change 没有这个键,不能把
     // d.Value(null) 无条件写进去抹掉本地已经建好的挂靠关系。本端 App 自己
@@ -805,6 +816,9 @@ extension SyncEngineApplyExt on SyncEngine {
             : const d.Value.absent(),
         hideAmount:
             hideAmount == null ? const d.Value.absent() : d.Value(hideAmount),
+        investmentSettingsJson: hasInvestmentSettingsKey
+            ? d.Value(investmentSettingsJson)
+            : const d.Value.absent(),
       ));
       logger.debug('SyncEngine', 'pull: 更新账户 $syncId');
     } else {
@@ -831,6 +845,7 @@ extension SyncEngineApplyExt on SyncEngine {
               autoPayEnabled: d.Value(autoPayEnabled ?? false),
               autoPayFromAccountId: d.Value(autoPayFromAccountId),
               hideAmount: d.Value(hideAmount ?? false),
+              investmentSettingsJson: d.Value(investmentSettingsJson),
             ),
           );
       activePullCache?.putAccount(syncId, localId);
@@ -1336,6 +1351,78 @@ extension SyncEngineApplyExt on SyncEngine {
             syncId: d.Value(syncId),
           ));
       logger.debug('SyncEngine', 'pull: 新增欠款 $syncId');
+    }
+  }
+
+  /// 應用股票交易明細(v63)变更。对齐 [_applyDebtChange]:按 syncId upsert,
+  /// ledger 用 payload.ledgerSyncId(App push 才帶)或 change.ledgerId 解析。
+  /// accountId 是投資理財帳戶 syncId,解析不到(帳戶還沒拉下來)時留 null,
+  /// 下次該帳戶的 change 到了也不會自動補——但 account 是 user-global、pull
+  /// 時一定比 ledger 內的明細先 apply,正常流程不會遇到。txId 是 syncId 對
+  /// syncId 的純文字連結,不解析(同 Debts.originTransactionSyncId)。
+  Future<void> _applyStockTradeChange(BeeCountCloudSyncChange change) async {
+    final syncId = change.entitySyncId;
+
+    if (change.action == 'delete') {
+      final existing = await (db.select(db.stockTrades)
+            ..where((t) => t.syncId.equals(syncId)))
+          .getSingleOrNull();
+      if (existing != null) {
+        await (db.delete(db.stockTrades)
+              ..where((t) => t.id.equals(existing.id)))
+            .go();
+        logger.debug('SyncEngine', 'pull: 删除股票明細 $syncId');
+      }
+      return;
+    }
+
+    final payload = change.payload!;
+    final ledgerSyncId = (payload['ledgerSyncId'] as String?) ??
+        (change.ledgerId.isEmpty ? null : change.ledgerId);
+    final localLedgerId = await _resolveLedgerIdBySyncId(ledgerSyncId);
+    if (localLedgerId == null) {
+      logger.info('SyncEngine',
+          'pull: 股票明細 $syncId 的 ledgerSyncId=$ledgerSyncId 本地未就绪,跳过');
+      return;
+    }
+    final localAccountId =
+        await _resolveAccountIdBySyncId(payload['accountId'] as String?);
+    double numOr(String key, double fallback) =>
+        (payload[key] as num?)?.toDouble() ?? fallback;
+    final tradeDateStr = payload['tradeDate'] as String?;
+    final tradeDate = (tradeDateStr != null ? DateTime.tryParse(tradeDateStr) : null) ??
+        DateTime.now();
+    final txId = payload['txId'] as String?;
+    final companion = StockTradesCompanion(
+      ledgerId: d.Value(localLedgerId),
+      accountId: d.Value(localAccountId),
+      market: d.Value(((payload['market'] as String?) ?? '').toUpperCase()),
+      symbol: d.Value(((payload['symbol'] as String?) ?? '').toUpperCase()),
+      securityName: d.Value(payload['securityName'] as String?),
+      tradeType: d.Value((payload['tradeType'] as String?) ?? 'buy'),
+      shares: d.Value(numOr('shares', 0)),
+      price: d.Value((payload['price'] as num?)?.toDouble()),
+      fee: d.Value(numOr('fee', 0)),
+      tax: d.Value(numOr('tax', 0)),
+      amount: d.Value(numOr('amount', 0)),
+      currency: d.Value(payload['currency'] as String?),
+      tradeDate: d.Value(tradeDate),
+      txSyncId: d.Value(txId == null || txId.isEmpty ? null : txId),
+      dividendEventRef: d.Value(payload['dividendEventRef'] as String?),
+      note: d.Value(payload['note'] as String?),
+      updatedAt: d.Value(DateTime.now()),
+    );
+
+    final existing = await (db.select(db.stockTrades)
+          ..where((t) => t.syncId.equals(syncId)))
+        .getSingleOrNull();
+    if (existing != null) {
+      await (db.update(db.stockTrades)..where((t) => t.id.equals(existing.id)))
+          .write(companion);
+      logger.debug('SyncEngine', 'pull: 更新股票明細 $syncId');
+    } else {
+      await db.into(db.stockTrades).insert(companion.copyWith(syncId: d.Value(syncId)));
+      logger.debug('SyncEngine', 'pull: 新增股票明細 $syncId');
     }
   }
 

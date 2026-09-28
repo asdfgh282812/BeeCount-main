@@ -57,6 +57,9 @@ export 'smart_billing_providers.dart';
 export 'debt_providers.dart';
 export 'installment_providers.dart';
 
+// 股票持股相关
+export 'securities_providers.dart';
+
 // 「建議」分頁排序演算法相关
 export 'suggestion_providers.dart';
 

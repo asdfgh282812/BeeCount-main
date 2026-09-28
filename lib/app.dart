@@ -897,6 +897,10 @@ class _BeeAppState extends ConsumerState<BeeApp>
       // 回到前景時重新評估信用卡①②③通知(偵測到已繳清就取消剩餘排程),見
       // credit_card_reminder_reevaluation.dart 開頭 docstring。
       _reevaluateCreditCardReminders();
+      // v63 股票持股:回到前景時更新持有標的報價(沒持股/沒登入 BeeCount
+      // Cloud 時 no-op;server 端盤中 15 分鐘快取,1 分鐘內重複回前景不重打)。
+      ref.read(quoteRefreshProvider.notifier).refresh();
+      ref.read(pendingDividendsProvider.notifier).refresh();
       // 清除 iOS App 圖示右上角通知徽章(小紅點)——回到前景視為使用者已經
       // 看過所有待處理通知,清零後系統徽章才會消失(Android 無此問題,
       // clearAppIconBadge 在非 iOS 平台是 no-op)。

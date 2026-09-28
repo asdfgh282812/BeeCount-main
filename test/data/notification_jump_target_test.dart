@@ -289,4 +289,15 @@ void main() {
     expect(switchedTo, 1);
     expect(target.hasCounterpartyTarget, isTrue);
   });
+
+  test('股利待確認(pendingDividendId)優先於 accountId → 待確認股利頁', () async {
+    final target = await resolveNotificationJumpTarget(
+      repo,
+      {'pendingDividendId': 3, 'accountId': 'account-sync-1', 'ledgerId': 'ledger-sync-1'},
+      currentLedgerId: 1,
+      onSwitchLedger: (_) {},
+    );
+    expect(target.hasPendingDividendsTarget, isTrue);
+    expect(target.account, isNull);
+  });
 }

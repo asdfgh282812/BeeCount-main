@@ -17,6 +17,17 @@ Cloud 端的同步架構總覽在 `../BeeCount-Cloud/docs/SYNC_ARCHITECTURE.md`�
 
 ## 1. 現況邊界：雲端支援的 14 種 entity，App 只做到 8 種
 
+> **2026-09-28 補注**:新增 `stock_trade`(股票交易明細,ledger-scoped),**App 與
+> Cloud 兩邊都支援**(App v63 `StockTrades` 表;Cloud `read_stock_trade_projection`)。
+> account 另外多了 `investmentSettings` 物件欄位。wire key 與換算規則見
+> `docs/changes/2026-09-28-stock-holdings.md` 與 Cloud `docs/STOCK_HOLDINGS_SD.md`。
+> 本節下方的 entity 清單/數量沒有同步更新(`debt`、`installment_*`、`project`
+> 等也早已在 App 實作),以程式碼為準。
+> 同日 Phase 2 股利:wire 格式沒變(`cash_dividend`/`reinvest` 類型與
+> `dividendEventRef` 在 Phase 1 就有);「待確認股利」是 Cloud 專屬狀態
+> (`pending_dividends`),**不走 sync**,App 透過 REST API 讀寫,見
+> `docs/changes/2026-09-28-stock-dividends.md`。
+
 Cloud 端目前認得的 `entity_type`（`BeeCount-Cloud/src/sync_applier.py:70-74`，
 `INDIVIDUAL_ENTITY_TYPES`）：
 

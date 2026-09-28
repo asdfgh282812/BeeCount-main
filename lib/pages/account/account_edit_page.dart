@@ -560,6 +560,13 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     setState(() {
       final oldType = _selectedType;
       _selectedType = type;
+      // v63 股票持股:新建的投資理財帳戶預設「不納入總餘額」——股票不是可以
+      // 馬上花的錢,市值另外顯示在帳戶頁「投資市值(預估)」卡,不混進淨資產
+      // (docs/changes/2026-09-28-stock-holdings.md)。只影響新建;編輯既有帳戶
+      // 不動使用者原本的設定(開關在帳戶詳情頁「帳戶資訊」分頁)。
+      if (widget.account == null) {
+        _includeInTotal = type != 'investment';
+      }
       // 信用卡/主帳戶(群組)共用同一組额度/帳單日/還款日欄位,兩者互轉不清空
       // (資料本來就適用),只有離開這兩種類型才清空。
       final hadBillingFields =

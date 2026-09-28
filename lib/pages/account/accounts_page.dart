@@ -33,6 +33,7 @@ import 'account_edit_page.dart';
 import 'account_detail_page.dart';
 import 'account_overview_chart_page.dart';
 import 'pending_account_transactions_page.dart';
+import '../investment/investment_market_value_card.dart';
 
 /// 帳戶總覽頁「目前展開的是哪一列」——暫態 UI 狀態,不持久化。每個
 /// [_SwipeActionRow] 讀寫它,展開新列時自動收合舊的一列(帳戶總覽頁滑動
@@ -312,7 +313,30 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     // 进页静默刷新汇率:内部自带多币种总闸(D6)+ 24h 节流,单币种零请求。
     WidgetsBinding.instance.addPostFrameCallback((_) {
       refreshExchangeRatesFromUi(ref);
+      // v63 股票持股:進頁順便更新持有標的的報價(沒持股/沒登入 Cloud 時
+      // no-op,1 分鐘內重複進頁不重打)。
+      ref.read(quoteRefreshProvider.notifier).refresh();
+      ref.read(pendingDividendsProvider.notifier).refresh();
     });
+  }
+
+  /// v63 股票持股:有持股的投資理財帳戶在列表上以「持股市值」取代交易累計
+  /// 的成本餘額(帳戶幣別計;任何一檔缺報價/缺匯率時退回原本餘額,見
+  /// [investmentAccountMarketValuesProvider])。只影響帳戶列與分組小計,不
+  /// 影響淨資產卡(淨資產由 repository 依 includeInTotal 另外算)。
+  Map<int, ({double balance, double expense, double income})>?
+      _withInvestmentValues(
+    Map<int, ({double balance, double expense, double income})>? stats,
+    Map<int, double> marketValues,
+  ) {
+    if (stats == null || marketValues.isEmpty) return stats;
+    final out =
+        Map<int, ({double balance, double expense, double income})>.of(stats);
+    marketValues.forEach((id, mv) {
+      final s = stats[id];
+      out[id] = (balance: mv, expense: s?.expense ?? 0, income: s?.income ?? 0);
+    });
+    return out;
   }
 
   /// 按「展示類型」分組(而不是原始 account.type)——主帳戶(合併帳單分組,
@@ -449,6 +473,10 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     final accountFeatureAsync = ref.watch(accountFeatureEnabledProvider);
     final primaryColor = ref.watch(primaryColorProvider);
     final allStatsAsync = ref.watch(allAccountStatsProvider);
+    final allStats = _withInvestmentValues(
+      allStatsAsync.valueOrNull,
+      ref.watch(investmentAccountMarketValuesProvider),
+    );
     final netWorthByCurrencyAsync =
         ref.watch(netWorthBreakdownByCurrencyProvider);
 
@@ -562,6 +590,10 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                         primaryColor,
                       ),
 
+                      // 0.5 投資市值(預估)——股票不計入淨資產,另外顯示
+                      // (v63,沒有持股時不渲染)。
+                      const InvestmentMarketValueCard(),
+
                       // 1.5 待確認帳戶入口(v40)——只有帳本裡存在
                       // needsAccountAssignment 的交易時才顯示,點擊進
                       // PendingAccountTransactionsPage 逐筆補選帳戶。
@@ -599,7 +631,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                         iconColor: BeeTokens.incomeColor(context, ref),
                         typeOrder: assetTypeOrder,
                         groups: groups,
-                        allStats: allStatsAsync.valueOrNull,
+                        allStats: allStats,
                         primaryColor: primaryColor,
                         ledgerId: ledgerId,
                       ),
@@ -613,7 +645,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                         iconColor: BeeTokens.expenseColor(context, ref),
                         typeOrder: liabilityTypeOrder,
                         groups: groups,
-                        allStats: allStatsAsync.valueOrNull,
+                        allStats: allStats,
                         primaryColor: primaryColor,
                         ledgerId: ledgerId,
                       ),
@@ -630,7 +662,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                           type: type,
                           accounts: groupList,
                           primaryColor: primaryColor,
-                          allStats: allStatsAsync.valueOrNull,
+                          allStats: allStats,
                           editingOrder: _editingOrder,
                           onReorderBlocks: (blocks, oldIndex, newIndex) =>
                               _onReorderBlocks(
@@ -687,7 +719,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                       // 分区头小计与净资产卡差额对账)
                       _HiddenAccountsSection(
                         accounts: accounts.where((a) => a.hidden).toList(),
-                        allStats: allStatsAsync.valueOrNull,
+                        allStats: allStats,
                         primaryColor: primaryColor,
                         onTap: (account) =>
                             _viewAccountDetail(context, ref, account),
@@ -768,31 +800,33 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
             final view = showComposition
                 ? ref.watch(assetTrendViewProvider)
                 : AssetTrendView.trend;
+            final collapsed =
+                ref.watch(sectionCollapsedProvider('netWorthChart'));
             return Column(
               children: [
-                if (showComposition)
+                _chartSectionHeader(context, ref,
+                    collapsed: collapsed,
+                    view: view,
+                    showComposition: showComposition,
+                    primaryColor: primaryColor),
+                if (!collapsed)
                   Padding(
-                    padding: EdgeInsets.only(top: 10.0.scaled(context, ref)),
-                    child: _trendCompositionToggle(
-                        context, ref, view, primaryColor),
+                    padding: EdgeInsets.all(12.0.scaled(context, ref)),
+                    child: view == AssetTrendView.composition
+                        ? effectiveCompositionAsync.when(
+                            skipLoadingOnReload: true,
+                            data: (data) => AssetCompositionChart(
+                                data: data, embedded: true),
+                            loading: () => SizedBox(
+                              height: 180.0.scaled(context, ref),
+                              child: const Center(
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2)),
+                            ),
+                            error: (_, __) => const SizedBox.shrink(),
+                          )
+                        : _buildNetWorthChartInline(context, ref),
                   ),
-                Padding(
-                  padding: EdgeInsets.all(12.0.scaled(context, ref)),
-                  child: view == AssetTrendView.composition
-                      ? effectiveCompositionAsync.when(
-                          skipLoadingOnReload: true,
-                          data: (data) =>
-                              AssetCompositionChart(data: data, embedded: true),
-                          loading: () => SizedBox(
-                            height: 180.0.scaled(context, ref),
-                            child: const Center(
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2)),
-                          ),
-                          error: (_, __) => const SizedBox.shrink(),
-                        )
-                      : _buildNetWorthChartInline(context, ref),
-                ),
               ],
             );
           }),
@@ -984,6 +1018,86 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     return SizedBox(
       height: 220.0.scaled(context, ref),
       child: const OverviewComboChart(),
+    );
+  }
+
+  /// 图表区标题列：展开时是「走势 / 构成」切换 + 右侧收合箭头；折叠后只剩
+  /// 目前视图名称 + 展开箭头（整列可点）。折叠状态持久化
+  /// （`sectionCollapsedProvider('netWorthChart')`）。
+  Widget _chartSectionHeader(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool collapsed,
+    required AssetTrendView view,
+    required bool showComposition,
+    required Color primaryColor,
+  }) {
+    final l10n = AppLocalizations.of(context);
+    void toggle() =>
+        ref.read(sectionCollapsedProvider('netWorthChart').notifier).toggle();
+    final arrow = Icon(
+      collapsed ? Icons.expand_more : Icons.expand_less,
+      size: 20,
+      color: BeeTokens.iconTertiary(context),
+    );
+    if (collapsed) {
+      return InkWell(
+        onTap: toggle,
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+              horizontal: 12.0.scaled(context, ref),
+              vertical: 10.0.scaled(context, ref)),
+          child: Row(
+            children: [
+              Icon(Icons.show_chart,
+                  size: 16, color: BeeTokens.iconSecondary(context)),
+              const SizedBox(width: 6),
+              Text(
+                view == AssetTrendView.composition
+                    ? l10n.assetComposition
+                    : l10n.netWorthTrendTitle,
+                style: TextStyle(
+                    fontSize: 13, color: BeeTokens.textSecondary(context)),
+              ),
+              const Spacer(),
+              arrow,
+            ],
+          ),
+        ),
+      );
+    }
+    return Padding(
+      padding: EdgeInsets.only(
+          top: 10.0.scaled(context, ref),
+          left: 12.0.scaled(context, ref),
+          right: 4.0.scaled(context, ref)),
+      child: Row(
+        children: [
+          // 左右留同寬占位，讓切換膠囊維持置中
+          const SizedBox(width: 36),
+          Expanded(
+            child: showComposition
+                ? _trendCompositionToggle(context, ref, view, primaryColor)
+                : Center(
+                    child: Text(
+                      l10n.netWorthTrendTitle,
+                      style: TextStyle(
+                          fontSize: 13,
+                          color: BeeTokens.textSecondary(context)),
+                    ),
+                  ),
+          ),
+          SizedBox(
+            width: 36,
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
+              onPressed: toggle,
+              icon: arrow,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -3564,7 +3678,6 @@ class _AccountCard extends ConsumerWidget {
     return const SizedBox.shrink();
   }
 }
-
 
 /// 紧凑默认账户选择行
 class _CompactDefaultAccount extends ConsumerWidget {

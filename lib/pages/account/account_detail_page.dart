@@ -26,6 +26,8 @@ import 'card_reward_detail_page.dart';
 import 'card_reward_rule_list_page.dart';
 import 'credit_card_group_payment_page.dart';
 import 'general_account_period_view.dart';
+import '../investment/investment_holdings_view.dart';
+import '../investment/investment_settings_page.dart';
 
 // ============================================
 // Providers
@@ -221,10 +223,14 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
   /// 標題下拉(切換同一主帳戶底下的其它子帳戶)是否展開。
   bool _siblingMenuOpen = false;
 
+  /// v63 股票持股:投資理財帳戶多一個「持股」分頁(排第一個)。帳戶類型在
+  /// 這一頁的生命週期內不會變(改類型要走編輯頁,存檔後會 pop 回上一頁)。
+  bool get _isInvestment => widget.account.type == 'investment';
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: _isInvestment ? 3 : 2, vsync: this);
   }
 
   @override
@@ -398,6 +404,7 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
                         unselectedLabelColor: BeeTokens.textSecondary(context),
                         indicatorColor: ref.watch(primaryColorProvider),
                         tabs: [
+                          if (_isInvestment) Tab(text: l10n.stockHoldingsTab),
                           Tab(text: l10n.accountDetailTabTransactions),
                           Tab(text: l10n.accountDetailTabInfo),
                         ],
@@ -407,6 +414,8 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
                       child: TabBarView(
                         controller: _tabController,
                         children: [
+                          if (_isInvestment)
+                            InvestmentHoldingsView(account: _liveAccount(account)),
                           _buildTransactionsTab(
                               context, account, children, l10n),
                           _buildInfoTab(context, account, children, l10n),
@@ -637,6 +646,25 @@ class _AccountDetailPageState extends ConsumerState<AccountDetailPage>
           SizedBox(height: 8.0.scaled(context, ref)),
         ],
         _buildInfoFieldsCard(context, account, children, l10n),
+        if (account.type == 'investment') ...[
+          SizedBox(height: 8.0.scaled(context, ref)),
+          SectionCard(
+            padding: EdgeInsets.zero,
+            child: ListTile(
+              leading: Icon(Icons.tune, color: BeeTokens.iconSecondary(context)),
+              title: Text(l10n.stockFeeSettings,
+                  style: TextStyle(color: BeeTokens.textPrimary(context))),
+              subtitle: Text(l10n.stockFeeSettingsDesc,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: BeeTokens.textSecondary(context))),
+              trailing: Icon(Icons.chevron_right, color: BeeTokens.iconTertiary(context)),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => InvestmentSettingsPage(account: _liveAccount(account)),
+              )),
+            ),
+          ),
+        ],
       ],
     );
   }

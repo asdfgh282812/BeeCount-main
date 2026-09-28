@@ -191,7 +191,20 @@ class EntitySerializer {
       // 帳戶頁面單帳戶金額隱藏,跟 hidden 同款無條件 bool 發送(見
       // docs/superpowers/specs/2026-09-13-account-hide-amount-design.md)。
       'hideAmount': account.hideAmount,
+      // v63 股票持股:投資理財帳戶費用設定(物件)。本地欄位 null(從沒設定過)
+      // 時不帶 key,server merge 缺鍵保留;設定過後恆發,清空時發 {}。
+      if (account.investmentSettingsJson != null)
+        'investmentSettings': _decodeJsonObject(account.investmentSettingsJson),
     };
+  }
+
+  static Map<String, dynamic> _decodeJsonObject(String? raw) {
+    if (raw == null || raw.isEmpty) return <String, dynamic>{};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) return decoded;
+    } catch (_) {}
+    return <String, dynamic>{};
   }
 
   // ==================== ExchangeRateOverride ====================
@@ -420,6 +433,40 @@ class EntitySerializer {
           debt.originTransactionSyncId!.isNotEmpty)
         'originTxId': debt.originTransactionSyncId,
       'excludedFromTotal': debt.excludedFromTotal,
+    };
+  }
+
+  // ==================== StockTrade ====================
+
+  /// 股票交易明細(v63,對齊 BeeCount Cloud `stock_trade` sync entity,
+  /// `sync_applier.py::_LEDGER_MERGE_SPECS["stock_trade"]`——改欄位前先去那邊
+  /// 核對 key 名,一字之差整個欄位會靜默同步失敗)。ledger-scope,全量恆發
+  /// (同 [serializeDebt])。`txId`/`note`/`securityName` 恆發,讓清空能同步。
+  static Map<String, dynamic> serializeStockTrade(
+    StockTrade trade, {
+    String? ledgerSyncId,
+    String? accountSyncId,
+  }) {
+    return {
+      'syncId': trade.syncId,
+      if (ledgerSyncId != null && ledgerSyncId.isNotEmpty)
+        'ledgerSyncId': ledgerSyncId,
+      if (accountSyncId != null && accountSyncId.isNotEmpty)
+        'accountId': accountSyncId,
+      'market': trade.market,
+      'symbol': trade.symbol,
+      'securityName': trade.securityName,
+      'tradeType': trade.tradeType,
+      'shares': trade.shares,
+      'price': trade.price,
+      'fee': trade.fee,
+      'tax': trade.tax,
+      'amount': trade.amount,
+      'currency': trade.currency,
+      'tradeDate': trade.tradeDate.toUtc().toIso8601String(),
+      'txId': trade.txSyncId,
+      'dividendEventRef': trade.dividendEventRef,
+      'note': trade.note,
     };
   }
 

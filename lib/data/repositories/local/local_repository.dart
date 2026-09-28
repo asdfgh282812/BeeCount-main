@@ -47,6 +47,13 @@ import 'local_project_repository.dart';
 import 'local_reward_choice_cache_repository.dart';
 import '../installment_repository.dart';
 import 'local_installment_repository.dart';
+import '../stock_trade_repository.dart';
+import 'local_stock_trade_repository.dart';
+import '../../../models/investment_settings.dart';
+import '../../../services/investment/holdings_calculator.dart';
+import '../../../services/investment/markets.dart';
+import '../../../services/investment/stock_trade_tx_mapper.dart';
+import '../../../services/investment/stock_trade_types.dart';
 
 /// LocalRepository 本地数据库实现
 /// 基于 Drift 本地数据库实现所有 Repository 接口
@@ -79,6 +86,7 @@ class LocalRepository extends BaseRepository {
   late final LocalProjectRepository _projectRepo;
   late final LocalRewardChoiceCacheRepository _rewardChoiceCacheRepo;
   late final LocalInstallmentRepository _installmentRepo;
+  late final LocalStockTradeRepository _stockTradeRepo;
 
   LocalRepository(this.db, {this.changeTracker}) {
     _ledgerRepo = LocalLedgerRepository(db);
@@ -98,6 +106,7 @@ class LocalRepository extends BaseRepository {
     _projectRepo = LocalProjectRepository(db);
     _rewardChoiceCacheRepo = LocalRewardChoiceCacheRepository(db);
     _installmentRepo = LocalInstallmentRepository(db);
+    _stockTradeRepo = LocalStockTradeRepository(db);
   }
 
   // ============================================
@@ -181,6 +190,7 @@ class LocalRepository extends BaseRepository {
   @override
   Future<void> deleteLedger(int id) async {
     if (changeTracker == null) {
+      await (db.delete(db.stockTrades)..where((t) => t.ledgerId.equals(id))).go();
       await _ledgerRepo.deleteLedger(id);
       return;
     }
@@ -225,8 +235,26 @@ class LocalRepository extends BaseRepository {
       final installmentPlansInLedger = await (db.select(db.installmentPlans)
             ..where((t) => t.ledgerId.equals(id)))
           .get();
+      // 股票交易明細(v63)同 debts,ledger-scoped,一并清掉 + 登记。
+      final stockTradesInLedger = await (db.select(db.stockTrades)
+            ..where((t) => t.ledgerId.equals(id)))
+          .get();
 
       await _ledgerRepo.deleteLedger(id);
+      if (stockTradesInLedger.isNotEmpty) {
+        await (db.delete(db.stockTrades)..where((t) => t.ledgerId.equals(id)))
+            .go();
+      }
+      for (final trade in stockTradesInLedger) {
+        if (trade.syncId == null) continue;
+        await changeTracker!.recordLedgerChange(
+          entityType: 'stock_trade',
+          entityId: trade.id,
+          entitySyncId: trade.syncId!,
+          ledgerId: id,
+          action: 'delete',
+        );
+      }
       // 顺便把残留的 budgets 一起清,见上面注释。
       if (budgets.isNotEmpty) {
         await (db.delete(db.budgets)..where((b) => b.ledgerId.equals(id))).go();
@@ -779,6 +807,15 @@ class LocalRepository extends BaseRepository {
       if (relatedDebt != null &&
           !(await _debtRepo.hasRepayments(relatedDebt.id))) {
         await deleteDebt(relatedDebt.id);
+      }
+    }
+
+    // v63 股票持股:綁著這筆轉帳的股票明細一併刪除——現金流動沒了,股數卻
+    // 還留著,持股就會跟帳戶餘額對不上。同 BeeCount Cloud
+    // `_cascade_delete_linked_stock_trades`。
+    if (tx?.syncId != null) {
+      for (final trade in await _stockTradeRepo.getByTxSyncId(tx!.syncId!)) {
+        await _deleteStockTradeRow(trade);
       }
     }
   }
@@ -5114,4 +5151,493 @@ class LocalRepository extends BaseRepository {
       );
     }
   }
+
+  // ============================================
+  // v63 股票持股(docs/changes/2026-09-28-stock-holdings.md)
+  // ============================================
+
+  static HoldingTrade _holdingTradeOf(StockTrade t) => HoldingTrade(
+        syncId: t.syncId ?? 'local_${t.id}',
+        accountKey: t.accountId?.toString(),
+        market: t.market,
+        symbol: t.symbol,
+        tradeType: t.tradeType,
+        shares: t.shares,
+        price: t.price,
+        fee: t.fee,
+        tax: t.tax,
+        amount: t.amount,
+        tradeDateKey: HoldingTrade.dateKey(t.tradeDate),
+        securityName: t.securityName,
+        currency: t.currency,
+      );
+
+  @override
+  Stream<List<StockTrade>> watchAllStockTrades() => _stockTradeRepo.watchAll();
+
+  @override
+  Future<List<StockTrade>> getAllStockTrades() => _stockTradeRepo.getAll();
+
+  @override
+  Future<List<StockTrade>> getStockTradesForAccount(int accountId) =>
+      _stockTradeRepo.getForAccount(accountId);
+
+  @override
+  Future<StockTrade?> getStockTrade(int id) => _stockTradeRepo.getById(id);
+
+  @override
+  Future<StockTrade?> getStockTradeByTxSyncId(String txSyncId) async {
+    final rows = await _stockTradeRepo.getByTxSyncId(txSyncId);
+    return rows.isEmpty ? null : rows.first;
+  }
+
+  @override
+  Future<double> getHeldShares({
+    required int accountId,
+    required String market,
+    required String symbol,
+    int? excludeTradeId,
+  }) async {
+    final rows = await _stockTradeRepo.getForPosition(accountId, market, symbol);
+    return HoldingsCalculator.heldShares(
+      rows.where((t) => t.id != excludeTradeId).map(_holdingTradeOf),
+      accountKey: accountId.toString(),
+      market: market,
+      symbol: symbol,
+    );
+  }
+
+  Future<Account> _requireInvestmentAccount(int accountId) async {
+    final account = await getAccount(accountId);
+    if (account == null || account.type != 'investment') {
+      throw const StockTradeAccountException('account must be an investment account');
+    }
+    return account;
+  }
+
+  Future<Account> _requireSettlementAccount(int? settlementAccountId, Account investment) async {
+    if (settlementAccountId == null) {
+      throw const StockTradeAccountException('settlement account is required for buy/sell');
+    }
+    final account = await getAccount(settlementAccountId);
+    if (account == null) {
+      throw const StockTradeAccountException('settlement account not found');
+    }
+    if (account.type == 'account_group') {
+      throw const StockTradeAccountException('settlement account cannot be an account_group');
+    }
+    if (account.id == investment.id) {
+      throw const StockTradeAccountException(
+          'settlement account must differ from the investment account');
+    }
+    return account;
+  }
+
+  static String _defaultStockTxNote(String tradeType, String symbol, String? name, double shares) {
+    // 跟 Cloud `_stock_trade_default_note` 同格式;UI 通常會傳在地化的 txNote。
+    final label = switch (tradeType) {
+      kStockTradeSell => '賣出',
+      kStockTradeCashDividend => '股利',
+      kStockTradeReinvest => '股利再投入',
+      _ => '買進',
+    };
+    final sharesText = shares == shares.roundToDouble()
+        ? shares.toInt().toString()
+        : shares.toString();
+    return [label, symbol, if (name != null && name.isNotEmpty) name, '$sharesText股'].join(' ');
+  }
+
+  /// 依 trade 欄位算出轉帳交易的帳戶方向/金額/幣別折算。
+  Future<({
+    int fromAccountId,
+    int toAccountId,
+    StockTradeTxFields fields,
+    String? currencyCode,
+    double? nativeAmount,
+  })> _stockTxPlan({
+    required int ledgerId,
+    required String tradeType,
+    required Account investment,
+    required Account settlement,
+    required double shares,
+    required double price,
+    required double fee,
+    required double tax,
+    required String? currency,
+    required double? settlementAmount,
+  }) async {
+    final fields = stockTradeTxFields(
+      tradeType: tradeType,
+      shares: shares,
+      price: price,
+      fee: fee,
+      tax: tax,
+      securityCurrency: currency,
+      settlementCurrency: settlement.currency,
+      settlementAmount: settlementAmount,
+    );
+    final isBuy = tradeType == kStockTradeBuy;
+    final from = isBuy ? settlement : investment;
+    final to = isBuy ? investment : settlement;
+    // 跨幣別:轉入帳戶幣別剛好是帳本本位幣時,本位幣折算直接等於 toAmount
+    // (精確值,同 transfer_form.dart 2026-09-18 的修正);其它情況交給
+    // addTransaction 的 _resolveTxCurrency 兜底。
+    String? currencyCode;
+    double? nativeAmount;
+    if (fields.toAmount != null) {
+      final ledger = await getLedgerById(ledgerId);
+      if (ledger != null && ledger.currency.toUpperCase() == to.currency.toUpperCase()) {
+        currencyCode = from.currency;
+        nativeAmount = fields.toAmount;
+      }
+    }
+    return (
+      fromAccountId: from.id,
+      toAccountId: to.id,
+      fields: fields,
+      currencyCode: currencyCode,
+      nativeAmount: nativeAmount,
+    );
+  }
+
+  /// 股利 income 交易的分類:找同名(「股利」)income 分類,沒有就建一個。
+  /// Cloud 確認股利時用同一個名字找/建(`card_rewards.ensure_dividend_category`),
+  /// 所以兩邊不會各建一個。
+  Future<Category> _ensureDividendCategory() async {
+    final existing = await (db.select(db.categories)
+          ..where((c) => c.name.equals(kDividendCategoryName) & c.kind.equals('income'))
+          ..orderBy([(c) => d.OrderingTerm.asc(c.id)])
+          ..limit(1))
+        .getSingleOrNull();
+    if (existing != null) return existing;
+    final id = await createCategory(name: kDividendCategoryName, kind: 'income', icon: 'trending_up');
+    return (await getCategoryById(id))!;
+  }
+
+  /// cash_dividend 的入帳帳戶(任何非群組帳戶,可以是投資帳戶本身);
+  /// reinvest 固定入投資理財帳戶本身。
+  Future<Account> _dividendReceivingAccount(String tradeType, int? settlementAccountId, Account investment) async {
+    if (tradeType == kStockTradeReinvest) return investment;
+    if (settlementAccountId == null) {
+      throw const StockTradeAccountException('receiving account is required for cash_dividend');
+    }
+    final account = await getAccount(settlementAccountId);
+    if (account == null) throw const StockTradeAccountException('receiving account not found');
+    if (account.type == 'account_group') {
+      throw const StockTradeAccountException('receiving account cannot be an account_group');
+    }
+    return account;
+  }
+
+  Future<void> _recordStockTradeChange(StockTrade row, String action) async {
+    if (changeTracker == null || row.syncId == null) return;
+    await changeTracker!.recordLedgerChange(
+      entityType: 'stock_trade',
+      entityId: row.id,
+      entitySyncId: row.syncId!,
+      ledgerId: row.ledgerId,
+      action: action,
+    );
+  }
+
+  Future<void> _deleteStockTradeRow(StockTrade row) async {
+    await _stockTradeRepo.delete(row.id);
+    await _recordStockTradeChange(row, 'delete');
+  }
+
+  @override
+  Future<int> createStockTrade({
+    required int ledgerId,
+    required int accountId,
+    required String tradeType,
+    required String market,
+    required String symbol,
+    String? securityName,
+    required double shares,
+    double? price,
+    double fee = 0,
+    double tax = 0,
+    String? currency,
+    required DateTime tradeDate,
+    int? settlementAccountId,
+    double? settlementAmount,
+    String? note,
+    String? txNote,
+  }) async {
+    if (!kStockTradeTypes.contains(tradeType)) {
+      throw ArgumentError('invalid trade type $tradeType');
+    }
+    if (shares <= 0) throw ArgumentError('shares must be > 0');
+    final investment = await _requireInvestmentAccount(accountId);
+    final mkt = market.toUpperCase();
+    final sym = symbol.toUpperCase();
+    var effPrice = price ?? 0;
+    var effFee = fee;
+    var effTax = tax;
+    if (tradeType == kStockTradeOpening) effTax = 0;
+    if (tradeType == kStockTradeStockDividend) {
+      effFee = 0;
+      effTax = 0;
+    }
+    if (effPrice < 0 || effFee < 0 || effTax < 0) {
+      throw ArgumentError('price/fee/tax must be >= 0');
+    }
+    final effCurrency = (currency ?? stockMarketByCode(mkt)?.currency ?? investment.currency).toUpperCase();
+
+    if (tradeType == kStockTradeSell) {
+      final held = await getHeldShares(accountId: accountId, market: mkt, symbol: sym);
+      if (shares > held + 1e-6) throw StockTradeOversellException(shares, held);
+    }
+
+    return db.transaction(() async {
+      String? txSyncId;
+      if (kStockTradeCashTypes.contains(tradeType)) {
+        final settlement = await _requireSettlementAccount(settlementAccountId, investment);
+        final plan = await _stockTxPlan(
+          ledgerId: ledgerId,
+          tradeType: tradeType,
+          investment: investment,
+          settlement: settlement,
+          shares: shares,
+          price: effPrice,
+          fee: effFee,
+          tax: effTax,
+          currency: effCurrency,
+          settlementAmount: settlementAmount,
+        );
+        final transferCategory = await getTransferCategory();
+        final txId = await addTransaction(
+          ledgerId: ledgerId,
+          type: 'transfer',
+          amount: plan.fields.amount,
+          categoryId: transferCategory.id,
+          accountId: plan.fromAccountId,
+          toAccountId: plan.toAccountId,
+          happenedAt: tradeDate,
+          note: txNote ?? note ?? _defaultStockTxNote(tradeType, sym, securityName, shares),
+          toAmount: plan.fields.toAmount,
+          feeAmount: plan.fields.feeAmount,
+          discountAmount: plan.fields.discountAmount,
+          currencyCode: plan.currencyCode,
+          nativeAmount: plan.nativeAmount,
+        );
+        txSyncId = (await getTransactionById(txId))?.syncId;
+      } else if (kStockTradeIncomeTypes.contains(tradeType)) {
+        final receiving = await _dividendReceivingAccount(tradeType, settlementAccountId, investment);
+        final amount = stockDividendTxAmount(
+          tradeAmount: stockTradeAmount(
+              tradeType: tradeType, shares: shares, price: effPrice, fee: effFee, tax: effTax, currency: effCurrency),
+          securityCurrency: effCurrency,
+          receivingCurrency: receiving.currency,
+          settlementAmount: settlementAmount,
+        );
+        if (amount <= 0) throw ArgumentError('dividend amount must be > 0');
+        final category = await _ensureDividendCategory();
+        final txId = await addTransaction(
+          ledgerId: ledgerId,
+          type: 'income',
+          amount: amount,
+          categoryId: category.id,
+          accountId: receiving.id,
+          happenedAt: tradeDate,
+          note: txNote ?? note ?? _defaultStockTxNote(tradeType, sym, securityName, shares),
+        );
+        txSyncId = (await getTransactionById(txId))?.syncId;
+      }
+      final id = await _stockTradeRepo.insert(StockTradesCompanion.insert(
+        syncId: d.Value(_uuid.v4()),
+        ledgerId: ledgerId,
+        accountId: d.Value(accountId),
+        market: mkt,
+        symbol: sym,
+        securityName: d.Value(securityName),
+        tradeType: tradeType,
+        shares: shares,
+        price: d.Value(effPrice),
+        fee: d.Value(effFee),
+        tax: d.Value(effTax),
+        amount: d.Value(stockTradeAmount(
+            tradeType: tradeType, shares: shares, price: effPrice, fee: effFee, tax: effTax, currency: effCurrency)),
+        currency: d.Value(effCurrency),
+        tradeDate: tradeDate,
+        txSyncId: d.Value(txSyncId),
+        note: d.Value(note),
+      ));
+      final row = await _stockTradeRepo.getById(id);
+      if (row != null) await _recordStockTradeChange(row, 'create');
+      return id;
+    });
+  }
+
+  @override
+  Future<void> updateStockTrade(
+    int id, {
+    required double shares,
+    double? price,
+    double fee = 0,
+    double tax = 0,
+    required DateTime tradeDate,
+    String? securityName,
+    String? note,
+    int? settlementAccountId,
+    double? settlementAmount,
+    String? txNote,
+  }) async {
+    final trade = await _stockTradeRepo.getById(id);
+    if (trade == null) return;
+    if (shares <= 0) throw ArgumentError('shares must be > 0');
+    final tradeType = trade.tradeType;
+    var effPrice = price ?? 0;
+    var effFee = fee;
+    var effTax = tax;
+    if (tradeType == kStockTradeOpening) effTax = 0;
+    if (tradeType == kStockTradeStockDividend) {
+      effFee = 0;
+      effTax = 0;
+    }
+    if (tradeType == kStockTradeSell && trade.accountId != null) {
+      final held = await getHeldShares(
+        accountId: trade.accountId!,
+        market: trade.market,
+        symbol: trade.symbol,
+        excludeTradeId: id,
+      );
+      if (shares > held + 1e-6) throw StockTradeOversellException(shares, held);
+    }
+
+    await db.transaction(() async {
+      if (kStockTradeCashTypes.contains(tradeType) && trade.accountId != null) {
+        final investment = await _requireInvestmentAccount(trade.accountId!);
+        final tx = trade.txSyncId == null ? null : await getTransactionBySyncId(trade.txSyncId!);
+        final effSettlementId = settlementAccountId ??
+            (tx == null ? null : (tradeType == kStockTradeBuy ? tx.accountId : tx.toAccountId));
+        final settlement = await _requireSettlementAccount(effSettlementId, investment);
+        final effSettlementAmount = settlementAmount ??
+            (tx == null ? null : (tradeType == kStockTradeBuy ? tx.amount : tx.toAmount));
+        final plan = await _stockTxPlan(
+          ledgerId: trade.ledgerId,
+          tradeType: tradeType,
+          investment: investment,
+          settlement: settlement,
+          shares: shares,
+          price: effPrice,
+          fee: effFee,
+          tax: effTax,
+          currency: trade.currency,
+          settlementAmount: effSettlementAmount,
+        );
+        final effTxNote = txNote ?? note ?? _defaultStockTxNote(tradeType, trade.symbol, securityName ?? trade.securityName, shares);
+        if (tx != null) {
+          await updateTransaction(
+            id: tx.id,
+            type: 'transfer',
+            amount: plan.fields.amount,
+            categoryId: tx.categoryId,
+            note: effTxNote,
+            merchant: tx.merchant,
+            happenedAt: tradeDate,
+            accountId: d.Value<int?>(plan.fromAccountId),
+            currencyCode: plan.currencyCode,
+            nativeAmount: plan.nativeAmount,
+            toAmount: d.Value<double?>(plan.fields.toAmount),
+            feeAmount: d.Value<double?>(plan.fields.feeAmount),
+            feeLabel: const d.Value<String?>(null),
+            discountAmount: d.Value<double?>(plan.fields.discountAmount),
+            discountLabel: const d.Value<String?>(null),
+          );
+          await updateTransactionFields(
+            id: tx.id,
+            toAccountId: d.Value<int?>(plan.toAccountId),
+          );
+        }
+      } else if (kStockTradeIncomeTypes.contains(tradeType) && trade.accountId != null) {
+        final investment = await _requireInvestmentAccount(trade.accountId!);
+        final tx = trade.txSyncId == null ? null : await getTransactionBySyncId(trade.txSyncId!);
+        if (tx != null) {
+          final receiving = await _dividendReceivingAccount(
+              tradeType, settlementAccountId ?? tx.accountId, investment);
+          final amount = stockDividendTxAmount(
+            tradeAmount: stockTradeAmount(
+                tradeType: tradeType, shares: shares, price: effPrice, fee: effFee, tax: effTax, currency: trade.currency),
+            securityCurrency: trade.currency,
+            receivingCurrency: receiving.currency,
+            settlementAmount: settlementAmount ?? tx.amount,
+          );
+          await updateTransaction(
+            id: tx.id,
+            type: 'income',
+            amount: amount,
+            categoryId: tx.categoryId,
+            note: txNote ?? note ?? _defaultStockTxNote(tradeType, trade.symbol, securityName ?? trade.securityName, shares),
+            merchant: tx.merchant,
+            happenedAt: tradeDate,
+            accountId: d.Value<int?>(receiving.id),
+          );
+        }
+      }
+      await _stockTradeRepo.update(
+        id,
+        StockTradesCompanion(
+          shares: d.Value(shares),
+          price: d.Value(effPrice),
+          fee: d.Value(effFee),
+          tax: d.Value(effTax),
+          amount: d.Value(stockTradeAmount(
+              tradeType: tradeType, shares: shares, price: effPrice, fee: effFee, tax: effTax, currency: trade.currency)),
+          tradeDate: d.Value(tradeDate),
+          securityName: d.Value(securityName ?? trade.securityName),
+          note: d.Value(note),
+          updatedAt: d.Value(DateTime.now()),
+        ),
+      );
+      final row = await _stockTradeRepo.getById(id);
+      if (row != null) await _recordStockTradeChange(row, 'update');
+    });
+  }
+
+  @override
+  Future<void> deleteStockTrade(int id) async {
+    final trade = await _stockTradeRepo.getById(id);
+    if (trade == null) return;
+    await db.transaction(() async {
+      // 先刪明細再刪交易:deleteTransaction 的連帶刪除這時已經找不到它,
+      // 不會重複記一條 delete change。
+      await _deleteStockTradeRow(trade);
+      if (trade.txSyncId != null) {
+        final tx = await getTransactionBySyncId(trade.txSyncId!);
+        if (tx != null) await deleteTransaction(tx.id);
+      }
+    });
+  }
+
+  @override
+  Future<void> updateAccountInvestmentSettings(int accountId, InvestmentSettings settings) async {
+    await (db.update(db.accounts)..where((a) => a.id.equals(accountId))).write(
+      AccountsCompanion(
+        investmentSettingsJson: d.Value(settings.encode()),
+        updatedAt: d.Value(DateTime.now()),
+      ),
+    );
+    if (changeTracker != null) {
+      final account = await getAccount(accountId);
+      if (account?.syncId != null) {
+        await changeTracker!.recordUserGlobalChange(
+          entityType: 'account',
+          entityId: accountId,
+          entitySyncId: account!.syncId!,
+          action: 'update',
+        );
+      }
+    }
+  }
+
+  @override
+  Stream<List<SecurityQuote>> watchSecurityQuotes() => _stockTradeRepo.watchQuotes();
+
+  @override
+  Future<List<SecurityQuote>> getSecurityQuotes() => _stockTradeRepo.getQuotes();
+
+  @override
+  Future<void> upsertSecurityQuotes(List<SecurityQuotesCompanion> rows) =>
+      _stockTradeRepo.upsertQuotes(rows);
 }

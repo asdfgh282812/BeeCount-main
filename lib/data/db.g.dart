@@ -708,6 +708,12 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("hide_amount" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _investmentSettingsJsonMeta =
+      const VerificationMeta('investmentSettingsJson');
+  @override
+  late final GeneratedColumn<String> investmentSettingsJson =
+      GeneratedColumn<String>('investment_settings_json', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -733,7 +739,8 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         includeInTotal,
         autoPayEnabled,
         autoPayFromAccountId,
-        hideAmount
+        hideAmount,
+        investmentSettingsJson
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -868,6 +875,12 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
           hideAmount.isAcceptableOrUnknown(
               data['hide_amount']!, _hideAmountMeta));
     }
+    if (data.containsKey('investment_settings_json')) {
+      context.handle(
+          _investmentSettingsJsonMeta,
+          investmentSettingsJson.isAcceptableOrUnknown(
+              data['investment_settings_json']!, _investmentSettingsJsonMeta));
+    }
     return context;
   }
 
@@ -926,6 +939,9 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
           data['${effectivePrefix}auto_pay_from_account_id']),
       hideAmount: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}hide_amount'])!,
+      investmentSettingsJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}investment_settings_json']),
     );
   }
 
@@ -1003,6 +1019,14 @@ class Account extends DataClass implements Insertable<Account> {
   /// 2026-09-13-account-hide-amount-design.md)。實際顯示與否還要跟全域
   /// `hideAmountsProvider` 做 OR:全域開著時無論這裡是什麼值都遮蔽。
   final bool hideAmount;
+
+  /// v63 股票持股:投資理財(`investment`)帳戶的使用者自訂費用設定(手續費率/
+  /// 折扣/最低手續費/證交稅/股利手續費/預扣稅/二代健保/預設再投入/交割帳戶),
+  /// JSON 文字。對齊 BeeCount Cloud `user_account_projection.
+  /// investment_settings_json`,wire key `investmentSettings`(物件)。解析見
+  /// [InvestmentSettings](lib/models/investment_settings.dart)。null = 沒設定
+  /// 過,套各市場預設值。
+  final String? investmentSettingsJson;
   const Account(
       {required this.id,
       required this.ledgerId,
@@ -1027,7 +1051,8 @@ class Account extends DataClass implements Insertable<Account> {
       required this.includeInTotal,
       required this.autoPayEnabled,
       this.autoPayFromAccountId,
-      required this.hideAmount});
+      required this.hideAmount,
+      this.investmentSettingsJson});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -1081,6 +1106,10 @@ class Account extends DataClass implements Insertable<Account> {
       map['auto_pay_from_account_id'] = Variable<String>(autoPayFromAccountId);
     }
     map['hide_amount'] = Variable<bool>(hideAmount);
+    if (!nullToAbsent || investmentSettingsJson != null) {
+      map['investment_settings_json'] =
+          Variable<String>(investmentSettingsJson);
+    }
     return map;
   }
 
@@ -1133,6 +1162,9 @@ class Account extends DataClass implements Insertable<Account> {
           ? const Value.absent()
           : Value(autoPayFromAccountId),
       hideAmount: Value(hideAmount),
+      investmentSettingsJson: investmentSettingsJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(investmentSettingsJson),
     );
   }
 
@@ -1165,6 +1197,8 @@ class Account extends DataClass implements Insertable<Account> {
       autoPayFromAccountId:
           serializer.fromJson<String?>(json['autoPayFromAccountId']),
       hideAmount: serializer.fromJson<bool>(json['hideAmount']),
+      investmentSettingsJson:
+          serializer.fromJson<String?>(json['investmentSettingsJson']),
     );
   }
   @override
@@ -1195,6 +1229,8 @@ class Account extends DataClass implements Insertable<Account> {
       'autoPayEnabled': serializer.toJson<bool>(autoPayEnabled),
       'autoPayFromAccountId': serializer.toJson<String?>(autoPayFromAccountId),
       'hideAmount': serializer.toJson<bool>(hideAmount),
+      'investmentSettingsJson':
+          serializer.toJson<String?>(investmentSettingsJson),
     };
   }
 
@@ -1222,7 +1258,8 @@ class Account extends DataClass implements Insertable<Account> {
           bool? includeInTotal,
           bool? autoPayEnabled,
           Value<String?> autoPayFromAccountId = const Value.absent(),
-          bool? hideAmount}) =>
+          bool? hideAmount,
+          Value<String?> investmentSettingsJson = const Value.absent()}) =>
       Account(
         id: id ?? this.id,
         ledgerId: ledgerId ?? this.ledgerId,
@@ -1256,6 +1293,9 @@ class Account extends DataClass implements Insertable<Account> {
             ? autoPayFromAccountId.value
             : this.autoPayFromAccountId,
         hideAmount: hideAmount ?? this.hideAmount,
+        investmentSettingsJson: investmentSettingsJson.present
+            ? investmentSettingsJson.value
+            : this.investmentSettingsJson,
       );
   Account copyWithCompanion(AccountsCompanion data) {
     return Account(
@@ -1303,6 +1343,9 @@ class Account extends DataClass implements Insertable<Account> {
           : this.autoPayFromAccountId,
       hideAmount:
           data.hideAmount.present ? data.hideAmount.value : this.hideAmount,
+      investmentSettingsJson: data.investmentSettingsJson.present
+          ? data.investmentSettingsJson.value
+          : this.investmentSettingsJson,
     );
   }
 
@@ -1332,7 +1375,8 @@ class Account extends DataClass implements Insertable<Account> {
           ..write('includeInTotal: $includeInTotal, ')
           ..write('autoPayEnabled: $autoPayEnabled, ')
           ..write('autoPayFromAccountId: $autoPayFromAccountId, ')
-          ..write('hideAmount: $hideAmount')
+          ..write('hideAmount: $hideAmount, ')
+          ..write('investmentSettingsJson: $investmentSettingsJson')
           ..write(')'))
         .toString();
   }
@@ -1362,7 +1406,8 @@ class Account extends DataClass implements Insertable<Account> {
         includeInTotal,
         autoPayEnabled,
         autoPayFromAccountId,
-        hideAmount
+        hideAmount,
+        investmentSettingsJson
       ]);
   @override
   bool operator ==(Object other) =>
@@ -1391,7 +1436,8 @@ class Account extends DataClass implements Insertable<Account> {
           other.includeInTotal == this.includeInTotal &&
           other.autoPayEnabled == this.autoPayEnabled &&
           other.autoPayFromAccountId == this.autoPayFromAccountId &&
-          other.hideAmount == this.hideAmount);
+          other.hideAmount == this.hideAmount &&
+          other.investmentSettingsJson == this.investmentSettingsJson);
 }
 
 class AccountsCompanion extends UpdateCompanion<Account> {
@@ -1419,6 +1465,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<bool> autoPayEnabled;
   final Value<String?> autoPayFromAccountId;
   final Value<bool> hideAmount;
+  final Value<String?> investmentSettingsJson;
   const AccountsCompanion({
     this.id = const Value.absent(),
     this.ledgerId = const Value.absent(),
@@ -1444,6 +1491,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.autoPayEnabled = const Value.absent(),
     this.autoPayFromAccountId = const Value.absent(),
     this.hideAmount = const Value.absent(),
+    this.investmentSettingsJson = const Value.absent(),
   });
   AccountsCompanion.insert({
     this.id = const Value.absent(),
@@ -1470,6 +1518,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.autoPayEnabled = const Value.absent(),
     this.autoPayFromAccountId = const Value.absent(),
     this.hideAmount = const Value.absent(),
+    this.investmentSettingsJson = const Value.absent(),
   })  : ledgerId = Value(ledgerId),
         name = Value(name);
   static Insertable<Account> custom({
@@ -1497,6 +1546,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Expression<bool>? autoPayEnabled,
     Expression<String>? autoPayFromAccountId,
     Expression<bool>? hideAmount,
+    Expression<String>? investmentSettingsJson,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1524,6 +1574,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       if (autoPayFromAccountId != null)
         'auto_pay_from_account_id': autoPayFromAccountId,
       if (hideAmount != null) 'hide_amount': hideAmount,
+      if (investmentSettingsJson != null)
+        'investment_settings_json': investmentSettingsJson,
     });
   }
 
@@ -1551,7 +1603,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       Value<bool>? includeInTotal,
       Value<bool>? autoPayEnabled,
       Value<String?>? autoPayFromAccountId,
-      Value<bool>? hideAmount}) {
+      Value<bool>? hideAmount,
+      Value<String?>? investmentSettingsJson}) {
     return AccountsCompanion(
       id: id ?? this.id,
       ledgerId: ledgerId ?? this.ledgerId,
@@ -1577,6 +1630,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       autoPayEnabled: autoPayEnabled ?? this.autoPayEnabled,
       autoPayFromAccountId: autoPayFromAccountId ?? this.autoPayFromAccountId,
       hideAmount: hideAmount ?? this.hideAmount,
+      investmentSettingsJson:
+          investmentSettingsJson ?? this.investmentSettingsJson,
     );
   }
 
@@ -1656,6 +1711,10 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     if (hideAmount.present) {
       map['hide_amount'] = Variable<bool>(hideAmount.value);
     }
+    if (investmentSettingsJson.present) {
+      map['investment_settings_json'] =
+          Variable<String>(investmentSettingsJson.value);
+    }
     return map;
   }
 
@@ -1685,7 +1744,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
           ..write('includeInTotal: $includeInTotal, ')
           ..write('autoPayEnabled: $autoPayEnabled, ')
           ..write('autoPayFromAccountId: $autoPayFromAccountId, ')
-          ..write('hideAmount: $hideAmount')
+          ..write('hideAmount: $hideAmount, ')
+          ..write('investmentSettingsJson: $investmentSettingsJson')
           ..write(')'))
         .toString();
   }
@@ -18162,6 +18222,1415 @@ class InstallmentPeriodsCompanion extends UpdateCompanion<InstallmentPeriod> {
   }
 }
 
+class $StockTradesTable extends StockTrades
+    with TableInfo<$StockTradesTable, StockTrade> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $StockTradesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _syncIdMeta = const VerificationMeta('syncId');
+  @override
+  late final GeneratedColumn<String> syncId = GeneratedColumn<String>(
+      'sync_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _ledgerIdMeta =
+      const VerificationMeta('ledgerId');
+  @override
+  late final GeneratedColumn<int> ledgerId = GeneratedColumn<int>(
+      'ledger_id', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _accountIdMeta =
+      const VerificationMeta('accountId');
+  @override
+  late final GeneratedColumn<int> accountId = GeneratedColumn<int>(
+      'account_id', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _marketMeta = const VerificationMeta('market');
+  @override
+  late final GeneratedColumn<String> market = GeneratedColumn<String>(
+      'market', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _symbolMeta = const VerificationMeta('symbol');
+  @override
+  late final GeneratedColumn<String> symbol = GeneratedColumn<String>(
+      'symbol', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _securityNameMeta =
+      const VerificationMeta('securityName');
+  @override
+  late final GeneratedColumn<String> securityName = GeneratedColumn<String>(
+      'security_name', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _tradeTypeMeta =
+      const VerificationMeta('tradeType');
+  @override
+  late final GeneratedColumn<String> tradeType = GeneratedColumn<String>(
+      'trade_type', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sharesMeta = const VerificationMeta('shares');
+  @override
+  late final GeneratedColumn<double> shares = GeneratedColumn<double>(
+      'shares', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _priceMeta = const VerificationMeta('price');
+  @override
+  late final GeneratedColumn<double> price = GeneratedColumn<double>(
+      'price', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _feeMeta = const VerificationMeta('fee');
+  @override
+  late final GeneratedColumn<double> fee = GeneratedColumn<double>(
+      'fee', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0.0));
+  static const VerificationMeta _taxMeta = const VerificationMeta('tax');
+  @override
+  late final GeneratedColumn<double> tax = GeneratedColumn<double>(
+      'tax', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0.0));
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+      'amount', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0.0));
+  static const VerificationMeta _currencyMeta =
+      const VerificationMeta('currency');
+  @override
+  late final GeneratedColumn<String> currency = GeneratedColumn<String>(
+      'currency', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _tradeDateMeta =
+      const VerificationMeta('tradeDate');
+  @override
+  late final GeneratedColumn<DateTime> tradeDate = GeneratedColumn<DateTime>(
+      'trade_date', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _txSyncIdMeta =
+      const VerificationMeta('txSyncId');
+  @override
+  late final GeneratedColumn<String> txSyncId = GeneratedColumn<String>(
+      'tx_sync_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _dividendEventRefMeta =
+      const VerificationMeta('dividendEventRef');
+  @override
+  late final GeneratedColumn<String> dividendEventRef = GeneratedColumn<String>(
+      'dividend_event_ref', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+      'note', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        syncId,
+        ledgerId,
+        accountId,
+        market,
+        symbol,
+        securityName,
+        tradeType,
+        shares,
+        price,
+        fee,
+        tax,
+        amount,
+        currency,
+        tradeDate,
+        txSyncId,
+        dividendEventRef,
+        note,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'stock_trades';
+  @override
+  VerificationContext validateIntegrity(Insertable<StockTrade> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('sync_id')) {
+      context.handle(_syncIdMeta,
+          syncId.isAcceptableOrUnknown(data['sync_id']!, _syncIdMeta));
+    }
+    if (data.containsKey('ledger_id')) {
+      context.handle(_ledgerIdMeta,
+          ledgerId.isAcceptableOrUnknown(data['ledger_id']!, _ledgerIdMeta));
+    } else if (isInserting) {
+      context.missing(_ledgerIdMeta);
+    }
+    if (data.containsKey('account_id')) {
+      context.handle(_accountIdMeta,
+          accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta));
+    }
+    if (data.containsKey('market')) {
+      context.handle(_marketMeta,
+          market.isAcceptableOrUnknown(data['market']!, _marketMeta));
+    } else if (isInserting) {
+      context.missing(_marketMeta);
+    }
+    if (data.containsKey('symbol')) {
+      context.handle(_symbolMeta,
+          symbol.isAcceptableOrUnknown(data['symbol']!, _symbolMeta));
+    } else if (isInserting) {
+      context.missing(_symbolMeta);
+    }
+    if (data.containsKey('security_name')) {
+      context.handle(
+          _securityNameMeta,
+          securityName.isAcceptableOrUnknown(
+              data['security_name']!, _securityNameMeta));
+    }
+    if (data.containsKey('trade_type')) {
+      context.handle(_tradeTypeMeta,
+          tradeType.isAcceptableOrUnknown(data['trade_type']!, _tradeTypeMeta));
+    } else if (isInserting) {
+      context.missing(_tradeTypeMeta);
+    }
+    if (data.containsKey('shares')) {
+      context.handle(_sharesMeta,
+          shares.isAcceptableOrUnknown(data['shares']!, _sharesMeta));
+    } else if (isInserting) {
+      context.missing(_sharesMeta);
+    }
+    if (data.containsKey('price')) {
+      context.handle(
+          _priceMeta, price.isAcceptableOrUnknown(data['price']!, _priceMeta));
+    }
+    if (data.containsKey('fee')) {
+      context.handle(
+          _feeMeta, fee.isAcceptableOrUnknown(data['fee']!, _feeMeta));
+    }
+    if (data.containsKey('tax')) {
+      context.handle(
+          _taxMeta, tax.isAcceptableOrUnknown(data['tax']!, _taxMeta));
+    }
+    if (data.containsKey('amount')) {
+      context.handle(_amountMeta,
+          amount.isAcceptableOrUnknown(data['amount']!, _amountMeta));
+    }
+    if (data.containsKey('currency')) {
+      context.handle(_currencyMeta,
+          currency.isAcceptableOrUnknown(data['currency']!, _currencyMeta));
+    }
+    if (data.containsKey('trade_date')) {
+      context.handle(_tradeDateMeta,
+          tradeDate.isAcceptableOrUnknown(data['trade_date']!, _tradeDateMeta));
+    } else if (isInserting) {
+      context.missing(_tradeDateMeta);
+    }
+    if (data.containsKey('tx_sync_id')) {
+      context.handle(_txSyncIdMeta,
+          txSyncId.isAcceptableOrUnknown(data['tx_sync_id']!, _txSyncIdMeta));
+    }
+    if (data.containsKey('dividend_event_ref')) {
+      context.handle(
+          _dividendEventRefMeta,
+          dividendEventRef.isAcceptableOrUnknown(
+              data['dividend_event_ref']!, _dividendEventRefMeta));
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+          _noteMeta, note.isAcceptableOrUnknown(data['note']!, _noteMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  StockTrade map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return StockTrade(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      syncId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sync_id']),
+      ledgerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}ledger_id'])!,
+      accountId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}account_id']),
+      market: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}market'])!,
+      symbol: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}symbol'])!,
+      securityName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}security_name']),
+      tradeType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}trade_type'])!,
+      shares: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}shares'])!,
+      price: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}price']),
+      fee: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}fee'])!,
+      tax: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}tax'])!,
+      amount: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}amount'])!,
+      currency: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}currency']),
+      tradeDate: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}trade_date'])!,
+      txSyncId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tx_sync_id']),
+      dividendEventRef: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}dividend_event_ref']),
+      note: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}note']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $StockTradesTable createAlias(String alias) {
+    return $StockTradesTable(attachedDatabase, alias);
+  }
+}
+
+class StockTrade extends DataClass implements Insertable<StockTrade> {
+  final int id;
+  final String? syncId;
+  final int ledgerId;
+
+  /// 投資理財帳戶本地 id(不宣告 FK,同 Transactions.accountId)。
+  final int? accountId;
+
+  /// 市場代碼(TW/TWO/US/HK…),見 lib/services/investment/markets.dart。
+  final String market;
+  final String symbol;
+  final String? securityName;
+
+  /// buy / sell / opening / cash_dividend / stock_dividend / reinvest,見
+  /// [kStockTradeTypes]。
+  final String tradeType;
+  final double shares;
+  final double? price;
+  final double fee;
+  final double tax;
+  final double amount;
+  final String? currency;
+  final DateTime tradeDate;
+  final String? txSyncId;
+
+  /// Phase 2 股利明細對應的除權息事件(Cloud `security_dividend_events.id`)。
+  final String? dividendEventRef;
+  final String? note;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const StockTrade(
+      {required this.id,
+      this.syncId,
+      required this.ledgerId,
+      this.accountId,
+      required this.market,
+      required this.symbol,
+      this.securityName,
+      required this.tradeType,
+      required this.shares,
+      this.price,
+      required this.fee,
+      required this.tax,
+      required this.amount,
+      this.currency,
+      required this.tradeDate,
+      this.txSyncId,
+      this.dividendEventRef,
+      this.note,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    if (!nullToAbsent || syncId != null) {
+      map['sync_id'] = Variable<String>(syncId);
+    }
+    map['ledger_id'] = Variable<int>(ledgerId);
+    if (!nullToAbsent || accountId != null) {
+      map['account_id'] = Variable<int>(accountId);
+    }
+    map['market'] = Variable<String>(market);
+    map['symbol'] = Variable<String>(symbol);
+    if (!nullToAbsent || securityName != null) {
+      map['security_name'] = Variable<String>(securityName);
+    }
+    map['trade_type'] = Variable<String>(tradeType);
+    map['shares'] = Variable<double>(shares);
+    if (!nullToAbsent || price != null) {
+      map['price'] = Variable<double>(price);
+    }
+    map['fee'] = Variable<double>(fee);
+    map['tax'] = Variable<double>(tax);
+    map['amount'] = Variable<double>(amount);
+    if (!nullToAbsent || currency != null) {
+      map['currency'] = Variable<String>(currency);
+    }
+    map['trade_date'] = Variable<DateTime>(tradeDate);
+    if (!nullToAbsent || txSyncId != null) {
+      map['tx_sync_id'] = Variable<String>(txSyncId);
+    }
+    if (!nullToAbsent || dividendEventRef != null) {
+      map['dividend_event_ref'] = Variable<String>(dividendEventRef);
+    }
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  StockTradesCompanion toCompanion(bool nullToAbsent) {
+    return StockTradesCompanion(
+      id: Value(id),
+      syncId:
+          syncId == null && nullToAbsent ? const Value.absent() : Value(syncId),
+      ledgerId: Value(ledgerId),
+      accountId: accountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(accountId),
+      market: Value(market),
+      symbol: Value(symbol),
+      securityName: securityName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(securityName),
+      tradeType: Value(tradeType),
+      shares: Value(shares),
+      price:
+          price == null && nullToAbsent ? const Value.absent() : Value(price),
+      fee: Value(fee),
+      tax: Value(tax),
+      amount: Value(amount),
+      currency: currency == null && nullToAbsent
+          ? const Value.absent()
+          : Value(currency),
+      tradeDate: Value(tradeDate),
+      txSyncId: txSyncId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(txSyncId),
+      dividendEventRef: dividendEventRef == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dividendEventRef),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory StockTrade.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return StockTrade(
+      id: serializer.fromJson<int>(json['id']),
+      syncId: serializer.fromJson<String?>(json['syncId']),
+      ledgerId: serializer.fromJson<int>(json['ledgerId']),
+      accountId: serializer.fromJson<int?>(json['accountId']),
+      market: serializer.fromJson<String>(json['market']),
+      symbol: serializer.fromJson<String>(json['symbol']),
+      securityName: serializer.fromJson<String?>(json['securityName']),
+      tradeType: serializer.fromJson<String>(json['tradeType']),
+      shares: serializer.fromJson<double>(json['shares']),
+      price: serializer.fromJson<double?>(json['price']),
+      fee: serializer.fromJson<double>(json['fee']),
+      tax: serializer.fromJson<double>(json['tax']),
+      amount: serializer.fromJson<double>(json['amount']),
+      currency: serializer.fromJson<String?>(json['currency']),
+      tradeDate: serializer.fromJson<DateTime>(json['tradeDate']),
+      txSyncId: serializer.fromJson<String?>(json['txSyncId']),
+      dividendEventRef: serializer.fromJson<String?>(json['dividendEventRef']),
+      note: serializer.fromJson<String?>(json['note']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'syncId': serializer.toJson<String?>(syncId),
+      'ledgerId': serializer.toJson<int>(ledgerId),
+      'accountId': serializer.toJson<int?>(accountId),
+      'market': serializer.toJson<String>(market),
+      'symbol': serializer.toJson<String>(symbol),
+      'securityName': serializer.toJson<String?>(securityName),
+      'tradeType': serializer.toJson<String>(tradeType),
+      'shares': serializer.toJson<double>(shares),
+      'price': serializer.toJson<double?>(price),
+      'fee': serializer.toJson<double>(fee),
+      'tax': serializer.toJson<double>(tax),
+      'amount': serializer.toJson<double>(amount),
+      'currency': serializer.toJson<String?>(currency),
+      'tradeDate': serializer.toJson<DateTime>(tradeDate),
+      'txSyncId': serializer.toJson<String?>(txSyncId),
+      'dividendEventRef': serializer.toJson<String?>(dividendEventRef),
+      'note': serializer.toJson<String?>(note),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  StockTrade copyWith(
+          {int? id,
+          Value<String?> syncId = const Value.absent(),
+          int? ledgerId,
+          Value<int?> accountId = const Value.absent(),
+          String? market,
+          String? symbol,
+          Value<String?> securityName = const Value.absent(),
+          String? tradeType,
+          double? shares,
+          Value<double?> price = const Value.absent(),
+          double? fee,
+          double? tax,
+          double? amount,
+          Value<String?> currency = const Value.absent(),
+          DateTime? tradeDate,
+          Value<String?> txSyncId = const Value.absent(),
+          Value<String?> dividendEventRef = const Value.absent(),
+          Value<String?> note = const Value.absent(),
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      StockTrade(
+        id: id ?? this.id,
+        syncId: syncId.present ? syncId.value : this.syncId,
+        ledgerId: ledgerId ?? this.ledgerId,
+        accountId: accountId.present ? accountId.value : this.accountId,
+        market: market ?? this.market,
+        symbol: symbol ?? this.symbol,
+        securityName:
+            securityName.present ? securityName.value : this.securityName,
+        tradeType: tradeType ?? this.tradeType,
+        shares: shares ?? this.shares,
+        price: price.present ? price.value : this.price,
+        fee: fee ?? this.fee,
+        tax: tax ?? this.tax,
+        amount: amount ?? this.amount,
+        currency: currency.present ? currency.value : this.currency,
+        tradeDate: tradeDate ?? this.tradeDate,
+        txSyncId: txSyncId.present ? txSyncId.value : this.txSyncId,
+        dividendEventRef: dividendEventRef.present
+            ? dividendEventRef.value
+            : this.dividendEventRef,
+        note: note.present ? note.value : this.note,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  StockTrade copyWithCompanion(StockTradesCompanion data) {
+    return StockTrade(
+      id: data.id.present ? data.id.value : this.id,
+      syncId: data.syncId.present ? data.syncId.value : this.syncId,
+      ledgerId: data.ledgerId.present ? data.ledgerId.value : this.ledgerId,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      market: data.market.present ? data.market.value : this.market,
+      symbol: data.symbol.present ? data.symbol.value : this.symbol,
+      securityName: data.securityName.present
+          ? data.securityName.value
+          : this.securityName,
+      tradeType: data.tradeType.present ? data.tradeType.value : this.tradeType,
+      shares: data.shares.present ? data.shares.value : this.shares,
+      price: data.price.present ? data.price.value : this.price,
+      fee: data.fee.present ? data.fee.value : this.fee,
+      tax: data.tax.present ? data.tax.value : this.tax,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      currency: data.currency.present ? data.currency.value : this.currency,
+      tradeDate: data.tradeDate.present ? data.tradeDate.value : this.tradeDate,
+      txSyncId: data.txSyncId.present ? data.txSyncId.value : this.txSyncId,
+      dividendEventRef: data.dividendEventRef.present
+          ? data.dividendEventRef.value
+          : this.dividendEventRef,
+      note: data.note.present ? data.note.value : this.note,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StockTrade(')
+          ..write('id: $id, ')
+          ..write('syncId: $syncId, ')
+          ..write('ledgerId: $ledgerId, ')
+          ..write('accountId: $accountId, ')
+          ..write('market: $market, ')
+          ..write('symbol: $symbol, ')
+          ..write('securityName: $securityName, ')
+          ..write('tradeType: $tradeType, ')
+          ..write('shares: $shares, ')
+          ..write('price: $price, ')
+          ..write('fee: $fee, ')
+          ..write('tax: $tax, ')
+          ..write('amount: $amount, ')
+          ..write('currency: $currency, ')
+          ..write('tradeDate: $tradeDate, ')
+          ..write('txSyncId: $txSyncId, ')
+          ..write('dividendEventRef: $dividendEventRef, ')
+          ..write('note: $note, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      syncId,
+      ledgerId,
+      accountId,
+      market,
+      symbol,
+      securityName,
+      tradeType,
+      shares,
+      price,
+      fee,
+      tax,
+      amount,
+      currency,
+      tradeDate,
+      txSyncId,
+      dividendEventRef,
+      note,
+      createdAt,
+      updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is StockTrade &&
+          other.id == this.id &&
+          other.syncId == this.syncId &&
+          other.ledgerId == this.ledgerId &&
+          other.accountId == this.accountId &&
+          other.market == this.market &&
+          other.symbol == this.symbol &&
+          other.securityName == this.securityName &&
+          other.tradeType == this.tradeType &&
+          other.shares == this.shares &&
+          other.price == this.price &&
+          other.fee == this.fee &&
+          other.tax == this.tax &&
+          other.amount == this.amount &&
+          other.currency == this.currency &&
+          other.tradeDate == this.tradeDate &&
+          other.txSyncId == this.txSyncId &&
+          other.dividendEventRef == this.dividendEventRef &&
+          other.note == this.note &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class StockTradesCompanion extends UpdateCompanion<StockTrade> {
+  final Value<int> id;
+  final Value<String?> syncId;
+  final Value<int> ledgerId;
+  final Value<int?> accountId;
+  final Value<String> market;
+  final Value<String> symbol;
+  final Value<String?> securityName;
+  final Value<String> tradeType;
+  final Value<double> shares;
+  final Value<double?> price;
+  final Value<double> fee;
+  final Value<double> tax;
+  final Value<double> amount;
+  final Value<String?> currency;
+  final Value<DateTime> tradeDate;
+  final Value<String?> txSyncId;
+  final Value<String?> dividendEventRef;
+  final Value<String?> note;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const StockTradesCompanion({
+    this.id = const Value.absent(),
+    this.syncId = const Value.absent(),
+    this.ledgerId = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.market = const Value.absent(),
+    this.symbol = const Value.absent(),
+    this.securityName = const Value.absent(),
+    this.tradeType = const Value.absent(),
+    this.shares = const Value.absent(),
+    this.price = const Value.absent(),
+    this.fee = const Value.absent(),
+    this.tax = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.currency = const Value.absent(),
+    this.tradeDate = const Value.absent(),
+    this.txSyncId = const Value.absent(),
+    this.dividendEventRef = const Value.absent(),
+    this.note = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  StockTradesCompanion.insert({
+    this.id = const Value.absent(),
+    this.syncId = const Value.absent(),
+    required int ledgerId,
+    this.accountId = const Value.absent(),
+    required String market,
+    required String symbol,
+    this.securityName = const Value.absent(),
+    required String tradeType,
+    required double shares,
+    this.price = const Value.absent(),
+    this.fee = const Value.absent(),
+    this.tax = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.currency = const Value.absent(),
+    required DateTime tradeDate,
+    this.txSyncId = const Value.absent(),
+    this.dividendEventRef = const Value.absent(),
+    this.note = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  })  : ledgerId = Value(ledgerId),
+        market = Value(market),
+        symbol = Value(symbol),
+        tradeType = Value(tradeType),
+        shares = Value(shares),
+        tradeDate = Value(tradeDate);
+  static Insertable<StockTrade> custom({
+    Expression<int>? id,
+    Expression<String>? syncId,
+    Expression<int>? ledgerId,
+    Expression<int>? accountId,
+    Expression<String>? market,
+    Expression<String>? symbol,
+    Expression<String>? securityName,
+    Expression<String>? tradeType,
+    Expression<double>? shares,
+    Expression<double>? price,
+    Expression<double>? fee,
+    Expression<double>? tax,
+    Expression<double>? amount,
+    Expression<String>? currency,
+    Expression<DateTime>? tradeDate,
+    Expression<String>? txSyncId,
+    Expression<String>? dividendEventRef,
+    Expression<String>? note,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (syncId != null) 'sync_id': syncId,
+      if (ledgerId != null) 'ledger_id': ledgerId,
+      if (accountId != null) 'account_id': accountId,
+      if (market != null) 'market': market,
+      if (symbol != null) 'symbol': symbol,
+      if (securityName != null) 'security_name': securityName,
+      if (tradeType != null) 'trade_type': tradeType,
+      if (shares != null) 'shares': shares,
+      if (price != null) 'price': price,
+      if (fee != null) 'fee': fee,
+      if (tax != null) 'tax': tax,
+      if (amount != null) 'amount': amount,
+      if (currency != null) 'currency': currency,
+      if (tradeDate != null) 'trade_date': tradeDate,
+      if (txSyncId != null) 'tx_sync_id': txSyncId,
+      if (dividendEventRef != null) 'dividend_event_ref': dividendEventRef,
+      if (note != null) 'note': note,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  StockTradesCompanion copyWith(
+      {Value<int>? id,
+      Value<String?>? syncId,
+      Value<int>? ledgerId,
+      Value<int?>? accountId,
+      Value<String>? market,
+      Value<String>? symbol,
+      Value<String?>? securityName,
+      Value<String>? tradeType,
+      Value<double>? shares,
+      Value<double?>? price,
+      Value<double>? fee,
+      Value<double>? tax,
+      Value<double>? amount,
+      Value<String?>? currency,
+      Value<DateTime>? tradeDate,
+      Value<String?>? txSyncId,
+      Value<String?>? dividendEventRef,
+      Value<String?>? note,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt}) {
+    return StockTradesCompanion(
+      id: id ?? this.id,
+      syncId: syncId ?? this.syncId,
+      ledgerId: ledgerId ?? this.ledgerId,
+      accountId: accountId ?? this.accountId,
+      market: market ?? this.market,
+      symbol: symbol ?? this.symbol,
+      securityName: securityName ?? this.securityName,
+      tradeType: tradeType ?? this.tradeType,
+      shares: shares ?? this.shares,
+      price: price ?? this.price,
+      fee: fee ?? this.fee,
+      tax: tax ?? this.tax,
+      amount: amount ?? this.amount,
+      currency: currency ?? this.currency,
+      tradeDate: tradeDate ?? this.tradeDate,
+      txSyncId: txSyncId ?? this.txSyncId,
+      dividendEventRef: dividendEventRef ?? this.dividendEventRef,
+      note: note ?? this.note,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (syncId.present) {
+      map['sync_id'] = Variable<String>(syncId.value);
+    }
+    if (ledgerId.present) {
+      map['ledger_id'] = Variable<int>(ledgerId.value);
+    }
+    if (accountId.present) {
+      map['account_id'] = Variable<int>(accountId.value);
+    }
+    if (market.present) {
+      map['market'] = Variable<String>(market.value);
+    }
+    if (symbol.present) {
+      map['symbol'] = Variable<String>(symbol.value);
+    }
+    if (securityName.present) {
+      map['security_name'] = Variable<String>(securityName.value);
+    }
+    if (tradeType.present) {
+      map['trade_type'] = Variable<String>(tradeType.value);
+    }
+    if (shares.present) {
+      map['shares'] = Variable<double>(shares.value);
+    }
+    if (price.present) {
+      map['price'] = Variable<double>(price.value);
+    }
+    if (fee.present) {
+      map['fee'] = Variable<double>(fee.value);
+    }
+    if (tax.present) {
+      map['tax'] = Variable<double>(tax.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<double>(amount.value);
+    }
+    if (currency.present) {
+      map['currency'] = Variable<String>(currency.value);
+    }
+    if (tradeDate.present) {
+      map['trade_date'] = Variable<DateTime>(tradeDate.value);
+    }
+    if (txSyncId.present) {
+      map['tx_sync_id'] = Variable<String>(txSyncId.value);
+    }
+    if (dividendEventRef.present) {
+      map['dividend_event_ref'] = Variable<String>(dividendEventRef.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StockTradesCompanion(')
+          ..write('id: $id, ')
+          ..write('syncId: $syncId, ')
+          ..write('ledgerId: $ledgerId, ')
+          ..write('accountId: $accountId, ')
+          ..write('market: $market, ')
+          ..write('symbol: $symbol, ')
+          ..write('securityName: $securityName, ')
+          ..write('tradeType: $tradeType, ')
+          ..write('shares: $shares, ')
+          ..write('price: $price, ')
+          ..write('fee: $fee, ')
+          ..write('tax: $tax, ')
+          ..write('amount: $amount, ')
+          ..write('currency: $currency, ')
+          ..write('tradeDate: $tradeDate, ')
+          ..write('txSyncId: $txSyncId, ')
+          ..write('dividendEventRef: $dividendEventRef, ')
+          ..write('note: $note, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SecurityQuotesTable extends SecurityQuotes
+    with TableInfo<$SecurityQuotesTable, SecurityQuote> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SecurityQuotesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _marketMeta = const VerificationMeta('market');
+  @override
+  late final GeneratedColumn<String> market = GeneratedColumn<String>(
+      'market', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _symbolMeta = const VerificationMeta('symbol');
+  @override
+  late final GeneratedColumn<String> symbol = GeneratedColumn<String>(
+      'symbol', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _currencyMeta =
+      const VerificationMeta('currency');
+  @override
+  late final GeneratedColumn<String> currency = GeneratedColumn<String>(
+      'currency', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _priceMeta = const VerificationMeta('price');
+  @override
+  late final GeneratedColumn<double> price = GeneratedColumn<double>(
+      'price', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _prevCloseMeta =
+      const VerificationMeta('prevClose');
+  @override
+  late final GeneratedColumn<double> prevClose = GeneratedColumn<double>(
+      'prev_close', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _quoteTimeMeta =
+      const VerificationMeta('quoteTime');
+  @override
+  late final GeneratedColumn<DateTime> quoteTime = GeneratedColumn<DateTime>(
+      'quote_time', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _sessionMeta =
+      const VerificationMeta('session');
+  @override
+  late final GeneratedColumn<String> session = GeneratedColumn<String>(
+      'session', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+      'source', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _fetchedAtMeta =
+      const VerificationMeta('fetchedAt');
+  @override
+  late final GeneratedColumn<DateTime> fetchedAt = GeneratedColumn<DateTime>(
+      'fetched_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        market,
+        symbol,
+        name,
+        currency,
+        price,
+        prevClose,
+        quoteTime,
+        session,
+        source,
+        fetchedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'security_quotes';
+  @override
+  VerificationContext validateIntegrity(Insertable<SecurityQuote> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('market')) {
+      context.handle(_marketMeta,
+          market.isAcceptableOrUnknown(data['market']!, _marketMeta));
+    } else if (isInserting) {
+      context.missing(_marketMeta);
+    }
+    if (data.containsKey('symbol')) {
+      context.handle(_symbolMeta,
+          symbol.isAcceptableOrUnknown(data['symbol']!, _symbolMeta));
+    } else if (isInserting) {
+      context.missing(_symbolMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    }
+    if (data.containsKey('currency')) {
+      context.handle(_currencyMeta,
+          currency.isAcceptableOrUnknown(data['currency']!, _currencyMeta));
+    }
+    if (data.containsKey('price')) {
+      context.handle(
+          _priceMeta, price.isAcceptableOrUnknown(data['price']!, _priceMeta));
+    }
+    if (data.containsKey('prev_close')) {
+      context.handle(_prevCloseMeta,
+          prevClose.isAcceptableOrUnknown(data['prev_close']!, _prevCloseMeta));
+    }
+    if (data.containsKey('quote_time')) {
+      context.handle(_quoteTimeMeta,
+          quoteTime.isAcceptableOrUnknown(data['quote_time']!, _quoteTimeMeta));
+    }
+    if (data.containsKey('session')) {
+      context.handle(_sessionMeta,
+          session.isAcceptableOrUnknown(data['session']!, _sessionMeta));
+    }
+    if (data.containsKey('source')) {
+      context.handle(_sourceMeta,
+          source.isAcceptableOrUnknown(data['source']!, _sourceMeta));
+    }
+    if (data.containsKey('fetched_at')) {
+      context.handle(_fetchedAtMeta,
+          fetchedAt.isAcceptableOrUnknown(data['fetched_at']!, _fetchedAtMeta));
+    } else if (isInserting) {
+      context.missing(_fetchedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {market, symbol};
+  @override
+  SecurityQuote map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SecurityQuote(
+      market: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}market'])!,
+      symbol: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}symbol'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name']),
+      currency: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}currency']),
+      price: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}price']),
+      prevClose: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}prev_close']),
+      quoteTime: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}quote_time']),
+      session: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}session']),
+      source: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source']),
+      fetchedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}fetched_at'])!,
+    );
+  }
+
+  @override
+  $SecurityQuotesTable createAlias(String alias) {
+    return $SecurityQuotesTable(attachedDatabase, alias);
+  }
+}
+
+class SecurityQuote extends DataClass implements Insertable<SecurityQuote> {
+  final String market;
+  final String symbol;
+  final String? name;
+  final String? currency;
+  final double? price;
+  final double? prevClose;
+  final DateTime? quoteTime;
+  final String? session;
+  final String? source;
+  final DateTime fetchedAt;
+  const SecurityQuote(
+      {required this.market,
+      required this.symbol,
+      this.name,
+      this.currency,
+      this.price,
+      this.prevClose,
+      this.quoteTime,
+      this.session,
+      this.source,
+      required this.fetchedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['market'] = Variable<String>(market);
+    map['symbol'] = Variable<String>(symbol);
+    if (!nullToAbsent || name != null) {
+      map['name'] = Variable<String>(name);
+    }
+    if (!nullToAbsent || currency != null) {
+      map['currency'] = Variable<String>(currency);
+    }
+    if (!nullToAbsent || price != null) {
+      map['price'] = Variable<double>(price);
+    }
+    if (!nullToAbsent || prevClose != null) {
+      map['prev_close'] = Variable<double>(prevClose);
+    }
+    if (!nullToAbsent || quoteTime != null) {
+      map['quote_time'] = Variable<DateTime>(quoteTime);
+    }
+    if (!nullToAbsent || session != null) {
+      map['session'] = Variable<String>(session);
+    }
+    if (!nullToAbsent || source != null) {
+      map['source'] = Variable<String>(source);
+    }
+    map['fetched_at'] = Variable<DateTime>(fetchedAt);
+    return map;
+  }
+
+  SecurityQuotesCompanion toCompanion(bool nullToAbsent) {
+    return SecurityQuotesCompanion(
+      market: Value(market),
+      symbol: Value(symbol),
+      name: name == null && nullToAbsent ? const Value.absent() : Value(name),
+      currency: currency == null && nullToAbsent
+          ? const Value.absent()
+          : Value(currency),
+      price:
+          price == null && nullToAbsent ? const Value.absent() : Value(price),
+      prevClose: prevClose == null && nullToAbsent
+          ? const Value.absent()
+          : Value(prevClose),
+      quoteTime: quoteTime == null && nullToAbsent
+          ? const Value.absent()
+          : Value(quoteTime),
+      session: session == null && nullToAbsent
+          ? const Value.absent()
+          : Value(session),
+      source:
+          source == null && nullToAbsent ? const Value.absent() : Value(source),
+      fetchedAt: Value(fetchedAt),
+    );
+  }
+
+  factory SecurityQuote.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SecurityQuote(
+      market: serializer.fromJson<String>(json['market']),
+      symbol: serializer.fromJson<String>(json['symbol']),
+      name: serializer.fromJson<String?>(json['name']),
+      currency: serializer.fromJson<String?>(json['currency']),
+      price: serializer.fromJson<double?>(json['price']),
+      prevClose: serializer.fromJson<double?>(json['prevClose']),
+      quoteTime: serializer.fromJson<DateTime?>(json['quoteTime']),
+      session: serializer.fromJson<String?>(json['session']),
+      source: serializer.fromJson<String?>(json['source']),
+      fetchedAt: serializer.fromJson<DateTime>(json['fetchedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'market': serializer.toJson<String>(market),
+      'symbol': serializer.toJson<String>(symbol),
+      'name': serializer.toJson<String?>(name),
+      'currency': serializer.toJson<String?>(currency),
+      'price': serializer.toJson<double?>(price),
+      'prevClose': serializer.toJson<double?>(prevClose),
+      'quoteTime': serializer.toJson<DateTime?>(quoteTime),
+      'session': serializer.toJson<String?>(session),
+      'source': serializer.toJson<String?>(source),
+      'fetchedAt': serializer.toJson<DateTime>(fetchedAt),
+    };
+  }
+
+  SecurityQuote copyWith(
+          {String? market,
+          String? symbol,
+          Value<String?> name = const Value.absent(),
+          Value<String?> currency = const Value.absent(),
+          Value<double?> price = const Value.absent(),
+          Value<double?> prevClose = const Value.absent(),
+          Value<DateTime?> quoteTime = const Value.absent(),
+          Value<String?> session = const Value.absent(),
+          Value<String?> source = const Value.absent(),
+          DateTime? fetchedAt}) =>
+      SecurityQuote(
+        market: market ?? this.market,
+        symbol: symbol ?? this.symbol,
+        name: name.present ? name.value : this.name,
+        currency: currency.present ? currency.value : this.currency,
+        price: price.present ? price.value : this.price,
+        prevClose: prevClose.present ? prevClose.value : this.prevClose,
+        quoteTime: quoteTime.present ? quoteTime.value : this.quoteTime,
+        session: session.present ? session.value : this.session,
+        source: source.present ? source.value : this.source,
+        fetchedAt: fetchedAt ?? this.fetchedAt,
+      );
+  SecurityQuote copyWithCompanion(SecurityQuotesCompanion data) {
+    return SecurityQuote(
+      market: data.market.present ? data.market.value : this.market,
+      symbol: data.symbol.present ? data.symbol.value : this.symbol,
+      name: data.name.present ? data.name.value : this.name,
+      currency: data.currency.present ? data.currency.value : this.currency,
+      price: data.price.present ? data.price.value : this.price,
+      prevClose: data.prevClose.present ? data.prevClose.value : this.prevClose,
+      quoteTime: data.quoteTime.present ? data.quoteTime.value : this.quoteTime,
+      session: data.session.present ? data.session.value : this.session,
+      source: data.source.present ? data.source.value : this.source,
+      fetchedAt: data.fetchedAt.present ? data.fetchedAt.value : this.fetchedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SecurityQuote(')
+          ..write('market: $market, ')
+          ..write('symbol: $symbol, ')
+          ..write('name: $name, ')
+          ..write('currency: $currency, ')
+          ..write('price: $price, ')
+          ..write('prevClose: $prevClose, ')
+          ..write('quoteTime: $quoteTime, ')
+          ..write('session: $session, ')
+          ..write('source: $source, ')
+          ..write('fetchedAt: $fetchedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(market, symbol, name, currency, price,
+      prevClose, quoteTime, session, source, fetchedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SecurityQuote &&
+          other.market == this.market &&
+          other.symbol == this.symbol &&
+          other.name == this.name &&
+          other.currency == this.currency &&
+          other.price == this.price &&
+          other.prevClose == this.prevClose &&
+          other.quoteTime == this.quoteTime &&
+          other.session == this.session &&
+          other.source == this.source &&
+          other.fetchedAt == this.fetchedAt);
+}
+
+class SecurityQuotesCompanion extends UpdateCompanion<SecurityQuote> {
+  final Value<String> market;
+  final Value<String> symbol;
+  final Value<String?> name;
+  final Value<String?> currency;
+  final Value<double?> price;
+  final Value<double?> prevClose;
+  final Value<DateTime?> quoteTime;
+  final Value<String?> session;
+  final Value<String?> source;
+  final Value<DateTime> fetchedAt;
+  final Value<int> rowid;
+  const SecurityQuotesCompanion({
+    this.market = const Value.absent(),
+    this.symbol = const Value.absent(),
+    this.name = const Value.absent(),
+    this.currency = const Value.absent(),
+    this.price = const Value.absent(),
+    this.prevClose = const Value.absent(),
+    this.quoteTime = const Value.absent(),
+    this.session = const Value.absent(),
+    this.source = const Value.absent(),
+    this.fetchedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SecurityQuotesCompanion.insert({
+    required String market,
+    required String symbol,
+    this.name = const Value.absent(),
+    this.currency = const Value.absent(),
+    this.price = const Value.absent(),
+    this.prevClose = const Value.absent(),
+    this.quoteTime = const Value.absent(),
+    this.session = const Value.absent(),
+    this.source = const Value.absent(),
+    required DateTime fetchedAt,
+    this.rowid = const Value.absent(),
+  })  : market = Value(market),
+        symbol = Value(symbol),
+        fetchedAt = Value(fetchedAt);
+  static Insertable<SecurityQuote> custom({
+    Expression<String>? market,
+    Expression<String>? symbol,
+    Expression<String>? name,
+    Expression<String>? currency,
+    Expression<double>? price,
+    Expression<double>? prevClose,
+    Expression<DateTime>? quoteTime,
+    Expression<String>? session,
+    Expression<String>? source,
+    Expression<DateTime>? fetchedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (market != null) 'market': market,
+      if (symbol != null) 'symbol': symbol,
+      if (name != null) 'name': name,
+      if (currency != null) 'currency': currency,
+      if (price != null) 'price': price,
+      if (prevClose != null) 'prev_close': prevClose,
+      if (quoteTime != null) 'quote_time': quoteTime,
+      if (session != null) 'session': session,
+      if (source != null) 'source': source,
+      if (fetchedAt != null) 'fetched_at': fetchedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SecurityQuotesCompanion copyWith(
+      {Value<String>? market,
+      Value<String>? symbol,
+      Value<String?>? name,
+      Value<String?>? currency,
+      Value<double?>? price,
+      Value<double?>? prevClose,
+      Value<DateTime?>? quoteTime,
+      Value<String?>? session,
+      Value<String?>? source,
+      Value<DateTime>? fetchedAt,
+      Value<int>? rowid}) {
+    return SecurityQuotesCompanion(
+      market: market ?? this.market,
+      symbol: symbol ?? this.symbol,
+      name: name ?? this.name,
+      currency: currency ?? this.currency,
+      price: price ?? this.price,
+      prevClose: prevClose ?? this.prevClose,
+      quoteTime: quoteTime ?? this.quoteTime,
+      session: session ?? this.session,
+      source: source ?? this.source,
+      fetchedAt: fetchedAt ?? this.fetchedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (market.present) {
+      map['market'] = Variable<String>(market.value);
+    }
+    if (symbol.present) {
+      map['symbol'] = Variable<String>(symbol.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (currency.present) {
+      map['currency'] = Variable<String>(currency.value);
+    }
+    if (price.present) {
+      map['price'] = Variable<double>(price.value);
+    }
+    if (prevClose.present) {
+      map['prev_close'] = Variable<double>(prevClose.value);
+    }
+    if (quoteTime.present) {
+      map['quote_time'] = Variable<DateTime>(quoteTime.value);
+    }
+    if (session.present) {
+      map['session'] = Variable<String>(session.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (fetchedAt.present) {
+      map['fetched_at'] = Variable<DateTime>(fetchedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SecurityQuotesCompanion(')
+          ..write('market: $market, ')
+          ..write('symbol: $symbol, ')
+          ..write('name: $name, ')
+          ..write('currency: $currency, ')
+          ..write('price: $price, ')
+          ..write('prevClose: $prevClose, ')
+          ..write('quoteTime: $quoteTime, ')
+          ..write('session: $session, ')
+          ..write('source: $source, ')
+          ..write('fetchedAt: $fetchedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$BeeDatabase extends GeneratedDatabase {
   _$BeeDatabase(QueryExecutor e) : super(e);
   $BeeDatabaseManager get managers => $BeeDatabaseManager(this);
@@ -18208,6 +19677,8 @@ abstract class _$BeeDatabase extends GeneratedDatabase {
       $InstallmentPlansTable(this);
   late final $InstallmentPeriodsTable installmentPeriods =
       $InstallmentPeriodsTable(this);
+  late final $StockTradesTable stockTrades = $StockTradesTable(this);
+  late final $SecurityQuotesTable securityQuotes = $SecurityQuotesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -18241,7 +19712,9 @@ abstract class _$BeeDatabase extends GeneratedDatabase {
         projectCategoryBudgets,
         rewardChoiceCaches,
         installmentPlans,
-        installmentPeriods
+        installmentPeriods,
+        stockTrades,
+        securityQuotes
       ];
 }
 
@@ -18520,6 +19993,7 @@ typedef $$AccountsTableCreateCompanionBuilder = AccountsCompanion Function({
   Value<bool> autoPayEnabled,
   Value<String?> autoPayFromAccountId,
   Value<bool> hideAmount,
+  Value<String?> investmentSettingsJson,
 });
 typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<int> id,
@@ -18546,6 +20020,7 @@ typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<bool> autoPayEnabled,
   Value<String?> autoPayFromAccountId,
   Value<bool> hideAmount,
+  Value<String?> investmentSettingsJson,
 });
 
 class $$AccountsTableFilterComposer
@@ -18634,6 +20109,10 @@ class $$AccountsTableFilterComposer
 
   ColumnFilters<bool> get hideAmount => $composableBuilder(
       column: $table.hideAmount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get investmentSettingsJson => $composableBuilder(
+      column: $table.investmentSettingsJson,
+      builder: (column) => ColumnFilters(column));
 }
 
 class $$AccountsTableOrderingComposer
@@ -18724,6 +20203,10 @@ class $$AccountsTableOrderingComposer
 
   ColumnOrderings<bool> get hideAmount => $composableBuilder(
       column: $table.hideAmount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get investmentSettingsJson => $composableBuilder(
+      column: $table.investmentSettingsJson,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$AccountsTableAnnotationComposer
@@ -18806,6 +20289,9 @@ class $$AccountsTableAnnotationComposer
 
   GeneratedColumn<bool> get hideAmount => $composableBuilder(
       column: $table.hideAmount, builder: (column) => column);
+
+  GeneratedColumn<String> get investmentSettingsJson => $composableBuilder(
+      column: $table.investmentSettingsJson, builder: (column) => column);
 }
 
 class $$AccountsTableTableManager extends RootTableManager<
@@ -18855,6 +20341,7 @@ class $$AccountsTableTableManager extends RootTableManager<
             Value<bool> autoPayEnabled = const Value.absent(),
             Value<String?> autoPayFromAccountId = const Value.absent(),
             Value<bool> hideAmount = const Value.absent(),
+            Value<String?> investmentSettingsJson = const Value.absent(),
           }) =>
               AccountsCompanion(
             id: id,
@@ -18881,6 +20368,7 @@ class $$AccountsTableTableManager extends RootTableManager<
             autoPayEnabled: autoPayEnabled,
             autoPayFromAccountId: autoPayFromAccountId,
             hideAmount: hideAmount,
+            investmentSettingsJson: investmentSettingsJson,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
@@ -18907,6 +20395,7 @@ class $$AccountsTableTableManager extends RootTableManager<
             Value<bool> autoPayEnabled = const Value.absent(),
             Value<String?> autoPayFromAccountId = const Value.absent(),
             Value<bool> hideAmount = const Value.absent(),
+            Value<String?> investmentSettingsJson = const Value.absent(),
           }) =>
               AccountsCompanion.insert(
             id: id,
@@ -18933,6 +20422,7 @@ class $$AccountsTableTableManager extends RootTableManager<
             autoPayEnabled: autoPayEnabled,
             autoPayFromAccountId: autoPayFromAccountId,
             hideAmount: hideAmount,
+            investmentSettingsJson: investmentSettingsJson,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -26414,6 +27904,644 @@ typedef $$InstallmentPeriodsTableProcessedTableManager = ProcessedTableManager<
     ),
     InstallmentPeriod,
     PrefetchHooks Function()>;
+typedef $$StockTradesTableCreateCompanionBuilder = StockTradesCompanion
+    Function({
+  Value<int> id,
+  Value<String?> syncId,
+  required int ledgerId,
+  Value<int?> accountId,
+  required String market,
+  required String symbol,
+  Value<String?> securityName,
+  required String tradeType,
+  required double shares,
+  Value<double?> price,
+  Value<double> fee,
+  Value<double> tax,
+  Value<double> amount,
+  Value<String?> currency,
+  required DateTime tradeDate,
+  Value<String?> txSyncId,
+  Value<String?> dividendEventRef,
+  Value<String?> note,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+});
+typedef $$StockTradesTableUpdateCompanionBuilder = StockTradesCompanion
+    Function({
+  Value<int> id,
+  Value<String?> syncId,
+  Value<int> ledgerId,
+  Value<int?> accountId,
+  Value<String> market,
+  Value<String> symbol,
+  Value<String?> securityName,
+  Value<String> tradeType,
+  Value<double> shares,
+  Value<double?> price,
+  Value<double> fee,
+  Value<double> tax,
+  Value<double> amount,
+  Value<String?> currency,
+  Value<DateTime> tradeDate,
+  Value<String?> txSyncId,
+  Value<String?> dividendEventRef,
+  Value<String?> note,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+});
+
+class $$StockTradesTableFilterComposer
+    extends Composer<_$BeeDatabase, $StockTradesTable> {
+  $$StockTradesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get syncId => $composableBuilder(
+      column: $table.syncId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get ledgerId => $composableBuilder(
+      column: $table.ledgerId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get accountId => $composableBuilder(
+      column: $table.accountId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get market => $composableBuilder(
+      column: $table.market, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get symbol => $composableBuilder(
+      column: $table.symbol, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get securityName => $composableBuilder(
+      column: $table.securityName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get tradeType => $composableBuilder(
+      column: $table.tradeType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get shares => $composableBuilder(
+      column: $table.shares, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get price => $composableBuilder(
+      column: $table.price, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get fee => $composableBuilder(
+      column: $table.fee, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get tax => $composableBuilder(
+      column: $table.tax, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get amount => $composableBuilder(
+      column: $table.amount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get currency => $composableBuilder(
+      column: $table.currency, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get tradeDate => $composableBuilder(
+      column: $table.tradeDate, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get txSyncId => $composableBuilder(
+      column: $table.txSyncId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get dividendEventRef => $composableBuilder(
+      column: $table.dividendEventRef,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$StockTradesTableOrderingComposer
+    extends Composer<_$BeeDatabase, $StockTradesTable> {
+  $$StockTradesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get syncId => $composableBuilder(
+      column: $table.syncId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get ledgerId => $composableBuilder(
+      column: $table.ledgerId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get accountId => $composableBuilder(
+      column: $table.accountId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get market => $composableBuilder(
+      column: $table.market, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get symbol => $composableBuilder(
+      column: $table.symbol, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get securityName => $composableBuilder(
+      column: $table.securityName,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get tradeType => $composableBuilder(
+      column: $table.tradeType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get shares => $composableBuilder(
+      column: $table.shares, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get price => $composableBuilder(
+      column: $table.price, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get fee => $composableBuilder(
+      column: $table.fee, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get tax => $composableBuilder(
+      column: $table.tax, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get amount => $composableBuilder(
+      column: $table.amount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get currency => $composableBuilder(
+      column: $table.currency, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get tradeDate => $composableBuilder(
+      column: $table.tradeDate, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get txSyncId => $composableBuilder(
+      column: $table.txSyncId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get dividendEventRef => $composableBuilder(
+      column: $table.dividendEventRef,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$StockTradesTableAnnotationComposer
+    extends Composer<_$BeeDatabase, $StockTradesTable> {
+  $$StockTradesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get syncId =>
+      $composableBuilder(column: $table.syncId, builder: (column) => column);
+
+  GeneratedColumn<int> get ledgerId =>
+      $composableBuilder(column: $table.ledgerId, builder: (column) => column);
+
+  GeneratedColumn<int> get accountId =>
+      $composableBuilder(column: $table.accountId, builder: (column) => column);
+
+  GeneratedColumn<String> get market =>
+      $composableBuilder(column: $table.market, builder: (column) => column);
+
+  GeneratedColumn<String> get symbol =>
+      $composableBuilder(column: $table.symbol, builder: (column) => column);
+
+  GeneratedColumn<String> get securityName => $composableBuilder(
+      column: $table.securityName, builder: (column) => column);
+
+  GeneratedColumn<String> get tradeType =>
+      $composableBuilder(column: $table.tradeType, builder: (column) => column);
+
+  GeneratedColumn<double> get shares =>
+      $composableBuilder(column: $table.shares, builder: (column) => column);
+
+  GeneratedColumn<double> get price =>
+      $composableBuilder(column: $table.price, builder: (column) => column);
+
+  GeneratedColumn<double> get fee =>
+      $composableBuilder(column: $table.fee, builder: (column) => column);
+
+  GeneratedColumn<double> get tax =>
+      $composableBuilder(column: $table.tax, builder: (column) => column);
+
+  GeneratedColumn<double> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get currency =>
+      $composableBuilder(column: $table.currency, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get tradeDate =>
+      $composableBuilder(column: $table.tradeDate, builder: (column) => column);
+
+  GeneratedColumn<String> get txSyncId =>
+      $composableBuilder(column: $table.txSyncId, builder: (column) => column);
+
+  GeneratedColumn<String> get dividendEventRef => $composableBuilder(
+      column: $table.dividendEventRef, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$StockTradesTableTableManager extends RootTableManager<
+    _$BeeDatabase,
+    $StockTradesTable,
+    StockTrade,
+    $$StockTradesTableFilterComposer,
+    $$StockTradesTableOrderingComposer,
+    $$StockTradesTableAnnotationComposer,
+    $$StockTradesTableCreateCompanionBuilder,
+    $$StockTradesTableUpdateCompanionBuilder,
+    (StockTrade, BaseReferences<_$BeeDatabase, $StockTradesTable, StockTrade>),
+    StockTrade,
+    PrefetchHooks Function()> {
+  $$StockTradesTableTableManager(_$BeeDatabase db, $StockTradesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$StockTradesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$StockTradesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$StockTradesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String?> syncId = const Value.absent(),
+            Value<int> ledgerId = const Value.absent(),
+            Value<int?> accountId = const Value.absent(),
+            Value<String> market = const Value.absent(),
+            Value<String> symbol = const Value.absent(),
+            Value<String?> securityName = const Value.absent(),
+            Value<String> tradeType = const Value.absent(),
+            Value<double> shares = const Value.absent(),
+            Value<double?> price = const Value.absent(),
+            Value<double> fee = const Value.absent(),
+            Value<double> tax = const Value.absent(),
+            Value<double> amount = const Value.absent(),
+            Value<String?> currency = const Value.absent(),
+            Value<DateTime> tradeDate = const Value.absent(),
+            Value<String?> txSyncId = const Value.absent(),
+            Value<String?> dividendEventRef = const Value.absent(),
+            Value<String?> note = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+          }) =>
+              StockTradesCompanion(
+            id: id,
+            syncId: syncId,
+            ledgerId: ledgerId,
+            accountId: accountId,
+            market: market,
+            symbol: symbol,
+            securityName: securityName,
+            tradeType: tradeType,
+            shares: shares,
+            price: price,
+            fee: fee,
+            tax: tax,
+            amount: amount,
+            currency: currency,
+            tradeDate: tradeDate,
+            txSyncId: txSyncId,
+            dividendEventRef: dividendEventRef,
+            note: note,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String?> syncId = const Value.absent(),
+            required int ledgerId,
+            Value<int?> accountId = const Value.absent(),
+            required String market,
+            required String symbol,
+            Value<String?> securityName = const Value.absent(),
+            required String tradeType,
+            required double shares,
+            Value<double?> price = const Value.absent(),
+            Value<double> fee = const Value.absent(),
+            Value<double> tax = const Value.absent(),
+            Value<double> amount = const Value.absent(),
+            Value<String?> currency = const Value.absent(),
+            required DateTime tradeDate,
+            Value<String?> txSyncId = const Value.absent(),
+            Value<String?> dividendEventRef = const Value.absent(),
+            Value<String?> note = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+          }) =>
+              StockTradesCompanion.insert(
+            id: id,
+            syncId: syncId,
+            ledgerId: ledgerId,
+            accountId: accountId,
+            market: market,
+            symbol: symbol,
+            securityName: securityName,
+            tradeType: tradeType,
+            shares: shares,
+            price: price,
+            fee: fee,
+            tax: tax,
+            amount: amount,
+            currency: currency,
+            tradeDate: tradeDate,
+            txSyncId: txSyncId,
+            dividendEventRef: dividendEventRef,
+            note: note,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$StockTradesTableProcessedTableManager = ProcessedTableManager<
+    _$BeeDatabase,
+    $StockTradesTable,
+    StockTrade,
+    $$StockTradesTableFilterComposer,
+    $$StockTradesTableOrderingComposer,
+    $$StockTradesTableAnnotationComposer,
+    $$StockTradesTableCreateCompanionBuilder,
+    $$StockTradesTableUpdateCompanionBuilder,
+    (StockTrade, BaseReferences<_$BeeDatabase, $StockTradesTable, StockTrade>),
+    StockTrade,
+    PrefetchHooks Function()>;
+typedef $$SecurityQuotesTableCreateCompanionBuilder = SecurityQuotesCompanion
+    Function({
+  required String market,
+  required String symbol,
+  Value<String?> name,
+  Value<String?> currency,
+  Value<double?> price,
+  Value<double?> prevClose,
+  Value<DateTime?> quoteTime,
+  Value<String?> session,
+  Value<String?> source,
+  required DateTime fetchedAt,
+  Value<int> rowid,
+});
+typedef $$SecurityQuotesTableUpdateCompanionBuilder = SecurityQuotesCompanion
+    Function({
+  Value<String> market,
+  Value<String> symbol,
+  Value<String?> name,
+  Value<String?> currency,
+  Value<double?> price,
+  Value<double?> prevClose,
+  Value<DateTime?> quoteTime,
+  Value<String?> session,
+  Value<String?> source,
+  Value<DateTime> fetchedAt,
+  Value<int> rowid,
+});
+
+class $$SecurityQuotesTableFilterComposer
+    extends Composer<_$BeeDatabase, $SecurityQuotesTable> {
+  $$SecurityQuotesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get market => $composableBuilder(
+      column: $table.market, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get symbol => $composableBuilder(
+      column: $table.symbol, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get currency => $composableBuilder(
+      column: $table.currency, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get price => $composableBuilder(
+      column: $table.price, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get prevClose => $composableBuilder(
+      column: $table.prevClose, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get quoteTime => $composableBuilder(
+      column: $table.quoteTime, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get session => $composableBuilder(
+      column: $table.session, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get fetchedAt => $composableBuilder(
+      column: $table.fetchedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$SecurityQuotesTableOrderingComposer
+    extends Composer<_$BeeDatabase, $SecurityQuotesTable> {
+  $$SecurityQuotesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get market => $composableBuilder(
+      column: $table.market, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get symbol => $composableBuilder(
+      column: $table.symbol, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get currency => $composableBuilder(
+      column: $table.currency, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get price => $composableBuilder(
+      column: $table.price, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get prevClose => $composableBuilder(
+      column: $table.prevClose, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get quoteTime => $composableBuilder(
+      column: $table.quoteTime, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get session => $composableBuilder(
+      column: $table.session, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get fetchedAt => $composableBuilder(
+      column: $table.fetchedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$SecurityQuotesTableAnnotationComposer
+    extends Composer<_$BeeDatabase, $SecurityQuotesTable> {
+  $$SecurityQuotesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get market =>
+      $composableBuilder(column: $table.market, builder: (column) => column);
+
+  GeneratedColumn<String> get symbol =>
+      $composableBuilder(column: $table.symbol, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get currency =>
+      $composableBuilder(column: $table.currency, builder: (column) => column);
+
+  GeneratedColumn<double> get price =>
+      $composableBuilder(column: $table.price, builder: (column) => column);
+
+  GeneratedColumn<double> get prevClose =>
+      $composableBuilder(column: $table.prevClose, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get quoteTime =>
+      $composableBuilder(column: $table.quoteTime, builder: (column) => column);
+
+  GeneratedColumn<String> get session =>
+      $composableBuilder(column: $table.session, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get fetchedAt =>
+      $composableBuilder(column: $table.fetchedAt, builder: (column) => column);
+}
+
+class $$SecurityQuotesTableTableManager extends RootTableManager<
+    _$BeeDatabase,
+    $SecurityQuotesTable,
+    SecurityQuote,
+    $$SecurityQuotesTableFilterComposer,
+    $$SecurityQuotesTableOrderingComposer,
+    $$SecurityQuotesTableAnnotationComposer,
+    $$SecurityQuotesTableCreateCompanionBuilder,
+    $$SecurityQuotesTableUpdateCompanionBuilder,
+    (
+      SecurityQuote,
+      BaseReferences<_$BeeDatabase, $SecurityQuotesTable, SecurityQuote>
+    ),
+    SecurityQuote,
+    PrefetchHooks Function()> {
+  $$SecurityQuotesTableTableManager(
+      _$BeeDatabase db, $SecurityQuotesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SecurityQuotesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SecurityQuotesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SecurityQuotesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> market = const Value.absent(),
+            Value<String> symbol = const Value.absent(),
+            Value<String?> name = const Value.absent(),
+            Value<String?> currency = const Value.absent(),
+            Value<double?> price = const Value.absent(),
+            Value<double?> prevClose = const Value.absent(),
+            Value<DateTime?> quoteTime = const Value.absent(),
+            Value<String?> session = const Value.absent(),
+            Value<String?> source = const Value.absent(),
+            Value<DateTime> fetchedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SecurityQuotesCompanion(
+            market: market,
+            symbol: symbol,
+            name: name,
+            currency: currency,
+            price: price,
+            prevClose: prevClose,
+            quoteTime: quoteTime,
+            session: session,
+            source: source,
+            fetchedAt: fetchedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String market,
+            required String symbol,
+            Value<String?> name = const Value.absent(),
+            Value<String?> currency = const Value.absent(),
+            Value<double?> price = const Value.absent(),
+            Value<double?> prevClose = const Value.absent(),
+            Value<DateTime?> quoteTime = const Value.absent(),
+            Value<String?> session = const Value.absent(),
+            Value<String?> source = const Value.absent(),
+            required DateTime fetchedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SecurityQuotesCompanion.insert(
+            market: market,
+            symbol: symbol,
+            name: name,
+            currency: currency,
+            price: price,
+            prevClose: prevClose,
+            quoteTime: quoteTime,
+            session: session,
+            source: source,
+            fetchedAt: fetchedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$SecurityQuotesTableProcessedTableManager = ProcessedTableManager<
+    _$BeeDatabase,
+    $SecurityQuotesTable,
+    SecurityQuote,
+    $$SecurityQuotesTableFilterComposer,
+    $$SecurityQuotesTableOrderingComposer,
+    $$SecurityQuotesTableAnnotationComposer,
+    $$SecurityQuotesTableCreateCompanionBuilder,
+    $$SecurityQuotesTableUpdateCompanionBuilder,
+    (
+      SecurityQuote,
+      BaseReferences<_$BeeDatabase, $SecurityQuotesTable, SecurityQuote>
+    ),
+    SecurityQuote,
+    PrefetchHooks Function()>;
 
 class $BeeDatabaseManager {
   final _$BeeDatabase _db;
@@ -26479,4 +28607,8 @@ class $BeeDatabaseManager {
       $$InstallmentPlansTableTableManager(_db, _db.installmentPlans);
   $$InstallmentPeriodsTableTableManager get installmentPeriods =>
       $$InstallmentPeriodsTableTableManager(_db, _db.installmentPeriods);
+  $$StockTradesTableTableManager get stockTrades =>
+      $$StockTradesTableTableManager(_db, _db.stockTrades);
+  $$SecurityQuotesTableTableManager get securityQuotes =>
+      $$SecurityQuotesTableTableManager(_db, _db.securityQuotes);
 }
