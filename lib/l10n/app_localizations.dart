@@ -19131,6 +19131,18 @@ abstract class AppLocalizations {
   /// **'Ask things like \"how much did I spend on my XX card this month\" — the AI now filters transactions by account name and totals them, instead of finding nothing when the note doesn\'t mention the card. Open it from the AI assistant icon at the top right of the Home tab.'**
   String get whatsNew361AiAccountQueryDesc;
 
+  /// No description provided for @whatsNew361SyncSafetyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Safer cloud sync'**
+  String get whatsNew361SyncSafetyTitle;
+
+  /// No description provided for @whatsNew361SyncSafetyDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed several sync issues that could damage your cloud data: pulling to refresh on the Cloud Sync page before syncing finishes no longer overwrites your cloud accounts with outdated data from this device; when a top-level category is deleted in the cloud, its subcategories on this device are no longer deleted along with it; and sync no longer gets stuck when two categories share the same name. If some transactions had turned into \"Uncategorized\" or subcategories went missing, they\'re restored from the cloud automatically the next time the app syncs after updating — nothing to do on your part. (BeeCount Cloud only)'**
+  String get whatsNew361SyncSafetyDesc;
+
   /// No description provided for @whatsNew361FixesTitle.
   ///
   /// In en, this message translates to:
@@ -19140,7 +19152,7 @@ abstract class AppLocalizations {
   /// No description provided for @whatsNew361FixesDesc.
   ///
   /// In en, this message translates to:
-  /// **'Category colors no longer get wiped to gray after syncing (the colored underline disappeared with cute category icons); after the sync connection drops, reconnect attempts now back off gradually instead of retrying in a tight loop.'**
+  /// **'Category colors no longer get wiped to gray after syncing (the colored underline disappeared with cute category icons); after the sync connection drops, reconnect attempts now back off gradually instead of retrying in a tight loop; accounts with a zero balance on the Assets tab no longer show a red \"-0\".'**
   String get whatsNew361FixesDesc;
 
   /// No description provided for @reportFlowReward.

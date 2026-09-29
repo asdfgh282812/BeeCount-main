@@ -10646,11 +10646,18 @@ class AppLocalizationsEn extends AppLocalizations {
       'Ask things like \"how much did I spend on my XX card this month\" — the AI now filters transactions by account name and totals them, instead of finding nothing when the note doesn\'t mention the card. Open it from the AI assistant icon at the top right of the Home tab.';
 
   @override
+  String get whatsNew361SyncSafetyTitle => 'Safer cloud sync';
+
+  @override
+  String get whatsNew361SyncSafetyDesc =>
+      'Fixed several sync issues that could damage your cloud data: pulling to refresh on the Cloud Sync page before syncing finishes no longer overwrites your cloud accounts with outdated data from this device; when a top-level category is deleted in the cloud, its subcategories on this device are no longer deleted along with it; and sync no longer gets stuck when two categories share the same name. If some transactions had turned into \"Uncategorized\" or subcategories went missing, they\'re restored from the cloud automatically the next time the app syncs after updating — nothing to do on your part. (BeeCount Cloud only)';
+
+  @override
   String get whatsNew361FixesTitle => 'Other fixes';
 
   @override
   String get whatsNew361FixesDesc =>
-      'Category colors no longer get wiped to gray after syncing (the colored underline disappeared with cute category icons); after the sync connection drops, reconnect attempts now back off gradually instead of retrying in a tight loop.';
+      'Category colors no longer get wiped to gray after syncing (the colored underline disappeared with cute category icons); after the sync connection drops, reconnect attempts now back off gradually instead of retrying in a tight loop; accounts with a zero balance on the Assets tab no longer show a red \"-0\".';
 
   @override
   String get reportFlowReward => 'Rewards';

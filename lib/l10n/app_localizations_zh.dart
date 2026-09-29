@@ -10327,11 +10327,18 @@ class AppLocalizationsZh extends AppLocalizations {
       'Ask things like \"how much did I spend on my XX card this month\" — the AI now filters transactions by account name and totals them, instead of finding nothing when the note doesn\'t mention the card. Open it from the AI assistant icon at the top right of the Home tab.';
 
   @override
+  String get whatsNew361SyncSafetyTitle => 'Safer cloud sync';
+
+  @override
+  String get whatsNew361SyncSafetyDesc =>
+      'Fixed several sync issues that could damage your cloud data: pulling to refresh on the Cloud Sync page before syncing finishes no longer overwrites your cloud accounts with outdated data from this device; when a top-level category is deleted in the cloud, its subcategories on this device are no longer deleted along with it; and sync no longer gets stuck when two categories share the same name. If some transactions had turned into \"Uncategorized\" or subcategories went missing, they\'re restored from the cloud automatically the next time the app syncs after updating — nothing to do on your part. (BeeCount Cloud only)';
+
+  @override
   String get whatsNew361FixesTitle => 'Other fixes';
 
   @override
   String get whatsNew361FixesDesc =>
-      'Category colors no longer get wiped to gray after syncing (the colored underline disappeared with cute category icons); after the sync connection drops, reconnect attempts now back off gradually instead of retrying in a tight loop.';
+      'Category colors no longer get wiped to gray after syncing (the colored underline disappeared with cute category icons); after the sync connection drops, reconnect attempts now back off gradually instead of retrying in a tight loop; accounts with a zero balance on the Assets tab no longer show a red \"-0\".';
 
   @override
   String get reportFlowReward => 'Rewards';
@@ -20581,11 +20588,18 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
       '直接問「這個月用 ○○ 卡花了多少」，AI 會依帳戶名稱篩選交易並加總，不再因為備註沒寫卡名而查不到。入口：「明細」頁右上角的 AI 助手圖示。';
 
   @override
+  String get whatsNew361SyncSafetyTitle => '雲端同步資料保護';
+
+  @override
+  String get whatsNew361SyncSafetyDesc =>
+      '修正幾個可能讓雲端資料被改壞的同步問題：資料還沒同步完成時，「雲同步」頁下拉刷新不會再用手機上的舊資料覆蓋雲端帳戶；雲端刪除一級分類時，手機上的子分類不會再被一起刪掉；有重複名稱的分類時，同步不會再卡住。如果你的交易之前變成「無分類」、子分類不見了，更新後同步一次就會自動從雲端接回，不需要任何操作。(僅 BeeCount Cloud)';
+
+  @override
   String get whatsNew361FixesTitle => '其他修正';
 
   @override
   String get whatsNew361FixesDesc =>
-      '修正分類顏色在同步後被清掉、變成灰色的問題(開啟「可愛類別圖示」時底線顏色消失)；同步連線中斷後改為逐步拉長重連間隔，避免短時間大量重連；AI 服務暫時無法使用的錯誤訊息改為繁體中文。';
+      '修正分類顏色在同步後被清掉、變成灰色的問題(開啟「可愛類別圖示」時底線顏色消失)；同步連線中斷後改為逐步拉長重連間隔，避免短時間大量重連；AI 服務暫時無法使用的錯誤訊息改為繁體中文；資產頁餘額為 0 的帳戶不會再顯示成紅色的「-0」。';
 
   @override
   String get reportFlowReward => '回饋金';

@@ -113,6 +113,10 @@ final Map<String, List<WhatsNewItem>> kWhatsNewContent = {
       description: (l10n) => l10n.whatsNew361AiAccountQueryDesc,
     ),
     WhatsNewItem(
+      title: (l10n) => l10n.whatsNew361SyncSafetyTitle,
+      description: (l10n) => l10n.whatsNew361SyncSafetyDesc,
+    ),
+    WhatsNewItem(
       title: (l10n) => l10n.whatsNew361FixesTitle,
       description: (l10n) => l10n.whatsNew361FixesDesc,
     ),
