@@ -13,6 +13,7 @@ import 'holding_tile.dart';
 import 'investment_settings_page.dart';
 import 'investment_ui.dart';
 import 'pending_dividends_page.dart';
+import 'recurring_stock_rule_editor_page.dart';
 import 'stock_trade_editor_page.dart';
 
 /// 投資理財帳戶詳情頁的「持股」分頁(docs/changes/2026-09-28-stock-holdings.md)。
@@ -47,6 +48,12 @@ class _InvestmentHoldingsViewState
   void _addTrade() {
     Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => StockTradeEditorPage(account: widget.account)));
+  }
+
+  void _openRecurringStock() {
+    Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) =>
+            RecurringStockRuleEditorPage(account: widget.account)));
   }
 
   void _openSettings() {
@@ -221,19 +228,29 @@ class _InvestmentHoldingsViewState
               ),
             ),
           SizedBox(height: 12.0.scaled(context, ref)),
+          FilledButton.icon(
+              onPressed: _addTrade,
+              icon: const Icon(Icons.add),
+              label: Text(l10n.stockAddTrade)),
+          SizedBox(height: 8.0.scaled(context, ref)),
           Row(
             children: [
               Expanded(
-                child: FilledButton.icon(
-                    onPressed: _addTrade,
-                    icon: const Icon(Icons.add),
-                    label: Text(l10n.stockAddTrade)),
+                child: OutlinedButton.icon(
+                  onPressed: _openRecurringStock,
+                  icon: const Icon(Icons.repeat, size: 18),
+                  label: Text(l10n.recurringStockEntryLabel,
+                      overflow: TextOverflow.ellipsis),
+                ),
               ),
               const SizedBox(width: 8),
-              OutlinedButton.icon(
-                onPressed: _openSettings,
-                icon: const Icon(Icons.tune, size: 18),
-                label: Text(l10n.stockFeeSettings),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _openSettings,
+                  icon: const Icon(Icons.tune, size: 18),
+                  label: Text(l10n.stockFeeSettings,
+                      overflow: TextOverflow.ellipsis),
+                ),
               ),
             ],
           ),

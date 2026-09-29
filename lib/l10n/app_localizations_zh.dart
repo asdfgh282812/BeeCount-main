@@ -8835,6 +8835,59 @@ class AppLocalizationsZh extends AppLocalizations {
   String get recurringRuleOccurrencesEmpty => 'No transactions generated yet';
 
   @override
+  String get recurringKindFilterAll => 'All';
+
+  @override
+  String get recurringKindFilterGeneral => 'General';
+
+  @override
+  String get recurringKindFilterStock => 'Stock DCA';
+
+  @override
+  String get recurringKindStockBadge => 'DCA';
+
+  @override
+  String get recurringStockEntryLabel => 'Recurring Investment';
+
+  @override
+  String get recurringStockAddTitle => 'Add Recurring Investment';
+
+  @override
+  String get recurringStockEditTitle => 'Edit Recurring Investment';
+
+  @override
+  String get recurringStockInvestmentAccountLabel => 'Investment account';
+
+  @override
+  String get recurringStockInvestAmountLabel => 'Amount per period';
+
+  @override
+  String get recurringStockCustomFeeLabel => 'Custom fee for this plan';
+
+  @override
+  String get recurringStockCustomFeeHint =>
+      'Off uses this account\'s default fee settings';
+
+  @override
+  String get recurringStockFeeRateLabel => 'Fee rate';
+
+  @override
+  String get recurringStockFeeMinLabel => 'Minimum fee';
+
+  @override
+  String get recurringStockSecurityRequired => 'Please select a security';
+
+  @override
+  String get recurringStockAmountRequired =>
+      'Please enter the amount per period';
+
+  @override
+  String get recurringStockScheduleRequired => 'Please set the schedule';
+
+  @override
+  String get recurringStockOccurrenceHint => 'Manage from the investment page';
+
+  @override
   String get automationRecurringTile => 'Recurring Transactions';
 
   @override
@@ -19680,6 +19733,57 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get recurringRuleOccurrencesEmpty => '尚未生成任何交易';
+
+  @override
+  String get recurringKindFilterAll => '全部';
+
+  @override
+  String get recurringKindFilterGeneral => '一般交易';
+
+  @override
+  String get recurringKindFilterStock => '股票定期定額';
+
+  @override
+  String get recurringKindStockBadge => '定期定額';
+
+  @override
+  String get recurringStockEntryLabel => '定期定額';
+
+  @override
+  String get recurringStockAddTitle => '新增定期定額';
+
+  @override
+  String get recurringStockEditTitle => '編輯定期定額';
+
+  @override
+  String get recurringStockInvestmentAccountLabel => '投資理財帳戶';
+
+  @override
+  String get recurringStockInvestAmountLabel => '每期投入金額';
+
+  @override
+  String get recurringStockCustomFeeLabel => '自訂這個計畫的手續費';
+
+  @override
+  String get recurringStockCustomFeeHint => '關閉時沿用這個帳戶的預設費用設定';
+
+  @override
+  String get recurringStockFeeRateLabel => '手續費率';
+
+  @override
+  String get recurringStockFeeMinLabel => '最低手續費';
+
+  @override
+  String get recurringStockSecurityRequired => '請選擇投資標的';
+
+  @override
+  String get recurringStockAmountRequired => '請輸入每期投入金額';
+
+  @override
+  String get recurringStockScheduleRequired => '請設定週期';
+
+  @override
+  String get recurringStockOccurrenceHint => '請至投資頁管理';
 
   @override
   String get automationRecurringTile => '週期記帳';

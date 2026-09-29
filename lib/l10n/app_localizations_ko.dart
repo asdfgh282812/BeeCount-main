@@ -8927,6 +8927,59 @@ class AppLocalizationsKo extends AppLocalizations {
   String get recurringRuleOccurrencesEmpty => 'No transactions generated yet';
 
   @override
+  String get recurringKindFilterAll => 'All';
+
+  @override
+  String get recurringKindFilterGeneral => 'General';
+
+  @override
+  String get recurringKindFilterStock => 'Stock DCA';
+
+  @override
+  String get recurringKindStockBadge => 'DCA';
+
+  @override
+  String get recurringStockEntryLabel => 'Recurring Investment';
+
+  @override
+  String get recurringStockAddTitle => 'Add Recurring Investment';
+
+  @override
+  String get recurringStockEditTitle => 'Edit Recurring Investment';
+
+  @override
+  String get recurringStockInvestmentAccountLabel => 'Investment account';
+
+  @override
+  String get recurringStockInvestAmountLabel => 'Amount per period';
+
+  @override
+  String get recurringStockCustomFeeLabel => 'Custom fee for this plan';
+
+  @override
+  String get recurringStockCustomFeeHint =>
+      'Off uses this account\'s default fee settings';
+
+  @override
+  String get recurringStockFeeRateLabel => 'Fee rate';
+
+  @override
+  String get recurringStockFeeMinLabel => 'Minimum fee';
+
+  @override
+  String get recurringStockSecurityRequired => 'Please select a security';
+
+  @override
+  String get recurringStockAmountRequired =>
+      'Please enter the amount per period';
+
+  @override
+  String get recurringStockScheduleRequired => 'Please set the schedule';
+
+  @override
+  String get recurringStockOccurrenceHint => 'Manage from the investment page';
+
+  @override
   String get automationRecurringTile => 'Recurring Transactions';
 
   @override

@@ -18,6 +18,7 @@ import '../services/billing/post_processor.dart';
 import '../services/system/logger_service.dart';
 import '../ai/providers/ai_constants.dart';
 import '../services/platform/app_link_service.dart';
+import '../data/repositories/recurring_rule_repository.dart';
 import 'security_providers.dart';
 
 // 底部导航索引（0: 账户, 1: 专案, 2: 明细/记帐(中间动态按钮), 3: 洞察, 4: 我的）
@@ -369,15 +370,19 @@ final appSplashInitProvider = FutureProvider<void>((ref) async {
     try {
       final refillResult = await repo.refillWindows();
       final transferResult = await repo.materializeDueTransferRules();
+      final stockResult = await repo.materializeDueStockRules();
       final generatedLedgerIds = <int>{
         ...refillResult.ledgerIds,
         ...transferResult.ledgerIds,
+        ...stockResult.ledgerIds,
       };
       logger.info(
           tag,
           '週期性收支生成完成: refill=${refillResult.generatedCount} '
           'transfer=${transferResult.materialized} '
           'skipped=${transferResult.skipped.length} '
+          'stockDca=${stockResult.materialized} '
+          'stockSkipped=${stockResult.skipped.length} '
           '(${DateTime.now().difference(stepTime).inMilliseconds}ms)');
 
       // 统一后处理：刷新UI + 触发云同步（如果有生成交易）
@@ -403,6 +408,31 @@ final appSplashInitProvider = FutureProvider<void>((ref) async {
           } catch (e) {
             // 通知子系统任何异常都不允许影响记账主流程,同其它通知调用点惯例。
             logger.warning(tag, '自動扣繳不足額通知失敗: $e');
+          }
+        }
+      }
+
+      // 股票定期定額被跳過(餘額不足/報價缺失),同上用 ruleId 當通知 id。
+      if (stockResult.skipped.isNotEmpty) {
+        final notificationUtil = NotificationFactory.getInstance();
+        for (final skip in stockResult.skipped) {
+          final label = skip.note != null && skip.note!.isNotEmpty
+              ? '${skip.note}(${skip.symbol})'
+              : skip.symbol;
+          final title = '定期定額未執行：$label';
+          final body = switch (skip.reason) {
+            RecurringRuleStockSkipReason.insufficientBalance =>
+              '交割帳戶餘額不足(需要 ${skip.requiredAmount?.toStringAsFixed(2)},'
+                  '目前餘額 ${skip.currentBalance?.toStringAsFixed(2)}),'
+                  '本次啟動時系統會持續嘗試。',
+            RecurringRuleStockSkipReason.quoteUnavailable =>
+              '目前沒有這檔標的的報價,本次啟動時系統會持續嘗試。',
+          };
+          try {
+            await notificationUtil.showNotification(
+                id: skip.ruleId, title: title, body: body);
+          } catch (e) {
+            logger.warning(tag, '股票定期定額跳過通知失敗: $e');
           }
         }
       }

@@ -21,6 +21,31 @@ class RecurringRuleTransferSkip {
   });
 }
 
+/// [RecurringRuleRepository.materializeDueStockRules] 裡「這期沒能生成」的
+/// 單筆記錄,同 [RecurringRuleTransferSkip] 但多一個 [reason]:交割帳戶餘額
+/// 不足,或報價快取沒有這檔標的的資料(還沒抓到/從沒抓過)。
+enum RecurringRuleStockSkipReason { insufficientBalance, quoteUnavailable }
+
+class RecurringRuleStockSkip {
+  final int ruleId;
+  final String? note;
+  final String symbol;
+  final DateTime occurrenceAt;
+  final RecurringRuleStockSkipReason reason;
+  final double? requiredAmount;
+  final double? currentBalance;
+
+  const RecurringRuleStockSkip({
+    required this.ruleId,
+    required this.note,
+    required this.symbol,
+    required this.occurrenceAt,
+    required this.reason,
+    this.requiredAmount,
+    this.currentBalance,
+  });
+}
+
 /// 週期性收支規則 Repository 接口。取代舊版 `RecurringTransactionRepository`
 /// (純本地、不同步)。對齊 BeeCount Cloud 的 `recurring_rule` sync entity,
 /// 見 `docs/CLOUD_SYNC_INTEGRATION.md` 與
@@ -55,6 +80,14 @@ abstract class RecurringRuleRepository {
     Map<String, dynamic>? advancedRule,
     required DateTime nextRunAt,
     DateTime? endAt,
+    // 股票定期定額(kind='stock_dca')專屬欄位,見 [RecurringTransactions.kind]
+    // 文件註解。kind 預設 'general',呼叫端不用管這幾個欄位。
+    String kind = 'general',
+    String? market,
+    String? symbol,
+    String? securityName,
+    double? stockFeeRate,
+    double? stockFeeMin,
   });
 
   Future<RecurringTransaction?> getRuleById(int id);
@@ -141,6 +174,13 @@ abstract class RecurringRuleRepository {
     // toAmount——不傳(null)= 不動既有值;傳 d.Value<double?>(x) 套用到這批
     // 更新的每一列(單一數值,不做比例換算,跟其餘欄位的批次套用方式一致)。
     dynamic toAmount,
+    // 股票定期定額規則(kind='stock_dca')的手續費覆寫——[market]/[symbol]/
+    // [securityName] 建規則後不可改(同 [StockTradeEditorPage] 標的鎖死的
+    // 慣例,要換標的請刪掉重建),所以這裡只開放費率/最低手續費。
+    double? stockFeeRate,
+    bool clearStockFeeRate = false,
+    double? stockFeeMin,
+    bool clearStockFeeMin = false,
   });
 
   /// 「刪除連同未來週期」:刪除同規則、`happenedAt > now` 的所有 occurrence
@@ -170,4 +210,20 @@ abstract class RecurringRuleRepository {
         List<RecurringRuleTransferSkip> skipped,
         Set<int> ledgerIds
       })> materializeDueTransferRules();
+
+  /// 股票定期定額(`kind='stock_dca'`)規則:到期當下才逐筆生成,理由同
+  /// [materializeDueTransferRules](生成前要查「當下」的資料,提前批次生成
+  /// 無法預知未來)但多一層——除了交割帳戶餘額要夠,還要本地報價快取
+  /// ([SecurityQuotes])有這檔標的的價格才能算出股數。兩者任一不滿足就跳
+  /// 過(不推進進度,下次呼叫重試同一期)。生成方式是呼叫
+  /// [StockTradeRepository.createStockTrade](`tradeType='buy'`),不是
+  /// [materializeDueTransferRules] 那種直接建轉帳交易的寫法——這樣手續費
+  /// 换算/`StockTrades`明細/`txSyncId`回填都能沿用單筆買進的既有邏輯,不用
+  /// 另外重寫一套。
+  Future<
+      ({
+        int materialized,
+        List<RecurringRuleStockSkip> skipped,
+        Set<int> ledgerIds
+      })> materializeDueStockRules();
 }

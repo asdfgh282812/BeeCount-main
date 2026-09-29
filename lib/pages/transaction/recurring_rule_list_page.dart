@@ -12,12 +12,22 @@ import '../../utils/transaction_edit_utils.dart';
 import '../../widgets/biz/recurring_occurrence_dialogs.dart';
 import '../../widgets/biz/recurring_rule_advanced_sheet.dart';
 import '../../widgets/ui/ui.dart';
+import '../investment/recurring_stock_rule_editor_page.dart';
 import 'recurring_rule_editor_page.dart';
+
+/// 週期性收支規則篩選分類——對齊 [RecurringTransactions.kind]。'all' 只是
+/// UI 層的篩選選項,不對應任何實際欄位值。
+enum _KindFilter { all, general, stock }
 
 /// 週期性收支規則列表(v2,對齊 Web 端規則總覽+編輯 Modal)——依 `enabled`
 /// 分「進行中」/「已結束或已停用」兩組。每張規則卡片可展開看已生成的期數
 /// 明細(單筆編輯/連同以後/刪除),規則本身支援快速啟停、終止未來週期、
 /// 編輯全部欄位、刪除整條規則。
+///
+/// v64 起同時管理「一般交易」跟「股票定期定額」(`kind='stock_dca'`,新增/
+/// 編輯走專屬的 [RecurringStockRuleEditorPage],入口在投資帳戶頁「定期定額」
+/// 按鈕,這個列表頁本身不提供新建股票規則的入口——同單筆股票交易只能從投資
+/// 帳戶頁新增的既有慣例)。上方新增分類篩選 tab 區分兩種規則。
 class RecurringRuleListPage extends ConsumerStatefulWidget {
   const RecurringRuleListPage({super.key});
 
@@ -28,11 +38,23 @@ class RecurringRuleListPage extends ConsumerStatefulWidget {
 
 class _RecurringRuleListPageState extends ConsumerState<RecurringRuleListPage> {
   final Set<int> _expandedRuleIds = {};
+  _KindFilter _filter = _KindFilter.all;
 
   void _toggleExpand(int ruleId) {
     setState(() {
       if (!_expandedRuleIds.remove(ruleId)) _expandedRuleIds.add(ruleId);
     });
+  }
+
+  bool _matchesFilter(RecurringTransaction r) {
+    switch (_filter) {
+      case _KindFilter.all:
+        return true;
+      case _KindFilter.general:
+        return r.kind != 'stock_dca';
+      case _KindFilter.stock:
+        return r.kind == 'stock_dca';
+    }
   }
 
   @override
@@ -53,6 +75,10 @@ class _RecurringRuleListPageState extends ConsumerState<RecurringRuleListPage> {
             title: l10n.recurringRuleListTitle,
             showBack: true,
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: _buildKindFilterTabs(context, l10n),
+          ),
           Expanded(
             child: StreamBuilder<List<RecurringTransaction>>(
               stream: repo.watchRulesByLedger(ledgerId),
@@ -60,7 +86,7 @@ class _RecurringRuleListPageState extends ConsumerState<RecurringRuleListPage> {
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                final rules = snapshot.data!;
+                final rules = snapshot.data!.where(_matchesFilter).toList();
                 if (rules.isEmpty) {
                   return _buildEmptyState(context, l10n);
                 }
@@ -92,6 +118,28 @@ class _RecurringRuleListPageState extends ConsumerState<RecurringRuleListPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildKindFilterTabs(BuildContext context, AppLocalizations l10n) {
+    Widget tab(String label, _KindFilter value) {
+      final selected = _filter == value;
+      return Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: ChoiceChip(
+          label: Text(label),
+          selected: selected,
+          onSelected: (_) => setState(() => _filter = value),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        tab(l10n.recurringKindFilterAll, _KindFilter.all),
+        tab(l10n.recurringKindFilterGeneral, _KindFilter.general),
+        tab(l10n.recurringKindFilterStock, _KindFilter.stock),
+      ],
     );
   }
 
@@ -183,7 +231,10 @@ class _RecurringRuleTile extends ConsumerWidget {
     required this.onDelete,
   });
 
+  bool get _isStockDca => rule.kind == 'stock_dca';
+
   IconData _typeIcon() {
+    if (_isStockDca) return Icons.trending_up;
     switch (rule.type) {
       case 'income':
         return Icons.arrow_downward;
@@ -215,11 +266,21 @@ class _RecurringRuleTile extends ConsumerWidget {
       advancedRule: _decodeAdvancedRule(),
       endAt: rule.endAt,
     );
-    final title = (rule.note != null && rule.note!.isNotEmpty)
-        ? rule.note!
-        : (rule.merchant ?? rule.type);
+    final title = _isStockDca
+        ? [
+            if (rule.symbol != null) rule.symbol!,
+            if (rule.securityName != null && rule.securityName!.isNotEmpty)
+              rule.securityName!,
+          ].join(' ')
+        : (rule.note != null && rule.note!.isNotEmpty)
+            ? rule.note!
+            : (rule.merchant ?? rule.type);
     final subtitleParts = <String>[draft.summary(l10n)];
-    if (category != null) subtitleParts.insert(0, category!.name);
+    if (_isStockDca) {
+      subtitleParts.insert(0, l10n.recurringKindStockBadge);
+    } else if (category != null) {
+      subtitleParts.insert(0, category!.name);
+    }
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -309,11 +370,7 @@ class _RecurringRuleTile extends ConsumerWidget {
                   child: Text(l10n.recurringRuleTerminateFutureLabel),
                 ),
                 TextButton(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => RecurringRuleEditorPage(rule: rule),
-                    ),
-                  ),
+                  onPressed: () => _openEditor(context, ref),
                   child: Text(l10n.commonEdit),
                 ),
                 TextButton(
@@ -351,6 +408,27 @@ class _RecurringRuleTile extends ConsumerWidget {
               ? BeeTokens.success(context)
               : BeeTokens.textTertiary(context),
         ),
+      ),
+    );
+  }
+
+  Future<void> _openEditor(BuildContext context, WidgetRef ref) async {
+    if (!_isStockDca) {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => RecurringRuleEditorPage(rule: rule)),
+      );
+      return;
+    }
+    // 股票定期定額規則要帶投資理財帳戶(toAccountId)物件進編輯頁——同投資
+    // 頁「編輯單筆交易」的既有慣例,不是規則表本身缺欄位。
+    final repo = ref.read(repositoryProvider);
+    final account =
+        rule.toAccountId != null ? await repo.getAccount(rule.toAccountId!) : null;
+    if (account == null || !context.mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            RecurringStockRuleEditorPage(account: account, rule: rule),
       ),
     );
   }
@@ -465,62 +543,71 @@ class _OccurrenceTile extends ConsumerWidget {
             ),
           ],
           const Spacer(),
-          if (!transaction.recurringOccurrenceOverridden)
-            TextButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => RecurringRuleEditorPage(
-                    rule: rule,
-                    anchorTransactionId: transaction.id,
+          if (rule.kind == 'stock_dca')
+            // 這個 occurrence 其實是 StockTrade 連帶建立的轉帳交易——直接改
+            // /刪這筆交易會讓 StockTrades.txSyncId 對不上,要改請去投資頁的
+            // 持股明細(那邊會連 StockTrade 明細一起處理),這裡只顯示不給改。
+            Text(l10n.recurringStockOccurrenceHint,
+                style:
+                    TextStyle(fontSize: 12, color: BeeTokens.textTertiary(context)))
+          else ...[
+            if (!transaction.recurringOccurrenceOverridden)
+              TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => RecurringRuleEditorPage(
+                      rule: rule,
+                      anchorTransactionId: transaction.id,
+                    ),
                   ),
                 ),
+                style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                child: Text(l10n.recurringOccurrenceUpdateFrom,
+                    style: const TextStyle(fontSize: 12)),
               ),
+            TextButton(
+              onPressed: () async {
+                final repo = ref.read(repositoryProvider);
+                final category = transaction.categoryId != null
+                    ? await repo.getCategoryById(transaction.categoryId!)
+                    : null;
+                if (!context.mounted) return;
+                await TransactionEditUtils.editTransaction(
+                  context,
+                  ref,
+                  transaction,
+                  category,
+                  forcedScope: RecurringEditScope.thisOnly,
+                );
+              },
               style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-              child: Text(l10n.recurringOccurrenceUpdateFrom,
+              child: Text(l10n.recurringOccurrenceEdit,
                   style: const TextStyle(fontSize: 12)),
             ),
-          TextButton(
-            onPressed: () async {
-              final repo = ref.read(repositoryProvider);
-              final category = transaction.categoryId != null
-                  ? await repo.getCategoryById(transaction.categoryId!)
-                  : null;
-              if (!context.mounted) return;
-              await TransactionEditUtils.editTransaction(
-                context,
-                ref,
-                transaction,
-                category,
-                forcedScope: RecurringEditScope.thisOnly,
-              );
-            },
-            style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-            child: Text(l10n.recurringOccurrenceEdit,
-                style: const TextStyle(fontSize: 12)),
-          ),
-          TextButton(
-            onPressed: () async {
-              final repo = ref.read(repositoryProvider);
-              await repo.deleteOccurrence(transaction.id);
-              final ledgerId = ref.read(currentLedgerIdProvider);
-              ref.invalidate(countsForLedgerProvider(ledgerId));
-              ref.read(statsRefreshProvider.notifier).state++;
-              PostProcessor.sync(ref, ledgerId: ledgerId);
-            },
-            style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                foregroundColor: BeeTokens.error(context)),
-            child: Text(l10n.recurringOccurrenceDelete,
-                style: const TextStyle(fontSize: 12)),
-          ),
+            TextButton(
+              onPressed: () async {
+                final repo = ref.read(repositoryProvider);
+                await repo.deleteOccurrence(transaction.id);
+                final ledgerId = ref.read(currentLedgerIdProvider);
+                ref.invalidate(countsForLedgerProvider(ledgerId));
+                ref.read(statsRefreshProvider.notifier).state++;
+                PostProcessor.sync(ref, ledgerId: ledgerId);
+              },
+              style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  foregroundColor: BeeTokens.error(context)),
+              child: Text(l10n.recurringOccurrenceDelete,
+                  style: const TextStyle(fontSize: 12)),
+            ),
+          ],
         ],
       ),
     );

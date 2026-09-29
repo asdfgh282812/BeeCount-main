@@ -3052,7 +3052,16 @@ class LocalRepository extends BaseRepository {
     Map<String, dynamic>? advancedRule,
     required DateTime nextRunAt,
     DateTime? endAt,
+    String kind = 'general',
+    String? market,
+    String? symbol,
+    String? securityName,
+    double? stockFeeRate,
+    double? stockFeeMin,
   }) async {
+    if (kind == 'stock_dca' && type != 'transfer') {
+      throw ArgumentError('stock_dca rules must have type == transfer');
+    }
     final ruleId = await _recurringRuleRepo.createRule(
       ledgerId: ledgerId,
       type: type,
@@ -3070,13 +3079,20 @@ class LocalRepository extends BaseRepository {
       advancedRule: advancedRule,
       nextRunAt: nextRunAt,
       endAt: endAt,
+      kind: kind,
+      market: market,
+      symbol: symbol,
+      securityName: securityName,
+      stockFeeRate: stockFeeRate,
+      stockFeeMin: stockFeeMin,
     );
     var rule = await _recurringRuleRepo.getRuleById(ruleId);
     if (rule == null) return ruleId;
 
-    // transfer(自動扣繳):不預生成,交給 materializeDueTransferRules 到期
-    // 才逐筆生成 + 查餘額(見該方法註釋)。
-    if (type != 'transfer') {
+    // transfer(自動扣繳)+ stock_dca(定期定額,價格未知一樣不能預生成):
+    // 不預生成,交給 materializeDueTransferRules/materializeDueStockRules
+    // 到期才逐筆生成(見各自方法註釋)。
+    if (type != 'transfer' && kind != 'stock_dca') {
       final plan = recurring_schedule.planInitialGeneration(
         start: nextRunAt,
         end: endAt,
@@ -3197,6 +3213,10 @@ class LocalRepository extends BaseRepository {
     DateTime? endAt,
     bool clearEndAt = false,
     dynamic toAmount,
+    double? stockFeeRate,
+    bool clearStockFeeRate = false,
+    double? stockFeeMin,
+    bool clearStockFeeMin = false,
   }) async {
     final rule = await _recurringRuleRepo.getRuleById(ruleId);
     if (rule == null) return;
@@ -3235,6 +3255,10 @@ class LocalRepository extends BaseRepository {
       nextRunAt: nextRunAt,
       endAt: endAt,
       clearEndAt: clearEndAt,
+      stockFeeRate: stockFeeRate,
+      clearStockFeeRate: clearStockFeeRate,
+      stockFeeMin: stockFeeMin,
+      clearStockFeeMin: clearStockFeeMin,
     );
     final updatedRule = await _recurringRuleRepo.getRuleById(ruleId);
     if (updatedRule != null) await _recordRuleChange(updatedRule, 'update');
@@ -3492,6 +3516,158 @@ class LocalRepository extends BaseRepository {
           happenedAt: nextOccurrence,
           accountId: currentRule.fromAccountId,
           toAccountId: currentRule.toAccountId,
+        );
+        materialized++;
+        await _recurringRuleRepo.updateRuleFields(currentRule.id,
+            generatedUntilAt: nextOccurrence);
+        ruleChanged = true;
+        final refreshed = await _recurringRuleRepo.getRuleById(currentRule.id);
+        if (refreshed == null) break;
+        currentRule = refreshed;
+        if (currentRule.endAt != null &&
+            !currentRule.generatedUntilAt!.isBefore(currentRule.endAt!)) {
+          await _recurringRuleRepo.updateRuleFields(currentRule.id,
+              enabled: false);
+          break;
+        }
+      }
+      if (ruleChanged) {
+        final updated = await _recurringRuleRepo.getRuleById(rule.id);
+        if (updated != null) await _recordRuleChange(updated, 'update');
+        ledgerIds.add(rule.ledgerId);
+      }
+    }
+    return (materialized: materialized, skipped: skipped, ledgerIds: ledgerIds);
+  }
+
+  @override
+  Future<
+      ({
+        int materialized,
+        List<RecurringRuleStockSkip> skipped,
+        Set<int> ledgerIds
+      })> materializeDueStockRules() async {
+    final now = DateTime.now();
+    final rules = await (db.select(db.recurringTransactions)
+          ..where((r) =>
+              r.enabled.equals(true) & r.kind.equals('stock_dca')))
+        .get();
+
+    var materialized = 0;
+    final skipped = <RecurringRuleStockSkip>[];
+    final ledgerIds = <int>{};
+    final quotes = await getSecurityQuotes();
+    SecurityQuote? quoteFor(String market, String symbol) {
+      for (final q in quotes) {
+        if (q.market.toUpperCase() == market.toUpperCase() &&
+            q.symbol.toUpperCase() == symbol.toUpperCase() &&
+            q.price != null &&
+            q.price! > 0) {
+          return q;
+        }
+      }
+      return null;
+    }
+
+    for (final rule in rules) {
+      if (rule.syncId == null ||
+          rule.fromAccountId == null ||
+          rule.toAccountId == null ||
+          rule.market == null ||
+          rule.symbol == null) continue;
+      if (await _anyLinkedAccountHidden(rule)) continue;
+      final investment = await getAccount(rule.toAccountId!);
+      if (investment == null) continue;
+      final advancedRule = _decodeAdvancedRule(rule.advancedRuleJson);
+
+      var currentRule = rule;
+      var ruleChanged = false;
+      while (true) {
+        DateTime? nextOccurrence;
+        final generatedUntil = currentRule.generatedUntilAt;
+        if (generatedUntil == null) {
+          nextOccurrence = currentRule.nextRunAt;
+        } else {
+          final following = recurring_schedule.enumerateOccurrences(
+            start: generatedUntil,
+            end: null,
+            frequency: currentRule.frequency,
+            interval: currentRule.interval,
+            advancedRule: advancedRule,
+            maxCount: 2,
+          );
+          nextOccurrence = following.length > 1 ? following[1] : null;
+        }
+        // 还没到期(或没有下一期),下次呼叫再看。
+        if (nextOccurrence == null || nextOccurrence.isAfter(now)) break;
+
+        if (currentRule.endAt != null &&
+            nextOccurrence.isAfter(currentRule.endAt!)) {
+          await _recurringRuleRepo.updateRuleFields(currentRule.id,
+              generatedUntilAt: currentRule.endAt, enabled: false);
+          ruleChanged = true;
+          break;
+        }
+
+        final quote = quoteFor(currentRule.market!, currentRule.symbol!);
+        if (quote == null) {
+          skipped.add(RecurringRuleStockSkip(
+            ruleId: currentRule.id,
+            note: currentRule.note,
+            symbol: currentRule.symbol!,
+            occurrenceAt: nextOccurrence,
+            reason: RecurringRuleStockSkipReason.quoteUnavailable,
+          ));
+          break;
+        }
+
+        final effCurrency = (stockMarketByCode(currentRule.market!)?.currency ??
+                investment.currency)
+            .toUpperCase();
+        final baseSettings =
+            InvestmentSettings.parse(investment.investmentSettingsJson)
+                .resolvedFor(currentRule.market);
+        final feeSettings = InvestmentSettings(
+          feeRate: currentRule.stockFeeRate ?? baseSettings.feeRate,
+          feeDiscount: baseSettings.feeDiscount,
+          feeMin: currentRule.stockFeeMin ?? baseSettings.feeMin,
+        );
+        final fee = feeSettings.suggestFee(currentRule.amount,
+            market: currentRule.market, currency: effCurrency);
+        final shares = currentRule.amount / quote.price!;
+
+        final balance = await getAccountBalance(currentRule.fromAccountId!);
+        final required = currentRule.amount + fee;
+        if (balance < required - 1e-9) {
+          skipped.add(RecurringRuleStockSkip(
+            ruleId: currentRule.id,
+            note: currentRule.note,
+            symbol: currentRule.symbol!,
+            occurrenceAt: nextOccurrence,
+            reason: RecurringRuleStockSkipReason.insufficientBalance,
+            requiredAmount: required,
+            currentBalance: balance,
+          ));
+          // 這期沒過就先停在這裡,不追後面的期數(同 materializeDueTransferRules)。
+          break;
+        }
+
+        await createStockTrade(
+          ledgerId: currentRule.ledgerId,
+          accountId: currentRule.toAccountId!,
+          tradeType: kStockTradeBuy,
+          market: currentRule.market!,
+          symbol: currentRule.symbol!,
+          securityName: currentRule.securityName,
+          shares: shares,
+          price: quote.price!,
+          fee: fee,
+          tax: 0,
+          currency: effCurrency,
+          tradeDate: nextOccurrence,
+          settlementAccountId: currentRule.fromAccountId,
+          note: currentRule.note,
+          recurringRuleId: currentRule.syncId,
         );
         materialized++;
         await _recurringRuleRepo.updateRuleFields(currentRule.id,
@@ -5363,6 +5539,7 @@ class LocalRepository extends BaseRepository {
     double? settlementAmount,
     String? note,
     String? txNote,
+    String? recurringRuleId,
   }) async {
     if (!kStockTradeTypes.contains(tradeType)) {
       throw ArgumentError('invalid trade type $tradeType');
@@ -5420,6 +5597,7 @@ class LocalRepository extends BaseRepository {
           discountAmount: plan.fields.discountAmount,
           currencyCode: plan.currencyCode,
           nativeAmount: plan.nativeAmount,
+          recurringRuleId: recurringRuleId,
         );
         txSyncId = (await getTransactionById(txId))?.syncId;
       } else if (kStockTradeIncomeTypes.contains(tradeType)) {

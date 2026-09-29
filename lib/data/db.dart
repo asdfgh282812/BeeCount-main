@@ -852,6 +852,41 @@ class RecurringTransactions extends Table {
   // 个欄位现算,不额外存状态。
   BoolColumn get enabled => boolean().withDefault(const Constant(true))();
 
+  /// v64:規則分類——'general'(一般收支/轉帳,v63 及以前的既有語意)或
+  /// 'stock_dca'(股票定期定額,見下方 [market]/[symbol] 等欄位)。
+  /// `kind='stock_dca'` 的規則**必定** `type='transfer'`(交割帳戶 ⇄ 投資
+  /// 理財帳戶,語意同手動買進),`fromAccountId`=交割帳戶、`toAccountId`=
+  /// 投資理財帳戶、`amount`=每期投入金額(以證券幣別計,v1 不支援交割帳戶
+  /// 跟證券不同幣別——同既有 transfer 規則本來就不支援跨幣別/toAmount)。
+  /// 到期生成時價格未知(要當下報價),所以**不走**視窗預生成/續產生
+  /// ([LocalRepository.refillWindows] 排除規則同 `type='transfer'`),改走
+  /// 專屬的 [RecurringRuleRepository.materializeDueStockRules],到期當下抓
+  /// 本地報價快取算股數/手續費,呼叫 [StockTradeRepository.createStockTrade]
+  /// 生成一筆 `tradeType='buy'` 明細(連帶轉帳交易),同手動買進的入帳方式,
+  /// 只是股數/手續費是当下算出來的、不是使用者手動輸入。
+  /// 見 docs/changes/2026-09-28-stock-dca-recurring.md。
+  TextColumn get kind => text().withDefault(const Constant('general'))();
+
+  /// 市場代碼(TW/TWO/US/HK…),同 [StockTrades.market]。只有
+  /// `kind='stock_dca'` 才有值。
+  TextColumn get market => text().nullable()();
+
+  /// 證券代號,同 [StockTrades.symbol]。只有 `kind='stock_dca'` 才有值。
+  TextColumn get symbol => text().nullable()();
+
+  /// 證券名稱(顯示用,不參與生成邏輯),同 [StockTrades.securityName]。
+  TextColumn get securityName => text().nullable()();
+
+  /// 這條規則覆寫的手續費率/最低手續費(以證券幣別計)——定期定額手續費
+  /// 常常跟單筆買進不同(例如券商定期定額不收低消,或改用固定小額月費),
+  /// 所以規則層級可以各自覆寫,不像單筆交易那樣只能沿用帳戶預設
+  /// ([InvestmentSettings])。null = 沿用投資理財帳戶當下的預設費率
+  /// (`stockFeeRate`/`stockFeeMin` 只會同時為 null 或同時有值,UI 用一個
+  /// 「自訂手續費」開關控制,不會出現只設一個的情況,但生成邏輯仍各自獨立
+  /// fallback,避免未來 UI 拆開後底層邏輯要跟著改)。
+  RealColumn get stockFeeRate => real().nullable()();
+  RealColumn get stockFeeMin => real().nullable()();
+
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 }
@@ -1295,7 +1330,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 63; // v63: 股票持股(stock_trades/security_quotes/accounts.investment_settings_json)
+  int get schemaVersion => 64; // v64: 股票定期定額(recurring_transactions.kind/market/symbol/security_name/stock_fee_rate/stock_fee_min)
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2669,6 +2704,30 @@ class BeeDatabase extends _$BeeDatabase {
                 'CREATE INDEX IF NOT EXISTS idx_stock_trades_account '
                 'ON stock_trades(account_id, market, symbol);');
             logger.info('DBMigration', 'v63 迁移完成');
+          }
+          if (from < 64) {
+            // v64:股票定期定額(docs/changes/2026-09-28-stock-dca-recurring.md)。
+            // 全部是 nullable 新欄位/有預設值的新欄位,不需要回填。
+            logger.info('DBMigration', '开始迁移到 v64: 股票定期定額');
+            await _addColumnIfMissing('recurring_transactions', 'kind',
+                "ALTER TABLE recurring_transactions ADD COLUMN kind TEXT NOT NULL DEFAULT 'general';");
+            await _addColumnIfMissing('recurring_transactions', 'market',
+                'ALTER TABLE recurring_transactions ADD COLUMN market TEXT;');
+            await _addColumnIfMissing('recurring_transactions', 'symbol',
+                'ALTER TABLE recurring_transactions ADD COLUMN symbol TEXT;');
+            await _addColumnIfMissing(
+                'recurring_transactions',
+                'security_name',
+                'ALTER TABLE recurring_transactions ADD COLUMN security_name TEXT;');
+            await _addColumnIfMissing(
+                'recurring_transactions',
+                'stock_fee_rate',
+                'ALTER TABLE recurring_transactions ADD COLUMN stock_fee_rate REAL;');
+            await _addColumnIfMissing(
+                'recurring_transactions',
+                'stock_fee_min',
+                'ALTER TABLE recurring_transactions ADD COLUMN stock_fee_min REAL;');
+            logger.info('DBMigration', 'v64 迁移完成');
           }
         },
         onCreate: (m) async {

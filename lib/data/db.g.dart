@@ -4441,6 +4441,41 @@ class $RecurringTransactionsTable extends RecurringTransactions
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("enabled" IN (0, 1))'),
       defaultValue: const Constant(true));
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+      'kind', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('general'));
+  static const VerificationMeta _marketMeta = const VerificationMeta('market');
+  @override
+  late final GeneratedColumn<String> market = GeneratedColumn<String>(
+      'market', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _symbolMeta = const VerificationMeta('symbol');
+  @override
+  late final GeneratedColumn<String> symbol = GeneratedColumn<String>(
+      'symbol', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _securityNameMeta =
+      const VerificationMeta('securityName');
+  @override
+  late final GeneratedColumn<String> securityName = GeneratedColumn<String>(
+      'security_name', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _stockFeeRateMeta =
+      const VerificationMeta('stockFeeRate');
+  @override
+  late final GeneratedColumn<double> stockFeeRate = GeneratedColumn<double>(
+      'stock_fee_rate', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _stockFeeMinMeta =
+      const VerificationMeta('stockFeeMin');
+  @override
+  late final GeneratedColumn<double> stockFeeMin = GeneratedColumn<double>(
+      'stock_fee_min', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -4479,6 +4514,12 @@ class $RecurringTransactionsTable extends RecurringTransactions
         endAt,
         generatedUntilAt,
         enabled,
+        kind,
+        market,
+        symbol,
+        securityName,
+        stockFeeRate,
+        stockFeeMin,
         createdAt,
         updatedAt
       ];
@@ -4598,6 +4639,36 @@ class $RecurringTransactionsTable extends RecurringTransactions
       context.handle(_enabledMeta,
           enabled.isAcceptableOrUnknown(data['enabled']!, _enabledMeta));
     }
+    if (data.containsKey('kind')) {
+      context.handle(
+          _kindMeta, kind.isAcceptableOrUnknown(data['kind']!, _kindMeta));
+    }
+    if (data.containsKey('market')) {
+      context.handle(_marketMeta,
+          market.isAcceptableOrUnknown(data['market']!, _marketMeta));
+    }
+    if (data.containsKey('symbol')) {
+      context.handle(_symbolMeta,
+          symbol.isAcceptableOrUnknown(data['symbol']!, _symbolMeta));
+    }
+    if (data.containsKey('security_name')) {
+      context.handle(
+          _securityNameMeta,
+          securityName.isAcceptableOrUnknown(
+              data['security_name']!, _securityNameMeta));
+    }
+    if (data.containsKey('stock_fee_rate')) {
+      context.handle(
+          _stockFeeRateMeta,
+          stockFeeRate.isAcceptableOrUnknown(
+              data['stock_fee_rate']!, _stockFeeRateMeta));
+    }
+    if (data.containsKey('stock_fee_min')) {
+      context.handle(
+          _stockFeeMinMeta,
+          stockFeeMin.isAcceptableOrUnknown(
+              data['stock_fee_min']!, _stockFeeMinMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -4655,6 +4726,18 @@ class $RecurringTransactionsTable extends RecurringTransactions
           DriftSqlType.dateTime, data['${effectivePrefix}generated_until_at']),
       enabled: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}enabled'])!,
+      kind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}kind'])!,
+      market: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}market']),
+      symbol: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}symbol']),
+      securityName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}security_name']),
+      stockFeeRate: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}stock_fee_rate']),
+      stockFeeMin: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}stock_fee_min']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -4728,6 +4811,41 @@ class RecurringTransaction extends DataClass
   /// generatedUntilAt。
   final DateTime? generatedUntilAt;
   final bool enabled;
+
+  /// v64:規則分類——'general'(一般收支/轉帳,v63 及以前的既有語意)或
+  /// 'stock_dca'(股票定期定額,見下方 [market]/[symbol] 等欄位)。
+  /// `kind='stock_dca'` 的規則**必定** `type='transfer'`(交割帳戶 ⇄ 投資
+  /// 理財帳戶,語意同手動買進),`fromAccountId`=交割帳戶、`toAccountId`=
+  /// 投資理財帳戶、`amount`=每期投入金額(以證券幣別計,v1 不支援交割帳戶
+  /// 跟證券不同幣別——同既有 transfer 規則本來就不支援跨幣別/toAmount)。
+  /// 到期生成時價格未知(要當下報價),所以**不走**視窗預生成/續產生
+  /// ([LocalRepository.refillWindows] 排除規則同 `type='transfer'`),改走
+  /// 專屬的 [RecurringRuleRepository.materializeDueStockRules],到期當下抓
+  /// 本地報價快取算股數/手續費,呼叫 [StockTradeRepository.createStockTrade]
+  /// 生成一筆 `tradeType='buy'` 明細(連帶轉帳交易),同手動買進的入帳方式,
+  /// 只是股數/手續費是当下算出來的、不是使用者手動輸入。
+  /// 見 docs/changes/2026-09-28-stock-dca-recurring.md。
+  final String kind;
+
+  /// 市場代碼(TW/TWO/US/HK…),同 [StockTrades.market]。只有
+  /// `kind='stock_dca'` 才有值。
+  final String? market;
+
+  /// 證券代號,同 [StockTrades.symbol]。只有 `kind='stock_dca'` 才有值。
+  final String? symbol;
+
+  /// 證券名稱(顯示用,不參與生成邏輯),同 [StockTrades.securityName]。
+  final String? securityName;
+
+  /// 這條規則覆寫的手續費率/最低手續費(以證券幣別計)——定期定額手續費
+  /// 常常跟單筆買進不同(例如券商定期定額不收低消,或改用固定小額月費),
+  /// 所以規則層級可以各自覆寫,不像單筆交易那樣只能沿用帳戶預設
+  /// ([InvestmentSettings])。null = 沿用投資理財帳戶當下的預設費率
+  /// (`stockFeeRate`/`stockFeeMin` 只會同時為 null 或同時有值,UI 用一個
+  /// 「自訂手續費」開關控制,不會出現只設一個的情況,但生成邏輯仍各自獨立
+  /// fallback,避免未來 UI 拆開後底層邏輯要跟著改)。
+  final double? stockFeeRate;
+  final double? stockFeeMin;
   final DateTime createdAt;
   final DateTime updatedAt;
   const RecurringTransaction(
@@ -4751,6 +4869,12 @@ class RecurringTransaction extends DataClass
       this.endAt,
       this.generatedUntilAt,
       required this.enabled,
+      required this.kind,
+      this.market,
+      this.symbol,
+      this.securityName,
+      this.stockFeeRate,
+      this.stockFeeMin,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -4800,6 +4924,22 @@ class RecurringTransaction extends DataClass
       map['generated_until_at'] = Variable<DateTime>(generatedUntilAt);
     }
     map['enabled'] = Variable<bool>(enabled);
+    map['kind'] = Variable<String>(kind);
+    if (!nullToAbsent || market != null) {
+      map['market'] = Variable<String>(market);
+    }
+    if (!nullToAbsent || symbol != null) {
+      map['symbol'] = Variable<String>(symbol);
+    }
+    if (!nullToAbsent || securityName != null) {
+      map['security_name'] = Variable<String>(securityName);
+    }
+    if (!nullToAbsent || stockFeeRate != null) {
+      map['stock_fee_rate'] = Variable<double>(stockFeeRate);
+    }
+    if (!nullToAbsent || stockFeeMin != null) {
+      map['stock_fee_min'] = Variable<double>(stockFeeMin);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -4847,6 +4987,20 @@ class RecurringTransaction extends DataClass
           ? const Value.absent()
           : Value(generatedUntilAt),
       enabled: Value(enabled),
+      kind: Value(kind),
+      market:
+          market == null && nullToAbsent ? const Value.absent() : Value(market),
+      symbol:
+          symbol == null && nullToAbsent ? const Value.absent() : Value(symbol),
+      securityName: securityName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(securityName),
+      stockFeeRate: stockFeeRate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stockFeeRate),
+      stockFeeMin: stockFeeMin == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stockFeeMin),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -4878,6 +5032,12 @@ class RecurringTransaction extends DataClass
       generatedUntilAt:
           serializer.fromJson<DateTime?>(json['generatedUntilAt']),
       enabled: serializer.fromJson<bool>(json['enabled']),
+      kind: serializer.fromJson<String>(json['kind']),
+      market: serializer.fromJson<String?>(json['market']),
+      symbol: serializer.fromJson<String?>(json['symbol']),
+      securityName: serializer.fromJson<String?>(json['securityName']),
+      stockFeeRate: serializer.fromJson<double?>(json['stockFeeRate']),
+      stockFeeMin: serializer.fromJson<double?>(json['stockFeeMin']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -4906,6 +5066,12 @@ class RecurringTransaction extends DataClass
       'endAt': serializer.toJson<DateTime?>(endAt),
       'generatedUntilAt': serializer.toJson<DateTime?>(generatedUntilAt),
       'enabled': serializer.toJson<bool>(enabled),
+      'kind': serializer.toJson<String>(kind),
+      'market': serializer.toJson<String?>(market),
+      'symbol': serializer.toJson<String?>(symbol),
+      'securityName': serializer.toJson<String?>(securityName),
+      'stockFeeRate': serializer.toJson<double?>(stockFeeRate),
+      'stockFeeMin': serializer.toJson<double?>(stockFeeMin),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -4932,6 +5098,12 @@ class RecurringTransaction extends DataClass
           Value<DateTime?> endAt = const Value.absent(),
           Value<DateTime?> generatedUntilAt = const Value.absent(),
           bool? enabled,
+          String? kind,
+          Value<String?> market = const Value.absent(),
+          Value<String?> symbol = const Value.absent(),
+          Value<String?> securityName = const Value.absent(),
+          Value<double?> stockFeeRate = const Value.absent(),
+          Value<double?> stockFeeMin = const Value.absent(),
           DateTime? createdAt,
           DateTime? updatedAt}) =>
       RecurringTransaction(
@@ -4963,6 +5135,14 @@ class RecurringTransaction extends DataClass
             ? generatedUntilAt.value
             : this.generatedUntilAt,
         enabled: enabled ?? this.enabled,
+        kind: kind ?? this.kind,
+        market: market.present ? market.value : this.market,
+        symbol: symbol.present ? symbol.value : this.symbol,
+        securityName:
+            securityName.present ? securityName.value : this.securityName,
+        stockFeeRate:
+            stockFeeRate.present ? stockFeeRate.value : this.stockFeeRate,
+        stockFeeMin: stockFeeMin.present ? stockFeeMin.value : this.stockFeeMin,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -5000,6 +5180,17 @@ class RecurringTransaction extends DataClass
           ? data.generatedUntilAt.value
           : this.generatedUntilAt,
       enabled: data.enabled.present ? data.enabled.value : this.enabled,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      market: data.market.present ? data.market.value : this.market,
+      symbol: data.symbol.present ? data.symbol.value : this.symbol,
+      securityName: data.securityName.present
+          ? data.securityName.value
+          : this.securityName,
+      stockFeeRate: data.stockFeeRate.present
+          ? data.stockFeeRate.value
+          : this.stockFeeRate,
+      stockFeeMin:
+          data.stockFeeMin.present ? data.stockFeeMin.value : this.stockFeeMin,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -5028,6 +5219,12 @@ class RecurringTransaction extends DataClass
           ..write('endAt: $endAt, ')
           ..write('generatedUntilAt: $generatedUntilAt, ')
           ..write('enabled: $enabled, ')
+          ..write('kind: $kind, ')
+          ..write('market: $market, ')
+          ..write('symbol: $symbol, ')
+          ..write('securityName: $securityName, ')
+          ..write('stockFeeRate: $stockFeeRate, ')
+          ..write('stockFeeMin: $stockFeeMin, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -5056,6 +5253,12 @@ class RecurringTransaction extends DataClass
         endAt,
         generatedUntilAt,
         enabled,
+        kind,
+        market,
+        symbol,
+        securityName,
+        stockFeeRate,
+        stockFeeMin,
         createdAt,
         updatedAt
       ]);
@@ -5083,6 +5286,12 @@ class RecurringTransaction extends DataClass
           other.endAt == this.endAt &&
           other.generatedUntilAt == this.generatedUntilAt &&
           other.enabled == this.enabled &&
+          other.kind == this.kind &&
+          other.market == this.market &&
+          other.symbol == this.symbol &&
+          other.securityName == this.securityName &&
+          other.stockFeeRate == this.stockFeeRate &&
+          other.stockFeeMin == this.stockFeeMin &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -5109,6 +5318,12 @@ class RecurringTransactionsCompanion
   final Value<DateTime?> endAt;
   final Value<DateTime?> generatedUntilAt;
   final Value<bool> enabled;
+  final Value<String> kind;
+  final Value<String?> market;
+  final Value<String?> symbol;
+  final Value<String?> securityName;
+  final Value<double?> stockFeeRate;
+  final Value<double?> stockFeeMin;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const RecurringTransactionsCompanion({
@@ -5132,6 +5347,12 @@ class RecurringTransactionsCompanion
     this.endAt = const Value.absent(),
     this.generatedUntilAt = const Value.absent(),
     this.enabled = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.market = const Value.absent(),
+    this.symbol = const Value.absent(),
+    this.securityName = const Value.absent(),
+    this.stockFeeRate = const Value.absent(),
+    this.stockFeeMin = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -5156,6 +5377,12 @@ class RecurringTransactionsCompanion
     this.endAt = const Value.absent(),
     this.generatedUntilAt = const Value.absent(),
     this.enabled = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.market = const Value.absent(),
+    this.symbol = const Value.absent(),
+    this.securityName = const Value.absent(),
+    this.stockFeeRate = const Value.absent(),
+    this.stockFeeMin = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   })  : ledgerId = Value(ledgerId),
@@ -5184,6 +5411,12 @@ class RecurringTransactionsCompanion
     Expression<DateTime>? endAt,
     Expression<DateTime>? generatedUntilAt,
     Expression<bool>? enabled,
+    Expression<String>? kind,
+    Expression<String>? market,
+    Expression<String>? symbol,
+    Expression<String>? securityName,
+    Expression<double>? stockFeeRate,
+    Expression<double>? stockFeeMin,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
   }) {
@@ -5208,6 +5441,12 @@ class RecurringTransactionsCompanion
       if (endAt != null) 'end_at': endAt,
       if (generatedUntilAt != null) 'generated_until_at': generatedUntilAt,
       if (enabled != null) 'enabled': enabled,
+      if (kind != null) 'kind': kind,
+      if (market != null) 'market': market,
+      if (symbol != null) 'symbol': symbol,
+      if (securityName != null) 'security_name': securityName,
+      if (stockFeeRate != null) 'stock_fee_rate': stockFeeRate,
+      if (stockFeeMin != null) 'stock_fee_min': stockFeeMin,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -5234,6 +5473,12 @@ class RecurringTransactionsCompanion
       Value<DateTime?>? endAt,
       Value<DateTime?>? generatedUntilAt,
       Value<bool>? enabled,
+      Value<String>? kind,
+      Value<String?>? market,
+      Value<String?>? symbol,
+      Value<String?>? securityName,
+      Value<double?>? stockFeeRate,
+      Value<double?>? stockFeeMin,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt}) {
     return RecurringTransactionsCompanion(
@@ -5257,6 +5502,12 @@ class RecurringTransactionsCompanion
       endAt: endAt ?? this.endAt,
       generatedUntilAt: generatedUntilAt ?? this.generatedUntilAt,
       enabled: enabled ?? this.enabled,
+      kind: kind ?? this.kind,
+      market: market ?? this.market,
+      symbol: symbol ?? this.symbol,
+      securityName: securityName ?? this.securityName,
+      stockFeeRate: stockFeeRate ?? this.stockFeeRate,
+      stockFeeMin: stockFeeMin ?? this.stockFeeMin,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -5325,6 +5576,24 @@ class RecurringTransactionsCompanion
     if (enabled.present) {
       map['enabled'] = Variable<bool>(enabled.value);
     }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (market.present) {
+      map['market'] = Variable<String>(market.value);
+    }
+    if (symbol.present) {
+      map['symbol'] = Variable<String>(symbol.value);
+    }
+    if (securityName.present) {
+      map['security_name'] = Variable<String>(securityName.value);
+    }
+    if (stockFeeRate.present) {
+      map['stock_fee_rate'] = Variable<double>(stockFeeRate.value);
+    }
+    if (stockFeeMin.present) {
+      map['stock_fee_min'] = Variable<double>(stockFeeMin.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -5357,6 +5626,12 @@ class RecurringTransactionsCompanion
           ..write('endAt: $endAt, ')
           ..write('generatedUntilAt: $generatedUntilAt, ')
           ..write('enabled: $enabled, ')
+          ..write('kind: $kind, ')
+          ..write('market: $market, ')
+          ..write('symbol: $symbol, ')
+          ..write('securityName: $securityName, ')
+          ..write('stockFeeRate: $stockFeeRate, ')
+          ..write('stockFeeMin: $stockFeeMin, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -21450,6 +21725,12 @@ typedef $$RecurringTransactionsTableCreateCompanionBuilder
   Value<DateTime?> endAt,
   Value<DateTime?> generatedUntilAt,
   Value<bool> enabled,
+  Value<String> kind,
+  Value<String?> market,
+  Value<String?> symbol,
+  Value<String?> securityName,
+  Value<double?> stockFeeRate,
+  Value<double?> stockFeeMin,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
 });
@@ -21475,6 +21756,12 @@ typedef $$RecurringTransactionsTableUpdateCompanionBuilder
   Value<DateTime?> endAt,
   Value<DateTime?> generatedUntilAt,
   Value<bool> enabled,
+  Value<String> kind,
+  Value<String?> market,
+  Value<String?> symbol,
+  Value<String?> securityName,
+  Value<double?> stockFeeRate,
+  Value<double?> stockFeeMin,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
 });
@@ -21551,6 +21838,24 @@ class $$RecurringTransactionsTableFilterComposer
 
   ColumnFilters<bool> get enabled => $composableBuilder(
       column: $table.enabled, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get market => $composableBuilder(
+      column: $table.market, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get symbol => $composableBuilder(
+      column: $table.symbol, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get securityName => $composableBuilder(
+      column: $table.securityName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get stockFeeRate => $composableBuilder(
+      column: $table.stockFeeRate, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get stockFeeMin => $composableBuilder(
+      column: $table.stockFeeMin, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -21633,6 +21938,26 @@ class $$RecurringTransactionsTableOrderingComposer
   ColumnOrderings<bool> get enabled => $composableBuilder(
       column: $table.enabled, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get market => $composableBuilder(
+      column: $table.market, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get symbol => $composableBuilder(
+      column: $table.symbol, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get securityName => $composableBuilder(
+      column: $table.securityName,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get stockFeeRate => $composableBuilder(
+      column: $table.stockFeeRate,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get stockFeeMin => $composableBuilder(
+      column: $table.stockFeeMin, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -21709,6 +22034,24 @@ class $$RecurringTransactionsTableAnnotationComposer
   GeneratedColumn<bool> get enabled =>
       $composableBuilder(column: $table.enabled, builder: (column) => column);
 
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get market =>
+      $composableBuilder(column: $table.market, builder: (column) => column);
+
+  GeneratedColumn<String> get symbol =>
+      $composableBuilder(column: $table.symbol, builder: (column) => column);
+
+  GeneratedColumn<String> get securityName => $composableBuilder(
+      column: $table.securityName, builder: (column) => column);
+
+  GeneratedColumn<double> get stockFeeRate => $composableBuilder(
+      column: $table.stockFeeRate, builder: (column) => column);
+
+  GeneratedColumn<double> get stockFeeMin => $composableBuilder(
+      column: $table.stockFeeMin, builder: (column) => column);
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -21767,6 +22110,12 @@ class $$RecurringTransactionsTableTableManager extends RootTableManager<
             Value<DateTime?> endAt = const Value.absent(),
             Value<DateTime?> generatedUntilAt = const Value.absent(),
             Value<bool> enabled = const Value.absent(),
+            Value<String> kind = const Value.absent(),
+            Value<String?> market = const Value.absent(),
+            Value<String?> symbol = const Value.absent(),
+            Value<String?> securityName = const Value.absent(),
+            Value<double?> stockFeeRate = const Value.absent(),
+            Value<double?> stockFeeMin = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
           }) =>
@@ -21791,6 +22140,12 @@ class $$RecurringTransactionsTableTableManager extends RootTableManager<
             endAt: endAt,
             generatedUntilAt: generatedUntilAt,
             enabled: enabled,
+            kind: kind,
+            market: market,
+            symbol: symbol,
+            securityName: securityName,
+            stockFeeRate: stockFeeRate,
+            stockFeeMin: stockFeeMin,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
@@ -21815,6 +22170,12 @@ class $$RecurringTransactionsTableTableManager extends RootTableManager<
             Value<DateTime?> endAt = const Value.absent(),
             Value<DateTime?> generatedUntilAt = const Value.absent(),
             Value<bool> enabled = const Value.absent(),
+            Value<String> kind = const Value.absent(),
+            Value<String?> market = const Value.absent(),
+            Value<String?> symbol = const Value.absent(),
+            Value<String?> securityName = const Value.absent(),
+            Value<double?> stockFeeRate = const Value.absent(),
+            Value<double?> stockFeeMin = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
           }) =>
@@ -21839,6 +22200,12 @@ class $$RecurringTransactionsTableTableManager extends RootTableManager<
             endAt: endAt,
             generatedUntilAt: generatedUntilAt,
             enabled: enabled,
+            kind: kind,
+            market: market,
+            symbol: symbol,
+            securityName: securityName,
+            stockFeeRate: stockFeeRate,
+            stockFeeMin: stockFeeMin,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),

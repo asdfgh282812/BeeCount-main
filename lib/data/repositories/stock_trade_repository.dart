@@ -44,6 +44,9 @@ abstract class StockTradeRepository {
   /// 建立一筆明細;buy/sell 連帶建立轉帳交易([settlementAccountId] 必填,
   /// 交割帳戶幣別跟證券幣別不同時 [settlementAmount] 必填)。[txNote] 是轉帳
   /// 交易的備註(UI 傳在地化的預設文字),null 時用 [note] 或內建格式。
+  /// [recurringRuleId] 供股票定期定額規則(`kind='stock_dca'`)到期生成用:
+  /// 帶上規則 syncId,綁定的轉帳交易就會出現在該規則「查看已生成交易」清
+  /// 單裡(同一般週期性收支規則的 occurrence 語意)。
   Future<int> createStockTrade({
     required int ledgerId,
     required int accountId,
@@ -61,6 +64,7 @@ abstract class StockTradeRepository {
     double? settlementAmount,
     String? note,
     String? txNote,
+    String? recurringRuleId,
   });
 
   /// trade_type / 帳戶 / 標的建立後不可改(改了等同刪掉重建,同 Cloud)。

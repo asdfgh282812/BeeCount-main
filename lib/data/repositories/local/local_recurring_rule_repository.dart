@@ -40,6 +40,12 @@ class LocalRecurringRuleRepository {
     Map<String, dynamic>? advancedRule,
     required DateTime nextRunAt,
     DateTime? endAt,
+    String kind = 'general',
+    String? market,
+    String? symbol,
+    String? securityName,
+    double? stockFeeRate,
+    double? stockFeeMin,
   }) async {
     return await db.into(db.recurringTransactions).insert(
           RecurringTransactionsCompanion.insert(
@@ -61,6 +67,12 @@ class LocalRecurringRuleRepository {
                 d.Value(advancedRule == null ? null : jsonEncode(advancedRule)),
             nextRunAt: nextRunAt,
             endAt: d.Value(endAt),
+            kind: d.Value(kind),
+            market: d.Value(market),
+            symbol: d.Value(symbol),
+            securityName: d.Value(securityName),
+            stockFeeRate: d.Value(stockFeeRate),
+            stockFeeMin: d.Value(stockFeeMin),
           ),
         );
   }
@@ -94,6 +106,10 @@ class LocalRecurringRuleRepository {
     bool clearEndAt = false,
     DateTime? generatedUntilAt,
     bool? enabled,
+    double? stockFeeRate,
+    bool clearStockFeeRate = false,
+    double? stockFeeMin,
+    bool clearStockFeeMin = false,
   }) async {
     await (db.update(db.recurringTransactions)..where((r) => r.id.equals(id)))
         .write(RecurringTransactionsCompanion(
@@ -130,6 +146,12 @@ class LocalRecurringRuleRepository {
       generatedUntilAt:
           generatedUntilAt != null ? d.Value(generatedUntilAt) : const d.Value.absent(),
       enabled: enabled != null ? d.Value(enabled) : const d.Value.absent(),
+      stockFeeRate: clearStockFeeRate
+          ? const d.Value(null)
+          : (stockFeeRate != null ? d.Value(stockFeeRate) : const d.Value.absent()),
+      stockFeeMin: clearStockFeeMin
+          ? const d.Value(null)
+          : (stockFeeMin != null ? d.Value(stockFeeMin) : const d.Value.absent()),
       updatedAt: d.Value(DateTime.now()),
     ));
   }

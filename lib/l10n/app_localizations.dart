@@ -16500,6 +16500,108 @@ abstract class AppLocalizations {
   /// **'No transactions generated yet'**
   String get recurringRuleOccurrencesEmpty;
 
+  /// No description provided for @recurringKindFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get recurringKindFilterAll;
+
+  /// No description provided for @recurringKindFilterGeneral.
+  ///
+  /// In en, this message translates to:
+  /// **'General'**
+  String get recurringKindFilterGeneral;
+
+  /// No description provided for @recurringKindFilterStock.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock DCA'**
+  String get recurringKindFilterStock;
+
+  /// No description provided for @recurringKindStockBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'DCA'**
+  String get recurringKindStockBadge;
+
+  /// No description provided for @recurringStockEntryLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Recurring Investment'**
+  String get recurringStockEntryLabel;
+
+  /// No description provided for @recurringStockAddTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Recurring Investment'**
+  String get recurringStockAddTitle;
+
+  /// No description provided for @recurringStockEditTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Recurring Investment'**
+  String get recurringStockEditTitle;
+
+  /// No description provided for @recurringStockInvestmentAccountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Investment account'**
+  String get recurringStockInvestmentAccountLabel;
+
+  /// No description provided for @recurringStockInvestAmountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount per period'**
+  String get recurringStockInvestAmountLabel;
+
+  /// No description provided for @recurringStockCustomFeeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom fee for this plan'**
+  String get recurringStockCustomFeeLabel;
+
+  /// No description provided for @recurringStockCustomFeeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Off uses this account\'s default fee settings'**
+  String get recurringStockCustomFeeHint;
+
+  /// No description provided for @recurringStockFeeRateLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee rate'**
+  String get recurringStockFeeRateLabel;
+
+  /// No description provided for @recurringStockFeeMinLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum fee'**
+  String get recurringStockFeeMinLabel;
+
+  /// No description provided for @recurringStockSecurityRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a security'**
+  String get recurringStockSecurityRequired;
+
+  /// No description provided for @recurringStockAmountRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter the amount per period'**
+  String get recurringStockAmountRequired;
+
+  /// No description provided for @recurringStockScheduleRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please set the schedule'**
+  String get recurringStockScheduleRequired;
+
+  /// No description provided for @recurringStockOccurrenceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage from the investment page'**
+  String get recurringStockOccurrenceHint;
+
   /// No description provided for @automationRecurringTile.
   ///
   /// In en, this message translates to:
