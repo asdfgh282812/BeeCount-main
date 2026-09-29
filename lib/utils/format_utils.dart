@@ -22,7 +22,9 @@ String formatBalance(double balance, String currencyCode,
     {bool isChineseLocale = true}) {
   final absBalance = balance.abs();
   final currencySymbol = getCurrencySymbol(currencyCode);
-  final sign = balance >= 0 ? currencySymbol : '-$currencySymbol';
+  // 四舍五入到 2 位后为 0 的负数不带负号,避免「-¥0.00」
+  final sign =
+      balance >= 0 || absBalance < 0.005 ? currencySymbol : '-$currencySymbol';
 
   if (isChineseLocale) {
     // 中文环境：使用万作为单位
@@ -116,7 +118,9 @@ String formatBalance(double balance, String currencyCode,
 String formatBalanceFull(double balance, String currencyCode) {
   final absBalance = balance.abs();
   final currencySymbol = getCurrencySymbol(currencyCode);
-  final sign = balance >= 0 ? currencySymbol : '-$currencySymbol';
+  // 四舍五入到 2 位后为 0 的负数不带负号,避免「-¥0.00」
+  final sign =
+      balance >= 0 || absBalance < 0.005 ? currencySymbol : '-$currencySymbol';
 
   // 格式化为带千分号的字符串
   final parts = absBalance.toStringAsFixed(2).split('.');

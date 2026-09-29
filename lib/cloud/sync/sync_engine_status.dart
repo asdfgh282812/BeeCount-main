@@ -154,27 +154,74 @@ extension SyncEngineHealthChecks on SyncEngine {
   /// `checkSyncHealth` 检测到 `localTags > remoteTags` 且 `unpushed == 0` 时
   /// 调这个方法 backfill 一次,再触发 sync 就能把种子标签送上云。
   ///
-  /// 幂等:只对没有对应 sync_change 记录的实体补写 create。重复调用是安全的。
+  /// **危险操作,三道防护(2026-09-29 事故后加上)**:补写的 create 在 push 时
+  /// 会把本机整行序列化推上去,server 按「有键就覆盖」合并。旧版对**所有**
+  /// 没有 unpushed change 的实体都补写,一台本机资料不完整的设备(当时 pull
+  /// 卡在 cursor 2081)下拉刷新一次,就把 56 个账户整行覆盖(名称清空、排序
+  /// 归 0、头像清掉被 server GC)、建出 87 个 server 从没有过的分类。现在:
+  /// 1. 有未解决的 pull 错误 → 不做(本机资料不可信)。
+  /// 2. pull 没追上 server(从 app cursor 往后还拉得到 change)→ 不做。
+  /// 3. 只补 server 上**不存在**的实体:syncId 已在 server 的一律跳过(它不是
+  ///    「没被追踪」,重推只会用本机旧值覆盖);同名的(分类按 kind + 名称 +
+  ///    父分类名)也跳过,避免推出重复名称的分类(见 62e559d 的 pull 卡死)。
+  ///    拉 server 清单失败就整个不做。
+  /// 返回补写的 change 数。
   Future<int> backfillUntrackedEntities({required int ledgerId}) async {
+    final unresolvedErrors = await (db.select(db.syncPullErrors)
+          ..where((t) => t.resolvedAt.isNull()))
+        .get();
+    if (unresolvedErrors.isNotEmpty) {
+      logger.warning('SyncEngine',
+          'backfillUntrackedEntities: 仍有 ${unresolvedErrors.length} 笔 pull 错误,跳过');
+      return 0;
+    }
+
+    final ledger = await (db.select(db.ledgers)
+          ..where((l) => l.id.equals(ledgerId)))
+        .getSingleOrNull();
+    if (ledger == null) return 0;
+    final serverLedgerId = ledger.syncId ?? ledger.id.toString();
+
+    final List<BeeCountCloudReadAccount> remoteAccounts;
+    final List<BeeCountCloudReadCategory> remoteCategories;
+    final List<BeeCountCloudReadTag> remoteTags;
+    try {
+      final since = await appCursor.read();
+      final probe = await provider.pullChanges(
+        since: since,
+        limit: 1,
+        persistCursor: false,
+      );
+      if (probe.changes.isNotEmpty) {
+        logger.warning('SyncEngine',
+            'backfillUntrackedEntities: pull 还没追上 server(cursor=$since),跳过');
+        return 0;
+      }
+      remoteAccounts = await provider.readAccounts(ledgerId: serverLedgerId);
+      remoteCategories =
+          await provider.readCategories(ledgerId: serverLedgerId);
+      remoteTags = await provider.readTags(ledgerId: serverLedgerId);
+    } catch (e) {
+      logger.warning(
+          'SyncEngine', 'backfillUntrackedEntities: 取 server 状态失败,跳过: $e');
+      return 0;
+    }
+
     final allUnpushed =
         await changeTracker.getUnpushedChangesForLedger(ledgerId);
-    final allPushedIds =
-        <String>{}; // syncId 集合 —— unpushed 的先留着,判断"从未写过 change"用的是下面的专用查询
-    for (final c in allUnpushed) {
-      allPushedIds.add(c.entitySyncId);
-    }
-    // 用 change_tracker 的 hasAnyChangeForEntity(若有) / 直接查 local_changes 表。
-    // 这里用更稳妥的方式:对每个 entity 调 recordChange,recordChange 自身会
-    // 判断"同 entitySyncId + action 是否已经存在",不会造成重复(依赖
-    // ChangeTracker 的 upsert 语义,若没有就是直接 insert,重复的会被 unique
-    // 约束拦住 —— 重复 insert catch 住 = 无害重复)。
+    final pendingSyncIds = {for (final c in allUnpushed) c.entitySyncId};
     int backfilled = 0;
 
     // Tags
-    final tags = await db.select(db.tags).get();
+    final tags = selectBackfillCandidates(
+      local: await db.select(db.tags).get(),
+      syncIdOf: (t) => t.syncId,
+      keyOf: (t) => t.name,
+      remoteSyncIds: {for (final r in remoteTags) r.id},
+      remoteKeys: {for (final r in remoteTags) r.name},
+      pendingSyncIds: pendingSyncIds,
+    );
     for (final tag in tags) {
-      if (tag.syncId == null || tag.syncId!.isEmpty) continue;
-      if (allPushedIds.contains(tag.syncId)) continue;
       try {
         await changeTracker.recordUserGlobalChange(
           entityType: 'tag',
@@ -190,10 +237,15 @@ extension SyncEngineHealthChecks on SyncEngine {
     }
 
     // Accounts
-    final accounts = await db.select(db.accounts).get();
+    final accounts = selectBackfillCandidates(
+      local: await db.select(db.accounts).get(),
+      syncIdOf: (a) => a.syncId,
+      keyOf: (a) => a.name,
+      remoteSyncIds: {for (final r in remoteAccounts) r.id},
+      remoteKeys: {for (final r in remoteAccounts) r.name},
+      pendingSyncIds: pendingSyncIds,
+    );
     for (final acc in accounts) {
-      if (acc.syncId == null || acc.syncId!.isEmpty) continue;
-      if (allPushedIds.contains(acc.syncId)) continue;
       try {
         await changeTracker.recordUserGlobalChange(
           entityType: 'account',
@@ -208,10 +260,23 @@ extension SyncEngineHealthChecks on SyncEngine {
     }
 
     // Categories
-    final categories = await db.select(db.categories).get();
+    final localCategories = await db.select(db.categories).get();
+    final localCategoryNames = {
+      for (final c in localCategories) c.id: c.name,
+    };
+    final categories = selectBackfillCandidates(
+      local: localCategories,
+      syncIdOf: (c) => c.syncId,
+      keyOf: (c) =>
+          _categoryBackfillKey(c.kind, c.name, localCategoryNames[c.parentId]),
+      remoteSyncIds: {for (final r in remoteCategories) r.id},
+      remoteKeys: {
+        for (final r in remoteCategories)
+          _categoryBackfillKey(r.kind, r.name, r.parentName),
+      },
+      pendingSyncIds: pendingSyncIds,
+    );
     for (final cat in categories) {
-      if (cat.syncId == null || cat.syncId!.isEmpty) continue;
-      if (allPushedIds.contains(cat.syncId)) continue;
       try {
         await changeTracker.recordUserGlobalChange(
           entityType: 'category',
@@ -283,7 +348,8 @@ extension SyncEngineHealthChecks on SyncEngine {
     return restored;
   }
 
-  static const _categoryColorPaletteRepairTag = 'category_color_palette_repair_20260929';
+  static const _categoryColorPaletteRepairTag =
+      'category_color_palette_repair_20260929';
 
   /// 一次性:对仍然没有颜色的一级分类,按 v55 同一套色盘规则补指派颜色,
   /// 并登记 update 推回 server(**会写入云端**)。
@@ -311,8 +377,8 @@ extension SyncEngineHealthChecks on SyncEngine {
     if (await appCursor.hasBackfilled(_categoryColorPaletteRepairTag)) return 0;
     final pendingErrors = await db.select(db.syncPullErrors).get();
     if (pendingErrors.isNotEmpty) {
-      logger.info('SyncEngine',
-          '分类色盘补指派:仍有 ${pendingErrors.length} 笔 pull 错误,暂不执行');
+      logger.info(
+          'SyncEngine', '分类色盘补指派:仍有 ${pendingErrors.length} 笔 pull 错误,暂不执行');
       return 0;
     }
 
@@ -342,8 +408,8 @@ extension SyncEngineHealthChecks on SyncEngine {
       }
     }
     await appCursor.markBackfilled(_categoryColorPaletteRepairTag);
-    logger.info('SyncEngine',
-        '分类色盘补指派:补了 ${assignments.length} 笔一级分类颜色,已登记待推送');
+    logger.info(
+        'SyncEngine', '分类色盘补指派:补了 ${assignments.length} 笔一级分类颜色,已登记待推送');
     return assignments.length;
   }
 
@@ -413,6 +479,31 @@ extension SyncEngineHealthChecks on SyncEngine {
     return fixed;
   }
 }
+
+/// [SyncEngineHealthChecks.backfillUntrackedEntities] 的纯筛选部分,抽出来
+/// 方便单测。只留下:有 syncId、没有待推送 change、server 上没有同 syncId、
+/// 也没有同 [keyOf](比对前 trim)的本机实体。
+List<T> selectBackfillCandidates<T>({
+  required Iterable<T> local,
+  required String? Function(T) syncIdOf,
+  required String Function(T) keyOf,
+  required Set<String> remoteSyncIds,
+  required Set<String> remoteKeys,
+  required Set<String> pendingSyncIds,
+}) {
+  final keys = {for (final k in remoteKeys) k.trim()};
+  return [
+    for (final e in local)
+      if ((syncIdOf(e) ?? '').isNotEmpty &&
+          !pendingSyncIds.contains(syncIdOf(e)) &&
+          !remoteSyncIds.contains(syncIdOf(e)) &&
+          !keys.contains(keyOf(e).trim()))
+        e,
+  ];
+}
+
+String _categoryBackfillKey(String kind, String name, String? parentName) =>
+    '$kind\u0000${name.trim()}\u0000${(parentName ?? '').trim()}';
 
 /// [SyncEngineHealthChecks.repairMissingCategoryColorsOnce] 的纯计算部分,
 /// 抽出来方便单测。[rows] 必须是一级分类,且已按 (kind, sortOrder, id) 排序。
