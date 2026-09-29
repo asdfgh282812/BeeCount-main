@@ -200,6 +200,10 @@ class SyncEngine implements app.SyncService {
   /// 代价是一次 GET。
   bool _categoryColorRestoreDone = false;
 
+  /// [reconcileCategoriesFromServer] 本 session 是否已成功跑过。per-session:
+  /// 冷启后再对账一次(一次 GET 分类;有断掉的交易分类时才会分页读交易)。
+  bool _categoryReconcileDone = false;
+
   SyncEngine({
     required this.db,
     required this.provider,
@@ -481,6 +485,18 @@ class SyncEngine implements app.SyncService {
       }
 
       final pulled = await _pullWithOneTimeBackfills(ledgerId);
+
+      // 分类树对账:修好旧版 pull 级联删子分类造成的「交易没有分类」,见
+      // reconcileCategoriesFromServer 文档。要排在颜色对账之前——补色盘要
+      // 靠正确的父子关系判断谁是一级分类。只改本机,不推送。
+      if (!_categoryReconcileDone && ledgerIdInt > 0) {
+        try {
+          await reconcileCategoriesFromServer(ledgerId: ledgerIdInt);
+          _categoryReconcileDone = true;
+        } catch (e, st) {
+          logger.warning('SyncEngine', '分类对账失败(不阻塞主同步): $e', st);
+        }
+      }
 
       // 分类颜色对账:sync_changes 历史里的分类 payload 可能都不带 color
       // (见 restoreCategoryColorsFromServer 文档),pull 补不回来,改从 server

@@ -314,7 +314,10 @@ extension SyncEngineHealthChecks on SyncEngine {
   Future<int> restoreCategoryColorsFromServer({required int ledgerId}) async {
     final missing = await (db.select(db.categories)
           ..where((c) =>
-              c.parentId.isNull() & c.color.isNull() & c.syncId.isNotNull()))
+              c.parentId.isNull() &
+              c.level.equals(1) &
+              c.color.isNull() &
+              c.syncId.isNotNull()))
         .get();
     if (missing.isEmpty) {
       _categoryColorRestoreDone = true;
@@ -346,6 +349,174 @@ extension SyncEngineHealthChecks on SyncEngine {
     logger.info('SyncEngine',
         '分类颜色对账:本机缺色一级分类 ${missing.length} 笔,从 server 补回 $restored 笔');
     return restored;
+  }
+
+  /// 按 server 的分类 projection 把本机分类树拉齐,再把指向已不存在分类的
+  /// 交易按 server 的交易 projection 接回。只改本机,**不经 changeTracker、
+  /// 不推任何东西**(这是把本机拉齐到 server 已知状态)。
+  ///
+  /// 背景(2026-09-29):旧版 pull 删除一级分类时会连带删掉本机子分类
+  /// (server 不会级联),全新设备回放到一笔误删的一级分类 delete,就把子分类
+  /// 删掉;之后同 syncId 的子分类 upsert 回来是新的本机 id、找不到父分类,
+  /// 原本指向旧 id 的交易全部变成「无分类」(实测 1605 笔)。pull 端已修成
+  /// 不再级联删除,这里负责修好已经坏掉的设备:
+  /// 1. server 有、本机没有的分类补回来。
+  /// 2. 按 server 的 level / parentName 重新接好父分类。
+  /// 3. categoryId 指向不存在分类的交易,查 server 该笔交易的分类 syncId 接回。
+  ///
+  /// 有未解决的 pull 错误就不做(本机资料不完整,按名字接父分类可能接错)。
+  /// 返回修正的分类数与交易数。
+  Future<({int categories, int transactions})> reconcileCategoriesFromServer(
+      {required int ledgerId}) async {
+    const none = (categories: 0, transactions: 0);
+    final unresolvedErrors = await (db.select(db.syncPullErrors)
+          ..where((t) => t.resolvedAt.isNull()))
+        .get();
+    if (unresolvedErrors.isNotEmpty) return none;
+    final ledger = await (db.select(db.ledgers)
+          ..where((l) => l.id.equals(ledgerId)))
+        .getSingleOrNull();
+    if (ledger == null) return none;
+
+    final remote = await provider.readCategories(
+        ledgerId: ledger.syncId ?? ledger.id.toString());
+    if (remote.isEmpty) return none;
+    final remoteIds = {for (final r in remote) r.id};
+
+    var fixedCategories = 0;
+    var local = await db.select(db.categories).get();
+    final localSyncIds = {for (final c in local) c.syncId};
+
+    // 1. 补回缺的分类。一级先插,二级接父分类时才找得到。
+    final missing = remote.where((r) => !localSyncIds.contains(r.id)).toList()
+      ..sort((a, b) => (a.level ?? 1).compareTo(b.level ?? 1));
+    for (final r in missing) {
+      final isCustom =
+          r.iconType == 'custom' && (r.iconCloudFileId ?? '').isNotEmpty;
+      final id = await db.into(db.categories).insert(CategoriesCompanion.insert(
+            name: r.name,
+            kind: r.kind,
+            level: d.Value(r.level ?? 1),
+            sortOrder: d.Value(r.sortOrder ?? 0),
+            icon: d.Value(r.icon),
+            iconType: d.Value(r.iconType ?? 'material'),
+            syncId: d.Value(r.id),
+            color: d.Value(r.color),
+          ));
+      await changeTracker.recordPulledFromServer(
+        entityType: 'category',
+        entityId: id,
+        entitySyncId: r.id,
+        ledgerId: 0,
+      );
+      if (isCustom) {
+        pendingCustomIconJobs.add(CustomIconDownloadJob(
+          categoryId: id,
+          cloudFileId: r.iconCloudFileId!,
+          expectedPath: r.customIconPath,
+        ));
+      }
+      fixedCategories++;
+    }
+    if (missing.isNotEmpty) local = await db.select(db.categories).get();
+
+    // 2. 接父分类。同 kind+名称的一级分类可能有多笔,优先 server 上还存活的。
+    final tops = <String, List<Category>>{};
+    for (final c in local) {
+      if (c.parentId != null || c.level != 1) continue;
+      tops.putIfAbsent('${c.kind}\u0000${c.name}', () => []).add(c);
+    }
+    Category? topFor(String kind, String name) {
+      final list = tops['$kind\u0000$name'];
+      if (list == null || list.isEmpty) return null;
+      final alive = list.where((c) => remoteIds.contains(c.syncId)).toList();
+      return _pickCategoryKeeper(alive.isNotEmpty ? alive : list);
+    }
+
+    final localBySync = <String, Category>{
+      for (final c in local)
+        if (c.syncId != null) c.syncId!: c,
+    };
+    for (final r in remote) {
+      final row = localBySync[r.id];
+      if (row == null) continue;
+      final parentName = (r.parentName ?? '').trim();
+      final level = r.level ?? (parentName.isEmpty ? 1 : 2);
+      int? parentId;
+      if (level != 1) {
+        if (parentName.isEmpty) continue;
+        parentId = topFor(r.kind, parentName)?.id;
+        // 本机找不到父分类:不动,别把现有的父分类冲掉
+        if (parentId == null || parentId == row.id) continue;
+      }
+      if (row.parentId == parentId && row.level == level) continue;
+      await (db.update(db.categories)..where((c) => c.id.equals(row.id)))
+          .write(CategoriesCompanion(
+        parentId: d.Value(parentId),
+        level: d.Value(level),
+      ));
+      fixedCategories++;
+    }
+
+    // 3. 接回交易的分类
+    final validIds = {for (final c in local) c.id};
+    final dangling = (await (db.select(db.transactions)
+              ..where((t) => t.categoryId.isNotNull() & t.syncId.isNotNull()))
+            .get())
+        .where((t) => !validIds.contains(t.categoryId))
+        .toList();
+    var fixedTx = 0;
+    if (dangling.isNotEmpty) {
+      final ledgerIds = dangling.map((t) => t.ledgerId).toSet();
+      final txCategory = <String, String?>{};
+      // 少数旧交易在 server 上没有 category_sync_id,只有 denormalized 名称
+      final txCategoryName = <String, (String, String)>{};
+      for (final lid in ledgerIds) {
+        final l = await (db.select(db.ledgers)..where((x) => x.id.equals(lid)))
+            .getSingleOrNull();
+        if (l == null) continue;
+        const pageSize = 1000;
+        for (var offset = 0;; offset += pageSize) {
+          final page = await provider.readTransactions(
+            ledgerId: l.syncId ?? l.id.toString(),
+            limit: pageSize,
+            offset: offset,
+          );
+          for (final t in page) {
+            txCategory[t.id] = t.categoryId;
+            final name = (t.categoryName ?? '').trim();
+            if (name.isNotEmpty) {
+              txCategoryName[t.id] = (t.categoryKind ?? t.txType, name);
+            }
+          }
+          if (page.length < pageSize) break;
+        }
+      }
+      for (final t in dangling) {
+        final catSync = txCategory[t.syncId];
+        var target = catSync == null ? null : localBySync[catSync];
+        final byName = txCategoryName[t.syncId];
+        if (target == null && catSync == null && byName != null) {
+          final same = local
+              .where((c) => c.kind == byName.$1 && c.name == byName.$2)
+              .toList();
+          final alive =
+              same.where((c) => remoteIds.contains(c.syncId)).toList();
+          if (same.isNotEmpty) {
+            target = _pickCategoryKeeper(alive.isNotEmpty ? alive : same);
+          }
+        }
+        if (target == null) continue;
+        await (db.update(db.transactions)..where((x) => x.id.equals(t.id)))
+            .write(TransactionsCompanion(categoryId: d.Value(target.id)));
+        fixedTx++;
+      }
+    }
+
+    if (pendingCustomIconJobs.isNotEmpty) unawaited(drainCustomIconQueue());
+    logger.info('SyncEngine',
+        '分类对账:修正分类 $fixedCategories 笔,接回交易分类 $fixedTx / ${dangling.length} 笔');
+    return (categories: fixedCategories, transactions: fixedTx);
   }
 
   static const _categoryColorPaletteRepairTag =
@@ -383,7 +554,12 @@ extension SyncEngineHealthChecks on SyncEngine {
     }
 
     final rows = await (db.select(db.categories)
-          ..where((c) => c.parentId.isNull() & c.kind.isNotValue('transfer'))
+          // level=1 也要判断:子分类的父分类在本机被删/还没接回时 parentId 也是
+          // null,旧版把它们当一级分类补色并推上 server(2026-09-29 推了 69 笔)。
+          ..where((c) =>
+              c.parentId.isNull() &
+              c.level.equals(1) &
+              c.kind.isNotValue('transfer'))
           ..orderBy([
             (c) => d.OrderingTerm.asc(c.kind),
             (c) => d.OrderingTerm.asc(c.sortOrder),

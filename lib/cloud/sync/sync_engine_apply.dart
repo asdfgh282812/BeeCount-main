@@ -886,19 +886,23 @@ extension SyncEngineApplyExt on SyncEngine {
         if (survivors.isNotEmpty) {
           final survivor = _pickCategoryKeeper(survivors);
           await _repointCategoryReferences(ids, survivor.id);
-          logger.info('SyncEngine',
-              'pull: 删除分类 $syncId,引用改挂到同名存活分类 id=${survivor.id}');
+          logger.info(
+              'SyncEngine', 'pull: 删除分类 $syncId,引用改挂到同名存活分类 id=${survivor.id}');
         }
-        // 先收集自身 + 子分类的 customIconPath 清磁盘。跟 LocalCategoryRepository
-        // .deleteCategory 路径对齐,防止 sync pull 下来的分类删除留下孤立图标。
-        // (子分类已改挂到 survivor 时,parentId 不再指向 ids,不会被清。)
+        // **不连带删子分类**(2026-09-29 事故):server 删一级分类时不会级联
+        // 删子分类,子分类在 server 上照样存活、只是按 parentName 挂在那个
+        // 名字上。旧版这里跟 LocalCategoryRepository 一样先删子分类,结果全新
+        // 设备回放到一笔误删的一级分类 delete 时,把底下所有子分类连同交易
+        // 的分类引用一起弄丢(1605 笔交易变成无分类),之后 server 补回一级
+        // 分类也接不回来。这里改成只把子分类的 parentId 摘掉,等
+        // [reconcileCategoriesFromServer] 按 server 的 parentName 接回。
+        // (有同名存活分类时,上面已把子分类改挂过去,这里不会再命中。)
+        await (db.update(db.categories)..where((c) => c.parentId.isIn(ids)))
+            .write(const CategoriesCompanion(parentId: d.Value(null)));
+        // 子分类已摘掉 parentId,这里只会清到被删分类自己的图标。
         await _cleanupCategoryIconFilesOnDisk(ids);
-        // 先删子分类再删自身(跟 LocalCategoryRepository 一致)
-        await (db.delete(db.categories)..where((c) => c.parentId.isIn(ids)))
-            .go();
         await (db.delete(db.categories)..where((c) => c.id.isIn(ids))).go();
-        logger.debug(
-            'SyncEngine', 'pull: 删除分类 $syncId (命中 ${ids.length} 笔)');
+        logger.debug('SyncEngine', 'pull: 删除分类 $syncId (命中 ${ids.length} 笔)');
       }
       return;
     }
@@ -907,7 +911,7 @@ extension SyncEngineApplyExt on SyncEngine {
     final payload = change.payload!;
     final name = payload['name'] as String? ?? '';
     final kind = payload['kind'] as String? ?? 'expense';
-    final level = (payload['level'] as num?)?.toInt() ?? 1;
+    var level = (payload['level'] as num?)?.toInt() ?? 1;
     final sortOrder = (payload['sortOrder'] as num?)?.toInt() ?? 0;
     final icon = payload['icon'] as String?;
     final iconType = payload['iconType'] as String? ?? 'material';
@@ -1016,6 +1020,20 @@ extension SyncEngineApplyExt on SyncEngine {
         ? payload['color'] as String?
         : existing?.color;
 
+    // parentId 同样三态:payload 完全没带 parentName / parentSyncId 键(例如
+    // 只改颜色的局部 upsert)不代表「改成一级分类」,server 端 merge 也是缺键
+    // 保留 parent_name。旧版一律用上面解析出的 null 覆盖,子分类会被冲成
+    // 没有父分类。level 明确是 1 时才清掉。
+    if (existing != null && !payload.containsKey('level')) {
+      level = existing.level;
+    }
+    if (existing != null &&
+        level != 1 &&
+        !payload.containsKey('parentName') &&
+        !payload.containsKey('parentSyncId')) {
+      parentId = existing.parentId;
+    }
+
     int? localCategoryId;
     if (existing != null) {
       localCategoryId = existing.id;
@@ -1095,8 +1113,7 @@ extension SyncEngineApplyExt on SyncEngine {
   /// 建立),保证同一份资料每次挑出同一笔。调用方保证 [rows] 非空。
   Category _pickCategoryKeeper(List<Category> rows) {
     if (rows.length == 1) return rows.first;
-    final sorted = [...rows]
-      ..sort((a, b) {
+    final sorted = [...rows]..sort((a, b) {
         final aHas = (a.syncId ?? '').isNotEmpty;
         final bHas = (b.syncId ?? '').isNotEmpty;
         if (aHas != bHas) return aHas ? -1 : 1;
