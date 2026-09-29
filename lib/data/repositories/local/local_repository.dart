@@ -2174,9 +2174,14 @@ class LocalRepository extends BaseRepository {
     // .getSingleOrNull() 直接 throw、UI 卡死(编辑转账时表现明显)。
     //
     // 这里发现 >1 条时被动合并:保留 id 最小的 keeper,把所有指向 dupes
-    // 的 transactions 改写到 keeper 上,再删除 dupes,所有变更一次性
-    // 通过 ChangeTracker 推到云端 — 同账号的其它设备下次 pull 时也能
-    // 自动擦掉脏数据。
+    // 的 transactions 改写到 keeper 上,再删除 dupes。
+    //
+    // 2026-09-29:合并只在本机做,**不再**透过 ChangeTracker 把 dupe 的
+    // delete / 交易 update 推回云端。新设备全历史回放到一半时,本机会暂时
+    // 出现多笔 transfer 分类(server 历史上真实存在过的几笔),UI 此时呼叫
+    // 本方法就会把其中合法存在于 server 的分类删掉(实测:回放途中记下 2 笔
+    // category delete)。背景去重不应替使用者决定删除云端实体,见
+    // docs/changes/2026-09-29-category-duplicate-pull-and-color-restore.md。
     final all = await _categoryRepo.getAllTransferCategories();
     if (all.length <= 1) {
       // 0 条走子仓库的兜底创建,1 条直接返(两种情况都可能带着旧版兜底
@@ -2192,11 +2197,6 @@ class LocalRepository extends BaseRepository {
       'LocalRepository',
       'transfer 分类发现 ${all.length} 条,合并 → keeper=${keeper.id} dupes=$dupeIds',
     );
-
-    // 预查受影响的 transactions(为 ChangeTracker 记录)
-    final affectedTxs = await (db.select(db.transactions)
-          ..where((t) => t.categoryId.isIn(dupeIds)))
-        .get();
 
     await db.transaction(() async {
       // 1) 把 transactions.categoryId 从 dupes 改写到 keeper
@@ -2215,29 +2215,6 @@ class LocalRepository extends BaseRepository {
       // 3) 删 dupe categories
       await (db.delete(db.categories)..where((c) => c.id.isIn(dupeIds))).go();
     });
-
-    // ChangeTracker 记录:受影响 transactions 的 update + dupe categories 的 delete
-    if (changeTracker != null) {
-      for (final tx in affectedTxs) {
-        if (tx.syncId == null) continue;
-        await changeTracker!.recordLedgerChange(
-          entityType: 'transaction',
-          entityId: tx.id,
-          entitySyncId: tx.syncId!,
-          ledgerId: tx.ledgerId,
-          action: 'update',
-        );
-      }
-      for (final dupe in dupes) {
-        if (dupe.syncId == null) continue;
-        await changeTracker!.recordUserGlobalChange(
-          entityType: 'category',
-          entityId: dupe.id,
-          entitySyncId: dupe.syncId!,
-          action: 'delete',
-        );
-      }
-    }
 
     return _healTransferCategoryName(keeper);
   }

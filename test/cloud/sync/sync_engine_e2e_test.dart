@@ -1086,15 +1086,17 @@ void main() {
     });
   });
 
-  group('分类重复数据合并(全历史回放踩到历史脏数据)', () {
+  group('分类重复数据(全历史回放踩到历史脏数据)', () {
     // 模拟真实场景:两台设备在互相同步前各自离线建了同名顶层分类「投资」,
     // 云端历史上因此存在两笔同名 category(不同 syncId)。全新设备第一次
     // 同步做全历史回放时,本地会依序 insert 出这两笔重复数据——这里直接
-    // 手动造出"已经重复"的本地状态,模拟回放走到这一步之后的样子,再验证
-    // 后续 pull 到一条 parentName="投资" 的子分类 upsert 时不会再让
-    // getSingleOrNull() 因为命中两笔而抛例外,而是自动 keeper 合并。
-    test('parentName 反查命中 2 笔同名顶层分类 → 合并成 1 笔且子分类挂到 keeper',
-        () async {
+    // 手动造出"已经重复"的本地状态,模拟回放走到这一步之后的样子。
+    //
+    // 2026-09-29 改版:同名不同 syncId 在 server 端是两个都合法存在的实体,
+    // App 不能自作主张合并删除、更不能把 delete 推回 server(实测事故:新设备
+    // 回放时把使用者云端 12 个一级分类删掉)。这里钉住「只挑一笔、不改资料、
+    // 不推送」。
+    Future<({int keeperId, int dupeId, int ledgerId})> seedDupes() async {
       final keeperId = await db.into(db.categories).insert(
             CategoriesCompanion.insert(
               name: '投资',
@@ -1109,22 +1111,25 @@ void main() {
               syncId: const Value('cat-dup-B'),
             ),
           );
-      // 造一笔挂在 dupe(后建的那笔,syncId=cat-dup-B)底下的交易,验证合并时
-      // 会把引用一并搬到 keeper,而不是留下断链的 categoryId。
       final ledgerId = await db.into(db.ledgers).insert(
             LedgersCompanion.insert(name: 'L', syncId: const Value('L1')),
           );
-      final orphanTxId = await db.into(db.transactions).insert(
+      return (keeperId: keeperId, dupeId: dupeId, ledgerId: ledgerId);
+    }
+
+    test('parentName 反查命中 2 笔同名顶层分类 → 不抛例外、不合并、不推 delete',
+        () async {
+      final seeded = await seedDupes();
+      final txOnDupe = await db.into(db.transactions).insert(
             TransactionsCompanion.insert(
-              ledgerId: ledgerId,
+              ledgerId: seeded.ledgerId,
               type: 'expense',
               amount: 100,
               happenedAt: Value(DateTime.utc(2026, 5, 1)),
-              categoryId: Value(dupeId),
+              categoryId: Value(seeded.dupeId),
             ),
           );
 
-      // server 推一条子分类 upsert,parentName 指向那个重复的名字。
       provider.pushFakeChange(
         entityType: 'category',
         entitySyncId: 'cat-sub-1',
@@ -1137,46 +1142,360 @@ void main() {
         },
       );
 
-      // 不应该抛 "Bad state: Too many elements"。
       final applied = await engine.pull('1');
       expect(applied, 1);
 
       final topLevel = await (db.select(db.categories)
             ..where((c) => c.name.equals('投资'))
-            ..where((c) => c.kind.equals('expense'))
             ..where((c) => c.level.equals(1)))
           .get();
-      expect(topLevel, hasLength(1), reason: '两笔重复的顶层分类应该被合并成 1 笔');
-      final keeper = topLevel.single;
-      expect(keeper.id, keeperId, reason: 'keeper 应该是 id 最小(最早建立)的那笔');
+      expect(topLevel, hasLength(2), reason: '同名不同 syncId 的两笔都应保留');
 
       final sub = await (db.select(db.categories)
             ..where((c) => c.syncId.equals('cat-sub-1')))
           .getSingle();
-      expect(sub.parentId, keeperId, reason: '子分类应该挂到合并后的 keeper 上');
+      expect(sub.parentId, seeded.keeperId,
+          reason: '子分类挂到确定性挑出的那笔(有 syncId、id 最小)');
 
-      final orphanTx =
-          await (db.select(db.transactions)..where((t) => t.id.equals(orphanTxId)))
-              .getSingle();
-      expect(orphanTx.categoryId, keeperId,
-          reason: '原本挂在 dupe 底下的交易要跟着搬到 keeper,不留断链');
+      final tx = await (db.select(db.transactions)
+            ..where((t) => t.id.equals(txOnDupe)))
+          .getSingle();
+      expect(tx.categoryId, seeded.dupeId, reason: '不应搬动既有交易的分类');
 
-      // dupe 应该已经被删除。
-      final dupeStillExists = await (db.select(db.categories)
-            ..where((c) => c.id.equals(dupeId)))
-          .getSingleOrNull();
-      expect(dupeStillExists, isNull);
-
-      // dupe 带 syncId,应该记一笔 delete change 推给其它设备收敛。
       final pending = await changeTracker.getUnpushedChangesForLedger(0);
       expect(
-        pending.any((c) =>
-            c.entityType == 'category' &&
-            c.entitySyncId == 'cat-dup-B' &&
-            c.action == 'delete'),
-        isTrue,
-        reason: 'dupe 的删除要推给其它设备,否则它们下次全历史回放也会撞同一个坑',
+        pending.where((c) => c.entityType == 'category' && c.action == 'delete'),
+        isEmpty,
+        reason: '绝不能把同名分类的 delete 推回 server',
       );
+    });
+
+    test('parentSyncId 优先于 parentName → 同名重复时精准挂到指定父分类', () async {
+      final seeded = await seedDupes();
+      provider.pushFakeChange(
+        entityType: 'category',
+        entitySyncId: 'cat-sub-2',
+        payload: {
+          'syncId': 'cat-sub-2',
+          'name': '基金',
+          'kind': 'expense',
+          'level': 2,
+          'parentName': '投资',
+          'parentSyncId': 'cat-dup-B',
+        },
+      );
+
+      await engine.pull('1');
+
+      final sub = await (db.select(db.categories)
+            ..where((c) => c.syncId.equals('cat-sub-2')))
+          .getSingle();
+      expect(sub.parentId, seeded.dupeId);
+    });
+
+    test('交易 categoryName 命中 2 笔同名分类 → 不抛 Too many elements,pull 不卡死',
+        () async {
+      final seeded = await seedDupes();
+      provider.pushFakeChange(
+        entityType: 'transaction',
+        entitySyncId: 'tx-dup-1',
+        ledgerId: 'L1',
+        payload: {
+          'syncId': 'tx-dup-1',
+          'type': 'expense',
+          'amount': 50,
+          'happenedAt': '2026-05-02T10:00:00Z',
+          'categoryName': '投资',
+          'categoryKind': 'expense',
+          // 故意不带 categoryId:模拟老 payload 只能靠名字反查
+        },
+      );
+      // 同一页后面再塞一笔,确认整页有 apply 完(cursor 不会卡在这页)
+      provider.pushFakeChange(
+        entityType: 'transaction',
+        entitySyncId: 'tx-dup-2',
+        ledgerId: 'L1',
+        payload: {
+          'syncId': 'tx-dup-2',
+          'type': 'expense',
+          'amount': 60,
+          'happenedAt': '2026-05-03T10:00:00Z',
+        },
+      );
+
+      final applied = await engine.pull('${seeded.ledgerId}');
+      expect(applied, 2);
+
+      final tx = await (db.select(db.transactions)
+            ..where((t) => t.syncId.equals('tx-dup-1')))
+          .getSingle();
+      expect(tx.categoryId, seeded.keeperId);
+    });
+
+    test('server 删掉同名重复的其中一笔 → 子分类/交易改挂到存活的那笔,不跟着被删',
+        () async {
+      final seeded = await seedDupes();
+      final childOfDupe = await db.into(db.categories).insert(
+            CategoriesCompanion.insert(
+              name: '基金',
+              kind: 'expense',
+              level: const Value(2),
+              parentId: Value(seeded.dupeId),
+              syncId: const Value('cat-sub-3'),
+            ),
+          );
+      final txOnDupe = await db.into(db.transactions).insert(
+            TransactionsCompanion.insert(
+              ledgerId: seeded.ledgerId,
+              type: 'expense',
+              amount: 100,
+              happenedAt: Value(DateTime.utc(2026, 5, 1)),
+              categoryId: Value(seeded.dupeId),
+            ),
+          );
+
+      provider.pushFakeChange(
+        entityType: 'category',
+        entitySyncId: 'cat-dup-B',
+        action: 'delete',
+      );
+
+      await engine.pull('1');
+
+      final dupe = await (db.select(db.categories)
+            ..where((c) => c.id.equals(seeded.dupeId)))
+          .getSingleOrNull();
+      expect(dupe, isNull);
+
+      final child = await (db.select(db.categories)
+            ..where((c) => c.id.equals(childOfDupe)))
+          .getSingleOrNull();
+      expect(child, isNotNull, reason: '子分类不应跟着同名重复的父分类一起被删');
+      expect(child!.parentId, seeded.keeperId);
+
+      final tx = await (db.select(db.transactions)
+            ..where((t) => t.id.equals(txOnDupe)))
+          .getSingle();
+      expect(tx.categoryId, seeded.keeperId);
+    });
+
+    test('同一个 syncId 本机有 2 笔副本 → 本机合并,但不推 delete', () async {
+      final a = await db.into(db.categories).insert(CategoriesCompanion.insert(
+          name: '饮食', kind: 'expense', syncId: const Value('cat-same')));
+      await db.into(db.categories).insert(CategoriesCompanion.insert(
+          name: '饮食', kind: 'expense', syncId: const Value('cat-same')));
+
+      provider.pushFakeChange(
+        entityType: 'category',
+        entitySyncId: 'cat-same',
+        payload: {
+          'syncId': 'cat-same',
+          'name': '饮食',
+          'kind': 'expense',
+          'level': 1,
+        },
+      );
+      await engine.pull('1');
+
+      final rows = await (db.select(db.categories)
+            ..where((c) => c.syncId.equals('cat-same')))
+          .get();
+      expect(rows.map((r) => r.id), [a]);
+      final pending = await changeTracker.getUnpushedChangesForLedger(0);
+      expect(
+        pending.where((c) => c.entityType == 'category' && c.action == 'delete'),
+        isEmpty,
+      );
+    });
+  });
+
+  group('分类颜色对账(restoreCategoryColorsFromServer)', () {
+    BeeCountCloudReadCategory remoteCat(String id, String? color,
+            {String name = 'X', int level = 1}) =>
+        BeeCountCloudReadCategory(
+          id: id,
+          name: name,
+          kind: 'expense',
+          level: level,
+          color: color,
+          lastChangeId: 1,
+        );
+
+    test('本机一级分类缺色 → 按 syncId 从 server 补回,不产生 local_changes', () async {
+      final ledgerId = await db.into(db.ledgers).insert(
+          LedgersCompanion.insert(name: 'L', syncId: const Value('L1')));
+      final missing = await db.into(db.categories).insert(
+          CategoriesCompanion.insert(
+              name: '生活', kind: 'expense', syncId: const Value('cat-a')));
+      final localColored = await db.into(db.categories).insert(
+          CategoriesCompanion.insert(
+              name: '交通',
+              kind: 'expense',
+              syncId: const Value('cat-b'),
+              color: const Value('#111111')));
+      provider.serverCategories.addAll([
+        remoteCat('cat-a', '#FF9800'),
+        remoteCat('cat-b', '#222222'),
+      ]);
+
+      final restored =
+          await engine.restoreCategoryColorsFromServer(ledgerId: ledgerId);
+      expect(restored, 1);
+      expect(provider.readCategoriesCalls, ['L1']);
+
+      Future<String?> colorOf(int id) async => (await (db.select(db.categories)
+                ..where((c) => c.id.equals(id)))
+              .getSingle())
+          .color;
+      expect(await colorOf(missing), '#FF9800');
+      expect(await colorOf(localColored), '#111111',
+          reason: '本机已有颜色不覆盖');
+
+      final pending = await changeTracker.getUnpushedChangesForLedger(0);
+      expect(pending, isEmpty, reason: '补回 server 既有状态,不应推回去');
+    });
+
+    test('本机没有缺色的一级分类 → 不打 read API', () async {
+      final ledgerId = await db.into(db.ledgers).insert(
+          LedgersCompanion.insert(name: 'L', syncId: const Value('L1')));
+      await db.into(db.categories).insert(CategoriesCompanion.insert(
+          name: '生活',
+          kind: 'expense',
+          syncId: const Value('cat-a'),
+          color: const Value('#123456')));
+
+      final restored =
+          await engine.restoreCategoryColorsFromServer(ledgerId: ledgerId);
+      expect(restored, 0);
+      expect(provider.readCategoriesCalls, isEmpty);
+    });
+  });
+
+  group('分类色盘补指派(repairMissingCategoryColorsOnce)', () {
+    // 2026-09-29 使用者实际资料:(name, kind, sortOrder, icon, color)。
+    // 原本 web 截图上的颜色:生活 #FF5722、交通 #E91E63 … 其他 #FF9800,
+    // 即 v55 按 sortOrder 循环取色盘的结果。
+    const seed = <(String, String, int, String, String?)>[
+      ('餘額調整', 'expense', 0, '', null),
+      ('生活', 'expense', 1, 'weekend', null),
+      ('交通', 'expense', 7, 'traffic', null),
+      ('個人', 'expense', 19, 'face', null),
+      ('娛樂', 'expense', 28, 'theater_comedy', null),
+      ('家居', 'expense', 36, 'house', null),
+      ('家庭', 'expense', 43, 'family_restroom', null),
+      ('飲食', 'expense', 45, 'restaurant', null),
+      ('學習', 'expense', 52, 'school', null),
+      ('應收款項', 'expense', 56, 'request_quote', null),
+      ('購物', 'expense', 60, 'shopping_cart', null),
+      ('醫療', 'expense', 68, 'local_hospital', null),
+      ('手續費', 'expense', 72, 'price_change', '#CDDC39'),
+      ('手續費', 'expense', 72, 'price_change', null),
+      ('利息支出', 'expense', 73, 'trending_down', '#FFC107'),
+      ('利息支出', 'expense', 73, 'trending_down', null),
+      ('其他', 'expense', 74, 'inventory_2', '#FF9800'),
+      ('其他', 'expense', 74, 'inventory_2', null),
+      ('退款', 'income', 0, '', '#FF5722'),
+      ('餘額調整', 'income', 0, '', null),
+      ('股利', 'income', 0, '', null),
+      ('收入', 'income', 75, 'savings', null),
+      ('折扣', 'income', 85, 'local_offer', '#9C27B0'),
+      ('折扣', 'income', 85, 'local_offer', null),
+      ('轉帳', 'transfer', -1, 'swap_horiz', null),
+    ];
+
+    Future<void> seedAll() async {
+      var i = 0;
+      for (final (name, kind, sort, icon, color) in seed) {
+        await db.into(db.categories).insert(CategoriesCompanion.insert(
+              name: name,
+              kind: kind,
+              sortOrder: Value(sort),
+              icon: Value(icon),
+              color: Value(color),
+              syncId: Value('cat-${i++}'),
+            ));
+      }
+    }
+
+    Future<Map<String, Set<String?>>> colorsByName(String kind) async {
+      final rows = await (db.select(db.categories)
+            ..where((c) => c.kind.equals(kind)))
+          .get();
+      final out = <String, Set<String?>>{};
+      for (final r in rows) {
+        out.putIfAbsent(r.name, () => {}).add(r.color);
+      }
+      return out;
+    }
+
+    test('还原成原本的色盘顺序,同名重复沿用锚点色,系统分类/转帐不补', () async {
+      await seedAll();
+      final n = await engine.repairMissingCategoryColorsOnce();
+
+      final exp = await colorsByName('expense');
+      expect(exp['餘額調整'], {null});
+      expect(exp['生活'], {'#FF5722'});
+      expect(exp['交通'], {'#E91E63'});
+      expect(exp['個人'], {'#9C27B0'});
+      expect(exp['娛樂'], {'#673AB7'});
+      expect(exp['家居'], {'#3F51B5'});
+      expect(exp['家庭'], {'#2196F3'});
+      expect(exp['飲食'], {'#03A9F4'});
+      expect(exp['學習'], {'#00BCD4'});
+      expect(exp['應收款項'], {'#009688'});
+      expect(exp['購物'], {'#4CAF50'});
+      expect(exp['醫療'], {'#8BC34A'});
+      expect(exp['手續費'], {'#CDDC39'});
+      expect(exp['利息支出'], {'#FFC107'});
+      expect(exp['其他'], {'#FF9800'});
+
+      final inc = await colorsByName('income');
+      expect(inc['退款'], {'#FF5722'});
+      expect(inc['餘額調整'], {null});
+      expect(inc['股利'], {null});
+      expect(inc['收入'], {'#E91E63'});
+      expect(inc['折扣'], {'#9C27B0'});
+
+      expect((await colorsByName('transfer'))['轉帳'], {null});
+
+      // 11 个支出 + 3 个支出重复 + 收入 + 折扣重复 = 16
+      expect(n, 16);
+      final pending = await changeTracker.getUnpushedChangesForLedger(0);
+      expect(pending.where((c) => c.entityType == 'category' && c.action == 'update'),
+          hasLength(16),
+          reason: '补指派的颜色要推回 server,web 端才会恢复');
+      expect(pending.where((c) => c.action == 'delete'), isEmpty);
+    });
+
+    test('只跑一次', () async {
+      await seedAll();
+      await engine.repairMissingCategoryColorsOnce();
+      await (db.update(db.categories)..where((c) => c.name.equals('生活')))
+          .write(const CategoriesCompanion(color: Value(null)));
+      final second = await engine.repairMissingCategoryColorsOnce();
+      expect(second, 0);
+    });
+
+    test('还有 pull 错误时不执行(本机资料不完整,顺序会算错)', () async {
+      await seedAll();
+      await engine.pullErrors.record(
+        change: BeeCountCloudSyncChange(
+          changeId: 99,
+          ledgerId: 'L1',
+          entityType: 'transaction',
+          entitySyncId: 'tx-x',
+          action: 'upsert',
+          updatedByDeviceId: 'd',
+          updatedAt: '2026-09-29T00:00:00Z',
+          payload: const {},
+        ),
+        error: StateError('boom'),
+        stackTrace: StackTrace.current,
+      );
+      final n = await engine.repairMissingCategoryColorsOnce();
+      expect(n, 0);
+      final exp = await colorsByName('expense');
+      expect(exp['生活'], {null});
     });
   });
 }

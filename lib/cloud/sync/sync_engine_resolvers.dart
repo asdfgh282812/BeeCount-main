@@ -66,6 +66,13 @@ extension _SyncEngineResolvers on SyncEngine {
   }
 
   /// 根据分类名和类型查找 categoryId
+  ///
+  /// 名字在 categories 表不唯一:同名的一级/二级分类(如支出「投資」跟某个
+  /// 二级「投資」)、或两台设备各自离线建过的同名重复分类,都会命中多笔。
+  /// 原本用 getSingleOrNull() 命中 >1 笔直接抛 "Too many elements",整页
+  /// pull 回滚、cursor 永远卡在同一页(2026-09-29 实测:新设备回放卡死在
+  /// change_id=2310,之后的异动全部进不来)。这里改成确定性地挑一笔:
+  /// 有 syncId 的优先、一级分类优先、id 最小优先——只读,不合并不推送。
   Future<int?> _resolveCategoryId({
     String? categoryName,
     String? categoryKind,
@@ -76,8 +83,18 @@ extension _SyncEngineResolvers on SyncEngine {
     if (categoryKind != null) {
       query.where((c) => c.kind.equals(categoryKind));
     }
-    final cat = await query.getSingleOrNull();
-    return cat?.id;
+    final rows = await query.get();
+    if (rows.isEmpty) return null;
+    rows.sort((a, b) {
+      final aHas = (a.syncId ?? '').isNotEmpty;
+      final bHas = (b.syncId ?? '').isNotEmpty;
+      if (aHas != bHas) return aHas ? -1 : 1;
+      final aTop = a.parentId == null;
+      final bTop = b.parentId == null;
+      if (aTop != bTop) return aTop ? -1 : 1;
+      return a.id.compareTo(b.id);
+    });
+    return rows.first.id;
   }
 
   /// 根据账户名查找 accountId

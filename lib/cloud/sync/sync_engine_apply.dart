@@ -861,15 +861,37 @@ extension SyncEngineApplyExt on SyncEngine {
 
     if (change.action == 'delete') {
       // syncId 在 DB 层没有唯一约束,历史脏数据可能有 >1 笔同 syncId 的行
-      // (见 _resolveDuplicateCategories 的注释)。这里一律清掉,不假设只有
+      // (见 _mergeSameSyncIdCategories 的注释)。这里一律清掉,不假设只有
       // 1 笔,否则原本的 getSingleOrNull() 会因为命中多笔直接抛例外。
       final existingRows = await (db.select(db.categories)
             ..where((c) => c.syncId.equals(syncId)))
           .get();
       if (existingRows.isNotEmpty) {
         final ids = existingRows.map((c) => c.id).toList();
+        // server 端收敛同名重复分类(两组不同 syncId 的同名一级分类,删掉其中
+        // 一组)时,子分类/交易在 server 眼里是按 parentName/categoryName 挂在
+        // 「那个名字」上的,不会跟着被删。本机如果还有另一笔同名同 kind 的
+        // 一级分类存活,就把引用改挂过去,而不是连子分类一起删掉——否则
+        // pull 回放到 server 的去重 delete 时,本机会凭空少掉一整组子分类。
+        final top = existingRows.firstWhere((c) => c.parentId == null,
+            orElse: () => existingRows.first);
+        final survivors = top.parentId == null
+            ? await (db.select(db.categories)
+                  ..where((c) => c.name.equals(top.name))
+                  ..where((c) => c.kind.equals(top.kind))
+                  ..where((c) => c.parentId.isNull())
+                  ..where((c) => c.id.isNotIn(ids)))
+                .get()
+            : const <Category>[];
+        if (survivors.isNotEmpty) {
+          final survivor = _pickCategoryKeeper(survivors);
+          await _repointCategoryReferences(ids, survivor.id);
+          logger.info('SyncEngine',
+              'pull: 删除分类 $syncId,引用改挂到同名存活分类 id=${survivor.id}');
+        }
         // 先收集自身 + 子分类的 customIconPath 清磁盘。跟 LocalCategoryRepository
         // .deleteCategory 路径对齐,防止 sync pull 下来的分类删除留下孤立图标。
+        // (子分类已改挂到 survivor 时,parentId 不再指向 ids,不会被清。)
         await _cleanupCategoryIconFilesOnDisk(ids);
         // 先删子分类再删自身(跟 LocalCategoryRepository 一致)
         await (db.delete(db.categories)..where((c) => c.parentId.isIn(ids)))
@@ -890,22 +912,32 @@ extension SyncEngineApplyExt on SyncEngine {
     final icon = payload['icon'] as String?;
     final iconType = payload['iconType'] as String? ?? 'material';
     final parentName = payload['parentName'] as String?;
+    final parentSyncId = payload['parentSyncId'] as String?;
 
     // 解析 parentId
     //
-    // name+kind+level=1 在 DB 层没有唯一约束(见 _resolveDuplicateCategories
-    // 的注释),历史上可能有 >1 台设备在互相同步前各自离线建过同名顶层分类,
-    // 全新设备第一次同步做全历史回放时会把这个历史瞬间完整重放出来——命中
-    // 多笔时原本的 getSingleOrNull() 会直接抛例外,中断整页 pull。
+    // 优先用 parentSyncId(跨设备稳定,同名重复时也能精准命中);没带或本机
+    // 查不到才退回 parentName。name+kind+level=1 在 DB 层没有唯一约束(见
+    // _pickCategoryKeeper 的注释),历史上可能有 >1 台设备在互相同步前各自
+    // 离线建过同名顶层分类,全新设备第一次同步做全历史回放时会把这个历史
+    // 瞬间完整重放出来——命中多笔时原本的 getSingleOrNull() 会直接抛例外,
+    // 中断整页 pull。
     int? parentId;
-    if (parentName != null && parentName.isNotEmpty) {
+    if (parentSyncId != null && parentSyncId.isNotEmpty) {
+      final bySync = await (db.select(db.categories)
+            ..where((c) => c.syncId.equals(parentSyncId))
+            ..where((c) => c.parentId.isNull()))
+          .get();
+      if (bySync.isNotEmpty) parentId = _pickCategoryKeeper(bySync).id;
+    }
+    if (parentId == null && parentName != null && parentName.isNotEmpty) {
       final candidates = await (db.select(db.categories)
             ..where((c) => c.name.equals(parentName))
             ..where((c) => c.kind.equals(kind))
             ..where((c) => c.level.equals(1)))
           .get();
       if (candidates.isNotEmpty) {
-        parentId = (await _resolveDuplicateCategories(candidates)).id;
+        parentId = _pickCategoryKeeper(candidates).id;
       }
     }
 
@@ -914,7 +946,7 @@ extension SyncEngineApplyExt on SyncEngine {
         .get();
     var existing = existingRows.isEmpty
         ? null
-        : await _resolveDuplicateCategories(existingRows);
+        : await _mergeSameSyncIdCategories(existingRows);
 
     // Fallback：syncId 查不到 → 本地可能是 seed 默认分类（syncId 为 NULL）。
     // 按 name + kind 匹配 NULL syncId 行，把 syncId 补上。避免 device B 首次
@@ -926,7 +958,7 @@ extension SyncEngineApplyExt on SyncEngine {
             ..where((c) => c.syncId.isNull()))
           .get();
       if (seededRows.isNotEmpty) {
-        final seeded = await _resolveDuplicateCategories(seededRows);
+        final seeded = _pickCategoryKeeper(seededRows);
         await (db.update(db.categories)..where((c) => c.id.equals(seeded.id)))
             .write(CategoriesCompanion(syncId: d.Value(syncId)));
         existing = seeded;
@@ -972,14 +1004,14 @@ extension SyncEngineApplyExt on SyncEngine {
       resolvedCustomIconPath = existing?.customIconPath;
     }
 
-    // v55 color:BeeCount Cloud 尚未把这个字段接进它自己的 projection/wire
-    // contract(见 CLAUDE.md「Category color: Cloud deferred」)——payload 里
-    // 缺 'color' key 不代表使用者清空了颜色,只是 server 目前不认得/不回传
-    // 这个字段。这里原本无条件用 payload['color'] 覆盖本地值,导致每次 pull
-    // (包括自己 push 之后的回声)都会把刚指派好的颜色冲成 null,一级分类
-    // 图标下方的颜色底线因此全部退回中性灰兜底色。改为:payload 里显式带了
-    // 这个 key 才采信,否则保留既有本地值(等 Cloud 接上后,清空颜色需要
-    // server 显式发送 'color': null)。
+    // v55 color:遵守 docs/CLOUD_SYNC_INTEGRATION.md §3 的三态语义——payload
+    // 缺 'color' key 不代表使用者清空了颜色。历史 payload 大多早于 v55,或是
+    // color 为 null 时 EntitySerializer 直接省略该键。这里原本无条件用
+    // payload['color'] 覆盖本地值,导致 pull 会把已指派的颜色冲成 null,一级
+    // 分类图标下方的颜色底线因此全部退回中性灰兜底色。改为:payload 里显式
+    // 带了这个 key 才采信,否则保留既有本地值。已经被冲掉的颜色由
+    // restoreCategoryColorsFromServer(sync_engine_status.dart)从 server
+    // projection 补回。
     final resolvedColor = payload.containsKey('color')
         ? payload['color'] as String?
         : existing?.color;
@@ -1046,71 +1078,81 @@ extension SyncEngineApplyExt on SyncEngine {
   /// 本地新建时的查重(LocalCategoryRepository.createCategory)只看得到本机
   /// 数据,看不到"云端已存在、尚未 pull 下来的其它设备"——如果两台设备在互相
   /// 同步前各自离线建了同名顶层分类,云端历史上就会真实存在两笔同名分类。
-  /// 全新设备第一次同步会做全历史回放(见 sync_engine.dart 的
-  /// _pullWithOneTimeBackfills/replayAllChanges),重放到这个历史瞬间时,
-  /// 本方法的调用点(parentName 反查 / syncId 反查 / NULL-syncId seed 反查)
-  /// 原本用 getSingleOrNull() 假设至多 1 笔命中,命中 >1 笔会直接抛
-  /// "Bad state: Too many elements" 中断整页 pull——这里改为查全部再合并。
+  /// 全新设备第一次同步做全历史回放时,反查点(parentName / NULL-syncId seed /
+  /// 交易 categoryName)原本用 getSingleOrNull() 假设至多 1 笔命中,命中 >1
+  /// 笔会抛 "Bad state: Too many elements" 中断整页 pull。
   ///
-  /// 合并策略仿照 LocalRepository.getTransferCategory()
-  /// (data/repositories/local/local_repository.dart) 的 keeper 范式:保留
-  /// id 最小(最早建立)的一笔当 keeper,把全部 7 张引用 categoryId 的表(那边
-  /// 的实现只覆盖了 3 张,这里补齐)都从 dupes 改指到 keeper,删除 dupes,
-  /// 并对带 syncId 的 dupe 记一笔 changeTracker delete,让同账号其它设备下次
-  /// pull 时也能收敛掉同一笔历史脏数据,而不是各自反复撞见同一次崩溃。
+  /// 2026-09-29 改版:这里**只挑一笔、不改任何资料**。旧版会把"同名不同
+  /// syncId"的 dupe 合并删除,并对 dupe 记一笔 changeTracker delete 推回
+  /// server——但同名不同 syncId 在 server 端是两个都合法存在的实体(常常其中
+  /// 一组还是 web 端正在显示、带着颜色的那组),推 delete 会把使用者云端的
+  /// 分类真的删掉,且 server 删除时连带清掉该实体的 upsert 历史,无法从
+  /// sync_changes 复原(实测事故:新设备登入回放后删掉了 12 个一级分类)。
+  /// 回放走完后,server 历史里后续的 delete 自然会把真正该下线的那组清掉,
+  /// 不需要 App 自作主张去收敛。
   ///
-  /// 调用方保证 [rows] 非空;rows.length == 1 时直接返回,不做任何写入。
-  Future<Category> _resolveDuplicateCategories(List<Category> rows) async {
+  /// 挑选规则:有 syncId 的优先(已跟 server 对上号),其次 id 最小(最早
+  /// 建立),保证同一份资料每次挑出同一笔。调用方保证 [rows] 非空。
+  Category _pickCategoryKeeper(List<Category> rows) {
+    if (rows.length == 1) return rows.first;
+    final sorted = [...rows]
+      ..sort((a, b) {
+        final aHas = (a.syncId ?? '').isNotEmpty;
+        final bHas = (b.syncId ?? '').isNotEmpty;
+        if (aHas != bHas) return aHas ? -1 : 1;
+        return a.id.compareTo(b.id);
+      });
+    logger.info(
+      'SyncEngine',
+      'pull: 分类反查命中 ${rows.length} 笔同名 name="${sorted.first.name}" '
+          'kind=${sorted.first.kind},取 id=${sorted.first.id}(不合并、不推送)',
+    );
+    return sorted.first;
+  }
+
+  /// **同一个 syncId** 在本机出现多笔(本机自己的历史脏数据,在 server 端是
+  /// 同一个实体),这种情况合并是安全的:保留 id 最小的一笔,把引用改指过去,
+  /// 删掉其余本机副本。**不**记 changeTracker delete——被删的只是本机多出来
+  /// 的副本,server 上的实体仍然存在,推 delete 反而会把它删掉。
+  Future<Category> _mergeSameSyncIdCategories(List<Category> rows) async {
     if (rows.length == 1) return rows.first;
     final sorted = [...rows]..sort((a, b) => a.id.compareTo(b.id));
     final keeper = sorted.first;
-    final dupes = sorted.sublist(1);
-    final dupeIds = dupes.map((c) => c.id).toList();
-
+    final dupeIds = sorted.sublist(1).map((c) => c.id).toList();
     logger.warning(
       'SyncEngine',
-      'pull: 分类反查命中重复列 name="${keeper.name}" kind=${keeper.kind} '
-          'keeper=${keeper.id} dupes=$dupeIds,自动合并',
+      'pull: syncId=${keeper.syncId} 本机有 ${rows.length} 笔副本,'
+          '保留 id=${keeper.id},本机合并 dupes=$dupeIds(不推送)',
     );
-
-    await (db.update(db.transactions)..where((t) => t.categoryId.isIn(dupeIds)))
-        .write(TransactionsCompanion(categoryId: d.Value(keeper.id)));
-    await (db.update(db.transactionSplits)
-          ..where((t) => t.categoryId.isIn(dupeIds)))
-        .write(TransactionSplitsCompanion(categoryId: d.Value(keeper.id)));
-    await (db.update(db.installmentPlans)
-          ..where((p) => p.categoryId.isIn(dupeIds)))
-        .write(InstallmentPlansCompanion(categoryId: d.Value(keeper.id)));
-    await (db.update(db.budgets)..where((b) => b.categoryId.isIn(dupeIds)))
-        .write(BudgetsCompanion(categoryId: d.Value(keeper.id)));
-    await (db.update(db.recurringTransactions)
-          ..where((r) => r.categoryId.isIn(dupeIds)))
-        .write(RecurringTransactionsCompanion(categoryId: d.Value(keeper.id)));
-    await (db.update(db.projectCategoryBudgets)
-          ..where((p) => p.categoryId.isIn(dupeIds)))
-        .write(
-            ProjectCategoryBudgetsCompanion(categoryId: d.Value(keeper.id)));
-    await (db.update(db.rewardChoiceCaches)
-          ..where((r) => r.categoryId.isIn(dupeIds)))
-        .write(RewardChoiceCachesCompanion(categoryId: d.Value(keeper.id)));
-    // 子分类若挂在某个 dupe 底下,一并改指到 keeper,避免留下断链的 parentId。
-    await (db.update(db.categories)..where((c) => c.parentId.isIn(dupeIds)))
-        .write(CategoriesCompanion(parentId: d.Value(keeper.id)));
-
+    await _repointCategoryReferences(dupeIds, keeper.id);
     await _cleanupCategoryIconFilesOnDisk(dupeIds);
     await (db.delete(db.categories)..where((c) => c.id.isIn(dupeIds))).go();
-
-    for (final dupe in dupes) {
-      if (dupe.syncId == null) continue;
-      await changeTracker.recordUserGlobalChange(
-        entityType: 'category',
-        entityId: dupe.id,
-        entitySyncId: dupe.syncId!,
-        action: 'delete',
-      );
-    }
-
     return keeper;
+  }
+
+  /// 把引用 [fromIds] 这些分类的全部 7 张表 + 子分类 parentId 改指到 [toId]。
+  Future<void> _repointCategoryReferences(List<int> fromIds, int toId) async {
+    await (db.update(db.transactions)..where((t) => t.categoryId.isIn(fromIds)))
+        .write(TransactionsCompanion(categoryId: d.Value(toId)));
+    await (db.update(db.transactionSplits)
+          ..where((t) => t.categoryId.isIn(fromIds)))
+        .write(TransactionSplitsCompanion(categoryId: d.Value(toId)));
+    await (db.update(db.installmentPlans)
+          ..where((p) => p.categoryId.isIn(fromIds)))
+        .write(InstallmentPlansCompanion(categoryId: d.Value(toId)));
+    await (db.update(db.budgets)..where((b) => b.categoryId.isIn(fromIds)))
+        .write(BudgetsCompanion(categoryId: d.Value(toId)));
+    await (db.update(db.recurringTransactions)
+          ..where((r) => r.categoryId.isIn(fromIds)))
+        .write(RecurringTransactionsCompanion(categoryId: d.Value(toId)));
+    await (db.update(db.projectCategoryBudgets)
+          ..where((p) => p.categoryId.isIn(fromIds)))
+        .write(ProjectCategoryBudgetsCompanion(categoryId: d.Value(toId)));
+    await (db.update(db.rewardChoiceCaches)
+          ..where((r) => r.categoryId.isIn(fromIds)))
+        .write(RewardChoiceCachesCompanion(categoryId: d.Value(toId)));
+    await (db.update(db.categories)..where((c) => c.parentId.isIn(fromIds)))
+        .write(CategoriesCompanion(parentId: d.Value(toId)));
   }
 
   Future<void> _applyTagChange(BeeCountCloudSyncChange change) async {

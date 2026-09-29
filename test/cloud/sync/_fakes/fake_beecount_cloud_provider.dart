@@ -208,6 +208,19 @@ class FakeBeeCountCloudProvider extends BeeCountCloudProvider {
     return List.unmodifiable(_serverLedgers);
   }
 
+  /// server 端 user_category_projection 的读取结果(`/read/ledgers/{id}/categories`)。
+  /// 测试直接往里塞;[readCategoriesCalls] 记录被调用的 ledgerId。
+  final List<BeeCountCloudReadCategory> serverCategories = [];
+  final List<String> readCategoriesCalls = [];
+
+  @override
+  Future<List<BeeCountCloudReadCategory>> readCategories({
+    required String ledgerId,
+  }) async {
+    readCategoriesCalls.add(ledgerId);
+    return List.unmodifiable(serverCategories);
+  }
+
   @override
   Stream<BeeCountCloudRealtimeEvent> get realtimeEvents =>
       _realtimeController.stream;

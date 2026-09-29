@@ -4859,6 +4859,7 @@ class BeeCountCloudReadCategory {
     this.iconCloudFileId,
     this.iconCloudSha256,
     this.parentName,
+    this.color,
     this.ledgerId,
     this.ledgerName,
     this.createdByUserId,
@@ -4876,6 +4877,9 @@ class BeeCountCloudReadCategory {
   final String? iconCloudFileId;
   final String? iconCloudSha256;
   final String? parentName;
+  /// 一级分类专属颜色(十六进位字串,如 `#FF9800`),来自 server
+  /// user_category_projection.color。二级分类恒为 null(继承父分类)。
+  final String? color;
   final int lastChangeId;
   final String? ledgerId;
   final String? ledgerName;
@@ -4895,6 +4899,7 @@ class BeeCountCloudReadCategory {
       iconCloudFileId: json['icon_cloud_file_id'] as String?,
       iconCloudSha256: json['icon_cloud_sha256'] as String?,
       parentName: json['parent_name'] as String?,
+      color: json['color'] as String?,
       lastChangeId: (json['last_change_id'] as num?)?.toInt() ?? 0,
       ledgerId: json['ledger_id'] as String?,
       ledgerName: json['ledger_name'] as String?,

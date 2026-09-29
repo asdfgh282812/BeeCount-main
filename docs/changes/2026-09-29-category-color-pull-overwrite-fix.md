@@ -1,5 +1,11 @@
 # 修正：分类颜色被同步 pull 冲成白色/中性灰
 
+> **更正（同日稍晚）：** 本文「根因」一节关于 Cloud 的描述是错的——BeeCount Cloud
+> 早在 2026-09-05（migration `0053_category_color`）就把 `color` 接进了 projection、
+> merge spec 与 read API。本文的 `containsKey` 修正本身仍然正确且保留，但它**不足以**
+> 修好问题：实测新设备登入后 pull 卡死、且历史 payload 完全不带 `color`。完整的根因与
+> 后续修正见 [2026-09-29-category-duplicate-pull-and-color-restore.md](2026-09-29-category-duplicate-pull-and-color-restore.md)。
+
 ## 问题
 
 App 端「cute 图标」主题下,一级分类图标下方的手绘颜色底线（`CategoryColorUnderline`,

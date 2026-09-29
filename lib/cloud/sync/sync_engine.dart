@@ -195,6 +195,11 @@ class SyncEngine implements app.SyncService {
   /// 实例重建时(冷启)再跑一次,代价是一次轻量 SELECT。
   bool _userGlobalLegacyBackfilled = false;
 
+  /// [restoreCategoryColorsFromServer] 本 session 是否已成功跑过。per-session
+  /// (不持久化):本机仍有「一级分类 color 为空」时,冷启后会再对账一次,
+  /// 代价是一次 GET。
+  bool _categoryColorRestoreDone = false;
+
   SyncEngine({
     required this.db,
     required this.provider,
@@ -476,6 +481,20 @@ class SyncEngine implements app.SyncService {
       }
 
       final pulled = await _pullWithOneTimeBackfills(ledgerId);
+
+      // 分类颜色对账:sync_changes 历史里的分类 payload 可能都不带 color
+      // (见 restoreCategoryColorsFromServer 文档),pull 补不回来,改从 server
+      // projection 读一次补齐。失败不阻塞主同步。
+      if (!_categoryColorRestoreDone && ledgerIdInt > 0) {
+        try {
+          await restoreCategoryColorsFromServer(ledgerId: ledgerIdInt);
+          // 对账成功后才跑一次性色盘补指派:server 上仍有的颜色要先补回本机
+          // 当"锚点",补指派才能对齐原本的色盘顺序(见该方法文档)。
+          await repairMissingCategoryColorsOnce();
+        } catch (e, st) {
+          logger.warning('SyncEngine', '分类颜色对账失败(不阻塞主同步): $e', st);
+        }
+      }
 
       // 下载远端附件文件（上传已在 push 前完成）
       try {

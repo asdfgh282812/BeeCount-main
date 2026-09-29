@@ -230,6 +230,123 @@ extension SyncEngineHealthChecks on SyncEngine {
     return backfilled;
   }
 
+  /// 从 server 的分类 projection 把一级分类颜色补回本机(只补本机为空的)。
+  ///
+  /// 背景(2026-09-29 实测):新设备登入回放全部 sync_changes 后,715 笔分类
+  /// payload 没有任何一笔带 `color`——历史 payload 大多早于 v55 颜色功能,
+  /// 或是 color 为 null 时 [EntitySerializer.serializeCategory] 直接省略该键
+  /// 的推送;server 端的颜色是 sync_applier 按 merge spec 缺键保留、累积在
+  /// user_category_projection.color 里的,只能透过 read API 取得。旧版
+  /// `_applyCategoryChange` 还会把缺键当成清空(已修),所以已登入过的设备
+  /// 本机颜色也可能早就被冲成 null,单靠 pull 永远恢复不了。
+  ///
+  /// 规则:只处理一级分类(二级分类不存色,渲染时继承父分类);只在本机
+  /// color 为空、server 有值时写入——本机已有颜色一律不覆盖,避免盖掉使用者
+  /// 在本机刚改、还没推上去的选择。按 syncId 对应。不经 changeTracker
+  /// (这是把本机拉齐到 server 已知状态,不是新的本地改动,推回去会造成
+  /// 推送环路),跟 [reconcileAccountBalances] 同一套原则。
+  /// 返回补回的分类数。
+  Future<int> restoreCategoryColorsFromServer({required int ledgerId}) async {
+    final missing = await (db.select(db.categories)
+          ..where((c) =>
+              c.parentId.isNull() & c.color.isNull() & c.syncId.isNotNull()))
+        .get();
+    if (missing.isEmpty) {
+      _categoryColorRestoreDone = true;
+      return 0;
+    }
+    final ledger = await (db.select(db.ledgers)
+          ..where((l) => l.id.equals(ledgerId)))
+        .getSingleOrNull();
+    if (ledger == null) return 0;
+    final serverLedgerId = ledger.syncId ?? ledger.id.toString();
+
+    final remote = await provider.readCategories(ledgerId: serverLedgerId);
+    final colorBySyncId = <String, String>{
+      for (final r in remote)
+        if (r.id.isNotEmpty && (r.color ?? '').trim().isNotEmpty)
+          r.id: r.color!.trim(),
+    };
+
+    var restored = 0;
+    for (final local in missing) {
+      final color = colorBySyncId[local.syncId];
+      if (color == null) continue;
+      await (db.update(db.categories)
+            ..where((c) => c.id.equals(local.id) & c.color.isNull()))
+          .write(CategoriesCompanion(color: d.Value(color)));
+      restored++;
+    }
+    _categoryColorRestoreDone = true;
+    logger.info('SyncEngine',
+        '分类颜色对账:本机缺色一级分类 ${missing.length} 笔,从 server 补回 $restored 笔');
+    return restored;
+  }
+
+  static const _categoryColorPaletteRepairTag = 'category_color_palette_repair_20260929';
+
+  /// 一次性:对仍然没有颜色的一级分类,按 v55 同一套色盘规则补指派颜色,
+  /// 并登记 update 推回 server(**会写入云端**)。
+  ///
+  /// 背景:2026-09-29 旧版重复分类合并逻辑把使用者云端一组带色的一级分类
+  /// 删掉(连 upsert 历史一起被 compact),server 上留下的同名那组本来就没
+  /// 颜色,[restoreCategoryColorsFromServer] 没东西可补。原本的颜色本来就是
+  /// v55 按「每个 kind 内依 sortOrder 顺序循环取 [kCategoryColorPalette]」
+  /// 指派的,所以照同一套规则重算即可还原成一模一样的颜色。
+  ///
+  /// 规则(对照使用者原本 web 截图验证过):
+  /// - 每个 kind 各自计数;transfer kind 跳过(虚拟分类,原本就没颜色)。
+  /// - 一级分类依 (sortOrder, id) 排序,**同名只占一个色盘位置**(server 上
+  ///   可能并存同名不同 syncId 的两笔,见 _pickCategoryKeeper)。
+  /// - 没有 icon 且没有颜色的分类(web/server 流程建的系统分类,如「餘額調整」
+  ///   「股利」)跳过——v55 时它们还不存在,原本就没有颜色,也不占色盘位置。
+  ///   没 icon 但有颜色的(如「退款」)照样当锚点。
+  /// - 同名组里已经有颜色的,以它当锚点:同组缺色的沿用同一色,之后的位置从
+  ///   该色在色盘中的下一格接续。已有颜色一律不覆盖。
+  ///
+  /// 只在 pull 没有未解决错误时才跑(本机资料不完整时算出来的顺序会错),
+  /// 成功跑完一次就用 [AppCursorStore.markBackfilled] 记下,不再重跑。
+  /// 返回补指派的分类数。
+  Future<int> repairMissingCategoryColorsOnce() async {
+    if (await appCursor.hasBackfilled(_categoryColorPaletteRepairTag)) return 0;
+    final pendingErrors = await db.select(db.syncPullErrors).get();
+    if (pendingErrors.isNotEmpty) {
+      logger.info('SyncEngine',
+          '分类色盘补指派:仍有 ${pendingErrors.length} 笔 pull 错误,暂不执行');
+      return 0;
+    }
+
+    final rows = await (db.select(db.categories)
+          ..where((c) => c.parentId.isNull() & c.kind.isNotValue('transfer'))
+          ..orderBy([
+            (c) => d.OrderingTerm.asc(c.kind),
+            (c) => d.OrderingTerm.asc(c.sortOrder),
+            (c) => d.OrderingTerm.asc(c.id),
+          ]))
+        .get();
+
+    final assignments = computeCategoryPaletteRepair(rows);
+    for (final entry in assignments.entries) {
+      final cat = rows.firstWhere((c) => c.id == entry.key);
+      await (db.update(db.categories)
+            ..where((c) => c.id.equals(cat.id) & c.color.isNull()))
+          .write(CategoriesCompanion(color: d.Value(entry.value)));
+      final syncId = cat.syncId;
+      if (syncId != null && syncId.isNotEmpty) {
+        await changeTracker.recordUserGlobalChange(
+          entityType: 'category',
+          entityId: cat.id,
+          entitySyncId: syncId,
+          action: 'update',
+        );
+      }
+    }
+    await appCursor.markBackfilled(_categoryColorPaletteRepairTag);
+    logger.info('SyncEngine',
+        '分类色盘补指派:补了 ${assignments.length} 笔一级分类颜色,已登记待推送');
+    return assignments.length;
+  }
+
   /// 帐户关键字段(initialBalance/type/currency)本地 vs server 逐条比对,
   /// 不一致就直接以 server 为准覆盖本地。
   ///
@@ -295,4 +412,42 @@ extension SyncEngineHealthChecks on SyncEngine {
     }
     return fixed;
   }
+}
+
+/// [SyncEngineHealthChecks.repairMissingCategoryColorsOnce] 的纯计算部分,
+/// 抽出来方便单测。[rows] 必须是一级分类,且已按 (kind, sortOrder, id) 排序。
+/// 返回 `categoryId → 要补的颜色`,只包含目前没有颜色的分类。
+Map<int, String> computeCategoryPaletteRepair(List<Category> rows) {
+  bool hasColor(Category c) => (c.color ?? '').trim().isNotEmpty;
+  final out = <int, String>{};
+  final byKind = <String, List<Category>>{};
+  for (final r in rows) {
+    byKind.putIfAbsent(r.kind, () => []).add(r);
+  }
+  for (final list in byKind.values) {
+    // 同名分组,保留第一次出现的顺序(Dart Map 字面量默认 LinkedHashMap)
+    final groups = <String, List<Category>>{};
+    for (final c in list) {
+      if ((c.icon ?? '').trim().isEmpty && !hasColor(c)) continue;
+      groups.putIfAbsent(c.name.trim(), () => []).add(c);
+    }
+    var next = 0;
+    for (final group in groups.values) {
+      final anchor = group.where(hasColor).firstOrNull;
+      final String color;
+      if (anchor != null) {
+        color = anchor.color!.trim();
+        final idx = kCategoryColorPalette
+            .indexWhere((p) => p.toUpperCase() == color.toUpperCase());
+        next = idx >= 0 ? idx + 1 : next + 1;
+      } else {
+        color = kCategoryColorPalette[next % kCategoryColorPalette.length];
+        next++;
+      }
+      for (final c in group) {
+        if (!hasColor(c)) out[c.id] = color;
+      }
+    }
+  }
+  return out;
 }
