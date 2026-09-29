@@ -10586,64 +10586,71 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get whatsNew360StatisticsReportTitle =>
-      'The Report tab is now full statistics reports';
+      'The Report tab is now statistics reports (3.6.0)';
 
   @override
   String get whatsNew360StatisticsReportDesc =>
-      'The 4th tab (Report) now holds saved reports — weekly / monthly / yearly built in, tap + to add your own. Each report has views for overview, records, categories, ranking, accounts, projects, account groups, names, merchants, and tags & people. Periods can be recurring, until today, or a fixed range, with include/exclude filters, and most views switch between expense / income / transfer / rewards. The old charts live under the Categories view.';
+      'The Report tab holds saved reports — weekly / monthly / yearly built in, tap + to add your own — with multiple views, flexible periods, and include/exclude filters. The old pie chart and category ranking live under the Categories view.';
 
   @override
-  String get whatsNew360RefundNettingTitle =>
-      'Refunds now net out, matching the web dashboard';
+  String get whatsNew360RefundNettingTitle => 'Refunds now net out (3.6.0)';
 
   @override
   String get whatsNew360RefundNettingDesc =>
-      'A refund no longer counts as both an expense and an income — it\'s deducted from the original transaction\'s category, so reports, the home monthly totals, and the annual report match the web dashboard. Refunding in the app and syncing now also reverses the card reward. Report and share-poster amounts follow Me → Personalization → Income/Expense Color Scheme.';
+      'A refund is deducted from the original transaction\'s category, so reports, the home monthly totals, and the annual report match the web dashboard; after syncing, the card reward is reversed too.';
 
   @override
-  String get whatsNew360IosShareImageTitle => 'Bill from the iOS share sheet';
+  String get whatsNew360IosShareImageTitle =>
+      'Bill from the iOS share sheet (3.6.0)';
 
   @override
   String get whatsNew360IosShareImageDesc =>
-      'After taking a screenshot, tap the thumbnail → Share (or share a picture from Photos) and pick BeeCount — the app opens and runs image bookkeeping on it (one image at a time). The first time, BeeCount may be hidden under \"More\" at the end of the share sheet\'s app row.';
+      'Share a screenshot or a picture from Photos and pick BeeCount to run image bookkeeping on it. The first time, BeeCount may be hidden under \"More\" at the end of the share sheet\'s app row.';
 
   @override
   String get whatsNew360AccountGroupTitle =>
-      'Account groups can now be plain groups';
+      'Account group and detail page improvements (3.6.0)';
 
   @override
   String get whatsNew360AccountGroupDesc =>
-      'The Group Settings of a parent account now have a \"Credit Card Combined Billing\" switch. Turn it off to use the group for, say, a bank\'s local and foreign-currency accounts: the detail page shows the combined balance (foreign currencies converted) and every sub-account\'s transactions instead of a billing cycle. Find it in Accounts → edit the parent account → Group Settings.';
+      'In Accounts → edit the parent account → Group Settings, turn off \"Credit Card Combined Billing\" to use it as a plain group showing the combined balance and transactions. On a sub-account\'s detail page, tap ▼ next to the title to switch to another account in the same group.';
 
   @override
-  String get whatsNew360AccountSwitcherTitle =>
-      'Switch between sibling accounts on the detail page';
-
-  @override
-  String get whatsNew360AccountSwitcherDesc =>
-      'The account detail title is now centered. For a sub-account under a parent account, tap the ▼ next to the title to jump to another sub-account in the same group without going back to Accounts.';
-
-  @override
-  String get whatsNew360NavMotionTitle =>
-      'New motion for the tab bar and the record page';
-
-  @override
-  String get whatsNew360NavMotionDesc =>
-      'The tab bar\'s highlight now slides to the selected tab, and you can press and drag along the bar to pick a tab. Tapping \"+ Record\" in the Details tab now slides the record page up from the bottom — drag it down to close.';
-
-  @override
-  String get whatsNew360LicenseKeyTitle => 'License keys';
+  String get whatsNew360LicenseKeyTitle => 'License keys (3.6.0)';
 
   @override
   String get whatsNew360LicenseKeyDesc =>
-      'Using the app now requires signing in to BeeCount Cloud with a license key; once verified online, it works offline for 7 days. Check the expiry date or enter a new key in Me → License key. If your app version is too old, you\'ll be asked to update before syncing.';
+      'Using the app requires signing in to BeeCount Cloud with a license key; once verified online, it works offline for 7 days. Check the expiry date or enter a new key in Me → License key.';
 
   @override
-  String get whatsNew360FixesTitle => 'Other fixes';
+  String get whatsNew360FixesTitle => 'Other improvements and fixes (3.6.0)';
 
   @override
   String get whatsNew360FixesDesc =>
-      'Swiping from the left edge on iOS goes back again; a new device\'s first sync no longer fails on duplicate categories; tapping a top-level category in the report\'s pie chart no longer shows an empty list; the report period menu only goes back to the ledger\'s first transaction; fresh installs default to TWD; the Android home screen label now reads 蜜蜂記帳.';
+      'New tab bar motion — press and drag along the bar to switch tabs — and the record page slides up from the bottom; fixed iOS left-edge swipe back, a new device\'s first sync failing, and an empty list when tapping a top-level category in the report pie chart; fresh installs default to TWD.';
+
+  @override
+  String get whatsNew361ApkUpdateTitle =>
+      'Update the Android app from inside the app';
+
+  @override
+  String get whatsNew361ApkUpdateDesc =>
+      'When a new version is out, the app shows \"New Version Found\" on launch — tap Update Now to download and install it, or Later to skip reminders for 24 hours. You can also check manually in Me → About → Check for Updates. If an outdated version blocks you on the update screen, Update Now works there too. (Android only)';
+
+  @override
+  String get whatsNew361AiAccountQueryTitle =>
+      'Ask the AI assistant about spending by account';
+
+  @override
+  String get whatsNew361AiAccountQueryDesc =>
+      'Ask things like \"how much did I spend on my XX card this month\" — the AI now filters transactions by account name and totals them, instead of finding nothing when the note doesn\'t mention the card. Open it from the AI assistant icon at the top right of the Home tab.';
+
+  @override
+  String get whatsNew361FixesTitle => 'Other fixes';
+
+  @override
+  String get whatsNew361FixesDesc =>
+      'Category colors no longer get wiped to gray after syncing (the colored underline disappeared with cute category icons); after the sync connection drops, reconnect attempts now back off gradually instead of retrying in a tight loop.';
 
   @override
   String get reportFlowReward => 'Rewards';
