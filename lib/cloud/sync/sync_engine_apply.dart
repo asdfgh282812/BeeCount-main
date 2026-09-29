@@ -987,6 +987,18 @@ extension SyncEngineApplyExt on SyncEngine {
       resolvedCustomIconPath = existing?.customIconPath;
     }
 
+    // v55 color:BeeCount Cloud 尚未把这个字段接进它自己的 projection/wire
+    // contract(见 CLAUDE.md「Category color: Cloud deferred」)——payload 里
+    // 缺 'color' key 不代表使用者清空了颜色,只是 server 目前不认得/不回传
+    // 这个字段。这里原本无条件用 payload['color'] 覆盖本地值,导致每次 pull
+    // (包括自己 push 之后的回声)都会把刚指派好的颜色冲成 null,一级分类
+    // 图标下方的颜色底线因此全部退回中性灰兜底色。改为:payload 里显式带了
+    // 这个 key 才采信,否则保留既有本地值(等 Cloud 接上后,清空颜色需要
+    // server 显式发送 'color': null)。
+    final resolvedColor = payload.containsKey('color')
+        ? payload['color'] as String?
+        : existing?.color;
+
     int? localCategoryId;
     if (existing != null) {
       localCategoryId = existing.id;
@@ -1002,7 +1014,7 @@ extension SyncEngineApplyExt on SyncEngine {
         customIconPath: d.Value(resolvedCustomIconPath),
         communityIconId: d.Value(payload['communityIconId'] as String?),
         parentId: d.Value(parentId),
-        color: d.Value(payload['color'] as String?),
+        color: d.Value(resolvedColor),
       ));
       logger.debug('SyncEngine', 'pull: 更新分类 $syncId');
     } else {
@@ -1018,7 +1030,7 @@ extension SyncEngineApplyExt on SyncEngine {
               communityIconId: d.Value(payload['communityIconId'] as String?),
               parentId: d.Value(parentId),
               syncId: d.Value(syncId),
-              color: d.Value(payload['color'] as String?),
+              color: d.Value(resolvedColor),
             ),
           );
       activePullCache?.putCategory(syncId, localCategoryId);
