@@ -665,6 +665,9 @@ void applyHeaderSkinWith(ProviderReader read, String skinId) {
 /// appearance 先落地,对端会在「新皮肤 + server 上还是旧颜色」的组合下走一遍
 /// apply,颜色就会先跳旧色再跳回绑定色 —— 用户看到的就是两个主题色之间闪。
 /// 这里串行 await 保证对端收到 header_skin 变更时,server 上的颜色已经对齐。
+/// 其他 provider 檔案(例如帳戶滑動設定)變更後也要把 appearance 包推上去。
+void pushAppearanceToCloud(Ref ref) => _pushAppearanceToCloud(ref);
+
 void _pushAppearanceToCloud(Ref ref) {
   // 同步开窗口:皮肤和颜色都还没落到 server 的这段时间里,下行拿到的是旧值,
   // 采信它就会闪一下(见 [beginThemePush])。
@@ -697,6 +700,14 @@ void _pushAppearanceToCloud(Ref ref) {
             ref.read(categoryIconStyleProvider) == CategoryIconStyle.cute
                 ? 'cute'
                 : 'material',
+        'account_swipe_left':
+            ref.read(accountSwipeSettingsProvider).leftAction.name,
+        'account_swipe_right':
+            ref.read(accountSwipeSettingsProvider).rightAction.name,
+        'account_swipe_stock_left':
+            ref.read(stockAccountSwipeSettingsProvider).leftAction.name,
+        'account_swipe_stock_right':
+            ref.read(stockAccountSwipeSettingsProvider).rightAction.name,
       };
       await cloudProvider.updateMyProfileAppearance(appearance: appearance);
       logger.info(

@@ -11068,6 +11068,28 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get whatsNew370OpeningHoldingsDesc =>
       'No need to re-enter every past purchase: type each stock\'s shares and average (or total) cost from your broker\'s holdings screen, or paste straight from Excel / Google Sheets. Open an investment account → Add trade → Opening → \"Add several opening positions\". Stock names now fill in automatically once you enter a symbol.';
+
+  @override
+  String get accountSwipeActionStockBuy => 'Buy';
+
+  @override
+  String get accountSwipeActionStockSell => 'Sell';
+
+  @override
+  String get accountSwipeActionStockDca => 'Add recurring buy';
+
+  @override
+  String get accountSwipeStockRightLabel => 'Investment accounts · swipe right';
+
+  @override
+  String get accountSwipeStockLeftLabel => 'Investment accounts · swipe left';
+
+  @override
+  String get whatsNew370StockSwipeTitle => 'Swipe to buy or sell';
+
+  @override
+  String get whatsNew370StockSwipeDesc =>
+      'An investment account\'s balance is the book cost of its holdings, so \"Adjust balance\" is gone for these accounts. On the Accounts list, swipe right to buy and swipe left to sell (or switch to adding a recurring buy). Entry: swipe an investment account on the Accounts page; change the actions under Mine → Appearance settings → swipe actions.';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -22004,4 +22026,26 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   @override
   String get whatsNew370OpeningHoldingsDesc =>
       '以前就買過很多次的股票不用逐筆補記：照券商「庫存」頁輸入每一檔的股數跟平均成本（或總成本）就好，也可以直接從 Excel／Google 試算表貼上。從投資理財帳戶 → 新增交易 → 期初持股 →「一次新增多檔期初持股」進入。輸入代號後也會自動帶入名稱。';
+
+  @override
+  String get accountSwipeActionStockBuy => '買進';
+
+  @override
+  String get accountSwipeActionStockSell => '賣出';
+
+  @override
+  String get accountSwipeActionStockDca => '新增定期定額';
+
+  @override
+  String get accountSwipeStockRightLabel => '投資帳戶 · 右滑操作';
+
+  @override
+  String get accountSwipeStockLeftLabel => '投資帳戶 · 左滑操作';
+
+  @override
+  String get whatsNew370StockSwipeTitle => '投資帳戶滑動買賣';
+
+  @override
+  String get whatsNew370StockSwipeDesc =>
+      '投資理財帳戶的餘額是持股成本的帳面數,不再提供「調整餘額」。帳戶列表向右滑直接買進、向左滑直接賣出,也可以改成新增定期定額。入口:帳戶頁滑動投資理財帳戶;要改動作到「我的 → 個性化設定」的滑動快捷操作。';
 }

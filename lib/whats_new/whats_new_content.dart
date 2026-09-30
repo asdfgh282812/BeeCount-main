@@ -157,5 +157,10 @@ final Map<String, List<WhatsNewItem>> kWhatsNewContent = {
       title: (l10n) => l10n.whatsNew370OpeningHoldingsTitle,
       description: (l10n) => l10n.whatsNew370OpeningHoldingsDesc,
     ),
+    // 投資帳戶滑動快捷(docs/changes/2026-09-30-stock-account-swipe-actions.md)。
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew370StockSwipeTitle,
+      description: (l10n) => l10n.whatsNew370StockSwipeDesc,
+    ),
   ],
 };

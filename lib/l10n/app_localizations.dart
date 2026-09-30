@@ -20392,6 +20392,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No need to re-enter every past purchase: type each stock\'s shares and average (or total) cost from your broker\'s holdings screen, or paste straight from Excel / Google Sheets. Open an investment account → Add trade → Opening → \"Add several opening positions\". Stock names now fill in automatically once you enter a symbol.'**
   String get whatsNew370OpeningHoldingsDesc;
+
+  /// No description provided for @accountSwipeActionStockBuy.
+  ///
+  /// In en, this message translates to:
+  /// **'Buy'**
+  String get accountSwipeActionStockBuy;
+
+  /// No description provided for @accountSwipeActionStockSell.
+  ///
+  /// In en, this message translates to:
+  /// **'Sell'**
+  String get accountSwipeActionStockSell;
+
+  /// No description provided for @accountSwipeActionStockDca.
+  ///
+  /// In en, this message translates to:
+  /// **'Add recurring buy'**
+  String get accountSwipeActionStockDca;
+
+  /// No description provided for @accountSwipeStockRightLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Investment accounts · swipe right'**
+  String get accountSwipeStockRightLabel;
+
+  /// No description provided for @accountSwipeStockLeftLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Investment accounts · swipe left'**
+  String get accountSwipeStockLeftLabel;
+
+  /// No description provided for @whatsNew370StockSwipeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe to buy or sell'**
+  String get whatsNew370StockSwipeTitle;
+
+  /// No description provided for @whatsNew370StockSwipeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'An investment account\'s balance is the book cost of its holdings, so \"Adjust balance\" is gone for these accounts. On the Accounts list, swipe right to buy and swipe left to sell (or switch to adding a recurring buy). Entry: swipe an investment account on the Accounts page; change the actions under Mine → Appearance settings → swipe actions.'**
+  String get whatsNew370StockSwipeDesc;
 }
 
 class _AppLocalizationsDelegate

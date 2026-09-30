@@ -29,6 +29,7 @@ import '../services/ui/avatar_service.dart';
 import '../models/note_history.dart';
 import '../styles/header_skins.dart'
     show boundPrimaryOf, headerSkinById, kHeaderSkinNone;
+import 'account_swipe_action_providers.dart';
 import 'theme_providers.dart';
 import 'budget_providers.dart';
 import 'project_providers.dart';
@@ -1027,6 +1028,16 @@ void _applyAppearanceFields(Ref ref, Map<String, dynamic> appearance) {
       ref.read(noteHistoryLimitProvider.notifier).state = noteHistoryLimit;
     }
   }
+  // 帳戶滑動快捷操作(一般帳戶 / 投資帳戶各一組)
+  unawaited(ref.read(accountSwipeSettingsProvider.notifier).applyFromServer(
+        left: appearance['account_swipe_left'] as String?,
+        right: appearance['account_swipe_right'] as String?,
+      ));
+  unawaited(
+      ref.read(stockAccountSwipeSettingsProvider.notifier).applyFromServer(
+            left: appearance['account_swipe_stock_left'] as String?,
+            right: appearance['account_swipe_stock_right'] as String?,
+          ));
   logger.info('profile_sync', 'applied appearance from server: $appearance');
 }
 

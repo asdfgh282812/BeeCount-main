@@ -11387,4 +11387,26 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get whatsNew370OpeningHoldingsDesc =>
       'No need to re-enter every past purchase: type each stock\'s shares and average (or total) cost from your broker\'s holdings screen, or paste straight from Excel / Google Sheets. Open an investment account → Add trade → Opening → \"Add several opening positions\". Stock names now fill in automatically once you enter a symbol.';
+
+  @override
+  String get accountSwipeActionStockBuy => 'Buy';
+
+  @override
+  String get accountSwipeActionStockSell => 'Sell';
+
+  @override
+  String get accountSwipeActionStockDca => 'Add recurring buy';
+
+  @override
+  String get accountSwipeStockRightLabel => 'Investment accounts · swipe right';
+
+  @override
+  String get accountSwipeStockLeftLabel => 'Investment accounts · swipe left';
+
+  @override
+  String get whatsNew370StockSwipeTitle => 'Swipe to buy or sell';
+
+  @override
+  String get whatsNew370StockSwipeDesc =>
+      'An investment account\'s balance is the book cost of its holdings, so \"Adjust balance\" is gone for these accounts. On the Accounts list, swipe right to buy and swipe left to sell (or switch to adding a recurring buy). Entry: swipe an investment account on the Accounts page; change the actions under Mine → Appearance settings → swipe actions.';
 }

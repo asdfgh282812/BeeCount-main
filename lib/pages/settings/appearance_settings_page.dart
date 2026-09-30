@@ -353,6 +353,60 @@ class _AppearanceSettingsPageState
                   ),
                 ),
                 const SizedBox(height: 16),
+                // 投資理財(股票)帳戶自己的滑動快捷操作(沒有調整餘額)
+                SectionCard(
+                  margin: EdgeInsets.zero,
+                  child: Column(
+                    children: [
+                      AppListTile(
+                        leading: Icons.swipe_right_alt_outlined,
+                        title: l10n.accountSwipeStockRightLabel,
+                        subtitle: accountSwipeActionLabel(
+                            l10n,
+                            ref
+                                .watch(stockAccountSwipeSettingsProvider)
+                                .rightAction),
+                        onTap: () => _showSwipeActionDialog(
+                          context,
+                          ref,
+                          l10n,
+                          title: l10n.accountSwipeStockRightLabel,
+                          current: ref
+                              .read(stockAccountSwipeSettingsProvider)
+                              .rightAction,
+                          choices: stockSwipeActionChoices,
+                          onSelected: (action) => ref
+                              .read(stockAccountSwipeSettingsProvider.notifier)
+                              .updateRightAction(action),
+                        ),
+                      ),
+                      BeeTokens.cardDivider(context),
+                      AppListTile(
+                        leading: Icons.swipe_left_alt_outlined,
+                        title: l10n.accountSwipeStockLeftLabel,
+                        subtitle: accountSwipeActionLabel(
+                            l10n,
+                            ref
+                                .watch(stockAccountSwipeSettingsProvider)
+                                .leftAction),
+                        onTap: () => _showSwipeActionDialog(
+                          context,
+                          ref,
+                          l10n,
+                          title: l10n.accountSwipeStockLeftLabel,
+                          current: ref
+                              .read(stockAccountSwipeSettingsProvider)
+                              .leftAction,
+                          choices: stockSwipeActionChoices,
+                          onSelected: (action) => ref
+                              .read(stockAccountSwipeSettingsProvider.notifier)
+                              .updateLeftAction(action),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
                 // 多币种:主币种 / 汇率管理
                 SectionCard(
                   margin: EdgeInsets.zero,
@@ -931,6 +985,7 @@ class _AppearanceSettingsPageState
     required String title,
     required AccountSwipeAction current,
     required void Function(AccountSwipeAction action) onSelected,
+    List<AccountSwipeAction> choices = generalSwipeActionChoices,
   }) {
     showDialog(
       context: context,
@@ -943,7 +998,7 @@ class _AppearanceSettingsPageState
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: AccountSwipeAction.values.map((action) {
+            children: choices.map((action) {
               return _buildSwipeActionOption(
                 context,
                 ref,

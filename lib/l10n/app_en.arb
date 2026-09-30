@@ -4829,5 +4829,12 @@
     }
   },
   "whatsNew370OpeningHoldingsTitle": "Enter your current holdings at once",
-  "whatsNew370OpeningHoldingsDesc": "No need to re-enter every past purchase: type each stock's shares and average (or total) cost from your broker's holdings screen, or paste straight from Excel / Google Sheets. Open an investment account → Add trade → Opening → \"Add several opening positions\". Stock names now fill in automatically once you enter a symbol."
+  "whatsNew370OpeningHoldingsDesc": "No need to re-enter every past purchase: type each stock's shares and average (or total) cost from your broker's holdings screen, or paste straight from Excel / Google Sheets. Open an investment account → Add trade → Opening → \"Add several opening positions\". Stock names now fill in automatically once you enter a symbol.",
+  "accountSwipeActionStockBuy": "Buy",
+  "accountSwipeActionStockSell": "Sell",
+  "accountSwipeActionStockDca": "Add recurring buy",
+  "accountSwipeStockRightLabel": "Investment accounts · swipe right",
+  "accountSwipeStockLeftLabel": "Investment accounts · swipe left",
+  "whatsNew370StockSwipeTitle": "Swipe to buy or sell",
+  "whatsNew370StockSwipeDesc": "An investment account's balance is the book cost of its holdings, so \"Adjust balance\" is gone for these accounts. On the Accounts list, swipe right to buy and swipe left to sell (or switch to adding a recurring buy). Entry: swipe an investment account on the Accounts page; change the actions under Mine → Appearance settings → swipe actions."
 }

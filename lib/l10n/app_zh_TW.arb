@@ -4314,5 +4314,12 @@
     }
   },
   "whatsNew370OpeningHoldingsTitle": "一次輸入目前持股",
-  "whatsNew370OpeningHoldingsDesc": "以前就買過很多次的股票不用逐筆補記：照券商「庫存」頁輸入每一檔的股數跟平均成本（或總成本）就好，也可以直接從 Excel／Google 試算表貼上。從投資理財帳戶 → 新增交易 → 期初持股 →「一次新增多檔期初持股」進入。輸入代號後也會自動帶入名稱。"
+  "whatsNew370OpeningHoldingsDesc": "以前就買過很多次的股票不用逐筆補記：照券商「庫存」頁輸入每一檔的股數跟平均成本（或總成本）就好，也可以直接從 Excel／Google 試算表貼上。從投資理財帳戶 → 新增交易 → 期初持股 →「一次新增多檔期初持股」進入。輸入代號後也會自動帶入名稱。",
+  "accountSwipeActionStockBuy": "買進",
+  "accountSwipeActionStockSell": "賣出",
+  "accountSwipeActionStockDca": "新增定期定額",
+  "accountSwipeStockRightLabel": "投資帳戶 · 右滑操作",
+  "accountSwipeStockLeftLabel": "投資帳戶 · 左滑操作",
+  "whatsNew370StockSwipeTitle": "投資帳戶滑動買賣",
+  "whatsNew370StockSwipeDesc": "投資理財帳戶的餘額是持股成本的帳面數,不再提供「調整餘額」。帳戶列表向右滑直接買進、向左滑直接賣出,也可以改成新增定期定額。入口:帳戶頁滑動投資理財帳戶;要改動作到「我的 → 個性化設定」的滑動快捷操作。"
 }

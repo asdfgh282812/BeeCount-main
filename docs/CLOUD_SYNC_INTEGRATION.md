@@ -222,7 +222,7 @@ exchange_rate_override/ledger）。
 
 | # | App 端要改的位置 | Cloud 端要改的位置 |
 |---|---|---|
-| 1 | `lib/data/db.dart` 新增 Drift column + `MigrationStrategy.onUpgrade` 加一個新 `schemaVersion` 分支（目前 32，SQLite DDL 不可回滾，改 migration 前務必讀清楚周圍版本號註解） | Alembic migration，`read_*_projection` 表加欄位 |
+| 1 | `lib/data/db.dart` 新增 Drift column + `MigrationStrategy.onUpgrade` 加一個新 `schemaVersion` 分支（目前 64，SQLite DDL 不可回滾，改 migration 前務必讀清楚周圍版本號註解） | Alembic migration，`read_*_projection` 表加欄位 |
 | 2 | `dart run build_runner build --delete-conflicting-outputs` 重新產生 `db.g.dart`（絕不手改這個檔案） | — |
 | 3 | 對應 `lib/data/repositories/xxx_repository.dart`（介面）+ `local/local_xxx_repository.dart` 或 `local_repository.dart`（實作，見 §2 的「實際呼叫點在哪」提醒） | `src/projection.py` 的 `upsert_*`/`delete_*`/`rename_cascade_*` |
 | 4 | `lib/cloud/sync/entity_serializer.dart` 對應 `serializeXxx` 加欄位（push 方向） | `src/sync_applier.py`：`_USER_MERGE_SPECS`/`_LEDGER_MERGE_SPECS` 加 field spec |
