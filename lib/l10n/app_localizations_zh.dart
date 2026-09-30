@@ -10495,7 +10495,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get stockTradeTypeOpeningHint =>
-      'Shares you already held before using BeeCount. No money moves.';
+      'Shares you already held before using BeeCount. No money moves. One entry per stock is enough: your current shares and your broker\'s average cost.';
 
   @override
   String get stockTradeTypeStockDividendHint =>
@@ -10942,6 +10942,132 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get stockPnlAfterSellCostsNote => 'After estimated selling costs';
+
+  @override
+  String get recurringStockSettlementCurrencyMismatch =>
+      'The settlement account must use the same currency as the security (cross-currency plans are not supported yet)';
+
+  @override
+  String recurringStockGeneratedNow(int count) {
+    return 'Saved, bought $count period(s) now';
+  }
+
+  @override
+  String get recurringStockPlansTitle => 'Recurring buys';
+
+  @override
+  String get recurringStockAddButton => 'Recurring buy';
+
+  @override
+  String recurringStockNextRun(String date) {
+    return 'Next $date';
+  }
+
+  @override
+  String get whatsNew370StockDcaTitle => 'Recurring stock purchases';
+
+  @override
+  String get whatsNew370StockDcaDesc =>
+      'Set up a recurring buy (DCA) for a stock with its own fee rules. When due it buys at the current quote and transfers from the settlement account; Taiwan stocks buy whole shares only, like the broker does (the amount includes the fee and the leftover is not charged), while US stocks can buy fractional shares. Start it from the investment account page, or from \"Add trade\" → \"Recurring buy\"; manage plans under Mine → Recurring.';
+
+  @override
+  String get recurringStockWholeShareHint =>
+      'Taiwan stock plans buy whole shares only: the amount includes the fee, as many whole shares as fit are bought, and the leftover is not charged.';
+
+  @override
+  String get recurringStockFractionalHint =>
+      'This market allows fractional shares: the whole amount is invested and the fee is charged on top.';
+
+  @override
+  String recurringStockPreviewWhole(
+      String price, String shares, String total, String fee, String left) {
+    return 'At the current price $price: $shares shares, charged $total (incl. fee $fee), $left not charged';
+  }
+
+  @override
+  String recurringStockPreviewFractional(
+      String price, String shares, String total, String fee) {
+    return 'At the current price $price: about $shares shares, charged $total (incl. fee $fee)';
+  }
+
+  @override
+  String recurringStockPreviewTooSmall(String price) {
+    return 'At the current price $price the amount cannot buy even 1 share including the fee; that period will be skipped';
+  }
+
+  @override
+  String get stockOpeningBatchEntry => 'Add several opening positions';
+
+  @override
+  String get stockOpeningBatchTitle => 'Opening positions';
+
+  @override
+  String get stockOpeningBatchIntro =>
+      'Enter each stock\'s current shares and average cost from your broker\'s holdings screen — no need to re-enter every past purchase. Cost basis and unrealized P/L come out the same; you just won\'t see the individual buys from before you started. Brokers\' average cost usually already includes fees.';
+
+  @override
+  String get stockOpeningAsOfDate => 'As of';
+
+  @override
+  String get stockOpeningCostMode => 'Cost';
+
+  @override
+  String get stockOpeningCostTotal => 'Total cost';
+
+  @override
+  String get stockOpeningAddRow => 'Add a stock';
+
+  @override
+  String get stockOpeningPaste => 'Paste from clipboard';
+
+  @override
+  String get stockOpeningPasteHint =>
+      'One stock per line: symbol, shares, cost, separated by tabs, spaces or commas — you can copy straight from Excel or Google Sheets; a name column is optional. Example: \"VOO 3.5 412.3\".';
+
+  @override
+  String get stockOpeningPasteEmpty =>
+      'Nothing to import on the clipboard (each line needs a symbol, shares and cost)';
+
+  @override
+  String stockOpeningPasted(int count, int skipped) {
+    return 'Pasted $count stocks, skipped $skipped lines';
+  }
+
+  @override
+  String stockOpeningRowTotal(String total) {
+    return 'Total cost $total';
+  }
+
+  @override
+  String stockOpeningRowHeld(String shares) {
+    return 'Already holding $shares shares; these will be added';
+  }
+
+  @override
+  String stockOpeningRowInvalid(int row) {
+    return 'Stock #$row is missing a symbol, shares or cost';
+  }
+
+  @override
+  String get stockOpeningNothing => 'Enter at least one stock';
+
+  @override
+  String stockOpeningSaved(int count) {
+    return 'Added $count opening positions';
+  }
+
+  @override
+  String stockOpeningSummary(int count, String total) {
+    return '$count stocks · total cost $total';
+  }
+
+  @override
+  String get whatsNew370OpeningHoldingsTitle =>
+      'Enter your current holdings at once';
+
+  @override
+  String get whatsNew370OpeningHoldingsDesc =>
+      'No need to re-enter every past purchase: type each stock\'s shares and average (or total) cost from your broker\'s holdings screen, or paste straight from Excel / Google Sheets. Open an investment account → Add trade → Opening → \"Add several opening positions\". Stock names now fill in automatically once you enter a symbol.';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -21319,7 +21445,8 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get stockTradeTypeReinvest => '股利再投入';
 
   @override
-  String get stockTradeTypeOpeningHint => '開始記帳前就持有的股票，不會產生金流。';
+  String get stockTradeTypeOpeningHint =>
+      '開始記帳前就持有的股票，不會產生金流。每檔記一筆就好：股數填目前庫存，平均成本填券商顯示的成本均價。';
 
   @override
   String get stockTradeTypeStockDividendHint => '配發的股票股利，不增加成本，平均成本會降低。';
@@ -21753,4 +21880,128 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get stockPnlAfterSellCostsNote => '已扣預估賣出費用';
+
+  @override
+  String get recurringStockSettlementCurrencyMismatch =>
+      '交割帳戶的幣別必須跟這檔證券相同(暫不支援跨幣別定期定額)';
+
+  @override
+  String recurringStockGeneratedNow(int count) {
+    return '已儲存,已立即執行 $count 期';
+  }
+
+  @override
+  String get recurringStockPlansTitle => '定期定額計畫';
+
+  @override
+  String get recurringStockAddButton => '定期定額';
+
+  @override
+  String recurringStockNextRun(String date) {
+    return '下次 $date';
+  }
+
+  @override
+  String get whatsNew370StockDcaTitle => '股票定期定額';
+
+  @override
+  String get whatsNew370StockDcaDesc =>
+      '可以替股票設定定期定額,手續費能跟單筆買進分開設定。到期時依當下報價自動買進,並從交割帳戶轉帳;台股跟券商一樣只買整數股(每期金額含手續費,零頭不扣款),美股可買碎股。入口:投資理財帳戶的持股頁「定期定額」,或「新增交易」→「定期定額」;計畫可在「我的 → 週期性收支」管理。';
+
+  @override
+  String get recurringStockWholeShareHint =>
+      '台股定期定額只買整數股:每期金額含手續費,能買幾股就買幾股,買不滿 1 股的零頭不扣款。';
+
+  @override
+  String get recurringStockFractionalHint =>
+      '這個市場允許碎股:每期金額全部買進(股數可有小數),手續費另外扣。';
+
+  @override
+  String recurringStockPreviewWhole(
+      String price, String shares, String total, String fee, String left) {
+    return '以目前價格 $price 可買 $shares 股,扣款 $total(含手續費 $fee),$left 不扣款';
+  }
+
+  @override
+  String recurringStockPreviewFractional(
+      String price, String shares, String total, String fee) {
+    return '以目前價格 $price 約可買 $shares 股,扣款 $total(含手續費 $fee)';
+  }
+
+  @override
+  String recurringStockPreviewTooSmall(String price) {
+    return '以目前價格 $price,每期金額連 1 股(含手續費)都買不起,到期時這期會略過';
+  }
+
+  @override
+  String get stockOpeningBatchEntry => '一次新增多檔期初持股';
+
+  @override
+  String get stockOpeningBatchTitle => '批次新增期初持股';
+
+  @override
+  String get stockOpeningBatchIntro =>
+      '照券商 App「庫存」頁輸入每一檔目前的股數跟平均成本就好，不用逐筆補記以前的每次買進：持股成本跟未實現損益會完全一樣，只是看不到記帳前的個別買進紀錄。券商顯示的成本均價通常已含手續費。';
+
+  @override
+  String get stockOpeningAsOfDate => '持股日期';
+
+  @override
+  String get stockOpeningCostMode => '成本';
+
+  @override
+  String get stockOpeningCostTotal => '總成本';
+
+  @override
+  String get stockOpeningAddRow => '新增一檔';
+
+  @override
+  String get stockOpeningPaste => '從剪貼簿貼上';
+
+  @override
+  String get stockOpeningPasteHint =>
+      '每行一檔：代號、股數、成本，用 Tab、空白或逗號分隔，可以直接從 Excel 或 Google 試算表複製，名稱可有可無。例如「0050 1000 120.5」。';
+
+  @override
+  String get stockOpeningPasteEmpty => '剪貼簿裡沒有可以解析的資料（每行需要代號、股數、成本）';
+
+  @override
+  String stockOpeningPasted(int count, int skipped) {
+    return '已貼上 $count 檔，略過 $skipped 行';
+  }
+
+  @override
+  String stockOpeningRowTotal(String total) {
+    return '總成本 $total';
+  }
+
+  @override
+  String stockOpeningRowHeld(String shares) {
+    return '已持有 $shares 股，會再加上去';
+  }
+
+  @override
+  String stockOpeningRowInvalid(int row) {
+    return '第 $row 檔的代號、股數或成本沒有填完整';
+  }
+
+  @override
+  String get stockOpeningNothing => '請至少輸入一檔';
+
+  @override
+  String stockOpeningSaved(int count) {
+    return '已新增 $count 檔期初持股';
+  }
+
+  @override
+  String stockOpeningSummary(int count, String total) {
+    return '共 $count 檔 · 總成本 $total';
+  }
+
+  @override
+  String get whatsNew370OpeningHoldingsTitle => '一次輸入目前持股';
+
+  @override
+  String get whatsNew370OpeningHoldingsDesc =>
+      '以前就買過很多次的股票不用逐筆補記：照券商「庫存」頁輸入每一檔的股數跟平均成本（或總成本）就好，也可以直接從 Excel／Google 試算表貼上。從投資理財帳戶 → 新增交易 → 期初持股 →「一次新增多檔期初持股」進入。輸入代號後也會自動帶入名稱。';
 }

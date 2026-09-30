@@ -4545,7 +4545,7 @@
   "stockTradeTypeStockDividend": "Stock dividend",
   "stockTradeTypeCashDividend": "Cash dividend",
   "stockTradeTypeReinvest": "Dividend reinvestment",
-  "stockTradeTypeOpeningHint": "Shares you already held before using BeeCount. No money moves.",
+  "stockTradeTypeOpeningHint": "Shares you already held before using BeeCount. No money moves. One entry per stock is enough: your current shares and your broker's average cost.",
   "stockTradeTypeStockDividendHint": "Bonus shares received. Cost stays the same, so the average cost goes down.",
   "stockMarket": "Market",
   "stockSymbol": "Symbol",
@@ -4694,5 +4694,140 @@
   "stockNetValue": "Est. net proceeds",
   "stockEstSellFee": "Est. selling fee",
   "stockEstSellTax": "Est. transaction tax",
-  "stockPnlAfterSellCostsNote": "After estimated selling costs"
+  "stockPnlAfterSellCostsNote": "After estimated selling costs",
+  "recurringStockSettlementCurrencyMismatch": "The settlement account must use the same currency as the security (cross-currency plans are not supported yet)",
+  "recurringStockGeneratedNow": "Saved, bought {count} period(s) now",
+  "@recurringStockGeneratedNow": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recurringStockPlansTitle": "Recurring buys",
+  "recurringStockAddButton": "Recurring buy",
+  "recurringStockNextRun": "Next {date}",
+  "@recurringStockNextRun": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "whatsNew370StockDcaTitle": "Recurring stock purchases",
+  "whatsNew370StockDcaDesc": "Set up a recurring buy (DCA) for a stock with its own fee rules. When due it buys at the current quote and transfers from the settlement account; Taiwan stocks buy whole shares only, like the broker does (the amount includes the fee and the leftover is not charged), while US stocks can buy fractional shares. Start it from the investment account page, or from \"Add trade\" → \"Recurring buy\"; manage plans under Mine → Recurring.",
+  "recurringStockWholeShareHint": "Taiwan stock plans buy whole shares only: the amount includes the fee, as many whole shares as fit are bought, and the leftover is not charged.",
+  "recurringStockFractionalHint": "This market allows fractional shares: the whole amount is invested and the fee is charged on top.",
+  "recurringStockPreviewWhole": "At the current price {price}: {shares} shares, charged {total} (incl. fee {fee}), {left} not charged",
+  "@recurringStockPreviewWhole": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      },
+      "shares": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "fee": {
+        "type": "String"
+      },
+      "left": {
+        "type": "String"
+      }
+    }
+  },
+  "recurringStockPreviewFractional": "At the current price {price}: about {shares} shares, charged {total} (incl. fee {fee})",
+  "@recurringStockPreviewFractional": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      },
+      "shares": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "fee": {
+        "type": "String"
+      }
+    }
+  },
+  "recurringStockPreviewTooSmall": "At the current price {price} the amount cannot buy even 1 share including the fee; that period will be skipped",
+  "@recurringStockPreviewTooSmall": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "stockOpeningBatchEntry": "Add several opening positions",
+  "stockOpeningBatchTitle": "Opening positions",
+  "stockOpeningBatchIntro": "Enter each stock's current shares and average cost from your broker's holdings screen — no need to re-enter every past purchase. Cost basis and unrealized P/L come out the same; you just won't see the individual buys from before you started. Brokers' average cost usually already includes fees.",
+  "stockOpeningAsOfDate": "As of",
+  "stockOpeningCostMode": "Cost",
+  "stockOpeningCostTotal": "Total cost",
+  "stockOpeningAddRow": "Add a stock",
+  "stockOpeningPaste": "Paste from clipboard",
+  "stockOpeningPasteHint": "One stock per line: symbol, shares, cost, separated by tabs, spaces or commas — you can copy straight from Excel or Google Sheets; a name column is optional. Example: \"VOO 3.5 412.3\".",
+  "stockOpeningPasteEmpty": "Nothing to import on the clipboard (each line needs a symbol, shares and cost)",
+  "stockOpeningPasted": "Pasted {count} stocks, skipped {skipped} lines",
+  "@stockOpeningPasted": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "stockOpeningRowTotal": "Total cost {total}",
+  "@stockOpeningRowTotal": {
+    "placeholders": {
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "stockOpeningRowHeld": "Already holding {shares} shares; these will be added",
+  "@stockOpeningRowHeld": {
+    "placeholders": {
+      "shares": {
+        "type": "String"
+      }
+    }
+  },
+  "stockOpeningRowInvalid": "Stock #{row} is missing a symbol, shares or cost",
+  "@stockOpeningRowInvalid": {
+    "placeholders": {
+      "row": {
+        "type": "int"
+      }
+    }
+  },
+  "stockOpeningNothing": "Enter at least one stock",
+  "stockOpeningSaved": "Added {count} opening positions",
+  "@stockOpeningSaved": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "stockOpeningSummary": "{count} stocks · total cost {total}",
+  "@stockOpeningSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "whatsNew370OpeningHoldingsTitle": "Enter your current holdings at once",
+  "whatsNew370OpeningHoldingsDesc": "No need to re-enter every past purchase: type each stock's shares and average (or total) cost from your broker's holdings screen, or paste straight from Excel / Google Sheets. Open an investment account → Add trade → Opening → \"Add several opening positions\". Stock names now fill in automatically once you enter a symbol."
 }

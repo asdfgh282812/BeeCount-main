@@ -237,4 +237,73 @@ void main() {
     expect(tx.recurringRuleId, 'rule-abc');
     expect(tx.recurringOccurrenceOverridden, isTrue);
   });
+
+  test('(stock_dca) Web 建的定期定額拉下來要保留 kind/market/symbol/手續費覆寫;'
+      '舊版 Cloud 沒帶這些鍵時不沖掉本地值', () async {
+    await seedLedger(syncId: 'ledger-dca');
+    final lid = (await (db.select(db.ledgers)).get()).single.id;
+    await repo.createAccount(ledgerId: lid, name: '交割戶', syncId: 'acc-bank');
+    await repo.createAccount(
+        ledgerId: lid, name: '證券', type: 'investment', syncId: 'acc-inv');
+    Map<String, dynamic> base() => {
+          'syncId': 'rule-dca',
+          'txType': 'transfer',
+          'amount': 3000.0,
+          'fromAccountId': 'acc-bank',
+          'toAccountId': 'acc-inv',
+          'frequency': 'monthly',
+          'interval': 1,
+          'nextRunAt': '2026-10-01T01:00:00Z',
+          'enabled': true,
+        };
+    provider.pushFakeChange(
+      entityType: 'recurring_rule',
+      entitySyncId: 'rule-dca',
+      ledgerId: 'ledger-dca',
+      payload: {
+        ...base(),
+        'kind': 'stock_dca',
+        'market': 'tw',
+        'symbol': '0050',
+        'securityName': '元大台灣50',
+        'stockFeeRate': 0.001,
+        'stockFeeMin': 1,
+      },
+    );
+    await engine.pull('');
+    var rule = (await repo.getRuleBySyncId('rule-dca'))!;
+    expect(rule.kind, 'stock_dca');
+    expect(rule.market, 'TW');
+    expect(rule.symbol, '0050');
+    expect(rule.securityName, '元大台灣50');
+    expect(rule.stockFeeRate, 0.001);
+    expect(rule.stockFeeMin, 1.0);
+
+    // 舊版 Cloud payload 沒有這幾個鍵 → 維持本地值
+    provider.pushFakeChange(
+      entityType: 'recurring_rule',
+      entitySyncId: 'rule-dca',
+      ledgerId: 'ledger-dca',
+      payload: {...base(), 'amount': 5000.0},
+    );
+    await engine.pull('');
+    rule = (await repo.getRuleBySyncId('rule-dca'))!;
+    expect(rule.amount, 5000.0);
+    expect(rule.kind, 'stock_dca');
+    expect(rule.symbol, '0050');
+    expect(rule.stockFeeRate, 0.001);
+
+    // 顯式 null = 清除手續費覆寫
+    provider.pushFakeChange(
+      entityType: 'recurring_rule',
+      entitySyncId: 'rule-dca',
+      ledgerId: 'ledger-dca',
+      payload: {...base(), 'kind': 'stock_dca', 'stockFeeRate': null, 'stockFeeMin': null},
+    );
+    await engine.pull('');
+    rule = (await repo.getRuleBySyncId('rule-dca'))!;
+    expect(rule.kind, 'stock_dca');
+    expect(rule.stockFeeRate, isNull);
+    expect(rule.stockFeeMin, isNull);
+  });
 }

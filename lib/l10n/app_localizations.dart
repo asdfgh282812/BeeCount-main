@@ -19434,7 +19434,7 @@ abstract class AppLocalizations {
   /// No description provided for @stockTradeTypeOpeningHint.
   ///
   /// In en, this message translates to:
-  /// **'Shares you already held before using BeeCount. No money moves.'**
+  /// **'Shares you already held before using BeeCount. No money moves. One entry per stock is enough: your current shares and your broker\'s average cost.'**
   String get stockTradeTypeOpeningHint;
 
   /// No description provided for @stockTradeTypeStockDividendHint.
@@ -20204,6 +20204,194 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'After estimated selling costs'**
   String get stockPnlAfterSellCostsNote;
+
+  /// No description provided for @recurringStockSettlementCurrencyMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'The settlement account must use the same currency as the security (cross-currency plans are not supported yet)'**
+  String get recurringStockSettlementCurrencyMismatch;
+
+  /// No description provided for @recurringStockGeneratedNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved, bought {count} period(s) now'**
+  String recurringStockGeneratedNow(int count);
+
+  /// No description provided for @recurringStockPlansTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recurring buys'**
+  String get recurringStockPlansTitle;
+
+  /// No description provided for @recurringStockAddButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Recurring buy'**
+  String get recurringStockAddButton;
+
+  /// No description provided for @recurringStockNextRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Next {date}'**
+  String recurringStockNextRun(String date);
+
+  /// No description provided for @whatsNew370StockDcaTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recurring stock purchases'**
+  String get whatsNew370StockDcaTitle;
+
+  /// No description provided for @whatsNew370StockDcaDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Set up a recurring buy (DCA) for a stock with its own fee rules. When due it buys at the current quote and transfers from the settlement account; Taiwan stocks buy whole shares only, like the broker does (the amount includes the fee and the leftover is not charged), while US stocks can buy fractional shares. Start it from the investment account page, or from \"Add trade\" → \"Recurring buy\"; manage plans under Mine → Recurring.'**
+  String get whatsNew370StockDcaDesc;
+
+  /// No description provided for @recurringStockWholeShareHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Taiwan stock plans buy whole shares only: the amount includes the fee, as many whole shares as fit are bought, and the leftover is not charged.'**
+  String get recurringStockWholeShareHint;
+
+  /// No description provided for @recurringStockFractionalHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This market allows fractional shares: the whole amount is invested and the fee is charged on top.'**
+  String get recurringStockFractionalHint;
+
+  /// No description provided for @recurringStockPreviewWhole.
+  ///
+  /// In en, this message translates to:
+  /// **'At the current price {price}: {shares} shares, charged {total} (incl. fee {fee}), {left} not charged'**
+  String recurringStockPreviewWhole(
+      String price, String shares, String total, String fee, String left);
+
+  /// No description provided for @recurringStockPreviewFractional.
+  ///
+  /// In en, this message translates to:
+  /// **'At the current price {price}: about {shares} shares, charged {total} (incl. fee {fee})'**
+  String recurringStockPreviewFractional(
+      String price, String shares, String total, String fee);
+
+  /// No description provided for @recurringStockPreviewTooSmall.
+  ///
+  /// In en, this message translates to:
+  /// **'At the current price {price} the amount cannot buy even 1 share including the fee; that period will be skipped'**
+  String recurringStockPreviewTooSmall(String price);
+
+  /// No description provided for @stockOpeningBatchEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Add several opening positions'**
+  String get stockOpeningBatchEntry;
+
+  /// No description provided for @stockOpeningBatchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening positions'**
+  String get stockOpeningBatchTitle;
+
+  /// No description provided for @stockOpeningBatchIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter each stock\'s current shares and average cost from your broker\'s holdings screen — no need to re-enter every past purchase. Cost basis and unrealized P/L come out the same; you just won\'t see the individual buys from before you started. Brokers\' average cost usually already includes fees.'**
+  String get stockOpeningBatchIntro;
+
+  /// No description provided for @stockOpeningAsOfDate.
+  ///
+  /// In en, this message translates to:
+  /// **'As of'**
+  String get stockOpeningAsOfDate;
+
+  /// No description provided for @stockOpeningCostMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Cost'**
+  String get stockOpeningCostMode;
+
+  /// No description provided for @stockOpeningCostTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Total cost'**
+  String get stockOpeningCostTotal;
+
+  /// No description provided for @stockOpeningAddRow.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a stock'**
+  String get stockOpeningAddRow;
+
+  /// No description provided for @stockOpeningPaste.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste from clipboard'**
+  String get stockOpeningPaste;
+
+  /// No description provided for @stockOpeningPasteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'One stock per line: symbol, shares, cost, separated by tabs, spaces or commas — you can copy straight from Excel or Google Sheets; a name column is optional. Example: \"VOO 3.5 412.3\".'**
+  String get stockOpeningPasteHint;
+
+  /// No description provided for @stockOpeningPasteEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to import on the clipboard (each line needs a symbol, shares and cost)'**
+  String get stockOpeningPasteEmpty;
+
+  /// No description provided for @stockOpeningPasted.
+  ///
+  /// In en, this message translates to:
+  /// **'Pasted {count} stocks, skipped {skipped} lines'**
+  String stockOpeningPasted(int count, int skipped);
+
+  /// No description provided for @stockOpeningRowTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Total cost {total}'**
+  String stockOpeningRowTotal(String total);
+
+  /// No description provided for @stockOpeningRowHeld.
+  ///
+  /// In en, this message translates to:
+  /// **'Already holding {shares} shares; these will be added'**
+  String stockOpeningRowHeld(String shares);
+
+  /// No description provided for @stockOpeningRowInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock #{row} is missing a symbol, shares or cost'**
+  String stockOpeningRowInvalid(int row);
+
+  /// No description provided for @stockOpeningNothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter at least one stock'**
+  String get stockOpeningNothing;
+
+  /// No description provided for @stockOpeningSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Added {count} opening positions'**
+  String stockOpeningSaved(int count);
+
+  /// No description provided for @stockOpeningSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} stocks · total cost {total}'**
+  String stockOpeningSummary(int count, String total);
+
+  /// No description provided for @whatsNew370OpeningHoldingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your current holdings at once'**
+  String get whatsNew370OpeningHoldingsTitle;
+
+  /// No description provided for @whatsNew370OpeningHoldingsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'No need to re-enter every past purchase: type each stock\'s shares and average (or total) cost from your broker\'s holdings screen, or paste straight from Excel / Google Sheets. Open an investment account → Add trade → Opening → \"Add several opening positions\". Stock names now fill in automatically once you enter a symbol.'**
+  String get whatsNew370OpeningHoldingsDesc;
 }
 
 class _AppLocalizationsDelegate

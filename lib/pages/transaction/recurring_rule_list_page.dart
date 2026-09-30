@@ -274,7 +274,14 @@ class _RecurringRuleTile extends ConsumerWidget {
           ].join(' ')
         : (rule.note != null && rule.note!.isNotEmpty)
             ? rule.note!
-            : (rule.merchant ?? rule.type);
+            : (rule.merchant ??
+                // 沒備註/商家時(例如 Web 建的轉帳規則)顯示類型名稱,不要露出
+                // 'transfer' 這種原始字串。
+                switch (rule.type) {
+                  'transfer' => l10n.transferTitle,
+                  'income' => l10n.homeIncome,
+                  _ => l10n.homeExpense,
+                });
     final subtitleParts = <String>[draft.summary(l10n)];
     if (_isStockDca) {
       subtitleParts.insert(0, l10n.recurringKindStockBadge);

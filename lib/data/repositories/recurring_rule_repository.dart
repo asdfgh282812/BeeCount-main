@@ -24,7 +24,21 @@ class RecurringRuleTransferSkip {
 /// [RecurringRuleRepository.materializeDueStockRules] 裡「這期沒能生成」的
 /// 單筆記錄,同 [RecurringRuleTransferSkip] 但多一個 [reason]:交割帳戶餘額
 /// 不足,或報價快取沒有這檔標的的資料(還沒抓到/從沒抓過)。
-enum RecurringRuleStockSkipReason { insufficientBalance, quoteUnavailable }
+enum RecurringRuleStockSkipReason {
+  insufficientBalance,
+  quoteUnavailable,
+
+  /// 超過 `kStockDcaMaxCatchUp` 的過期期數被略過不補買([skippedCount] 期)。
+  staleSkipped,
+
+  /// 這條規則生成時出錯(例如帳戶設定不合法),[error] 帶錯誤訊息。其它規則
+  /// 照常處理,不會因為一條規則壞掉讓整批啟動生成中斷。
+  failed,
+
+  /// 整數股市場(台股)每期金額連 1 股(含手續費)都買不起,這期略過。
+  /// [requiredAmount] 帶當下股價。
+  amountTooSmall,
+}
 
 class RecurringRuleStockSkip {
   final int ruleId;
@@ -34,6 +48,8 @@ class RecurringRuleStockSkip {
   final RecurringRuleStockSkipReason reason;
   final double? requiredAmount;
   final double? currentBalance;
+  final int skippedCount;
+  final String? error;
 
   const RecurringRuleStockSkip({
     required this.ruleId,
@@ -43,6 +59,8 @@ class RecurringRuleStockSkip {
     required this.reason,
     this.requiredAmount,
     this.currentBalance,
+    this.skippedCount = 0,
+    this.error,
   });
 }
 

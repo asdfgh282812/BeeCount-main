@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/db.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers.dart';
+import '../../services/investment/stock_dca.dart';
+import '../../widgets/biz/recurring_rule_advanced_sheet.dart';
 import '../../styles/tokens.dart';
 import '../../utils/ui_scale_extensions.dart';
 import '../../widgets/biz/section_card.dart';
@@ -12,6 +14,7 @@ import 'holding_detail_page.dart';
 import 'holding_tile.dart';
 import 'investment_settings_page.dart';
 import 'investment_ui.dart';
+import 'opening_holdings_batch_page.dart';
 import 'pending_dividends_page.dart';
 import 'recurring_stock_rule_editor_page.dart';
 import 'stock_trade_editor_page.dart';
@@ -54,6 +57,81 @@ class _InvestmentHoldingsViewState
     Navigator.of(context).push(MaterialPageRoute(
         builder: (_) =>
             RecurringStockRuleEditorPage(account: widget.account)));
+  }
+
+  void _editRecurringStock(RecurringTransaction rule) {
+    Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) =>
+            RecurringStockRuleEditorPage(account: widget.account, rule: rule)));
+  }
+
+  /// 這個投資理財帳戶在目前帳本的股票定期定額計畫(2026-09-29):以前建完就
+  /// 只能去「我的 → 週期性收支」找,在持股頁完全看不到。
+  Widget _dcaPlans(BuildContext context, AppLocalizations l10n) {
+    final ledgerId = ref.watch(currentLedgerIdProvider);
+    final rules = (ref.watch(recurringRulesProvider(ledgerId)).valueOrNull ??
+            const <RecurringTransaction>[])
+        .where((r) => r.kind == 'stock_dca' && r.toAccountId == widget.account.id)
+        .toList();
+    if (rules.isEmpty) return const SizedBox.shrink();
+    String fmt(DateTime d) =>
+        '${d.year}/${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}';
+    return Padding(
+      padding: EdgeInsets.only(top: 12.0.scaled(context, ref)),
+      child: SectionCard(
+        margin: EdgeInsets.zero,
+        padding: EdgeInsets.zero,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Text(l10n.recurringStockPlansTitle,
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: BeeTokens.textPrimary(context))),
+            ),
+            for (final r in rules)
+              ListTile(
+                dense: true,
+                leading: Icon(Icons.trending_up,
+                    color: r.enabled
+                        ? BeeTokens.primary(context)
+                        : BeeTokens.iconTertiary(context)),
+                title: Text(
+                    [r.symbol, r.securityName].whereType<String>().join(' '),
+                    style: TextStyle(color: BeeTokens.textPrimary(context))),
+                subtitle: Text(
+                  () {
+                    final draft = RecurringRuleDraft(
+                        frequency: r.frequency, interval: r.interval, endAt: r.endAt);
+                    final next = nextPendingOccurrence(
+                      nextRunAt: r.nextRunAt,
+                      generatedUntilAt: r.generatedUntilAt,
+                      frequency: r.frequency,
+                      interval: r.interval,
+                    );
+                    final parts = [
+                      draft.summary(l10n),
+                      if (!r.enabled) l10n.recurringRuleDisabledLabel,
+                      if (r.enabled && next != null) l10n.recurringStockNextRun(fmt(next)),
+                    ];
+                    return parts.join(' · ');
+                  }(),
+                  style: TextStyle(color: BeeTokens.textSecondary(context)),
+                ),
+                trailing: Text(
+                  r.amount.toStringAsFixed(r.amount == r.amount.roundToDouble() ? 0 : 2),
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: BeeTokens.textPrimary(context)),
+                ),
+                onTap: () => _editRecurringStock(r),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _openSettings() {
@@ -232,6 +310,15 @@ class _InvestmentHoldingsViewState
               onPressed: _addTrade,
               icon: const Icon(Icons.add),
               label: Text(l10n.stockAddTrade)),
+          // 2026-09-30:還沒有持股時提示可以一次輸入目前庫存,不用逐筆補記。
+          if (open.isEmpty)
+            TextButton.icon(
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) =>
+                      OpeningHoldingsBatchPage(account: widget.account))),
+              icon: const Icon(Icons.playlist_add, size: 18),
+              label: Text(l10n.stockOpeningBatchEntry),
+            ),
           SizedBox(height: 8.0.scaled(context, ref)),
           Row(
             children: [
@@ -254,6 +341,7 @@ class _InvestmentHoldingsViewState
               ),
             ],
           ),
+          _dcaPlans(context, l10n),
           if (open.isNotEmpty) ...[
             SizedBox(height: 12.0.scaled(context, ref)),
             SectionCard(

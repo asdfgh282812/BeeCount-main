@@ -146,5 +146,16 @@ final Map<String, List<WhatsNewItem>> kWhatsNewContent = {
       title: (l10n) => l10n.whatsNew370StockDividendsTitle,
       description: (l10n) => l10n.whatsNew370StockDividendsDesc,
     ),
+    // 股票定期定額(docs/changes/2026-09-28-stock-dca-recurring.md、
+    // 2026-09-29-stock-dca-fixes.md)。
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew370StockDcaTitle,
+      description: (l10n) => l10n.whatsNew370StockDcaDesc,
+    ),
+    // 批次期初持股(docs/changes/2026-09-30-dca-sync-opening-holdings.md)。
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew370OpeningHoldingsTitle,
+      description: (l10n) => l10n.whatsNew370OpeningHoldingsDesc,
+    ),
   ],
 };

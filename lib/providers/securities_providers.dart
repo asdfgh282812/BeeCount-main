@@ -454,6 +454,32 @@ class QuoteRefreshNotifier extends StateNotifier<QuoteRefreshState> {
     await refresh(force: true, extraKeys: missing);
   }
 
+  /// 股票定期定額到期生成前(App 啟動時,見 ui_state_providers.dart)補抓啟用中
+  /// 定期定額標的的報價(2026-09-29)。還沒持有的代號(第一期還沒扣)不在
+  /// [refresh] 的持股清單裡,以前快取永遠沒有報價,每次啟動都被
+  /// quoteUnavailable 跳過。只抓快取缺價或超過 15 分鐘的;沒登入 Cloud 時
+  /// [refresh] 自己會直接結束(非 Cloud 使用者只能手動輸入價格)。
+  Future<void> refreshForStockDcaRules() async {
+    final repo = _ref.read(repositoryProvider);
+    final rules = await repo.getAllRulesForExport();
+    final keys = rules
+        .where((r) =>
+            r.enabled && r.kind == 'stock_dca' && r.market != null && r.symbol != null)
+        .map((r) => securityKey(r.market!, r.symbol!))
+        .toSet();
+    if (keys.isEmpty) return;
+    final now = DateTime.now();
+    final fresh = (await repo.getSecurityQuotes())
+        .where((q) =>
+            q.price != null &&
+            now.difference(q.fetchedAt) < const Duration(minutes: 15))
+        .map((q) => securityKey(q.market, q.symbol))
+        .toSet();
+    final missing = keys.difference(fresh).toList();
+    if (missing.isEmpty) return;
+    await refresh(force: true, extraKeys: missing);
+  }
+
   /// 新增交易時預帶價格用:本地快取有 15 分鐘內的報價就直接用,否則向 Cloud
   /// 補抓一次(沒登入 Cloud 時只回本地快取,可能是手動輸入的價格)。
   Future<SecurityQuote?> quoteFor(String market, String symbol) async {

@@ -1940,8 +1940,25 @@ extension SyncEngineApplyExt on SyncEngine {
           ..where((r) => r.syncId.equals(syncId)))
         .getSingleOrNull();
 
+    // 股票定期定額(v64,2026-09-29 補接線):以前沒解析,Web 建的定期定額拉到
+    // App 會變成普通 transfer 規則,被 materializeDueTransferRules 當自動扣繳
+    // 生成裸轉帳。用 containsKey 保護:舊版 Cloud(0060 之前)的 payload 沒有
+    // 這幾個鍵,不能把本地既有值沖掉;Cloud snapshot 對 kind='general' 不寫
+    // key,缺鍵時新規則落預設 'general'。
+    d.Value<T> keyed<T>(String key, T Function(Object? raw) parse) =>
+        payload.containsKey(key) ? d.Value(parse(payload[key])) : const d.Value.absent();
+    final kindValue = payload.containsKey('kind')
+        ? d.Value((payload['kind'] as String?) ?? 'general')
+        : (existing == null ? const d.Value('general') : const d.Value<String>.absent());
+
     final companion = RecurringTransactionsCompanion(
       ledgerId: d.Value(ledgerIdInt),
+      kind: kindValue,
+      market: keyed<String?>('market', (v) => (v as String?)?.toUpperCase()),
+      symbol: keyed<String?>('symbol', (v) => (v as String?)?.toUpperCase()),
+      securityName: keyed<String?>('securityName', (v) => v as String?),
+      stockFeeRate: keyed<double?>('stockFeeRate', (v) => (v as num?)?.toDouble()),
+      stockFeeMin: keyed<double?>('stockFeeMin', (v) => (v as num?)?.toDouble()),
       type: d.Value(type),
       amount: d.Value(amount),
       note: d.Value(note),

@@ -105,6 +105,7 @@ class LocalRecurringRuleRepository {
     DateTime? endAt,
     bool clearEndAt = false,
     DateTime? generatedUntilAt,
+    bool clearGeneratedUntilAt = false,
     bool? enabled,
     double? stockFeeRate,
     bool clearStockFeeRate = false,
@@ -143,8 +144,9 @@ class LocalRecurringRuleRepository {
           : (advancedRule != null ? d.Value(jsonEncode(advancedRule)) : const d.Value.absent()),
       nextRunAt: nextRunAt != null ? d.Value(nextRunAt) : const d.Value.absent(),
       endAt: clearEndAt ? const d.Value(null) : (endAt != null ? d.Value(endAt) : const d.Value.absent()),
-      generatedUntilAt:
-          generatedUntilAt != null ? d.Value(generatedUntilAt) : const d.Value.absent(),
+      generatedUntilAt: clearGeneratedUntilAt
+          ? const d.Value(null)
+          : (generatedUntilAt != null ? d.Value(generatedUntilAt) : const d.Value.absent()),
       enabled: enabled != null ? d.Value(enabled) : const d.Value.absent(),
       stockFeeRate: clearStockFeeRate
           ? const d.Value(null)

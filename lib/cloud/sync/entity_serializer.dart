@@ -395,6 +395,18 @@ class EntitySerializer {
       if (rule.advancedRuleJson != null && rule.advancedRuleJson!.isNotEmpty)
         'advancedRuleJson': jsonDecode(rule.advancedRuleJson!),
       'rewardRuleIds': rule.rewardRuleIds,
+      // 股票定期定額(v64,2026-09-29 補接線):以前完全沒推,Cloud 把 App 建的
+      // 定期定額當成普通自動扣繳(Web 顯示轉帳圖示、排程生成一筆沒有持股明細
+      // 的裸轉帳)。恆發(含 null):stockFeeRate/stockFeeMin 為 null = 清除
+      // 覆寫、改回沿用帳戶預設,Cloud merge spec 看「key 有沒有出現」決定要不要
+      // 覆蓋,只在非 null 時才發的話清除動作永遠同步不出去。對齊 Cloud
+      // `sync_applier.py::_LEDGER_MERGE_SPECS["recurring_rule"]`。
+      'kind': rule.kind,
+      'market': rule.market,
+      'symbol': rule.symbol,
+      'securityName': rule.securityName,
+      'stockFeeRate': rule.stockFeeRate,
+      'stockFeeMin': rule.stockFeeMin,
     };
   }
 

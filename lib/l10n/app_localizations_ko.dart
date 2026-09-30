@@ -10587,7 +10587,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get stockTradeTypeOpeningHint =>
-      'Shares you already held before using BeeCount. No money moves.';
+      'Shares you already held before using BeeCount. No money moves. One entry per stock is enough: your current shares and your broker\'s average cost.';
 
   @override
   String get stockTradeTypeStockDividendHint =>
@@ -11034,4 +11034,130 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get stockPnlAfterSellCostsNote => 'After estimated selling costs';
+
+  @override
+  String get recurringStockSettlementCurrencyMismatch =>
+      'The settlement account must use the same currency as the security (cross-currency plans are not supported yet)';
+
+  @override
+  String recurringStockGeneratedNow(int count) {
+    return 'Saved, bought $count period(s) now';
+  }
+
+  @override
+  String get recurringStockPlansTitle => 'Recurring buys';
+
+  @override
+  String get recurringStockAddButton => 'Recurring buy';
+
+  @override
+  String recurringStockNextRun(String date) {
+    return 'Next $date';
+  }
+
+  @override
+  String get whatsNew370StockDcaTitle => 'Recurring stock purchases';
+
+  @override
+  String get whatsNew370StockDcaDesc =>
+      'Set up a recurring buy (DCA) for a stock with its own fee rules. When due it buys at the current quote and transfers from the settlement account; Taiwan stocks buy whole shares only, like the broker does (the amount includes the fee and the leftover is not charged), while US stocks can buy fractional shares. Start it from the investment account page, or from \"Add trade\" → \"Recurring buy\"; manage plans under Mine → Recurring.';
+
+  @override
+  String get recurringStockWholeShareHint =>
+      'Taiwan stock plans buy whole shares only: the amount includes the fee, as many whole shares as fit are bought, and the leftover is not charged.';
+
+  @override
+  String get recurringStockFractionalHint =>
+      'This market allows fractional shares: the whole amount is invested and the fee is charged on top.';
+
+  @override
+  String recurringStockPreviewWhole(
+      String price, String shares, String total, String fee, String left) {
+    return 'At the current price $price: $shares shares, charged $total (incl. fee $fee), $left not charged';
+  }
+
+  @override
+  String recurringStockPreviewFractional(
+      String price, String shares, String total, String fee) {
+    return 'At the current price $price: about $shares shares, charged $total (incl. fee $fee)';
+  }
+
+  @override
+  String recurringStockPreviewTooSmall(String price) {
+    return 'At the current price $price the amount cannot buy even 1 share including the fee; that period will be skipped';
+  }
+
+  @override
+  String get stockOpeningBatchEntry => 'Add several opening positions';
+
+  @override
+  String get stockOpeningBatchTitle => 'Opening positions';
+
+  @override
+  String get stockOpeningBatchIntro =>
+      'Enter each stock\'s current shares and average cost from your broker\'s holdings screen — no need to re-enter every past purchase. Cost basis and unrealized P/L come out the same; you just won\'t see the individual buys from before you started. Brokers\' average cost usually already includes fees.';
+
+  @override
+  String get stockOpeningAsOfDate => 'As of';
+
+  @override
+  String get stockOpeningCostMode => 'Cost';
+
+  @override
+  String get stockOpeningCostTotal => 'Total cost';
+
+  @override
+  String get stockOpeningAddRow => 'Add a stock';
+
+  @override
+  String get stockOpeningPaste => 'Paste from clipboard';
+
+  @override
+  String get stockOpeningPasteHint =>
+      'One stock per line: symbol, shares, cost, separated by tabs, spaces or commas — you can copy straight from Excel or Google Sheets; a name column is optional. Example: \"VOO 3.5 412.3\".';
+
+  @override
+  String get stockOpeningPasteEmpty =>
+      'Nothing to import on the clipboard (each line needs a symbol, shares and cost)';
+
+  @override
+  String stockOpeningPasted(int count, int skipped) {
+    return 'Pasted $count stocks, skipped $skipped lines';
+  }
+
+  @override
+  String stockOpeningRowTotal(String total) {
+    return 'Total cost $total';
+  }
+
+  @override
+  String stockOpeningRowHeld(String shares) {
+    return 'Already holding $shares shares; these will be added';
+  }
+
+  @override
+  String stockOpeningRowInvalid(int row) {
+    return 'Stock #$row is missing a symbol, shares or cost';
+  }
+
+  @override
+  String get stockOpeningNothing => 'Enter at least one stock';
+
+  @override
+  String stockOpeningSaved(int count) {
+    return 'Added $count opening positions';
+  }
+
+  @override
+  String stockOpeningSummary(int count, String total) {
+    return '$count stocks · total cost $total';
+  }
+
+  @override
+  String get whatsNew370OpeningHoldingsTitle =>
+      'Enter your current holdings at once';
+
+  @override
+  String get whatsNew370OpeningHoldingsDesc =>
+      'No need to re-enter every past purchase: type each stock\'s shares and average (or total) cost from your broker\'s holdings screen, or paste straight from Excel / Google Sheets. Open an investment account → Add trade → Opening → \"Add several opening positions\". Stock names now fill in automatically once you enter a symbol.';
 }
