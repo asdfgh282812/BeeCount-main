@@ -4561,6 +4561,36 @@ abstract class AppLocalizations {
   /// **'Red represents expense, green represents income'**
   String get appearanceColorSchemeOffDesc;
 
+  /// No description provided for @appearanceStockColorScheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock Gain/Loss Colors'**
+  String get appearanceStockColorScheme;
+
+  /// No description provided for @appearanceStockColorSchemeOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Red for gains · Green for losses'**
+  String get appearanceStockColorSchemeOn;
+
+  /// No description provided for @appearanceStockColorSchemeOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Green for gains · Red for losses'**
+  String get appearanceStockColorSchemeOff;
+
+  /// No description provided for @appearanceStockColorSchemeOnDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Taiwan convention: red means price up, green means price down'**
+  String get appearanceStockColorSchemeOnDesc;
+
+  /// No description provided for @appearanceStockColorSchemeOffDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Western convention: green means price up, red means price down'**
+  String get appearanceStockColorSchemeOffDesc;
+
   /// No description provided for @appearanceFirstDayOfWeek.
   ///
   /// In en, this message translates to:
@@ -20458,6 +20488,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Daily bookkeeping reminders and credit card reminders are now saved to your BeeCount Cloud account, so a new device or reinstall picks up the same settings. (Notification permission is still granted per device.) Entry: Mine → Automation → Bookkeeping reminder / Credit card reminders.'**
   String get whatsNew370NotificationSyncDesc;
+
+  /// No description provided for @whatsNew370StockColorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Separate stock gain/loss colors'**
+  String get whatsNew370StockColorTitle;
+
+  /// No description provided for @whatsNew370StockColorDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock gains and losses now have their own color setting, independent of the income/expense colors (default: red up, green down). It syncs with the web. Entry: Mine → Appearance → Stock Gain/Loss Colors.'**
+  String get whatsNew370StockColorDesc;
 
   /// No description provided for @stockTradeTypeSplit.
   ///

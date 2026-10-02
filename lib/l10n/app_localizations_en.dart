@@ -2489,6 +2489,24 @@ class AppLocalizationsEn extends AppLocalizations {
       'Red represents expense, green represents income';
 
   @override
+  String get appearanceStockColorScheme => 'Stock Gain/Loss Colors';
+
+  @override
+  String get appearanceStockColorSchemeOn => 'Red for gains · Green for losses';
+
+  @override
+  String get appearanceStockColorSchemeOff =>
+      'Green for gains · Red for losses';
+
+  @override
+  String get appearanceStockColorSchemeOnDesc =>
+      'Taiwan convention: red means price up, green means price down';
+
+  @override
+  String get appearanceStockColorSchemeOffDesc =>
+      'Western convention: green means price up, red means price down';
+
+  @override
   String get appearanceFirstDayOfWeek => 'Week Starts On';
 
   @override
@@ -11425,6 +11443,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get whatsNew370NotificationSyncDesc =>
       'Daily bookkeeping reminders and credit card reminders are now saved to your BeeCount Cloud account, so a new device or reinstall picks up the same settings. (Notification permission is still granted per device.) Entry: Mine → Automation → Bookkeeping reminder / Credit card reminders.';
+
+  @override
+  String get whatsNew370StockColorTitle => 'Separate stock gain/loss colors';
+
+  @override
+  String get whatsNew370StockColorDesc =>
+      'Stock gains and losses now have their own color setting, independent of the income/expense colors (default: red up, green down). It syncs with the web. Entry: Mine → Appearance → Stock Gain/Loss Colors.';
 
   @override
   String get stockTradeTypeSplit => 'Stock split';

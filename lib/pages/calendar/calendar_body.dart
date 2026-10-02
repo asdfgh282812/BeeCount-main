@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 
 import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/section_card.dart';
-import '../../widgets/biz/investment_flow_note.dart';
 import '../../widgets/biz/transaction_list_item.dart';
 import '../../widgets/category_icon.dart';
 import '../../styles/tokens.dart';
@@ -235,15 +234,6 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
                     ),
                   ),
                 ),
-              ),
-              // 股票報表一致性:日曆格只算收入/支出,買股票是轉帳不在裡面——這裡補
-              // 一行當月「投資淨投入」(沒有股票買賣/股利時不佔空間)。
-              InvestmentFlowNote(
-                start: DateTime(_focusedMonth.year, _focusedMonth.month, 1),
-                end: DateTime(_focusedMonth.year, _focusedMonth.month + 1, 1),
-                ledgerId: ledgerId,
-                compact: true,
-                padding: const EdgeInsets.only(top: 6),
               ),
             ],
           ),

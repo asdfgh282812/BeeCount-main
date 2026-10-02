@@ -291,6 +291,17 @@ class _AppearanceSettingsPageState
                         onTap: () => _showColorSchemeDialog(context, ref, l10n),
                       ),
                       BeeTokens.cardDivider(context),
+                      // 股票漲跌顏色方案(獨立於收支配色)
+                      AppListTile(
+                        leading: Icons.show_chart,
+                        title: l10n.appearanceStockColorScheme,
+                        subtitle: ref.watch(stockUpIsRedProvider)
+                            ? l10n.appearanceStockColorSchemeOn
+                            : l10n.appearanceStockColorSchemeOff,
+                        onTap: () =>
+                            _showStockColorSchemeDialog(context, ref, l10n),
+                      ),
+                      BeeTokens.cardDivider(context),
                       // 每周起始日:影响所有日历/日期选择器的周起始位置
                       AppListTile(
                         leading: Icons.view_week_outlined,
@@ -1081,6 +1092,46 @@ class _AppearanceSettingsPageState
     );
   }
 
+  void _showStockColorSchemeDialog(
+      BuildContext context, WidgetRef ref, AppLocalizations l10n) {
+    final current = ref.read(stockUpIsRedProvider);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: BeeTokens.surfaceElevated(context),
+        title: Text(
+          l10n.appearanceStockColorScheme,
+          style: TextStyle(color: BeeTokens.textPrimary(context)),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildColorSchemeOption(
+              context,
+              ref,
+              title: l10n.appearanceStockColorSchemeOn,
+              subtitle: l10n.appearanceStockColorSchemeOnDesc,
+              value: true,
+              currentValue: current,
+              icon: Icons.trending_up,
+              provider: stockUpIsRedProvider,
+            ),
+            _buildColorSchemeOption(
+              context,
+              ref,
+              title: l10n.appearanceStockColorSchemeOff,
+              subtitle: l10n.appearanceStockColorSchemeOffDesc,
+              value: false,
+              currentValue: current,
+              icon: Icons.trending_down,
+              provider: stockUpIsRedProvider,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildColorSchemeOption(
     BuildContext context,
     WidgetRef ref, {
@@ -1089,6 +1140,7 @@ class _AppearanceSettingsPageState
     required bool value,
     required bool currentValue,
     required IconData icon,
+    StateProvider<bool>? provider,
   }) {
     final isSelected = value == currentValue;
     final primaryColor = ref.watch(primaryColorProvider);
@@ -1114,7 +1166,9 @@ class _AppearanceSettingsPageState
       ),
       trailing: isSelected ? Icon(Icons.check, color: primaryColor) : null,
       onTap: () {
-        ref.read(incomeExpenseColorSchemeProvider.notifier).state = value;
+        ref
+            .read((provider ?? incomeExpenseColorSchemeProvider).notifier)
+            .state = value;
         Navigator.pop(context);
       },
     );

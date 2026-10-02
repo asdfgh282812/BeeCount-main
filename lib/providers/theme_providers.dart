@@ -691,6 +691,7 @@ void _pushAppearanceToCloud(Ref ref) {
         'reduce_motion': ref.read(reduceMotionProvider),
         'show_transaction_time': ref.read(showTransactionTimeProvider),
         'week_starts_monday': ref.read(weekStartsOnMondayProvider),
+        'stock_up_is_red': ref.read(stockUpIsRedProvider),
         'header_skin': ref.read(headerSkinProvider),
         'note_display_mode': ref.read(noteDisplayModeProvider),
         'note_history_scope': ref.read(noteHistoryScopeProvider).name,
@@ -773,6 +774,23 @@ final incomeExpenseColorSchemeInitProvider = FutureProvider<void>((ref) async {
             'push income color scheme failed (non-blocking): $e');
       }
     }());
+  });
+});
+
+// 股票漲跌顏色方案(獨立於收支配色)。台灣習慣「紅漲綠跌」,但收支是紅支出綠收入,
+// 所以股票另開一個開關。true = 紅漲綠跌(預設)、false = 綠漲紅跌。
+// 隨 appearance 包(key: stock_up_is_red)同步到 Cloud / Web。
+final stockUpIsRedProvider = StateProvider<bool>((ref) => true);
+
+final stockUpIsRedInitProvider = FutureProvider<void>((ref) async {
+  final prefs = await SharedPreferences.getInstance();
+  final saved = prefs.getBool('stockUpIsRed');
+  if (saved != null) {
+    ref.read(stockUpIsRedProvider.notifier).state = saved;
+  }
+  ref.listen<bool>(stockUpIsRedProvider, (prev, next) async {
+    await prefs.setBool('stockUpIsRed', next);
+    _pushAppearanceToCloud(ref);
   });
 });
 

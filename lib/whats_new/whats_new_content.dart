@@ -172,5 +172,10 @@ final Map<String, List<WhatsNewItem>> kWhatsNewContent = {
       title: (l10n) => l10n.whatsNew370NotificationSyncTitle,
       description: (l10n) => l10n.whatsNew370NotificationSyncDesc,
     ),
+    // 股票漲跌顏色獨立設定(docs/changes/2026-10-03-stock-up-down-color.md)。
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew370StockColorTitle,
+      description: (l10n) => l10n.whatsNew370StockColorDesc,
+    ),
   ],
 };

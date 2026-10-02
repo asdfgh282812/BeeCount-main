@@ -2413,6 +2413,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appearanceColorSchemeOffDesc => '红色表示支出，绿色表示收入';
 
   @override
+  String get appearanceStockColorScheme => 'Stock Gain/Loss Colors';
+
+  @override
+  String get appearanceStockColorSchemeOn => 'Red for gains · Green for losses';
+
+  @override
+  String get appearanceStockColorSchemeOff =>
+      'Green for gains · Red for losses';
+
+  @override
+  String get appearanceStockColorSchemeOnDesc =>
+      'Taiwan convention: red means price up, green means price down';
+
+  @override
+  String get appearanceStockColorSchemeOffDesc =>
+      'Western convention: green means price up, red means price down';
+
+  @override
   String get appearanceFirstDayOfWeek => 'Week Starts On';
 
   @override
@@ -11108,6 +11126,13 @@ class AppLocalizationsZh extends AppLocalizations {
       'Daily bookkeeping reminders and credit card reminders are now saved to your BeeCount Cloud account, so a new device or reinstall picks up the same settings. (Notification permission is still granted per device.) Entry: Mine → Automation → Bookkeeping reminder / Credit card reminders.';
 
   @override
+  String get whatsNew370StockColorTitle => 'Separate stock gain/loss colors';
+
+  @override
+  String get whatsNew370StockColorDesc =>
+      'Stock gains and losses now have their own color setting, independent of the income/expense colors (default: red up, green down). It syncs with the web. Entry: Mine → Appearance → Stock Gain/Loss Colors.';
+
+  @override
   String get stockTradeTypeSplit => 'Stock split';
 
   @override
@@ -13612,6 +13637,21 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get appearanceColorSchemeOffDesc => '紅色表示支出，綠色表示收入';
+
+  @override
+  String get appearanceStockColorScheme => '股票漲跌顏色';
+
+  @override
+  String get appearanceStockColorSchemeOn => '紅漲 · 綠跌';
+
+  @override
+  String get appearanceStockColorSchemeOff => '綠漲 · 紅跌';
+
+  @override
+  String get appearanceStockColorSchemeOnDesc => '台灣習慣：紅色代表上漲/賺，綠色代表下跌/虧';
+
+  @override
+  String get appearanceStockColorSchemeOffDesc => '國際習慣：綠色代表上漲/賺，紅色代表下跌/虧';
 
   @override
   String get appearanceFirstDayOfWeek => '每週起始日';
@@ -22188,6 +22228,13 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   @override
   String get whatsNew370NotificationSyncDesc =>
       '記帳提醒與信用卡提醒的設定現在會存到 BeeCount Cloud 帳號，換新裝置或重新安裝後會自動套用相同設定（通知權限仍需在各裝置上個別允許）。入口：我的 → 自動化 → 記帳提醒／信用卡提醒。';
+
+  @override
+  String get whatsNew370StockColorTitle => '股票漲跌顏色可單獨設定';
+
+  @override
+  String get whatsNew370StockColorDesc =>
+      '股票的賺賠顏色現在有獨立設定，不再跟收支顏色綁在一起（預設紅漲綠跌），並與網頁端同步。入口：我的 → 外觀設定 → 股票漲跌顏色。';
 
   @override
   String get stockTradeTypeSplit => '股票分割';

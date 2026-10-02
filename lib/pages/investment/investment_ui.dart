@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../providers/theme_providers.dart';
 import '../../services/investment/stock_trade_types.dart';
 import '../../styles/tokens.dart';
 import '../../utils/currencies.dart';
@@ -108,13 +109,15 @@ String formatPercent(double value, {bool signed = true}) {
   return '$sign${value.toStringAsFixed(2)}%';
 }
 
-/// 損益顏色:沿用使用者的收支配色(紅色收入 = 台股「紅漲綠跌」慣例)。
+/// 損益顏色:依「股票漲跌顏色」設定(預設紅漲綠跌,台股慣例),
+/// 與收支配色互相獨立,可在外觀設定切換並與 Web 同步。
 Color pnlColor(BuildContext context, WidgetRef ref, double? value) {
   if (value == null || value.abs() < 1e-9)
     return BeeTokens.textSecondary(context);
-  return value > 0
-      ? BeeTokens.incomeColor(context, ref)
-      : BeeTokens.expenseColor(context, ref);
+  final upIsRed = ref.watch(stockUpIsRedProvider);
+  final up = upIsRed ? BeeTokens.error(context) : BeeTokens.success(context);
+  final down = upIsRed ? BeeTokens.success(context) : BeeTokens.error(context);
+  return value > 0 ? up : down;
 }
 
 String formatQuoteTime(DateTime t) {

@@ -997,6 +997,13 @@ void _applyAppearanceFields(Ref ref, Map<String, dynamic> appearance) {
       ref.read(weekStartsOnMondayProvider.notifier).state = weekStartsMonday;
     }
   }
+  final stockUpIsRed = appearance['stock_up_is_red'] as bool?;
+  if (stockUpIsRed != null) {
+    final current = ref.read(stockUpIsRedProvider);
+    if (current != stockUpIsRed) {
+      ref.read(stockUpIsRedProvider.notifier).state = stockUpIsRed;
+    }
+  }
   final categoryIconStyleRaw = appearance['category_icon_style'] as String?;
   // 本地刚切换、push 还没落地时,这次下行多半带着 server 上还没被覆盖的旧值——
   // 采信它就会把用户刚点的开关扳回去,跟主题色当年的闪烁是同一个坑
