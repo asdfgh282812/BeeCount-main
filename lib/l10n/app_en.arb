@@ -4888,5 +4888,9 @@
   "stockTxTagReinvest": "Dividend reinvest",
   "exportCsvHeaderFee": "Fee",
   "exportCsvHeaderDiscount": "Discount / tax",
-  "exportCsvHeaderStockTrade": "Stock trade"
+  "exportCsvHeaderStockTrade": "Stock trade",
+  "stockFeeMinBoardLot": "Minimum commission: board lots",
+  "stockOddLotFeeMin": "Minimum commission: odd lots",
+  "whatsNew370OddLotFeeTitle": "Odd-lot commissions match your broker",
+  "whatsNew370OddLotFeeDesc": "Estimated selling commissions for Taiwan odd lots now use a separate odd-lot minimum (default NT$1; board lots stay at NT$20), so estimated P&L matches your broker app. Also fixed quotes that sometimes stayed on the previous trading day. Where: Assets → investment account → Fee settings → Minimum commission: odd lots."
 }

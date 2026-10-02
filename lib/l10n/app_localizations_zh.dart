@@ -11255,6 +11255,20 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get exportCsvHeaderStockTrade => 'Stock trade';
+
+  @override
+  String get stockFeeMinBoardLot => 'Minimum commission: board lots';
+
+  @override
+  String get stockOddLotFeeMin => 'Minimum commission: odd lots';
+
+  @override
+  String get whatsNew370OddLotFeeTitle =>
+      'Odd-lot commissions match your broker';
+
+  @override
+  String get whatsNew370OddLotFeeDesc =>
+      'Estimated selling commissions for Taiwan odd lots now use a separate odd-lot minimum (default NT\$1; board lots stay at NT\$20), so estimated P&L matches your broker app. Also fixed quotes that sometimes stayed on the previous trading day. Where: Assets → investment account → Fee settings → Minimum commission: odd lots.';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -22368,4 +22382,17 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get exportCsvHeaderStockTrade => '股票交易';
+
+  @override
+  String get stockFeeMinBoardLot => '整股最低手續費';
+
+  @override
+  String get stockOddLotFeeMin => '零股最低手續費';
+
+  @override
+  String get whatsNew370OddLotFeeTitle => '零股手續費與券商一致';
+
+  @override
+  String get whatsNew370OddLotFeeDesc =>
+      '台股零股的預估賣出手續費改用零股最低手續費（預設 1 元，整股仍是 20 元），預估損益和券商 App 一致。另外修正報價有時停在前一個交易日的問題。入口：資產 → 投資理財帳戶 → 費用設定 →「零股最低手續費」。';
 }

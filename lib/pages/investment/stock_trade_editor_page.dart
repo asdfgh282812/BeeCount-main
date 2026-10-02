@@ -274,8 +274,7 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
     final name = quote?.name?.trim() ?? '';
     final currentName = _nameCtrl.text.trim();
     final nameReplaceable = currentName.isEmpty || currentName == _autoName;
-    final fillPrice =
-        quote?.price != null && _usesMarketPrice && !_priceEdited;
+    final fillPrice = quote?.price != null && _usesMarketPrice && !_priceEdited;
     if (!fillPrice && !nameReplaceable) return;
     setState(() {
       if (nameReplaceable) {
@@ -346,7 +345,7 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
       final fee = _tradeType == kStockTradeOpening
           ? 0.0
           : _settings.suggestFee(_gross,
-              market: _market, currency: _securityCurrency);
+              market: _market, currency: _securityCurrency, shares: _shares);
       _feeCtrl.text = _gross > 0 && fee > 0 ? _num(fee) : '';
     }
     if (!_taxEdited) {
@@ -354,7 +353,8 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
           ? _settings.suggestSellTax(_gross,
               market: _market,
               symbol: _symbolCtrl.text.trim(),
-              currency: _securityCurrency)
+              currency: _securityCurrency,
+              shares: _shares)
           : 0.0;
       _taxCtrl.text = _gross > 0 && tax > 0 ? _num(tax) : '';
     }
@@ -769,13 +769,13 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
                                             RecurringStockRuleEditorPage(
                                               account: widget.account,
                                               initialMarket: _market,
-                                              initialSymbol:
-                                                  symbol.isEmpty ? null : symbol,
-                                              initialName: _nameCtrl.text
-                                                      .trim()
-                                                      .isEmpty
+                                              initialSymbol: symbol.isEmpty
                                                   ? null
-                                                  : _nameCtrl.text.trim(),
+                                                  : symbol,
+                                              initialName:
+                                                  _nameCtrl.text.trim().isEmpty
+                                                      ? null
+                                                      : _nameCtrl.text.trim(),
                                             )));
                               },
                             ),
@@ -867,9 +867,8 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
                       _field(
                         context,
                         controller: _sharesCtrl,
-                        label: _isSplit
-                            ? l10n.stockSplitRatio
-                            : l10n.stockShares,
+                        label:
+                            _isSplit ? l10n.stockSplitRatio : l10n.stockShares,
                         numeric: true,
                         onChanged: (_) => setState(_recomputeSuggestions),
                       ),

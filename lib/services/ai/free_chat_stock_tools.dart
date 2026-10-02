@@ -1248,6 +1248,7 @@ class _StockTools {
           'feeDiscount': r.feeDiscount,
           'effectiveFeeRate': (r.feeRate ?? 0) * (r.feeDiscount ?? 1),
           'feeMin': r.feeMin,
+          'oddLotFeeMin': r.oddLotFeeMin,
           'sellTaxRate': r.sellTaxRate,
           'etfSellTaxRate': r.etfSellTaxRate,
           'bondEtfSellTaxRate': r.bondEtfSellTaxRate,

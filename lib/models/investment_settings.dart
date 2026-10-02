@@ -21,8 +21,12 @@ class InvestmentSettings {
   /// 手續費折扣(例:6 折 = 0.6)。
   final double? feeDiscount;
 
-  /// 最低手續費(以證券幣別計,例:台股 20 元)。
+  /// 最低手續費(以證券幣別計,例:台股 20 元)。台股是「整股」的最低手續費,
+  /// 零股看 [oddLotFeeMin]。
   final double? feeMin;
+
+  /// 台股零股(不足 1,000 股)的最低手續費(永豐等券商:1 元)。
+  final double? oddLotFeeMin;
 
   /// 賣出交易稅率。台股是「普通股」的稅率(0.003);ETF / 債券 ETF 另外看
   /// [etfSellTaxRate] / [bondEtfSellTaxRate],見 [sellTaxRateFor]。
@@ -60,6 +64,7 @@ class InvestmentSettings {
     this.feeRate,
     this.feeDiscount,
     this.feeMin,
+    this.oddLotFeeMin,
     this.sellTaxRate,
     this.etfSellTaxRate,
     this.bondEtfSellTaxRate,
@@ -85,6 +90,7 @@ class InvestmentSettings {
           feeRate: 0.001425,
           feeDiscount: 1,
           feeMin: 20,
+          oddLotFeeMin: 1,
           sellTaxRate: 0.003,
           etfSellTaxRate: 0.001,
           bondEtfSellTaxRate: 0,
@@ -129,6 +135,7 @@ class InvestmentSettings {
       feeRate: feeRate ?? d.feeRate,
       feeDiscount: feeDiscount ?? d.feeDiscount,
       feeMin: feeMin ?? d.feeMin,
+      oddLotFeeMin: oddLotFeeMin ?? d.oddLotFeeMin,
       sellTaxRate: sellTaxRate ?? d.sellTaxRate,
       etfSellTaxRate: etfSellTaxRate ?? d.etfSellTaxRate,
       bondEtfSellTaxRate: bondEtfSellTaxRate ?? d.bondEtfSellTaxRate,
@@ -174,12 +181,48 @@ class InvestmentSettings {
   static double gross(double shares, double price, String? currency) =>
       roundMoney(shares * price, currency);
 
+  /// 台股一張 = 1,000 股。
+  static const twBoardLot = 1000;
+
+  /// 把一筆成交拆成券商實際的委託單(同 Cloud `trade_fees.order_parts`、Web
+  /// `orderParts`):台股整股跟零股是兩張單,最低手續費不同(永豐:整股 20、
+  /// 零股 1,2026-10-03 使用者拿庫存畫面比對)。只有台股且有給 [shares] 時才拆:
+  /// 1,050 股 = 1,000 股整股 + 50 股零股。整股部分的價金依比例切出來再取整,
+  /// 兩段加總仍等於 [gross]。
+  static List<({double gross, bool oddLot})> orderParts(
+      double gross, double? shares, String? market, String? currency) {
+    final m = (market ?? '').toUpperCase();
+    if (shares == null || shares <= 0 || (m != 'TW' && m != 'TWO')) {
+      return [(gross: gross, oddLot: false)];
+    }
+    final lots =
+        (double.parse(shares.toStringAsFixed(6)) / twBoardLot).floor() *
+            twBoardLot;
+    if (lots <= 0) return [(gross: gross, oddLot: true)];
+    if (lots >= shares - 1e-9) return [(gross: gross, oddLot: false)];
+    final lotGross = roundMoney(gross * lots / shares, currency);
+    return [
+      (gross: lotGross, oddLot: false),
+      (gross: gross - lotGross, oddLot: true),
+    ];
+  }
+
   /// 建議手續費 = max(成交金額 × 費率 × 折扣, 最低手續費)。成交金額 0 時回 0。
-  double suggestFee(double gross, {String? market, String? currency}) {
+  /// 給了 [shares] 時,台股整股用 [feeMin]、零股用 [oddLotFeeMin],各自計算再
+  /// 相加(見 [orderParts])。
+  double suggestFee(double gross,
+      {String? market, String? currency, double? shares}) {
     if (gross <= 0) return 0;
     final r = resolvedFor(market);
-    final raw = gross * (r.feeRate ?? 0) * (r.feeDiscount ?? 1);
-    return math.max(roundMoney(raw, currency), r.feeMin ?? 0);
+    final rate = (r.feeRate ?? 0) * (r.feeDiscount ?? 1);
+    final oddMin = r.oddLotFeeMin ?? r.feeMin ?? 0;
+    var total = 0.0;
+    for (final p in orderParts(gross, shares, market ?? r.market, currency)) {
+      if (p.gross <= 0) continue;
+      total += math.max(roundMoney(p.gross * rate, currency),
+          p.oddLot ? oddMin : (r.feeMin ?? 0));
+    }
+    return total;
   }
 
   /// 這檔標的的賣出交易稅率:台股依 [securityKindOf] 分普通股 / ETF / 債券
@@ -197,12 +240,18 @@ class InvestmentSettings {
     }
   }
 
-  /// 建議交易稅(只有賣出)= 成交金額 × 標的對應稅率,依幣別取整。
+  /// 建議交易稅(只有賣出)= 成交金額 × 標的對應稅率,依幣別取整。給了
+  /// [shares] 時台股整股/零股兩張單各自取整。
   double suggestSellTax(double gross,
-      {String? market, String? symbol, String? currency}) {
+      {String? market, String? symbol, String? currency, double? shares}) {
     if (gross <= 0) return 0;
-    return roundMoney(
-        gross * sellTaxRateFor(market: market, symbol: symbol), currency);
+    final rate = sellTaxRateFor(market: market, symbol: symbol);
+    var total = 0.0;
+    for (final p
+        in orderParts(gross, shares, market ?? this.market, currency)) {
+      total += roundMoney(p.gross * rate, currency);
+    }
+    return total;
   }
 
   /// 「現在全部賣掉」的預估手續費 / 交易稅 / 淨額(庫存的預估變現淨值)。
@@ -217,9 +266,9 @@ class InvestmentSettings {
     if (g <= 0) return const SellCostEstimate(gross: 0, fee: 0, tax: 0);
     return SellCostEstimate(
       gross: g,
-      fee: suggestFee(g, market: market, currency: currency),
-      tax:
-          suggestSellTax(g, market: market, symbol: symbol, currency: currency),
+      fee: suggestFee(g, market: market, currency: currency, shares: shares),
+      tax: suggestSellTax(g,
+          market: market, symbol: symbol, currency: currency, shares: shares),
     );
   }
 
@@ -230,6 +279,7 @@ class InvestmentSettings {
       feeRate: f('feeRate'),
       feeDiscount: f('feeDiscount'),
       feeMin: f('feeMin'),
+      oddLotFeeMin: f('oddLotFeeMin'),
       sellTaxRate: f('sellTaxRate'),
       etfSellTaxRate: f('etfSellTaxRate'),
       bondEtfSellTaxRate: f('bondEtfSellTaxRate'),
@@ -262,6 +312,7 @@ class InvestmentSettings {
         if (feeRate != null) 'feeRate': feeRate,
         if (feeDiscount != null) 'feeDiscount': feeDiscount,
         if (feeMin != null) 'feeMin': feeMin,
+        if (oddLotFeeMin != null) 'oddLotFeeMin': oddLotFeeMin,
         if (sellTaxRate != null) 'sellTaxRate': sellTaxRate,
         if (etfSellTaxRate != null) 'etfSellTaxRate': etfSellTaxRate,
         if (bondEtfSellTaxRate != null)

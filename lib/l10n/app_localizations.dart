@@ -20704,6 +20704,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Stock trade'**
   String get exportCsvHeaderStockTrade;
+
+  /// No description provided for @stockFeeMinBoardLot.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum commission: board lots'**
+  String get stockFeeMinBoardLot;
+
+  /// No description provided for @stockOddLotFeeMin.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum commission: odd lots'**
+  String get stockOddLotFeeMin;
+
+  /// No description provided for @whatsNew370OddLotFeeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Odd-lot commissions match your broker'**
+  String get whatsNew370OddLotFeeTitle;
+
+  /// No description provided for @whatsNew370OddLotFeeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated selling commissions for Taiwan odd lots now use a separate odd-lot minimum (default NT\$1; board lots stay at NT\$20), so estimated P&L matches your broker app. Also fixed quotes that sometimes stayed on the previous trading day. Where: Assets → investment account → Fee settings → Minimum commission: odd lots.'**
+  String get whatsNew370OddLotFeeDesc;
 }
 
 class _AppLocalizationsDelegate

@@ -41,6 +41,7 @@ class _InvestmentSettingsPageState
   final _feeRate = TextEditingController();
   final _feeDiscount = TextEditingController();
   final _feeMin = TextEditingController();
+  final _oddLotFeeMin = TextEditingController();
   final _sellTax = TextEditingController();
   final _etfSellTax = TextEditingController();
   final _bondEtfSellTax = TextEditingController();
@@ -60,6 +61,7 @@ class _InvestmentSettingsPageState
     _setPct(_feeRate, _initial.feeRate);
     _setPct(_feeDiscount, _initial.feeDiscount);
     _setNum(_feeMin, _initial.feeMin);
+    _setNum(_oddLotFeeMin, _initial.oddLotFeeMin);
     _setPct(_sellTax, _initial.sellTaxRate);
     _setPct(_etfSellTax, _initial.etfSellTaxRate);
     _setPct(_bondEtfSellTax, _initial.bondEtfSellTaxRate);
@@ -84,6 +86,7 @@ class _InvestmentSettingsPageState
       _feeRate,
       _feeDiscount,
       _feeMin,
+      _oddLotFeeMin,
       _sellTax,
       _etfSellTax,
       _bondEtfSellTax,
@@ -174,6 +177,7 @@ class _InvestmentSettingsPageState
       feeRate: _pct(_feeRate),
       feeDiscount: _pct(_feeDiscount),
       feeMin: _num(_feeMin),
+      oddLotFeeMin: _num(_oddLotFeeMin),
       sellTaxRate: _pct(_sellTax),
       etfSellTaxRate: _pct(_etfSellTax),
       bondEtfSellTaxRate: _pct(_bondEtfSellTax),
@@ -305,7 +309,15 @@ class _InvestmentSettingsPageState
                       field(_feeRate, l10n.stockFeeRate, pct(d.feeRate)),
                       field(_feeDiscount, l10n.stockFeeDiscount,
                           pct(d.feeDiscount)),
-                      field(_feeMin, l10n.stockFeeMin, num(d.feeMin)),
+                      field(
+                          _feeMin,
+                          isTw ? l10n.stockFeeMinBoardLot : l10n.stockFeeMin,
+                          num(d.feeMin)),
+                      // 台股整股與零股是不同委託單,券商最低手續費不同(永豐:
+                      // 整股 20、零股 1),見 InvestmentSettings.orderParts。
+                      if (isTw)
+                        field(_oddLotFeeMin, l10n.stockOddLotFeeMin,
+                            num(d.oddLotFeeMin)),
                       field(
                           _sellTax,
                           isTw

@@ -188,5 +188,10 @@ final Map<String, List<WhatsNewItem>> kWhatsNewContent = {
       title: (l10n) => l10n.whatsNew370StockColorTitle,
       description: (l10n) => l10n.whatsNew370StockColorDesc,
     ),
+    // 零股手續費 + 報價卡在前一天(docs/changes/2026-10-03-stock-odd-lot-fee-stale-quote.md)。
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew370OddLotFeeTitle,
+      description: (l10n) => l10n.whatsNew370OddLotFeeDesc,
+    ),
   ],
 };

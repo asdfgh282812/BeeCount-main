@@ -4368,5 +4368,9 @@
   "stockTxTagReinvest": "股利再投入",
   "exportCsvHeaderFee": "手續費",
   "exportCsvHeaderDiscount": "折損與稅",
-  "exportCsvHeaderStockTrade": "股票交易"
+  "exportCsvHeaderStockTrade": "股票交易",
+  "stockFeeMinBoardLot": "整股最低手續費",
+  "stockOddLotFeeMin": "零股最低手續費",
+  "whatsNew370OddLotFeeTitle": "零股手續費與券商一致",
+  "whatsNew370OddLotFeeDesc": "台股零股的預估賣出手續費改用零股最低手續費（預設 1 元，整股仍是 20 元），預估損益和券商 App 一致。另外修正報價有時停在前一個交易日的問題。入口：資產 → 投資理財帳戶 → 費用設定 →「零股最低手續費」。"
 }

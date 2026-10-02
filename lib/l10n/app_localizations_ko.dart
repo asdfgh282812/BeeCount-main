@@ -11347,4 +11347,18 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get exportCsvHeaderStockTrade => 'Stock trade';
+
+  @override
+  String get stockFeeMinBoardLot => 'Minimum commission: board lots';
+
+  @override
+  String get stockOddLotFeeMin => 'Minimum commission: odd lots';
+
+  @override
+  String get whatsNew370OddLotFeeTitle =>
+      'Odd-lot commissions match your broker';
+
+  @override
+  String get whatsNew370OddLotFeeDesc =>
+      'Estimated selling commissions for Taiwan odd lots now use a separate odd-lot minimum (default NT\$1; board lots stay at NT\$20), so estimated P&L matches your broker app. Also fixed quotes that sometimes stayed on the previous trading day. Where: Assets → investment account → Fee settings → Minimum commission: odd lots.';
 }
