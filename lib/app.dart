@@ -1223,8 +1223,8 @@ class _BeeBottomBar extends StatelessWidget {
     final isActive = index == activeIndex;
 
     return Expanded(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: BeePressable(
+        pressedScale: 0.92, // 22px 小图示,0.96 几乎看不出来
         onTap: () => onTabTap(index),
         child: Center(
           child: _TabItemContent(
@@ -1259,9 +1259,9 @@ class _BeeBottomBar extends StatelessWidget {
   Widget _buildCenterTabItem(int activeIndex, Color inactiveColor) {
     final isRecordMode = currentIndex == homeTabIndex;
     return Expanded(
-      child: GestureDetector(
+      child: BeePressable(
         key: centerButtonKey,
-        behavior: HitTestBehavior.opaque,
+        pressedScale: 0.92,
         onTap: onCenterTap,
         onLongPressStart: onCenterLongPressStart,
         onLongPressMoveUpdate: onCenterLongPressMoveUpdate,
@@ -1292,8 +1292,8 @@ class _BeeBottomBar extends StatelessWidget {
     final hasAvatar = avatarPath != null;
 
     return Expanded(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: BeePressable(
+        pressedScale: 0.92, // 22px 小图示,0.96 几乎看不出来
         onTap: () => onTabTap(index),
         child: Center(
           child: _TabItemContent(

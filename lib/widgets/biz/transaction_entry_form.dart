@@ -37,6 +37,7 @@ import 'keyboard_suggestion_bar.dart';
 import 'pull_to_submit_scroll_view.dart';
 import '../currency/currency_picker_sheet.dart';
 import '../currency/currency_flag.dart';
+import '../ui/bee_pressable.dart';
 import '../ui/toast.dart';
 import 'tag_chip.dart';
 import '../../pages/attachment/attachment_preview_page.dart';
@@ -1876,11 +1877,12 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
           // 誤叫出主金額的小算盤(使用者回報「點整個額外金額的區域就跳上面
           // 的數字小鍵盤」的原因)。面板改成這顆的手足節點(見下方),自己的
           // 金額文字另外用 _buildKeypadAmountCell 掛小算盤,不會再誤觸這裡。
-          GestureDetector(
+          BeePressable(
             key: const Key('amountDisplayTap'),
             behavior: HitTestBehavior.translucent,
             onTap: () {
               FocusScope.of(context).unfocus();
+            pressedScale: 0.98,
               setState(() {
                 _amountFocused = true;
                 _activeAmountTarget = _AmountKeypadTarget.main;
@@ -2074,7 +2076,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   final rec = _recommendations[index];
-                  return GestureDetector(
+                  return BeePressable(
                     onTap: () => _onRecommendationTapped(rec),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -2319,7 +2321,8 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     return Row(
       children: [
         Expanded(
-          child: GestureDetector(
+          child: BeePressable(
+            pressedScale: 0.98,
             onTap: () => setState(() => _categoryGridExpanded = true),
             child: Row(
               children: [
