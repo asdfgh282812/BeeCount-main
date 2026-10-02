@@ -42,7 +42,7 @@ void main() {
         .getTopLeft(find.byKey(const Key('sheet'), skipOffstage: false))
         .dy;
 
-    testWidgets('由下往上滑入,減速曲線,300ms 結束', (tester) async {
+    testWidgets('由下往上滑入,減速曲線,280ms 結束', (tester) async {
       final nav = await pumpHost(tester);
       final screenH =
           tester.view.physicalSize.height / tester.view.devicePixelRatio;
@@ -51,14 +51,21 @@ void main() {
         builder: (_) => const Scaffold(key: Key('sheet'), body: Text('sheet')),
       ));
       // 首幀 Navigator 會以完成態 offstage 建構新路由(量測 Hero 用),
-      // 起點位置改用 30ms 驗證:easeOutCubic(0.1) ≈ 0.271 → 還在下方 72.9%
+      // 起點位置改用 30ms 驗證(進場 280ms,BeeMotion.standard = easeOutCubic)
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 30));
-      expect(pageTop(tester), moreOrLessEquals(screenH * 0.729, epsilon: 5));
+      expect(
+          pageTop(tester),
+          moreOrLessEquals(
+              screenH * (1 - BeeMotion.standard.transform(30 / 280)),
+              epsilon: 5));
 
       await tester.pump(const Duration(milliseconds: 120));
-      // easeOutCubic(0.5) = 0.875 → 只剩 12.5% 高度沒滑上來
-      expect(pageTop(tester), moreOrLessEquals(screenH * 0.125, epsilon: 1));
+      expect(
+          pageTop(tester),
+          moreOrLessEquals(
+              screenH * (1 - BeeMotion.standard.transform(150 / 280)),
+              epsilon: 1));
 
       await tester.pumpAndSettle();
       expect(pageTop(tester), 0);
@@ -92,8 +99,14 @@ void main() {
       await tester.pump(const Duration(milliseconds: 150));
       final screenH =
           tester.view.physicalSize.height / tester.view.devicePixelRatio;
-      // 反向同曲線 = 先慢後快:一半時間只往下收了 12.5%
-      expect(pageTop(tester), moreOrLessEquals(screenH * 0.125, epsilon: 1));
+      // 離場 210ms 用 standard.flipped(對時間是 ease-out):起步就快,
+      // 期望值直接以曲線計算
+      final v = 1 - 150 / 210;
+      expect(
+          pageTop(tester),
+          moreOrLessEquals(
+              screenH * (1 - BeeMotion.standard.flipped.transform(v)),
+              epsilon: 1));
 
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('sheet')), findsNothing);
