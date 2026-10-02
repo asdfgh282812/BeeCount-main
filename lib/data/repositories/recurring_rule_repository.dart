@@ -1,3 +1,5 @@
+import 'package:drift/drift.dart' as d;
+
 import '../db.dart';
 
 /// [RecurringRuleRepository.materializeDueTransferRules] 裡「因餘額不足被
@@ -106,6 +108,13 @@ abstract class RecurringRuleRepository {
     String? securityName,
     double? stockFeeRate,
     double? stockFeeMin,
+    // v65:規則模板的專案/手續費/折扣,每期 occurrence 繼承。
+    String? projectSyncId,
+    double? baseAmount,
+    double? feeAmount,
+    String? feeLabel,
+    double? discountAmount,
+    String? discountLabel,
   });
 
   Future<RecurringTransaction?> getRuleById(int id);
@@ -199,6 +208,20 @@ abstract class RecurringRuleRepository {
     bool clearStockFeeRate = false,
     double? stockFeeMin,
     bool clearStockFeeMin = false,
+    // 「修改連同未來週期」要能把欄位「清掉」(例如移除專案、清空備註),所以:
+    // - [clearNote]/[clearMerchant] true = 規則與未來期數的備註/商家清為空;
+    // - [projectSyncId]/[baseAmount]/[feeAmount]/[feeLabel]/[discountAmount]/
+    //   [discountLabel] 為 tri-state:`d.Value.absent()` = 不動、
+    //   `d.Value(null)` = 清空、`d.Value(x)` = 套用(規則 + 未來期數)。
+    // - [tagSyncIds]/[rewardRuleSyncIds] 傳 `[]` = 清空,null = 不動。
+    bool clearNote = false,
+    bool clearMerchant = false,
+    d.Value<String?> projectSyncId = const d.Value.absent(),
+    d.Value<double?> baseAmount = const d.Value.absent(),
+    d.Value<double?> feeAmount = const d.Value.absent(),
+    d.Value<String?> feeLabel = const d.Value.absent(),
+    d.Value<double?> discountAmount = const d.Value.absent(),
+    d.Value<String?> discountLabel = const d.Value.absent(),
   });
 
   /// 「刪除連同未來週期」:刪除同規則、`happenedAt > now` 的所有 occurrence

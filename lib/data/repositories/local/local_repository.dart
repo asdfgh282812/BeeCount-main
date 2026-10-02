@@ -3016,6 +3016,13 @@ class LocalRepository extends BaseRepository {
       rewardRuleIds: rewardIds.isEmpty ? null : rewardIds,
       recurringRuleId: rule.syncId,
       needsAccountAssignment: rule.type != 'transfer' && accountId == null,
+      // v65:專案/手續費/折扣由規則模板繼承(轉帳不適用專案)。
+      projectSyncId: rule.type == 'transfer' ? null : rule.projectSyncId,
+      baseAmount: rule.baseAmount,
+      feeAmount: rule.feeAmount,
+      feeLabel: rule.feeLabel,
+      discountAmount: rule.discountAmount,
+      discountLabel: rule.discountLabel,
     );
     if (tagIds.isNotEmpty) {
       await addTagsToTransaction(transactionId: txId, tagIds: tagIds);
@@ -3059,6 +3066,12 @@ class LocalRepository extends BaseRepository {
     String? securityName,
     double? stockFeeRate,
     double? stockFeeMin,
+    String? projectSyncId,
+    double? baseAmount,
+    double? feeAmount,
+    String? feeLabel,
+    double? discountAmount,
+    String? discountLabel,
   }) async {
     if (kind == 'stock_dca' && type != 'transfer') {
       throw ArgumentError('stock_dca rules must have type == transfer');
@@ -3086,6 +3099,12 @@ class LocalRepository extends BaseRepository {
       securityName: securityName,
       stockFeeRate: stockFeeRate,
       stockFeeMin: stockFeeMin,
+      projectSyncId: projectSyncId,
+      baseAmount: baseAmount,
+      feeAmount: feeAmount,
+      feeLabel: feeLabel,
+      discountAmount: discountAmount,
+      discountLabel: discountLabel,
     );
     var rule = await _recurringRuleRepo.getRuleById(ruleId);
     if (rule == null) return ruleId;
@@ -3218,6 +3237,14 @@ class LocalRepository extends BaseRepository {
     bool clearStockFeeRate = false,
     double? stockFeeMin,
     bool clearStockFeeMin = false,
+    bool clearNote = false,
+    bool clearMerchant = false,
+    d.Value<String?> projectSyncId = const d.Value.absent(),
+    d.Value<double?> baseAmount = const d.Value.absent(),
+    d.Value<double?> feeAmount = const d.Value.absent(),
+    d.Value<String?> feeLabel = const d.Value.absent(),
+    d.Value<double?> discountAmount = const d.Value.absent(),
+    d.Value<String?> discountLabel = const d.Value.absent(),
   }) async {
     final rule = await _recurringRuleRepo.getRuleById(ruleId);
     if (rule == null) return;
@@ -3259,7 +3286,9 @@ class LocalRepository extends BaseRepository {
       fromAccountId: fromAccountId,
       toAccountId: toAccountId,
       note: note,
+      clearNote: clearNote,
       merchant: merchant,
+      clearMerchant: clearMerchant,
       tagSyncIds: tagSyncIds,
       rewardRuleSyncIds: rewardRuleSyncIds,
       frequency: frequency,
@@ -3268,6 +3297,12 @@ class LocalRepository extends BaseRepository {
       nextRunAt: nextRunAt,
       endAt: endAt,
       clearEndAt: clearEndAt,
+      projectSyncId: projectSyncId,
+      baseAmount: baseAmount,
+      feeAmount: feeAmount,
+      feeLabel: feeLabel,
+      discountAmount: discountAmount,
+      discountLabel: discountLabel,
       stockFeeRate: stockFeeRate,
       clearStockFeeRate: clearStockFeeRate,
       stockFeeMin: stockFeeMin,
@@ -3314,12 +3349,27 @@ class LocalRepository extends BaseRepository {
         type: type ?? t.type,
         amount: amount ?? t.amount,
         categoryId: categoryId ?? t.categoryId,
-        note: note ?? t.note,
-        merchant: merchant ?? t.merchant,
+        note: clearNote ? null : (note ?? t.note),
+        merchant: clearMerchant ? null : (merchant ?? t.merchant),
         accountId: accountId ?? t.accountId,
-        rewardRuleIds: rewardRuleSyncIds,
+        // updateTransaction 對 rewardRuleIds 是「null = 清空」語意,沒指定時
+        // 要沿用該期原值,否則別的欄位的批次更新會順手把回饋項目洗掉。
+        rewardRuleIds: rewardRuleSyncIds ?? t.rewardRuleIds,
         toAmount: toAmount,
+        baseAmount: baseAmount.present ? baseAmount : null,
+        feeAmount: feeAmount.present ? feeAmount : null,
+        feeLabel: feeLabel.present ? feeLabel : null,
+        discountAmount: discountAmount.present ? discountAmount : null,
+        discountLabel: discountLabel.present ? discountLabel : null,
       );
+      if (projectSyncId.present) {
+        await setTransactionProjectLink(
+          id: t.id,
+          projectSyncId: type == 'transfer' || t.type == 'transfer'
+              ? null
+              : projectSyncId.value,
+        );
+      }
       if (toAccountId != null) {
         await updateTransactionFields(id: t.id, toAccountId: toAccountId);
       }
@@ -5722,12 +5772,15 @@ class LocalRepository extends BaseRepository {
           currency: effCurrency,
           settlementAmount: settlementAmount,
         );
-        final transferCategory = await getTransferCategory();
+        // 買賣綁定的轉帳不帶分類(categoryId 留 null):Cloud 排程執行定期定額、
+        // Web 手動買賣建立的綁定轉帳都沒有分類,App 若指向虛擬「轉帳」分類,
+        // 同一種交易在 Web 會一筆顯示「轉帳」、一筆顯示「—」。App 端顯示時
+        // 轉帳由 UI 層特判,pull 回來時也會自動補虛擬分類(sync_engine_apply)。
         final txId = await addTransaction(
           ledgerId: ledgerId,
           type: 'transfer',
           amount: plan.fields.amount,
-          categoryId: transferCategory.id,
+          categoryId: null,
           accountId: plan.fromAccountId,
           toAccountId: plan.toAccountId,
           happenedAt: tradeDate,

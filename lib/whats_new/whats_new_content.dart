@@ -162,5 +162,10 @@ final Map<String, List<WhatsNewItem>> kWhatsNewContent = {
       title: (l10n) => l10n.whatsNew370StockSwipeTitle,
       description: (l10n) => l10n.whatsNew370StockSwipeDesc,
     ),
+    // 週期交易「連同未來」全欄位同步(docs/changes/2026-10-01-recurring-edit-future-all-fields.md)。
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew370RecurringEditAllTitle,
+      description: (l10n) => l10n.whatsNew370RecurringEditAllDesc,
+    ),
   ],
 };

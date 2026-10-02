@@ -1969,6 +1969,15 @@ extension SyncEngineApplyExt on SyncEngine {
       toAccountId: d.Value(localToAccountId),
       tagSyncIdsJson: d.Value(tagSyncIdsJson),
       rewardRuleIdsJson: d.Value(rewardRuleIdsJson),
+      // v65:專案/手續費/折扣。用 keyed 保護——舊版 Cloud payload 沒這些鍵時
+      // 不能把本地既有值沖掉。
+      projectSyncId: keyed<String?>('projectId', (v) => v as String?),
+      baseAmount: keyed<double?>('baseAmount', (v) => (v as num?)?.toDouble()),
+      feeAmount: keyed<double?>('feeAmount', (v) => (v as num?)?.toDouble()),
+      feeLabel: keyed<String?>('feeLabel', (v) => v as String?),
+      discountAmount:
+          keyed<double?>('discountAmount', (v) => (v as num?)?.toDouble()),
+      discountLabel: keyed<String?>('discountLabel', (v) => v as String?),
       frequency: d.Value(frequency),
       interval: d.Value(interval),
       advancedRuleJson: d.Value(advancedRuleJson),

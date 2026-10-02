@@ -354,10 +354,10 @@ class EntitySerializer {
   /// merge 從既有列補齐),所以這裡把規則當下的完整值都帶上,`if != null`
   /// 只是省略空值(效果等同顯式傳 null,不是「刻意不更新」)。
   ///
-  /// **範圍決策(2026-08-17)**:刻意不帶 `projectId` /
-  /// `baseAmount`/`feeAmount`/`feeLabel`/`discountAmount`/`discountLabel`
-  /// ——App 端尚未實作專案關聯與手續費/折扣功能,本地 `RecurringTransactions`
-  /// 表也没有对应列。
+  /// v65(2026-10-01)起恆發 `projectId` / `baseAmount`/`feeAmount`/
+  /// `feeLabel`/`discountAmount`/`discountLabel`(含 null——「連同未來週期」
+  /// 把專案/手續費清掉時,Cloud merge spec 看 key 有沒有出現決定要不要覆蓋,
+  /// 只在非 null 時才發會讓清除動作同步不出去)。
   static Map<String, dynamic> serializeRecurringRule(
     RecurringTransaction rule, {
     String? categorySyncId,
@@ -395,6 +395,12 @@ class EntitySerializer {
       if (rule.advancedRuleJson != null && rule.advancedRuleJson!.isNotEmpty)
         'advancedRuleJson': jsonDecode(rule.advancedRuleJson!),
       'rewardRuleIds': rule.rewardRuleIds,
+      'projectId': rule.projectSyncId,
+      'baseAmount': rule.baseAmount,
+      'feeAmount': rule.feeAmount,
+      'feeLabel': rule.feeLabel,
+      'discountAmount': rule.discountAmount,
+      'discountLabel': rule.discountLabel,
       // 股票定期定額(v64,2026-09-29 補接線):以前完全沒推,Cloud 把 App 建的
       // 定期定額當成普通自動扣繳(Web 顯示轉帳圖示、排程生成一筆沒有持股明細
       // 的裸轉帳)。恆發(含 null):stockFeeRate/stockFeeMin 為 null = 清除

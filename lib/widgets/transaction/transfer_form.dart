@@ -639,6 +639,20 @@ class TransferFormState extends ConsumerState<TransferForm>
     });
   }
 
+  /// 目前選中的標籤 → syncId 清單(週期規則模板存 syncId)。負數 id 是共享
+  /// 帳本 synthetic tag,規則模板不帶。
+  Future<List<String>> _selectedTagSyncIds(dynamic repo) async {
+    final normal = _selectedTagIds.where((id) => id >= 0).toList();
+    if (normal.isEmpty || repo is! LocalRepository) return const [];
+    final rows = await (repo.db.select(repo.db.tags)
+          ..where((t) => t.id.isIn(normal)))
+        .get();
+    return [
+      for (final t in rows)
+        if (t.syncId != null) t.syncId!
+    ];
+  }
+
   Future<void> _submit() async {
     if (_fromAccountId == null || _toAccountId == null || _isSubmitting) {
       return;
@@ -841,9 +855,20 @@ class TransferFormState extends ConsumerState<TransferForm>
               accountId: fromAccountForAdd,
               toAccountId: toAccountForAdd,
               note: note,
+              clearNote: (note ?? '').trim().isEmpty,
               merchant: merchant,
+              clearMerchant: (merchant ?? '').trim().isEmpty,
+              tagSyncIds: await _selectedTagSyncIds(repo),
               toAmount:
                   d.Value<double?>(sameCurrency ? null : resolvedToAmount),
+              feeAmount:
+                  d.Value<double?>(_feeEnabled ? resolvedFeeAmount : null),
+              feeLabel:
+                  d.Value<String?>(_feeEnabled ? resolvedFeeLabel : null),
+              discountAmount: d.Value<double?>(
+                  _discountEnabled ? resolvedDiscountAmount : null),
+              discountLabel: d.Value<String?>(
+                  _discountEnabled ? resolvedDiscountLabel : null),
             );
           }
         }

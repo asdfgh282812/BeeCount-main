@@ -11409,4 +11409,12 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get whatsNew370StockSwipeDesc =>
       'An investment account\'s balance is the book cost of its holdings, so \"Adjust balance\" is gone for these accounts. On the Accounts list, swipe right to buy and swipe left to sell (or switch to adding a recurring buy). Entry: swipe an investment account on the Accounts page; change the actions under Mine → Appearance settings → swipe actions.';
+
+  @override
+  String get whatsNew370RecurringEditAllTitle =>
+      'Recurring edits now apply to every field';
+
+  @override
+  String get whatsNew370RecurringEditAllDesc =>
+      '“Edit this and future periods” now carries every field — project, tags, merchant, note, fees/discounts and card rewards, including clearing them — to the recurring rule and all later periods, and it stays in sync with the web. Entry: edit a recurring transaction → choose “Edit this and future periods”.';
 }

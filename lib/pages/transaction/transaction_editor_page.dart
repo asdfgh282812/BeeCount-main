@@ -442,6 +442,20 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
     );
   }
 
+  /// 表單的本地 tag id → 規則模板存的 tag syncId。負數 id 是共享帳本的
+  /// synthetic tag(走 override 表),規則模板不帶。
+  Future<List<String>> _tagSyncIdsFor(dynamic repo, List<int> tagIds) async {
+    final normal = tagIds.where((id) => id >= 0).toList();
+    if (normal.isEmpty || repo is! LocalRepository) return const [];
+    final rows = await (repo.db.select(repo.db.tags)
+          ..where((t) => t.id.isIn(normal)))
+        .get();
+    return [
+      for (final t in rows)
+        if (t.syncId != null) t.syncId!
+    ];
+  }
+
   /// 存檔 orchestration——原本是 `AmountEditorSheet.onSubmit` 的 callback
   /// body(見改版前 git 歷史),整段搬過來,行為不變:synthetic id 處理、
   /// shared-ledger override、附件儲存、tag 主表/override 分流、
@@ -570,6 +584,12 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
         // 集合)轉發給規則本身 + 同規則、未來、未被單獨編輯過的既有 occurrence。
         final rule = await repo.getRuleBySyncId(original!.recurringRuleId!);
         if (rule != null) {
+          // 標籤:表單給的是本地 tag id,規則存的是 syncId。負數 id 是共享
+          // 帳本的 synthetic tag(走 override 表),規則模板不帶。
+          final tagSyncIdsForRule = await _tagSyncIdsFor(repo, res.tagIds);
+          // 「連同未來週期」= 這張表單的最終狀態整份套用到規則與未來各期,
+          // 所以空值也要傳(清備註/清商家/移除專案/清標籤/清手續費),
+          // 不是「沒填就不動」。
           await repo.updateRuleAndFuture(
             ruleId: rule.id,
             anchorTransactionId: transactionId,
@@ -578,7 +598,17 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
             categoryId: categoryIdForWrite,
             accountId: accountIdForAdd,
             note: res.note,
+            clearNote: (res.note ?? '').trim().isEmpty,
             merchant: res.merchant,
+            clearMerchant: (res.merchant ?? '').trim().isEmpty,
+            tagSyncIds: tagSyncIdsForRule,
+            rewardRuleSyncIds: res.rewardRuleIds,
+            projectSyncId: d.Value<String?>(res.projectSyncId),
+            baseAmount: d.Value<double?>(res.baseAmount),
+            feeAmount: d.Value<double?>(res.feeAmount),
+            feeLabel: d.Value<String?>(res.feeLabel),
+            discountAmount: d.Value<double?>(res.discountAmount),
+            discountLabel: d.Value<String?>(res.discountLabel),
           );
         }
       }
@@ -595,6 +625,13 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
         note: res.note,
         merchant: res.merchant,
         rewardRuleSyncIds: res.rewardRuleIds,
+        tagSyncIds: await _tagSyncIdsFor(repo, res.tagIds),
+        projectSyncId: kind == 'transfer' ? null : res.projectSyncId,
+        baseAmount: res.baseAmount,
+        feeAmount: res.feeAmount,
+        feeLabel: res.feeLabel,
+        discountAmount: res.discountAmount,
+        discountLabel: res.discountLabel,
         frequency: draft.frequency,
         interval: draft.interval,
         advancedRule: draft.advancedRule,

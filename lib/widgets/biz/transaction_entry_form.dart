@@ -1666,6 +1666,20 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
       return;
     }
 
+    // 回饋規則只留屬於目前所選帳戶的:換帳戶/舊資料殘留的別張卡規則在 UI 上
+    // 看不到(chip 與選單都只列所選卡的規則),但 `_selectedRewardRuleIds`
+    // 仍帶著,存檔會原封不動寫回交易,明細就多出不屬於這張卡的回饋項目。
+    // 共享帳本 synthetic 帳戶(id < 0)沒有本地規則表可比對,維持原樣。
+    var rewardRuleIdsForSubmit = _selectedRewardRuleIds;
+    if (_selectedRewardRuleIds.isNotEmpty && _selectedAccountId! >= 0) {
+      final accountRules = await ref
+          .read(cardRewardRulesForAccountProvider(_selectedAccountId!).future);
+      final validIds = accountRules.map((r) => r.syncId).toSet();
+      rewardRuleIdsForSubmit =
+          _selectedRewardRuleIds.where(validIds.contains).toList();
+      if (!mounted) return;
+    }
+
     // v51 支出/收入手續費/折扣:面板開啟時(拆帳模式下面板不會開啟,見
     // _buildFeeDiscountToggle 的 _splits.isEmpty 判斷)驗證兩個金額皆須 ≥0
     // (比照 Cloud `_normalize_fee_discount_amount`),通過後用
@@ -1733,7 +1747,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
         excludeFromBudget: _excludeFromBudget,
         currencyCode: txCurrency,
         nativeAmount: nativeAmount,
-        rewardRuleIds: _selectedRewardRuleIds,
+        rewardRuleIds: rewardRuleIdsForSubmit,
         recurringDraft:
             widget.editingTransactionId == null ? _recurringDraft : null,
         // 三態:目前拆帳中 → 整組明細;從未碰過拆帳 → null(維持原路徑);

@@ -67,6 +67,8 @@ void main() {
     expect(tx.amount, 600000);
     expect(tx.feeAmount, 855);
     expect(tx.note, contains('2330'));
+    // 綁定轉帳不帶分類,跟 Cloud 排程/Web 手動買賣建立的一致。
+    expect(tx.categoryId, isNull);
     final changes = await changesOf('stock_trade');
     expect(changes.single.action, 'create');
     expect(changes.single.ledgerId, 1);

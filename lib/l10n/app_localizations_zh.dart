@@ -11090,6 +11090,14 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get whatsNew370StockSwipeDesc =>
       'An investment account\'s balance is the book cost of its holdings, so \"Adjust balance\" is gone for these accounts. On the Accounts list, swipe right to buy and swipe left to sell (or switch to adding a recurring buy). Entry: swipe an investment account on the Accounts page; change the actions under Mine → Appearance settings → swipe actions.';
+
+  @override
+  String get whatsNew370RecurringEditAllTitle =>
+      'Recurring edits now apply to every field';
+
+  @override
+  String get whatsNew370RecurringEditAllDesc =>
+      '“Edit this and future periods” now carries every field — project, tags, merchant, note, fees/discounts and card rewards, including clearing them — to the recurring rule and all later periods, and it stays in sync with the web. Entry: edit a recurring transaction → choose “Edit this and future periods”.';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -22048,4 +22056,11 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   @override
   String get whatsNew370StockSwipeDesc =>
       '投資理財帳戶的餘額是持股成本的帳面數,不再提供「調整餘額」。帳戶列表向右滑直接買進、向左滑直接賣出,也可以改成新增定期定額。入口:帳戶頁滑動投資理財帳戶;要改動作到「我的 → 個性化設定」的滑動快捷操作。';
+
+  @override
+  String get whatsNew370RecurringEditAllTitle => '週期交易「連同未來」改動全欄位同步';
+
+  @override
+  String get whatsNew370RecurringEditAllDesc =>
+      '「修改連同未來週期」現在會把專案、標籤、商家、備註、手續費/折扣與信用卡回饋(含清空)一併套用到週期規則與之後的每一期,且與網頁端一致。入口:編輯週期性交易 → 選「修改連同未來週期」。';
 }
