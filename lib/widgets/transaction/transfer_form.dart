@@ -1689,7 +1689,7 @@ class TransferFormState extends ConsumerState<TransferForm>
     final l10n = AppLocalizations.of(context);
     final service = ref.read(attachmentServiceProvider);
 
-    await showModalBottomSheet(
+    await showBeeBottomSheet(
       context: context,
       builder: (_) => SafeArea(
         child: Column(

@@ -5,6 +5,7 @@ import '../../providers.dart';
 import '../../data/db.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/account_type_utils.dart';
+import '../ui/bee_overlays.dart';
 
 /// 账户选择器数据模型
 class AccountOption {
@@ -41,7 +42,7 @@ class AccountPicker extends ConsumerStatefulWidget {
     int? selectedAccountId,
     bool allowNull = true,
   }) async {
-    return showModalBottomSheet<int?>(
+    return showBeeBottomSheet<int?>(
       context: context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(

@@ -9,6 +9,7 @@ import '../../providers/shared_ledger_providers.dart';
 import '../../utils/category_utils.dart';
 import '../../utils/shared_ledger_picker_filter.dart';
 import '../category_icon.dart';
+import '../ui/bee_overlays.dart';
 
 /// 分类过滤器回调类型
 /// 返回 true 表示该分类可选，返回 false 表示不可选（置灰）
@@ -41,7 +42,7 @@ Future<Category?> showCategorySelector(
   CategoryFilterCallback? categoryFilter,
   String? title,
 }) {
-  return showDialog<Category>(
+  return showBeeDialog<Category>(
     context: context,
     builder: (context) => CategorySelectorDialog(
       type: type,

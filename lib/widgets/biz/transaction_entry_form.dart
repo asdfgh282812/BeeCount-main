@@ -37,6 +37,7 @@ import 'keyboard_suggestion_bar.dart';
 import 'pull_to_submit_scroll_view.dart';
 import '../currency/currency_picker_sheet.dart';
 import '../currency/currency_flag.dart';
+import '../ui/bee_overlays.dart';
 import '../ui/bee_pressable.dart';
 import '../ui/toast.dart';
 import 'tag_chip.dart';
@@ -1008,7 +1009,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
             : '');
 
     bool syncing = false;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showBeeDialog<bool>(
       context: context,
       builder: (dctx) => StatefulBuilder(
         builder: (dctx, setDialogState) {
@@ -1495,7 +1496,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   /// 長按某一筆明細圖示:換分類 / 移除(< 3 筆時不給移除選項)這兩個動作。
   Future<void> _showSplitLineActions(int index) async {
     final l10n = AppLocalizations.of(context);
-    final action = await showModalBottomSheet<String>(
+    final action = await showBeeBottomSheet<String>(
       context: context,
       builder: (ctx) => SafeArea(
         child: Column(
@@ -1527,7 +1528,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   /// 長按/點「多類別」彙總圖示:目前唯一動作是整組還原成單一分類。
   Future<void> _showSplitAggregateActions() async {
     final l10n = AppLocalizations.of(context);
-    final action = await showModalBottomSheet<String>(
+    final action = await showBeeBottomSheet<String>(
       context: context,
       builder: (ctx) => SafeArea(
         child: ListTile(
@@ -1880,9 +1881,9 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
           BeePressable(
             key: const Key('amountDisplayTap'),
             behavior: HitTestBehavior.translucent,
+            pressedScale: 0.98,
             onTap: () {
               FocusScope.of(context).unfocus();
-            pressedScale: 0.98,
               setState(() {
                 _amountFocused = true;
                 _activeAmountTarget = _AmountKeypadTarget.main;
@@ -2837,7 +2838,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     bool stats = _excludeFromStats;
     bool budget = _excludeFromBudget;
 
-    await showDialog<void>(
+    await showBeeDialog<void>(
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
@@ -3163,7 +3164,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     final l10n = AppLocalizations.of(context);
     final service = ref.read(attachmentServiceProvider);
 
-    await showModalBottomSheet(
+    await showBeeBottomSheet(
       context: context,
       builder: (_) => SafeArea(
         child: Column(
