@@ -1563,9 +1563,19 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     _onCategoryChanged();
   }
 
-  void _pickDate() async {
+  /// 收起焦點,只在系統鍵盤實際開著時才等它收起(100ms)再開選擇器。
+  /// 必須在 unfocus 之前讀 viewInsets——unfocus 之後這個值會馬上改變。
+  /// 金額用的是 App 內建小算盤,不算系統鍵盤,點日期/時間時不用等。
+  Future<void> _unfocusBeforePicker() async {
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     FocusManager.instance.primaryFocus?.unfocus();
-    await Future.delayed(const Duration(milliseconds: 100));
+    if (keyboardOpen) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+  }
+
+  void _pickDate() async {
+    await _unfocusBeforePicker();
     if (!mounted) return;
 
     // 日期/時間拆成兩個獨立欄位各自喚起專屬選擇器(月曆網格/HH:mm wheel),
@@ -1579,8 +1589,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   }
 
   void _pickTime() async {
-    FocusManager.instance.primaryFocus?.unfocus();
-    await Future.delayed(const Duration(milliseconds: 100));
+    await _unfocusBeforePicker();
     if (!mounted) return;
 
     final res = await showTransactionTimePicker(

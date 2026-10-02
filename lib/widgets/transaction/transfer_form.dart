@@ -608,9 +608,18 @@ class TransferFormState extends ConsumerState<TransferForm>
     });
   }
 
-  void _pickDate() async {
+  /// 收起焦點,只在系統鍵盤實際開著時才等它收起(100ms)再開選擇器。
+  /// 必須在 unfocus 之前讀 viewInsets;見 transaction_entry_form.dart 同名方法。
+  Future<void> _unfocusBeforePicker() async {
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     FocusManager.instance.primaryFocus?.unfocus();
-    await Future.delayed(const Duration(milliseconds: 100));
+    if (keyboardOpen) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+  }
+
+  void _pickDate() async {
+    await _unfocusBeforePicker();
     if (!mounted) return;
 
     // 日期/時間拆成兩個獨立欄位各自喚起專屬選擇器,見
@@ -624,8 +633,7 @@ class TransferFormState extends ConsumerState<TransferForm>
   }
 
   void _pickTime() async {
-    FocusManager.instance.primaryFocus?.unfocus();
-    await Future.delayed(const Duration(milliseconds: 100));
+    await _unfocusBeforePicker();
     if (!mounted) return;
 
     final res = await showTransactionTimePicker(
