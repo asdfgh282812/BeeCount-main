@@ -9,6 +9,7 @@ import '../../utils/ui_scale_extensions.dart';
 import '../../widgets/charts/line_chart.dart';
 import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/amount_text.dart';
+import '../../widgets/biz/investment_flow_note.dart';
 
 /// 趋势线维度:净资产 / 总资产 / 总负债。
 enum _TrendLine { net, assets, liabilities }
@@ -162,6 +163,8 @@ class _NetWorthTrendPageState extends ConsumerState<NetWorthTrendPage> {
                         annotate: true,
                       ),
                     ),
+                    // 股票報表一致性:走勢不含投資理財帳戶,買進當天會下降。
+                    const StockNetWorthNote(trend: true),
                     if (multi)
                       Padding(
                         padding:

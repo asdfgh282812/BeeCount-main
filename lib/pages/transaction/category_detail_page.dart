@@ -486,6 +486,7 @@ class _CategoryDetailPageState extends ConsumerState<CategoryDetailPage> {
               accountName: transferAccountInfo(transaction),
               happenedAt: transaction.happenedAt,
               hasSplits: transaction.hasSplits,
+              txSyncId: transaction.syncId,
               onTap: () async {
                 final categoryData =
                     categoriesById[transaction.categoryId] ??
@@ -581,6 +582,7 @@ class _CategoryDetailPageState extends ConsumerState<CategoryDetailPage> {
                 accountName: transferAccountInfo(transaction),
                 happenedAt: transaction.happenedAt,
                 hasSplits: transaction.hasSplits,
+                txSyncId: transaction.syncId,
                 onTap: () async {
                   final categoryData =
                       categoriesById[transaction.categoryId] ??

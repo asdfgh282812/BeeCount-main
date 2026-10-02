@@ -4394,6 +4394,42 @@ class $RecurringTransactionsTable extends RecurringTransactions
   late final GeneratedColumn<String> rewardRuleIdsJson =
       GeneratedColumn<String>('reward_rule_ids_json', aliasedName, true,
           type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _projectSyncIdMeta =
+      const VerificationMeta('projectSyncId');
+  @override
+  late final GeneratedColumn<String> projectSyncId = GeneratedColumn<String>(
+      'project_sync_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _baseAmountMeta =
+      const VerificationMeta('baseAmount');
+  @override
+  late final GeneratedColumn<double> baseAmount = GeneratedColumn<double>(
+      'base_amount', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _feeAmountMeta =
+      const VerificationMeta('feeAmount');
+  @override
+  late final GeneratedColumn<double> feeAmount = GeneratedColumn<double>(
+      'fee_amount', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _feeLabelMeta =
+      const VerificationMeta('feeLabel');
+  @override
+  late final GeneratedColumn<String> feeLabel = GeneratedColumn<String>(
+      'fee_label', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _discountAmountMeta =
+      const VerificationMeta('discountAmount');
+  @override
+  late final GeneratedColumn<double> discountAmount = GeneratedColumn<double>(
+      'discount_amount', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _discountLabelMeta =
+      const VerificationMeta('discountLabel');
+  @override
+  late final GeneratedColumn<String> discountLabel = GeneratedColumn<String>(
+      'discount_label', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _frequencyMeta =
       const VerificationMeta('frequency');
   @override
@@ -4507,6 +4543,12 @@ class $RecurringTransactionsTable extends RecurringTransactions
         merchant,
         tagSyncIdsJson,
         rewardRuleIdsJson,
+        projectSyncId,
+        baseAmount,
+        feeAmount,
+        feeLabel,
+        discountAmount,
+        discountLabel,
         frequency,
         interval,
         advancedRuleJson,
@@ -4600,6 +4642,38 @@ class $RecurringTransactionsTable extends RecurringTransactions
           _rewardRuleIdsJsonMeta,
           rewardRuleIdsJson.isAcceptableOrUnknown(
               data['reward_rule_ids_json']!, _rewardRuleIdsJsonMeta));
+    }
+    if (data.containsKey('project_sync_id')) {
+      context.handle(
+          _projectSyncIdMeta,
+          projectSyncId.isAcceptableOrUnknown(
+              data['project_sync_id']!, _projectSyncIdMeta));
+    }
+    if (data.containsKey('base_amount')) {
+      context.handle(
+          _baseAmountMeta,
+          baseAmount.isAcceptableOrUnknown(
+              data['base_amount']!, _baseAmountMeta));
+    }
+    if (data.containsKey('fee_amount')) {
+      context.handle(_feeAmountMeta,
+          feeAmount.isAcceptableOrUnknown(data['fee_amount']!, _feeAmountMeta));
+    }
+    if (data.containsKey('fee_label')) {
+      context.handle(_feeLabelMeta,
+          feeLabel.isAcceptableOrUnknown(data['fee_label']!, _feeLabelMeta));
+    }
+    if (data.containsKey('discount_amount')) {
+      context.handle(
+          _discountAmountMeta,
+          discountAmount.isAcceptableOrUnknown(
+              data['discount_amount']!, _discountAmountMeta));
+    }
+    if (data.containsKey('discount_label')) {
+      context.handle(
+          _discountLabelMeta,
+          discountLabel.isAcceptableOrUnknown(
+              data['discount_label']!, _discountLabelMeta));
     }
     if (data.containsKey('frequency')) {
       context.handle(_frequencyMeta,
@@ -4712,6 +4786,18 @@ class $RecurringTransactionsTable extends RecurringTransactions
           DriftSqlType.string, data['${effectivePrefix}tag_sync_ids_json']),
       rewardRuleIdsJson: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}reward_rule_ids_json']),
+      projectSyncId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}project_sync_id']),
+      baseAmount: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}base_amount']),
+      feeAmount: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}fee_amount']),
+      feeLabel: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}fee_label']),
+      discountAmount: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}discount_amount']),
+      discountLabel: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}discount_label']),
       frequency: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}frequency'])!,
       interval: attachedDatabase.typeMapping
@@ -4783,6 +4869,20 @@ class RecurringTransaction extends DataClass
   /// JSON list of card_reward_rule syncId,同 [Transaction.rewardRuleIdsJson]
   /// 语意,规则生成的每期 occurrence 都带上。wire 字段 rewardRuleIds。
   final String? rewardRuleIdsJson;
+
+  /// v65:規則模板的專案關聯(project syncId),規則生成的每期 occurrence 都
+  /// 繼承。wire 字段 projectId(Cloud `read_recurring_rule_projection.
+  /// project_sync_id`)。
+  final String? projectSyncId;
+
+  /// v65:規則模板的手續費/折扣(支出/收入),語意同 [Transactions] 對應欄位,
+  /// 每期 occurrence 繼承。wire 字段 baseAmount/feeAmount/feeLabel/
+  /// discountAmount/discountLabel。
+  final double? baseAmount;
+  final double? feeAmount;
+  final String? feeLabel;
+  final double? discountAmount;
+  final String? discountLabel;
   final String frequency;
   final int interval;
 
@@ -4862,6 +4962,12 @@ class RecurringTransaction extends DataClass
       this.merchant,
       this.tagSyncIdsJson,
       this.rewardRuleIdsJson,
+      this.projectSyncId,
+      this.baseAmount,
+      this.feeAmount,
+      this.feeLabel,
+      this.discountAmount,
+      this.discountLabel,
       required this.frequency,
       required this.interval,
       this.advancedRuleJson,
@@ -4910,6 +5016,24 @@ class RecurringTransaction extends DataClass
     }
     if (!nullToAbsent || rewardRuleIdsJson != null) {
       map['reward_rule_ids_json'] = Variable<String>(rewardRuleIdsJson);
+    }
+    if (!nullToAbsent || projectSyncId != null) {
+      map['project_sync_id'] = Variable<String>(projectSyncId);
+    }
+    if (!nullToAbsent || baseAmount != null) {
+      map['base_amount'] = Variable<double>(baseAmount);
+    }
+    if (!nullToAbsent || feeAmount != null) {
+      map['fee_amount'] = Variable<double>(feeAmount);
+    }
+    if (!nullToAbsent || feeLabel != null) {
+      map['fee_label'] = Variable<String>(feeLabel);
+    }
+    if (!nullToAbsent || discountAmount != null) {
+      map['discount_amount'] = Variable<double>(discountAmount);
+    }
+    if (!nullToAbsent || discountLabel != null) {
+      map['discount_label'] = Variable<String>(discountLabel);
     }
     map['frequency'] = Variable<String>(frequency);
     map['interval'] = Variable<int>(interval);
@@ -4975,6 +5099,24 @@ class RecurringTransaction extends DataClass
       rewardRuleIdsJson: rewardRuleIdsJson == null && nullToAbsent
           ? const Value.absent()
           : Value(rewardRuleIdsJson),
+      projectSyncId: projectSyncId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(projectSyncId),
+      baseAmount: baseAmount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(baseAmount),
+      feeAmount: feeAmount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(feeAmount),
+      feeLabel: feeLabel == null && nullToAbsent
+          ? const Value.absent()
+          : Value(feeLabel),
+      discountAmount: discountAmount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(discountAmount),
+      discountLabel: discountLabel == null && nullToAbsent
+          ? const Value.absent()
+          : Value(discountLabel),
       frequency: Value(frequency),
       interval: Value(interval),
       advancedRuleJson: advancedRuleJson == null && nullToAbsent
@@ -5024,6 +5166,12 @@ class RecurringTransaction extends DataClass
       tagSyncIdsJson: serializer.fromJson<String?>(json['tagSyncIdsJson']),
       rewardRuleIdsJson:
           serializer.fromJson<String?>(json['rewardRuleIdsJson']),
+      projectSyncId: serializer.fromJson<String?>(json['projectSyncId']),
+      baseAmount: serializer.fromJson<double?>(json['baseAmount']),
+      feeAmount: serializer.fromJson<double?>(json['feeAmount']),
+      feeLabel: serializer.fromJson<String?>(json['feeLabel']),
+      discountAmount: serializer.fromJson<double?>(json['discountAmount']),
+      discountLabel: serializer.fromJson<String?>(json['discountLabel']),
       frequency: serializer.fromJson<String>(json['frequency']),
       interval: serializer.fromJson<int>(json['interval']),
       advancedRuleJson: serializer.fromJson<String?>(json['advancedRuleJson']),
@@ -5059,6 +5207,12 @@ class RecurringTransaction extends DataClass
       'merchant': serializer.toJson<String?>(merchant),
       'tagSyncIdsJson': serializer.toJson<String?>(tagSyncIdsJson),
       'rewardRuleIdsJson': serializer.toJson<String?>(rewardRuleIdsJson),
+      'projectSyncId': serializer.toJson<String?>(projectSyncId),
+      'baseAmount': serializer.toJson<double?>(baseAmount),
+      'feeAmount': serializer.toJson<double?>(feeAmount),
+      'feeLabel': serializer.toJson<String?>(feeLabel),
+      'discountAmount': serializer.toJson<double?>(discountAmount),
+      'discountLabel': serializer.toJson<String?>(discountLabel),
       'frequency': serializer.toJson<String>(frequency),
       'interval': serializer.toJson<int>(interval),
       'advancedRuleJson': serializer.toJson<String?>(advancedRuleJson),
@@ -5091,6 +5245,12 @@ class RecurringTransaction extends DataClass
           Value<String?> merchant = const Value.absent(),
           Value<String?> tagSyncIdsJson = const Value.absent(),
           Value<String?> rewardRuleIdsJson = const Value.absent(),
+          Value<String?> projectSyncId = const Value.absent(),
+          Value<double?> baseAmount = const Value.absent(),
+          Value<double?> feeAmount = const Value.absent(),
+          Value<String?> feeLabel = const Value.absent(),
+          Value<double?> discountAmount = const Value.absent(),
+          Value<String?> discountLabel = const Value.absent(),
           String? frequency,
           int? interval,
           Value<String?> advancedRuleJson = const Value.absent(),
@@ -5124,6 +5284,15 @@ class RecurringTransaction extends DataClass
         rewardRuleIdsJson: rewardRuleIdsJson.present
             ? rewardRuleIdsJson.value
             : this.rewardRuleIdsJson,
+        projectSyncId:
+            projectSyncId.present ? projectSyncId.value : this.projectSyncId,
+        baseAmount: baseAmount.present ? baseAmount.value : this.baseAmount,
+        feeAmount: feeAmount.present ? feeAmount.value : this.feeAmount,
+        feeLabel: feeLabel.present ? feeLabel.value : this.feeLabel,
+        discountAmount:
+            discountAmount.present ? discountAmount.value : this.discountAmount,
+        discountLabel:
+            discountLabel.present ? discountLabel.value : this.discountLabel,
         frequency: frequency ?? this.frequency,
         interval: interval ?? this.interval,
         advancedRuleJson: advancedRuleJson.present
@@ -5169,6 +5338,19 @@ class RecurringTransaction extends DataClass
       rewardRuleIdsJson: data.rewardRuleIdsJson.present
           ? data.rewardRuleIdsJson.value
           : this.rewardRuleIdsJson,
+      projectSyncId: data.projectSyncId.present
+          ? data.projectSyncId.value
+          : this.projectSyncId,
+      baseAmount:
+          data.baseAmount.present ? data.baseAmount.value : this.baseAmount,
+      feeAmount: data.feeAmount.present ? data.feeAmount.value : this.feeAmount,
+      feeLabel: data.feeLabel.present ? data.feeLabel.value : this.feeLabel,
+      discountAmount: data.discountAmount.present
+          ? data.discountAmount.value
+          : this.discountAmount,
+      discountLabel: data.discountLabel.present
+          ? data.discountLabel.value
+          : this.discountLabel,
       frequency: data.frequency.present ? data.frequency.value : this.frequency,
       interval: data.interval.present ? data.interval.value : this.interval,
       advancedRuleJson: data.advancedRuleJson.present
@@ -5212,6 +5394,12 @@ class RecurringTransaction extends DataClass
           ..write('merchant: $merchant, ')
           ..write('tagSyncIdsJson: $tagSyncIdsJson, ')
           ..write('rewardRuleIdsJson: $rewardRuleIdsJson, ')
+          ..write('projectSyncId: $projectSyncId, ')
+          ..write('baseAmount: $baseAmount, ')
+          ..write('feeAmount: $feeAmount, ')
+          ..write('feeLabel: $feeLabel, ')
+          ..write('discountAmount: $discountAmount, ')
+          ..write('discountLabel: $discountLabel, ')
           ..write('frequency: $frequency, ')
           ..write('interval: $interval, ')
           ..write('advancedRuleJson: $advancedRuleJson, ')
@@ -5246,6 +5434,12 @@ class RecurringTransaction extends DataClass
         merchant,
         tagSyncIdsJson,
         rewardRuleIdsJson,
+        projectSyncId,
+        baseAmount,
+        feeAmount,
+        feeLabel,
+        discountAmount,
+        discountLabel,
         frequency,
         interval,
         advancedRuleJson,
@@ -5279,6 +5473,12 @@ class RecurringTransaction extends DataClass
           other.merchant == this.merchant &&
           other.tagSyncIdsJson == this.tagSyncIdsJson &&
           other.rewardRuleIdsJson == this.rewardRuleIdsJson &&
+          other.projectSyncId == this.projectSyncId &&
+          other.baseAmount == this.baseAmount &&
+          other.feeAmount == this.feeAmount &&
+          other.feeLabel == this.feeLabel &&
+          other.discountAmount == this.discountAmount &&
+          other.discountLabel == this.discountLabel &&
           other.frequency == this.frequency &&
           other.interval == this.interval &&
           other.advancedRuleJson == this.advancedRuleJson &&
@@ -5311,6 +5511,12 @@ class RecurringTransactionsCompanion
   final Value<String?> merchant;
   final Value<String?> tagSyncIdsJson;
   final Value<String?> rewardRuleIdsJson;
+  final Value<String?> projectSyncId;
+  final Value<double?> baseAmount;
+  final Value<double?> feeAmount;
+  final Value<String?> feeLabel;
+  final Value<double?> discountAmount;
+  final Value<String?> discountLabel;
   final Value<String> frequency;
   final Value<int> interval;
   final Value<String?> advancedRuleJson;
@@ -5340,6 +5546,12 @@ class RecurringTransactionsCompanion
     this.merchant = const Value.absent(),
     this.tagSyncIdsJson = const Value.absent(),
     this.rewardRuleIdsJson = const Value.absent(),
+    this.projectSyncId = const Value.absent(),
+    this.baseAmount = const Value.absent(),
+    this.feeAmount = const Value.absent(),
+    this.feeLabel = const Value.absent(),
+    this.discountAmount = const Value.absent(),
+    this.discountLabel = const Value.absent(),
     this.frequency = const Value.absent(),
     this.interval = const Value.absent(),
     this.advancedRuleJson = const Value.absent(),
@@ -5370,6 +5582,12 @@ class RecurringTransactionsCompanion
     this.merchant = const Value.absent(),
     this.tagSyncIdsJson = const Value.absent(),
     this.rewardRuleIdsJson = const Value.absent(),
+    this.projectSyncId = const Value.absent(),
+    this.baseAmount = const Value.absent(),
+    this.feeAmount = const Value.absent(),
+    this.feeLabel = const Value.absent(),
+    this.discountAmount = const Value.absent(),
+    this.discountLabel = const Value.absent(),
     required String frequency,
     this.interval = const Value.absent(),
     this.advancedRuleJson = const Value.absent(),
@@ -5404,6 +5622,12 @@ class RecurringTransactionsCompanion
     Expression<String>? merchant,
     Expression<String>? tagSyncIdsJson,
     Expression<String>? rewardRuleIdsJson,
+    Expression<String>? projectSyncId,
+    Expression<double>? baseAmount,
+    Expression<double>? feeAmount,
+    Expression<String>? feeLabel,
+    Expression<double>? discountAmount,
+    Expression<String>? discountLabel,
     Expression<String>? frequency,
     Expression<int>? interval,
     Expression<String>? advancedRuleJson,
@@ -5434,6 +5658,12 @@ class RecurringTransactionsCompanion
       if (merchant != null) 'merchant': merchant,
       if (tagSyncIdsJson != null) 'tag_sync_ids_json': tagSyncIdsJson,
       if (rewardRuleIdsJson != null) 'reward_rule_ids_json': rewardRuleIdsJson,
+      if (projectSyncId != null) 'project_sync_id': projectSyncId,
+      if (baseAmount != null) 'base_amount': baseAmount,
+      if (feeAmount != null) 'fee_amount': feeAmount,
+      if (feeLabel != null) 'fee_label': feeLabel,
+      if (discountAmount != null) 'discount_amount': discountAmount,
+      if (discountLabel != null) 'discount_label': discountLabel,
       if (frequency != null) 'frequency': frequency,
       if (interval != null) 'interval': interval,
       if (advancedRuleJson != null) 'advanced_rule_json': advancedRuleJson,
@@ -5466,6 +5696,12 @@ class RecurringTransactionsCompanion
       Value<String?>? merchant,
       Value<String?>? tagSyncIdsJson,
       Value<String?>? rewardRuleIdsJson,
+      Value<String?>? projectSyncId,
+      Value<double?>? baseAmount,
+      Value<double?>? feeAmount,
+      Value<String?>? feeLabel,
+      Value<double?>? discountAmount,
+      Value<String?>? discountLabel,
       Value<String>? frequency,
       Value<int>? interval,
       Value<String?>? advancedRuleJson,
@@ -5495,6 +5731,12 @@ class RecurringTransactionsCompanion
       merchant: merchant ?? this.merchant,
       tagSyncIdsJson: tagSyncIdsJson ?? this.tagSyncIdsJson,
       rewardRuleIdsJson: rewardRuleIdsJson ?? this.rewardRuleIdsJson,
+      projectSyncId: projectSyncId ?? this.projectSyncId,
+      baseAmount: baseAmount ?? this.baseAmount,
+      feeAmount: feeAmount ?? this.feeAmount,
+      feeLabel: feeLabel ?? this.feeLabel,
+      discountAmount: discountAmount ?? this.discountAmount,
+      discountLabel: discountLabel ?? this.discountLabel,
       frequency: frequency ?? this.frequency,
       interval: interval ?? this.interval,
       advancedRuleJson: advancedRuleJson ?? this.advancedRuleJson,
@@ -5554,6 +5796,24 @@ class RecurringTransactionsCompanion
     }
     if (rewardRuleIdsJson.present) {
       map['reward_rule_ids_json'] = Variable<String>(rewardRuleIdsJson.value);
+    }
+    if (projectSyncId.present) {
+      map['project_sync_id'] = Variable<String>(projectSyncId.value);
+    }
+    if (baseAmount.present) {
+      map['base_amount'] = Variable<double>(baseAmount.value);
+    }
+    if (feeAmount.present) {
+      map['fee_amount'] = Variable<double>(feeAmount.value);
+    }
+    if (feeLabel.present) {
+      map['fee_label'] = Variable<String>(feeLabel.value);
+    }
+    if (discountAmount.present) {
+      map['discount_amount'] = Variable<double>(discountAmount.value);
+    }
+    if (discountLabel.present) {
+      map['discount_label'] = Variable<String>(discountLabel.value);
     }
     if (frequency.present) {
       map['frequency'] = Variable<String>(frequency.value);
@@ -5619,6 +5879,12 @@ class RecurringTransactionsCompanion
           ..write('merchant: $merchant, ')
           ..write('tagSyncIdsJson: $tagSyncIdsJson, ')
           ..write('rewardRuleIdsJson: $rewardRuleIdsJson, ')
+          ..write('projectSyncId: $projectSyncId, ')
+          ..write('baseAmount: $baseAmount, ')
+          ..write('feeAmount: $feeAmount, ')
+          ..write('feeLabel: $feeLabel, ')
+          ..write('discountAmount: $discountAmount, ')
+          ..write('discountLabel: $discountLabel, ')
           ..write('frequency: $frequency, ')
           ..write('interval: $interval, ')
           ..write('advancedRuleJson: $advancedRuleJson, ')
@@ -21718,6 +21984,12 @@ typedef $$RecurringTransactionsTableCreateCompanionBuilder
   Value<String?> merchant,
   Value<String?> tagSyncIdsJson,
   Value<String?> rewardRuleIdsJson,
+  Value<String?> projectSyncId,
+  Value<double?> baseAmount,
+  Value<double?> feeAmount,
+  Value<String?> feeLabel,
+  Value<double?> discountAmount,
+  Value<String?> discountLabel,
   required String frequency,
   Value<int> interval,
   Value<String?> advancedRuleJson,
@@ -21749,6 +22021,12 @@ typedef $$RecurringTransactionsTableUpdateCompanionBuilder
   Value<String?> merchant,
   Value<String?> tagSyncIdsJson,
   Value<String?> rewardRuleIdsJson,
+  Value<String?> projectSyncId,
+  Value<double?> baseAmount,
+  Value<double?> feeAmount,
+  Value<String?> feeLabel,
+  Value<double?> discountAmount,
+  Value<String?> discountLabel,
   Value<String> frequency,
   Value<int> interval,
   Value<String?> advancedRuleJson,
@@ -21815,6 +22093,25 @@ class $$RecurringTransactionsTableFilterComposer
   ColumnFilters<String> get rewardRuleIdsJson => $composableBuilder(
       column: $table.rewardRuleIdsJson,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get projectSyncId => $composableBuilder(
+      column: $table.projectSyncId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get baseAmount => $composableBuilder(
+      column: $table.baseAmount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get feeAmount => $composableBuilder(
+      column: $table.feeAmount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get feeLabel => $composableBuilder(
+      column: $table.feeLabel, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get discountAmount => $composableBuilder(
+      column: $table.discountAmount,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get discountLabel => $composableBuilder(
+      column: $table.discountLabel, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get frequency => $composableBuilder(
       column: $table.frequency, builder: (column) => ColumnFilters(column));
@@ -21915,6 +22212,27 @@ class $$RecurringTransactionsTableOrderingComposer
       column: $table.rewardRuleIdsJson,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get projectSyncId => $composableBuilder(
+      column: $table.projectSyncId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get baseAmount => $composableBuilder(
+      column: $table.baseAmount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get feeAmount => $composableBuilder(
+      column: $table.feeAmount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get feeLabel => $composableBuilder(
+      column: $table.feeLabel, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get discountAmount => $composableBuilder(
+      column: $table.discountAmount,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get discountLabel => $composableBuilder(
+      column: $table.discountLabel,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get frequency => $composableBuilder(
       column: $table.frequency, builder: (column) => ColumnOrderings(column));
 
@@ -22013,6 +22331,24 @@ class $$RecurringTransactionsTableAnnotationComposer
   GeneratedColumn<String> get rewardRuleIdsJson => $composableBuilder(
       column: $table.rewardRuleIdsJson, builder: (column) => column);
 
+  GeneratedColumn<String> get projectSyncId => $composableBuilder(
+      column: $table.projectSyncId, builder: (column) => column);
+
+  GeneratedColumn<double> get baseAmount => $composableBuilder(
+      column: $table.baseAmount, builder: (column) => column);
+
+  GeneratedColumn<double> get feeAmount =>
+      $composableBuilder(column: $table.feeAmount, builder: (column) => column);
+
+  GeneratedColumn<String> get feeLabel =>
+      $composableBuilder(column: $table.feeLabel, builder: (column) => column);
+
+  GeneratedColumn<double> get discountAmount => $composableBuilder(
+      column: $table.discountAmount, builder: (column) => column);
+
+  GeneratedColumn<String> get discountLabel => $composableBuilder(
+      column: $table.discountLabel, builder: (column) => column);
+
   GeneratedColumn<String> get frequency =>
       $composableBuilder(column: $table.frequency, builder: (column) => column);
 
@@ -22103,6 +22439,12 @@ class $$RecurringTransactionsTableTableManager extends RootTableManager<
             Value<String?> merchant = const Value.absent(),
             Value<String?> tagSyncIdsJson = const Value.absent(),
             Value<String?> rewardRuleIdsJson = const Value.absent(),
+            Value<String?> projectSyncId = const Value.absent(),
+            Value<double?> baseAmount = const Value.absent(),
+            Value<double?> feeAmount = const Value.absent(),
+            Value<String?> feeLabel = const Value.absent(),
+            Value<double?> discountAmount = const Value.absent(),
+            Value<String?> discountLabel = const Value.absent(),
             Value<String> frequency = const Value.absent(),
             Value<int> interval = const Value.absent(),
             Value<String?> advancedRuleJson = const Value.absent(),
@@ -22133,6 +22475,12 @@ class $$RecurringTransactionsTableTableManager extends RootTableManager<
             merchant: merchant,
             tagSyncIdsJson: tagSyncIdsJson,
             rewardRuleIdsJson: rewardRuleIdsJson,
+            projectSyncId: projectSyncId,
+            baseAmount: baseAmount,
+            feeAmount: feeAmount,
+            feeLabel: feeLabel,
+            discountAmount: discountAmount,
+            discountLabel: discountLabel,
             frequency: frequency,
             interval: interval,
             advancedRuleJson: advancedRuleJson,
@@ -22163,6 +22511,12 @@ class $$RecurringTransactionsTableTableManager extends RootTableManager<
             Value<String?> merchant = const Value.absent(),
             Value<String?> tagSyncIdsJson = const Value.absent(),
             Value<String?> rewardRuleIdsJson = const Value.absent(),
+            Value<String?> projectSyncId = const Value.absent(),
+            Value<double?> baseAmount = const Value.absent(),
+            Value<double?> feeAmount = const Value.absent(),
+            Value<String?> feeLabel = const Value.absent(),
+            Value<double?> discountAmount = const Value.absent(),
+            Value<String?> discountLabel = const Value.absent(),
             required String frequency,
             Value<int> interval = const Value.absent(),
             Value<String?> advancedRuleJson = const Value.absent(),
@@ -22193,6 +22547,12 @@ class $$RecurringTransactionsTableTableManager extends RootTableManager<
             merchant: merchant,
             tagSyncIdsJson: tagSyncIdsJson,
             rewardRuleIdsJson: rewardRuleIdsJson,
+            projectSyncId: projectSyncId,
+            baseAmount: baseAmount,
+            feeAmount: feeAmount,
+            feeLabel: feeLabel,
+            discountAmount: discountAmount,
+            discountLabel: discountLabel,
             frequency: frequency,
             interval: interval,
             advancedRuleJson: advancedRuleJson,

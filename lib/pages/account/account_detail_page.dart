@@ -2244,6 +2244,19 @@ class TransactionTile extends ConsumerWidget {
           displaySubtitle = '${l10n.transferFromPrefix} $fromAccountName';
         }
       }
+      // 股票交易綁定的轉帳:副標前面加「股票買進/賣出」,跟交易列表的標籤一致。
+      final stockType = (transaction.syncId == null)
+          ? null
+          : ref.watch(stockTradeTypeByTxSyncIdProvider)[transaction.syncId!];
+      final stockLabel = switch (stockType) {
+        'buy' => l10n.stockTxTagBuy,
+        'sell' => l10n.stockTxTagSell,
+        _ => null,
+      };
+      if (stockLabel != null) {
+        displaySubtitle =
+            displaySubtitle == null ? stockLabel : '$stockLabel · $displaySubtitle';
+      }
     } else if (transaction.hasSplits) {
       // v38 拆帳:没有单一分类可显示,固定用「多類別」聚合标签(对齐
       // TransactionListItem 的处理)。

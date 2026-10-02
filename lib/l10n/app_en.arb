@@ -984,6 +984,11 @@
   "appearanceColorSchemeOff": "Red for expense · Green for income",
   "appearanceColorSchemeOnDesc": "Red represents income, green represents expense",
   "appearanceColorSchemeOffDesc": "Red represents expense, green represents income",
+  "appearanceStockColorScheme": "Stock Gain/Loss Colors",
+  "appearanceStockColorSchemeOn": "Red for gains · Green for losses",
+  "appearanceStockColorSchemeOff": "Green for gains · Red for losses",
+  "appearanceStockColorSchemeOnDesc": "Taiwan convention: red means price up, green means price down",
+  "appearanceStockColorSchemeOffDesc": "Western convention: green means price up, red means price down",
   "appearanceFirstDayOfWeek": "Week Starts On",
   "fontSettingsCurrentScale": "Current scale: x{scale}",
   "fontSettingsPreview": "Live Preview",
@@ -4549,7 +4554,7 @@
   "stockTradeTypeStockDividend": "Stock dividend",
   "stockTradeTypeCashDividend": "Cash dividend",
   "stockTradeTypeReinvest": "Dividend reinvestment",
-  "stockTradeTypeOpeningHint": "Shares you already held before using BeeCount. No money moves.",
+  "stockTradeTypeOpeningHint": "Shares you already held before using BeeCount. No money moves. One entry per stock is enough: your current shares and your broker's average cost.",
   "stockTradeTypeStockDividendHint": "Bonus shares received. Cost stays the same, so the average cost goes down.",
   "stockMarket": "Market",
   "stockSymbol": "Symbol",
@@ -4698,5 +4703,190 @@
   "stockNetValue": "Est. net proceeds",
   "stockEstSellFee": "Est. selling fee",
   "stockEstSellTax": "Est. transaction tax",
-  "stockPnlAfterSellCostsNote": "After estimated selling costs"
+  "stockPnlAfterSellCostsNote": "After estimated selling costs",
+  "recurringStockSettlementCurrencyMismatch": "The settlement account must use the same currency as the security (cross-currency plans are not supported yet)",
+  "recurringStockGeneratedNow": "Saved, bought {count} period(s) now",
+  "@recurringStockGeneratedNow": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recurringStockPlansTitle": "Recurring buys",
+  "recurringStockAddButton": "Recurring buy",
+  "recurringStockNextRun": "Next {date}",
+  "@recurringStockNextRun": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "whatsNew370StockDcaTitle": "Recurring stock purchases",
+  "whatsNew370StockDcaDesc": "Set up a recurring buy (DCA) for a stock with its own fee rules. When due it buys at the current quote and transfers from the settlement account; Taiwan stocks buy whole shares only, like the broker does (the amount includes the fee and the leftover is not charged), while US stocks can buy fractional shares. Start it from the investment account page, or from \"Add trade\" → \"Recurring buy\"; manage plans under Mine → Recurring.",
+  "recurringStockWholeShareHint": "Taiwan stock plans buy whole shares only: the amount includes the fee, as many whole shares as fit are bought, and the leftover is not charged.",
+  "recurringStockFractionalHint": "This market allows fractional shares: the whole amount is invested and the fee is charged on top.",
+  "recurringStockPreviewWhole": "At the current price {price}: {shares} shares, charged {total} (incl. fee {fee}), {left} not charged",
+  "@recurringStockPreviewWhole": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      },
+      "shares": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "fee": {
+        "type": "String"
+      },
+      "left": {
+        "type": "String"
+      }
+    }
+  },
+  "recurringStockPreviewFractional": "At the current price {price}: about {shares} shares, charged {total} (incl. fee {fee})",
+  "@recurringStockPreviewFractional": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      },
+      "shares": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "fee": {
+        "type": "String"
+      }
+    }
+  },
+  "recurringStockPreviewTooSmall": "At the current price {price} the amount cannot buy even 1 share including the fee; that period will be skipped",
+  "@recurringStockPreviewTooSmall": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "stockOpeningBatchEntry": "Add several opening positions",
+  "stockOpeningBatchTitle": "Opening positions",
+  "stockOpeningBatchIntro": "Enter each stock's current shares and average cost from your broker's holdings screen — no need to re-enter every past purchase. Cost basis and unrealized P/L come out the same; you just won't see the individual buys from before you started. Brokers' average cost usually already includes fees.",
+  "stockOpeningAsOfDate": "As of",
+  "stockOpeningCostMode": "Cost",
+  "stockOpeningCostTotal": "Total cost",
+  "stockOpeningAddRow": "Add a stock",
+  "stockOpeningPaste": "Paste from clipboard",
+  "stockOpeningPasteHint": "One stock per line: symbol, shares, cost, separated by tabs, spaces or commas — you can copy straight from Excel or Google Sheets; a name column is optional. Example: \"VOO 3.5 412.3\".",
+  "stockOpeningPasteEmpty": "Nothing to import on the clipboard (each line needs a symbol, shares and cost)",
+  "stockOpeningPasted": "Pasted {count} stocks, skipped {skipped} lines",
+  "@stockOpeningPasted": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "stockOpeningRowTotal": "Total cost {total}",
+  "@stockOpeningRowTotal": {
+    "placeholders": {
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "stockOpeningRowHeld": "Already holding {shares} shares; these will be added",
+  "@stockOpeningRowHeld": {
+    "placeholders": {
+      "shares": {
+        "type": "String"
+      }
+    }
+  },
+  "stockOpeningRowInvalid": "Stock #{row} is missing a symbol, shares or cost",
+  "@stockOpeningRowInvalid": {
+    "placeholders": {
+      "row": {
+        "type": "int"
+      }
+    }
+  },
+  "stockOpeningNothing": "Enter at least one stock",
+  "stockOpeningSaved": "Added {count} opening positions",
+  "@stockOpeningSaved": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "stockOpeningSummary": "{count} stocks · total cost {total}",
+  "@stockOpeningSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "whatsNew370OpeningHoldingsTitle": "Enter your current holdings at once",
+  "whatsNew370OpeningHoldingsDesc": "No need to re-enter every past purchase: type each stock's shares and average (or total) cost from your broker's holdings screen, or paste straight from Excel / Google Sheets. Open an investment account → Add trade → Opening → \"Add several opening positions\". Stock names now fill in automatically once you enter a symbol.",
+  "accountSwipeActionStockBuy": "Buy",
+  "accountSwipeActionStockSell": "Sell",
+  "accountSwipeActionStockDca": "Add recurring buy",
+  "accountSwipeStockRightLabel": "Investment accounts · swipe right",
+  "accountSwipeStockLeftLabel": "Investment accounts · swipe left",
+  "whatsNew370StockSwipeTitle": "Swipe to buy or sell",
+  "whatsNew370StockSwipeDesc": "An investment account's balance is the book cost of its holdings, so \"Adjust balance\" is gone for these accounts. On the Accounts list, swipe right to buy and swipe left to sell (or switch to adding a recurring buy). Entry: swipe an investment account on the Accounts page; change the actions under Mine → Appearance settings → swipe actions.",
+  "whatsNew370RecurringEditAllTitle": "Recurring edits now apply to every field",
+  "whatsNew370RecurringEditAllDesc": "“Edit this and future periods” now carries every field — project, tags, merchant, note, fees/discounts and card rewards, including clearing them — to the recurring rule and all later periods, and it stays in sync with the web. Entry: edit a recurring transaction → choose “Edit this and future periods”.",
+  "whatsNew370NotificationSyncTitle": "Notification settings follow your account",
+  "whatsNew370NotificationSyncDesc": "Daily bookkeeping reminders and credit card reminders are now saved to your BeeCount Cloud account, so a new device or reinstall picks up the same settings. (Notification permission is still granted per device.) Entry: Mine → Automation → Bookkeeping reminder / Credit card reminders.",
+  "whatsNew370StockColorTitle": "Separate stock gain/loss colors",
+  "whatsNew370StockColorDesc": "Stock gains and losses now have their own color setting, independent of the income/expense colors (default: red up, green down). It syncs with the web. Entry: Mine → Appearance → Stock Gain/Loss Colors.",
+  "stockTradeTypeSplit": "Stock split",
+  "stockTradeTypeSplitHint": "Record a split or reverse split. Enter how many shares 1 share becomes (1-for-4 split: 4; 2-for-1 reverse split: 0.5). Share count is multiplied, total cost stays the same, so average cost is divided. No price, fee or settlement account.",
+  "stockSplitRatio": "Shares 1 share becomes",
+  "stockSplitRatioInvalid": "Enter a ratio greater than 0 (e.g. 4, or 0.5 for a reverse split).",
+  "stockSplitDetail": "Split 1→{ratio}",
+  "@stockSplitDetail": {"placeholders": {"ratio": {"type": "String"}}},
+  "stockRealizedReportTitle": "Realized P&L",
+  "stockRealizedReportEntryDesc": "Sales P&L and dividends by year, account and symbol",
+  "stockRealizedAllYears": "All years",
+  "stockRealizedAllAccounts": "All accounts",
+  "stockRealizedAllSymbols": "All symbols",
+  "stockRealizedProceeds": "Proceeds",
+  "stockRealizedCostBasis": "Cost basis",
+  "stockRealizedSellCount": "{count} sales",
+  "@stockRealizedSellCount": {"placeholders": {"count": {"type": "int"}}},
+  "stockRealizedEmpty": "No sales or dividends in this range.",
+  "stockRealizedCurrencyNote": "Totals are per currency and are not converted or added together.",
+  "stockFlowNetInvested": "Net invested in stocks",
+  "stockFlowBuySell": "Bought {buy} · Sold {sell}",
+  "@stockFlowBuySell": {"placeholders": {"buy": {"type": "String"}, "sell": {"type": "String"}}},
+  "stockFlowNotCounted": "not counted as income or expense",
+  "stockFlowFees": "Fees & transaction tax {amount} (investment cost, not counted as expense)",
+  "@stockFlowFees": {"placeholders": {"amount": {"type": "String"}}},
+  "stockFlowDividends": "Dividend income {amount} (already included in income)",
+  "@stockFlowDividends": {"placeholders": {"amount": {"type": "String"}}},
+  "stockNetWorthNoteExcluded": "Investment accounts are excluded. Buying stocks lowers net worth (a transfer, not an expense).",
+  "stockNetWorthNoteWithValue": "Excludes investment accounts · Investment value about {value} shown separately",
+  "@stockNetWorthNoteWithValue": {"placeholders": {"value": {"type": "String"}}},
+  "stockNetWorthIncludedWarning": "{count} investment account(s) are still counted in net worth (at cost), which may double count with investment value.",
+  "@stockNetWorthIncludedWarning": {"placeholders": {"count": {"type": "int"}}},
+  "stockNetWorthTrendNote": "The trend excludes investment accounts, so buying stocks shows up as a drop.",
+  "stockTxTagBuy": "Stock buy",
+  "stockTxTagSell": "Stock sell",
+  "stockTxTagReinvest": "Dividend reinvest",
+  "exportCsvHeaderFee": "Fee",
+  "exportCsvHeaderDiscount": "Discount / tax",
+  "exportCsvHeaderStockTrade": "Stock trade"
 }

@@ -608,9 +608,18 @@ class TransferFormState extends ConsumerState<TransferForm>
     });
   }
 
-  void _pickDate() async {
+  /// 收起焦點,只在系統鍵盤實際開著時才等它收起(100ms)再開選擇器。
+  /// 必須在 unfocus 之前讀 viewInsets;見 transaction_entry_form.dart 同名方法。
+  Future<void> _unfocusBeforePicker() async {
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     FocusManager.instance.primaryFocus?.unfocus();
-    await Future.delayed(const Duration(milliseconds: 100));
+    if (keyboardOpen) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+  }
+
+  void _pickDate() async {
+    await _unfocusBeforePicker();
     if (!mounted) return;
 
     // 日期/時間拆成兩個獨立欄位各自喚起專屬選擇器,見
@@ -624,8 +633,7 @@ class TransferFormState extends ConsumerState<TransferForm>
   }
 
   void _pickTime() async {
-    FocusManager.instance.primaryFocus?.unfocus();
-    await Future.delayed(const Duration(milliseconds: 100));
+    await _unfocusBeforePicker();
     if (!mounted) return;
 
     final res = await showTransactionTimePicker(
@@ -637,6 +645,20 @@ class TransferFormState extends ConsumerState<TransferForm>
       _date = DateTime(_date.year, _date.month, _date.day, res.hour, res.minute,
           _date.second);
     });
+  }
+
+  /// 目前選中的標籤 → syncId 清單(週期規則模板存 syncId)。負數 id 是共享
+  /// 帳本 synthetic tag,規則模板不帶。
+  Future<List<String>> _selectedTagSyncIds(dynamic repo) async {
+    final normal = _selectedTagIds.where((id) => id >= 0).toList();
+    if (normal.isEmpty || repo is! LocalRepository) return const [];
+    final rows = await (repo.db.select(repo.db.tags)
+          ..where((t) => t.id.isIn(normal)))
+        .get();
+    return [
+      for (final t in rows)
+        if (t.syncId != null) t.syncId!
+    ];
   }
 
   Future<void> _submit() async {
@@ -841,9 +863,20 @@ class TransferFormState extends ConsumerState<TransferForm>
               accountId: fromAccountForAdd,
               toAccountId: toAccountForAdd,
               note: note,
+              clearNote: (note ?? '').trim().isEmpty,
               merchant: merchant,
+              clearMerchant: (merchant ?? '').trim().isEmpty,
+              tagSyncIds: await _selectedTagSyncIds(repo),
               toAmount:
                   d.Value<double?>(sameCurrency ? null : resolvedToAmount),
+              feeAmount:
+                  d.Value<double?>(_feeEnabled ? resolvedFeeAmount : null),
+              feeLabel:
+                  d.Value<String?>(_feeEnabled ? resolvedFeeLabel : null),
+              discountAmount: d.Value<double?>(
+                  _discountEnabled ? resolvedDiscountAmount : null),
+              discountLabel: d.Value<String?>(
+                  _discountEnabled ? resolvedDiscountLabel : null),
             );
           }
         }
@@ -1656,7 +1689,7 @@ class TransferFormState extends ConsumerState<TransferForm>
     final l10n = AppLocalizations.of(context);
     final service = ref.read(attachmentServiceProvider);
 
-    await showModalBottomSheet(
+    await showBeeBottomSheet(
       context: context,
       builder: (_) => SafeArea(
         child: Column(

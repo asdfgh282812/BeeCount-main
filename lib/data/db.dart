@@ -817,6 +817,20 @@ class RecurringTransactions extends Table {
   /// 语意,规则生成的每期 occurrence 都带上。wire 字段 rewardRuleIds。
   TextColumn get rewardRuleIdsJson => text().nullable()();
 
+  /// v65:規則模板的專案關聯(project syncId),規則生成的每期 occurrence 都
+  /// 繼承。wire 字段 projectId(Cloud `read_recurring_rule_projection.
+  /// project_sync_id`)。
+  TextColumn get projectSyncId => text().nullable()();
+
+  /// v65:規則模板的手續費/折扣(支出/收入),語意同 [Transactions] 對應欄位,
+  /// 每期 occurrence 繼承。wire 字段 baseAmount/feeAmount/feeLabel/
+  /// discountAmount/discountLabel。
+  RealColumn get baseAmount => real().nullable()();
+  RealColumn get feeAmount => real().nullable()();
+  TextColumn get feeLabel => text().nullable()();
+  RealColumn get discountAmount => real().nullable()();
+  TextColumn get discountLabel => text().nullable()();
+
   // 重复规则
   TextColumn get frequency => text()(); // daily / weekly / monthly / yearly
   IntColumn get interval =>
@@ -1330,7 +1344,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 64; // v64: 股票定期定額(recurring_transactions.kind/market/symbol/security_name/stock_fee_rate/stock_fee_min)
+  int get schemaVersion => 65; // v65: 週期規則補專案/手續費/折扣欄位; v64: 股票定期定額(recurring_transactions.kind/market/symbol/security_name/stock_fee_rate/stock_fee_min)
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2728,6 +2742,23 @@ class BeeDatabase extends _$BeeDatabase {
                 'stock_fee_min',
                 'ALTER TABLE recurring_transactions ADD COLUMN stock_fee_min REAL;');
             logger.info('DBMigration', 'v64 迁移完成');
+          }
+          if (from < 65) {
+            // v65:週期規則補專案/手續費/折扣欄位,讓「修改連同未來週期」能把
+            // 這些欄位寫進規則、並套用到之後生成的每一期。全部 nullable。
+            logger.info('DBMigration', '开始迁移到 v65: 週期規則專案/手續費/折扣');
+            for (final c in const [
+              ['project_sync_id', 'TEXT'],
+              ['base_amount', 'REAL'],
+              ['fee_amount', 'REAL'],
+              ['fee_label', 'TEXT'],
+              ['discount_amount', 'REAL'],
+              ['discount_label', 'TEXT'],
+            ]) {
+              await _addColumnIfMissing('recurring_transactions', c[0],
+                  'ALTER TABLE recurring_transactions ADD COLUMN ${c[0]} ${c[1]};');
+            }
+            logger.info('DBMigration', 'v65 迁移完成');
           }
         },
         onCreate: (m) async {

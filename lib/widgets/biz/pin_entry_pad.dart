@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../styles/tokens.dart';
 import '../../utils/ui_scale_extensions.dart';
 import '../../providers/theme_providers.dart';
+import '../ui/bee_pressable.dart';
 
 /// PIN 码圆点指示器
 class PinDotIndicator extends ConsumerWidget {
@@ -128,24 +129,61 @@ class NumberPad extends ConsumerWidget {
     VoidCallback? onTap,
   }) {
     final size = 72.0.scaled(context, ref);
-    return GestureDetector(
-      onTap: () {
-        if (onTap != null) {
-          HapticFeedback.lightImpact();
-          onTap();
-        }
-      },
-      child: Container(
+    // 佔位键(onTap == null)不可点,不做按压回馈
+    if (onTap == null) {
+      return Container(
         width: size,
         height: size,
         alignment: Alignment.center,
+        child: child,
+      );
+    }
+    return _PinKey(size: size, onTap: onTap, child: child);
+  }
+}
+
+/// PIN 圆形按键:按下时缩放 0.92 + 底色加深一阶,触觉回馈仍在放开(onTap)时触发。
+class _PinKey extends StatefulWidget {
+  const _PinKey({
+    required this.size,
+    required this.onTap,
+    required this.child,
+  });
+
+  final double size;
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  State<_PinKey> createState() => _PinKeyState();
+}
+
+class _PinKeyState extends State<_PinKey> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = BeeTokens.surfaceSecondary(context);
+    final pressedColor = Color.alphaBlend(
+        BeeTokens.textPrimary(context).withValues(alpha: 0.08), base);
+    return BeePressable(
+      pressedScale: 0.92,
+      onPressedChanged: (v) => setState(() => _pressed = v),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        widget.onTap();
+      },
+      child: AnimatedContainer(
+        duration:
+            BeeMotion.durationOf(context, const Duration(milliseconds: 100)),
+        width: widget.size,
+        height: widget.size,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: onTap != null
-              ? BeeTokens.surfaceSecondary(context)
-              : Colors.transparent,
+          color: _pressed ? pressedColor : base,
         ),
-        child: child,
+        child: widget.child,
       ),
     );
   }

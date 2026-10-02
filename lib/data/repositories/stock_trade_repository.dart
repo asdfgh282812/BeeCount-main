@@ -46,7 +46,9 @@ abstract class StockTradeRepository {
   /// 交易的備註(UI 傳在地化的預設文字),null 時用 [note] 或內建格式。
   /// [recurringRuleId] 供股票定期定額規則(`kind='stock_dca'`)到期生成用:
   /// 帶上規則 syncId,綁定的轉帳交易就會出現在該規則「查看已生成交易」清
-  /// 單裡(同一般週期性收支規則的 occurrence 語意)。
+  /// 單裡(同一般週期性收支規則的 occurrence 語意)。[syncId]/[txSyncId] 也
+  /// 只給定期定額用:每一期用 `stockDcaOccurrenceIds` 推出來的固定 syncId,
+  /// App 跟 Cloud 各自生成同一期時 sync 只會互相覆蓋,不會變兩筆。
   Future<int> createStockTrade({
     required int ledgerId,
     required int accountId,
@@ -65,6 +67,8 @@ abstract class StockTradeRepository {
     String? note,
     String? txNote,
     String? recurringRuleId,
+    String? syncId,
+    String? txSyncId,
   });
 
   /// trade_type / 帳戶 / 標的建立後不可改(改了等同刪掉重建,同 Cloud)。

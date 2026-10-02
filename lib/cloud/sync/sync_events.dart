@@ -69,6 +69,12 @@ class ProfileFieldApplied extends SyncEvent {
   const ProfileFieldApplied.aiConfig(Map<String, dynamic> aiConfig)
       : this._(field: ProfileField.aiConfig, value: aiConfig);
 
+  const ProfileFieldApplied.notificationSettings(
+      Map<String, dynamic> notificationSettings)
+      : this._(
+            field: ProfileField.notificationSettings,
+            value: notificationSettings);
+
   const ProfileFieldApplied.displayName(String name)
       : this._(field: ProfileField.displayName, value: name);
 
@@ -76,11 +82,13 @@ class ProfileFieldApplied extends SyncEvent {
       : this._(field: ProfileField.primaryCurrency, value: code);
 
   final ProfileField field;
+
   /// 类型由 [field] 决定:
   /// - `themeColor` → `String`(hex)
   /// - `incomeColor` → `bool`
   /// - `appearance` → `Map<String, dynamic>`
   /// - `aiConfig` → `Map<String, dynamic>`
+  /// - `notificationSettings` → `Map<String, dynamic>`
   /// - `displayName` → `String`
   /// - `primaryCurrency` → `String`(ISO code)
   final Object value;
@@ -91,6 +99,7 @@ enum ProfileField {
   incomeColor,
   appearance,
   aiConfig,
+  notificationSettings,
   displayName,
   primaryCurrency,
 }

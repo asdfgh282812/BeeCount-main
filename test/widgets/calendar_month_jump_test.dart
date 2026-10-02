@@ -21,6 +21,7 @@ import 'package:beecount/data/repositories/local/local_repository.dart';
 import 'package:beecount/l10n/app_localizations.dart';
 import 'package:beecount/pages/calendar/calendar_body.dart';
 import 'package:beecount/providers/database_providers.dart';
+import 'package:beecount/providers/securities_providers.dart';
 import 'package:beecount/widgets/ui/wheel_date_picker.dart';
 
 void main() {
@@ -67,6 +68,9 @@ void main() {
         repositoryProvider.overrideWithValue(repo),
         currentLedgerProvider
             .overrideWith((ref) => Stream<Ledger?>.value(cnyLedger())),
+        // 日曆新增了股票買賣標示(stockTradesProvider 是 drift stream),測試不關心,
+        // 用固定空清單避免 stream 在 tearDown 留下 pending timer。
+        stockTradesProvider.overrideWith((ref) => Stream.value(const <StockTrade>[])),
       ],
       child: MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,

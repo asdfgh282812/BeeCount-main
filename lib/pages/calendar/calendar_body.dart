@@ -310,10 +310,12 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
             } else {
               // 展开回整月时恢复「日恒为 1」的月份不变量,维持
               // _onPageChanged/jumpToMonth/_showMonthJumpPicker 的共同前置假设。
-              _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
+              _focusedMonth =
+                  DateTime(_focusedMonth.year, _focusedMonth.month, 1);
             }
           });
-          ref.read(calendarSelectedMonthProvider.notifier).state = _focusedMonth;
+          ref.read(calendarSelectedMonthProvider.notifier).state =
+              _focusedMonth;
           ref.read(selectedMonthProvider.notifier).state = _focusedMonth;
         }
       },
@@ -475,6 +477,12 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
     final (income, expense) = totals ?? (0.0, 0.0);
     final hasTransaction = income > 0 || expense > 0;
     final netAmount = income - expense;
+    // 股票買賣是轉帳,日曆格的收入/支出淨額不含它——當天只有股票買賣時格子會是空
+    // 的,補一個小圖示讓使用者知道那天有紀錄(點進去在列表看得到)。
+    final hasStockOnly = !hasTransaction &&
+        !isOutside &&
+        ref.watch(stockCashTradeDayKeysProvider(
+            ref.watch(currentLedgerIdProvider))).contains(dateKey);
 
     // 文字颜色
     Color textColor;
@@ -521,6 +529,14 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
               ),
             ),
           ),
+          if (hasStockOnly) ...[
+            const SizedBox(height: 1),
+            Icon(Icons.candlestick_chart_outlined,
+                size: 10,
+                color: isSelected
+                    ? BeeTokens.textSecondary(context)
+                    : BeeTokens.textTertiary(context)),
+          ],
           // 净额（收入-支出），只占一行，不再分两行显示收入/支出
           if (!isOutside && hasTransaction) ...[
             const SizedBox(height: 1),
@@ -608,11 +624,10 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
                   .toList();
 
               // 转账账户信息(同 transaction_list.dart 的处理:转出 → 转入)
-              final transferAccountInfo = (isTransfer &&
-                      item.account != null &&
-                      item.toAccount != null)
-                  ? '${item.account!.name} → ${item.toAccount!.name}'
-                  : null;
+              final transferAccountInfo =
+                  (isTransfer && item.account != null && item.toAccount != null)
+                      ? '${item.account!.name} → ${item.toAccount!.name}'
+                      : null;
 
               return TransactionListItem(
                 icon: getCategoryIconData(
@@ -631,6 +646,7 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
                 isTransfer: isTransfer,
                 happenedAt: item.t.happenedAt,
                 hasSplits: item.t.hasSplits,
+                txSyncId: item.t.syncId,
                 accountName:
                     isTransfer ? transferAccountInfo : item.account?.name,
                 tags: tagsList.isNotEmpty ? tagsList : null,
@@ -656,7 +672,39 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
       ),
     );
 
-    return card;
+    // 切換日期時:內容淡入淡出 + 高度平滑伸縮,避免明細生硬跳換
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+      alignment: Alignment.topCenter,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 220),
+        switchInCurve: Curves.easeOut,
+        switchOutCurve: Curves.easeIn,
+        layoutBuilder: (current, previous) => Stack(
+          alignment: Alignment.topCenter,
+          children: [
+            ...previous
+                .map((w) => Positioned(top: 0, left: 0, right: 0, child: w)),
+            if (current != null) current,
+          ],
+        ),
+        transitionBuilder: (child, animation) => FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.03),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
+        ),
+        child: KeyedSubtree(
+          key: ValueKey(_formatDate(date)),
+          child: card,
+        ),
+      ),
+    );
   }
 
   String _formatDate(DateTime date) {

@@ -73,6 +73,10 @@ App 啟動時(`lib/providers/ui_state_providers.dart`)在既有
   (`recurringStockOccurrenceHint`)。
 
 ## 已知限制 / 沒做的部分
+
+> **2026-09-29 更新**:下面第 2 點(跨端欄位沒接同步)已修正,連同多個生成邏輯/UI
+> 問題,見 `2026-09-29-stock-dca-fixes.md`。
+
 1. **不支援跨幣別 DCA**:交割帳戶幣別必須等於證券幣別(同既有限制)。
 2. **App 與 BeeCount Cloud(Web)各自獨立實作**——`kind`/`market`/`symbol`/
    `stockFeeRate`/`stockFeeMin` 這幾個欄位目前只是「App 本地」跟「Cloud

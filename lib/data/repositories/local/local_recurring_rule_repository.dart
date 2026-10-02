@@ -46,6 +46,12 @@ class LocalRecurringRuleRepository {
     String? securityName,
     double? stockFeeRate,
     double? stockFeeMin,
+    String? projectSyncId,
+    double? baseAmount,
+    double? feeAmount,
+    String? feeLabel,
+    double? discountAmount,
+    String? discountLabel,
   }) async {
     return await db.into(db.recurringTransactions).insert(
           RecurringTransactionsCompanion.insert(
@@ -73,6 +79,12 @@ class LocalRecurringRuleRepository {
             securityName: d.Value(securityName),
             stockFeeRate: d.Value(stockFeeRate),
             stockFeeMin: d.Value(stockFeeMin),
+            projectSyncId: d.Value(projectSyncId),
+            baseAmount: d.Value(baseAmount),
+            feeAmount: d.Value(feeAmount),
+            feeLabel: d.Value(feeLabel),
+            discountAmount: d.Value(discountAmount),
+            discountLabel: d.Value(discountLabel),
           ),
         );
   }
@@ -105,11 +117,20 @@ class LocalRecurringRuleRepository {
     DateTime? endAt,
     bool clearEndAt = false,
     DateTime? generatedUntilAt,
+    bool clearGeneratedUntilAt = false,
     bool? enabled,
     double? stockFeeRate,
     bool clearStockFeeRate = false,
     double? stockFeeMin,
     bool clearStockFeeMin = false,
+    // v65:專案/手續費/折扣——tri-state([d.Value.absent] = 不動;
+    // `d.Value(null)` = 清空),因為「改成沒有專案/沒有手續費」是正常操作。
+    d.Value<String?> projectSyncId = const d.Value.absent(),
+    d.Value<double?> baseAmount = const d.Value.absent(),
+    d.Value<double?> feeAmount = const d.Value.absent(),
+    d.Value<String?> feeLabel = const d.Value.absent(),
+    d.Value<double?> discountAmount = const d.Value.absent(),
+    d.Value<String?> discountLabel = const d.Value.absent(),
   }) async {
     await (db.update(db.recurringTransactions)..where((r) => r.id.equals(id)))
         .write(RecurringTransactionsCompanion(
@@ -143,9 +164,16 @@ class LocalRecurringRuleRepository {
           : (advancedRule != null ? d.Value(jsonEncode(advancedRule)) : const d.Value.absent()),
       nextRunAt: nextRunAt != null ? d.Value(nextRunAt) : const d.Value.absent(),
       endAt: clearEndAt ? const d.Value(null) : (endAt != null ? d.Value(endAt) : const d.Value.absent()),
-      generatedUntilAt:
-          generatedUntilAt != null ? d.Value(generatedUntilAt) : const d.Value.absent(),
+      generatedUntilAt: clearGeneratedUntilAt
+          ? const d.Value(null)
+          : (generatedUntilAt != null ? d.Value(generatedUntilAt) : const d.Value.absent()),
       enabled: enabled != null ? d.Value(enabled) : const d.Value.absent(),
+      projectSyncId: projectSyncId,
+      baseAmount: baseAmount,
+      feeAmount: feeAmount,
+      feeLabel: feeLabel,
+      discountAmount: discountAmount,
+      discountLabel: discountLabel,
       stockFeeRate: clearStockFeeRate
           ? const d.Value(null)
           : (stockFeeRate != null ? d.Value(stockFeeRate) : const d.Value.absent()),

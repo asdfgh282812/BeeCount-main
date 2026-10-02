@@ -363,6 +363,7 @@ class _TagDetailPageState extends ConsumerState<TagDetailPage> {
                 accountName: transferAccountInfo,
                 happenedAt: transaction.happenedAt,
                 hasSplits: transaction.hasSplits,
+                txSyncId: transaction.syncId,
                 onTap: () async {
                   await showTransactionDetailCard(
                     context,

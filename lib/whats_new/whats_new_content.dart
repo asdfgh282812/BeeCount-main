@@ -157,5 +157,36 @@ final Map<String, List<WhatsNewItem>> kWhatsNewContent = {
       title: (l10n) => l10n.whatsNew370StockDividendsTitle,
       description: (l10n) => l10n.whatsNew370StockDividendsDesc,
     ),
+    // 股票定期定額(docs/changes/2026-09-28-stock-dca-recurring.md、
+    // 2026-09-29-stock-dca-fixes.md)。
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew370StockDcaTitle,
+      description: (l10n) => l10n.whatsNew370StockDcaDesc,
+    ),
+    // 批次期初持股(docs/changes/2026-09-30-dca-sync-opening-holdings.md)。
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew370OpeningHoldingsTitle,
+      description: (l10n) => l10n.whatsNew370OpeningHoldingsDesc,
+    ),
+    // 投資帳戶滑動快捷(docs/changes/2026-09-30-stock-account-swipe-actions.md)。
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew370StockSwipeTitle,
+      description: (l10n) => l10n.whatsNew370StockSwipeDesc,
+    ),
+    // 週期交易「連同未來」全欄位同步(docs/changes/2026-10-01-recurring-edit-future-all-fields.md)。
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew370RecurringEditAllTitle,
+      description: (l10n) => l10n.whatsNew370RecurringEditAllDesc,
+    ),
+    // 通知設定綁帳號(docs/changes/2026-10-02-notification-settings-account-sync.md)。
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew370NotificationSyncTitle,
+      description: (l10n) => l10n.whatsNew370NotificationSyncDesc,
+    ),
+    // 股票漲跌顏色獨立設定(docs/changes/2026-10-03-stock-up-down-color.md)。
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew370StockColorTitle,
+      description: (l10n) => l10n.whatsNew370StockColorDesc,
+    ),
   ],
 };

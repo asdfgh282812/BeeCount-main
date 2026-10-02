@@ -25,10 +25,14 @@ import 'smart_billing_providers.dart';
 import '../ai/core/ai_project_assign_mode.dart';
 import '../services/attachment_service.dart' show attachmentListRefreshProvider;
 import '../services/system/logger_service.dart';
+import '../services/system/notification_settings_sync.dart';
+import 'reminder_providers.dart';
+import 'credit_card_reminder_reevaluation.dart';
 import '../services/ui/avatar_service.dart';
 import '../models/note_history.dart';
 import '../styles/header_skins.dart'
     show boundPrimaryOf, headerSkinById, kHeaderSkinNone;
+import 'account_swipe_action_providers.dart';
 import 'theme_providers.dart';
 import 'budget_providers.dart';
 import 'project_providers.dart';
@@ -277,6 +281,9 @@ final syncServiceProvider = Provider<SyncService>((ref) {
               _applyDisplayNameFromServer(ref, value as String);
             case ProfileField.primaryCurrency:
               unawaited(_applyBaseCurrencyFromServer(ref, value as String));
+            case ProfileField.notificationSettings:
+              unawaited(_applyNotificationSettingsFromServer(
+                  ref, value as Map<String, dynamic>));
             case ProfileField.aiConfig:
               unawaited(() async {
                 await AIProviderManager.applyFromServer(
@@ -335,6 +342,23 @@ final syncServiceProvider = Provider<SyncService>((ref) {
           logger.info('CloudSync', 'AI 配置已推送到 server');
         } catch (e, st) {
           logger.warning('CloudSync', 'AI 配置推送失败 (non-blocking): $e', st);
+        }
+      }());
+    };
+
+    // 通知設定變更時推到 server(綁帳號)。呼叫點:ReminderSettingsNotifier
+    // 與信用卡提醒設定頁的儲存。
+    NotificationSettingsSync.onChanged = () {
+      unawaited(() async {
+        try {
+          final cloud = await ref.read(beecountCloudProviderInstance.future);
+          if (cloud == null) return;
+          await cloud.updateMyProfileNotificationSettings(
+            notificationSettings: await NotificationSettingsSync.snapshot(),
+          );
+          logger.info('CloudSync', '通知設定已推送到 server');
+        } catch (e, st) {
+          logger.warning('CloudSync', '通知設定推送失敗 (non-blocking): $e', st);
         }
       }());
     };
@@ -651,6 +675,8 @@ Future<void> reconcileProfileToServer({
     if (cloud == null) return;
     final profile = await cloud.getMyProfile();
 
+    await NotificationSettingsSync.reconcile(cloud, profile);
+
     // theme_primary_color
     if (profile.themePrimaryColor == null ||
         profile.themePrimaryColor!.isEmpty) {
@@ -761,6 +787,29 @@ Future<void> reconcileProfileToServer({
     }
   } catch (e, st) {
     logger.warning('CloudSync', 'reconcileProfileToServer 失败: $e', st);
+  }
+}
+
+/// server 下行的通知設定寫回 prefs,並讓本機排程跟上新值。
+/// 不經過 `NotificationSettingsSync.notifyChanged`,不會回推。
+Future<void> _applyNotificationSettingsFromServer(
+    Ref ref, Map<String, dynamic> remote) async {
+  try {
+    final changed = await NotificationSettingsSync.applyFromServer(remote);
+    if (!changed) return;
+    await ref.read(reminderSettingsProvider.notifier).reload();
+    // 雲端啟用時信用卡本機提醒會被取消(改由 server 推播),這裡仍走同一個
+    // 重新評估入口,讓 skipIfCloudActive 邏輯維持單一來源。
+    final repo = ref.read(repositoryProvider);
+    await reevaluateAllCreditCardReminders(
+      repo: repo,
+      creditCardAccounts: await repo.getCreditCardAccounts(),
+      skipIfCloudActive:
+          ref.read(beecountCloudProviderInstance).valueOrNull != null,
+    );
+    logger.info('CloudSync', '通知設定已套用 server 值');
+  } catch (e, st) {
+    logger.warning('CloudSync', '通知設定 apply 失敗: $e', st);
   }
 }
 
@@ -948,6 +997,13 @@ void _applyAppearanceFields(Ref ref, Map<String, dynamic> appearance) {
       ref.read(weekStartsOnMondayProvider.notifier).state = weekStartsMonday;
     }
   }
+  final stockUpIsRed = appearance['stock_up_is_red'] as bool?;
+  if (stockUpIsRed != null) {
+    final current = ref.read(stockUpIsRedProvider);
+    if (current != stockUpIsRed) {
+      ref.read(stockUpIsRedProvider.notifier).state = stockUpIsRed;
+    }
+  }
   final categoryIconStyleRaw = appearance['category_icon_style'] as String?;
   // 本地刚切换、push 还没落地时,这次下行多半带着 server 上还没被覆盖的旧值——
   // 采信它就会把用户刚点的开关扳回去,跟主题色当年的闪烁是同一个坑
@@ -1027,6 +1083,16 @@ void _applyAppearanceFields(Ref ref, Map<String, dynamic> appearance) {
       ref.read(noteHistoryLimitProvider.notifier).state = noteHistoryLimit;
     }
   }
+  // 帳戶滑動快捷操作(一般帳戶 / 投資帳戶各一組)
+  unawaited(ref.read(accountSwipeSettingsProvider.notifier).applyFromServer(
+        left: appearance['account_swipe_left'] as String?,
+        right: appearance['account_swipe_right'] as String?,
+      ));
+  unawaited(
+      ref.read(stockAccountSwipeSettingsProvider.notifier).applyFromServer(
+            left: appearance['account_swipe_stock_left'] as String?,
+            right: appearance['account_swipe_stock_right'] as String?,
+          ));
   logger.info('profile_sync', 'applied appearance from server: $appearance');
 }
 

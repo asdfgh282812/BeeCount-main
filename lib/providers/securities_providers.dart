@@ -5,6 +5,7 @@ import '../data/db.dart';
 import '../models/investment_settings.dart';
 import '../services/currency/rate_math.dart';
 import '../services/investment/holdings_calculator.dart';
+import '../services/investment/investment_flow.dart';
 import '../services/investment/markets.dart';
 import '../cloud/sync/sync_engine.dart';
 import '../services/system/logger_service.dart';
@@ -281,6 +282,88 @@ final investmentSummaryProvider = Provider<InvestmentSummary?>((ref) {
   return computeInvestmentSummary(holdings: holdings, rates: rates, base: base);
 });
 
+// ---------------------------------------------------------------------------
+// 股票報表一致性(docs/changes/2026-10-03-stock-report-consistency.md)
+// ---------------------------------------------------------------------------
+
+/// 綁了轉帳/income 交易的股票明細:交易 syncId → tradeType。給各交易列表標示
+/// 「股票買進/賣出/股利再投入」用(O(1) 查詢,不必逐列打 DB)。
+final stockTradeTypeByTxSyncIdProvider = Provider<Map<String, String>>((ref) {
+  final trades = ref.watch(stockTradesProvider).valueOrNull;
+  if (trades == null || trades.isEmpty) return const {};
+  return {
+    for (final t in trades)
+      if (t.txSyncId != null && t.txSyncId!.isNotEmpty) t.txSyncId!: t.tradeType,
+  };
+});
+
+/// 純函式 [InvestmentFlow.compute] 的輸入(載入中回 null)。
+final investmentFlowTradesProvider =
+    Provider<List<InvestmentFlowTrade>?>((ref) {
+  final trades = ref.watch(stockTradesProvider).valueOrNull;
+  if (trades == null) return null;
+  return [
+    for (final t in trades)
+      InvestmentFlowTrade(
+        tradeType: t.tradeType,
+        amount: t.amount,
+        fee: t.fee,
+        tax: t.tax,
+        currency: t.currency,
+        market: t.market,
+        tradeDate: t.tradeDate,
+        ledgerId: t.ledgerId,
+      ),
+  ];
+});
+
+/// 某帳本有股票買賣(buy/sell,會產生轉帳)的日期 key(`yyyy-MM-dd`,本地日期),
+/// 日曆格用:只有股票買賣的日子收支淨額是空的,要補標示。
+final stockCashTradeDayKeysProvider =
+    Provider.family<Set<String>, int>((ref, ledgerId) {
+  final trades = ref.watch(stockTradesProvider).valueOrNull;
+  if (trades == null || trades.isEmpty) return const {};
+  String key(DateTime t) {
+    final l = t.toLocal();
+    return '${l.year.toString().padLeft(4, '0')}-${l.month.toString().padLeft(2, '0')}-${l.day.toString().padLeft(2, '0')}';
+  }
+
+  return {
+    for (final t in trades)
+      if (t.ledgerId == ledgerId &&
+          (t.tradeType == 'buy' || t.tradeType == 'sell'))
+        key(t.tradeDate),
+  };
+});
+
+typedef InvestmentFlowQuery = ({
+  int? ledgerId,
+  DateTime? start,
+  DateTime? end,
+  String? currency,
+});
+
+/// 某期間的股票現金流(買進/賣出/淨投入/手續費稅/股利),折成 [currency]
+/// (null = 使用者主幣別;報表傳帳本本位幣,跟收支同一個幣別)。期間內沒有
+/// 任何買賣/股利時回 null(UI 不顯示補充資訊)。缺匯率的幣別剔除並列在
+/// [InvestmentFlowConverted.missingCurrencies]。
+final investmentFlowProvider = Provider.family
+    .autoDispose<InvestmentFlowConverted?, InvestmentFlowQuery>((ref, q) {
+  final trades = ref.watch(investmentFlowTradesProvider);
+  if (trades == null) return null;
+  final flow = InvestmentFlow.compute(trades,
+      start: q.start, end: q.end, ledgerId: q.ledgerId);
+  if (flow.isEmpty) return null;
+  final rates = ref.watch(effectiveRatesProvider).valueOrNull ??
+      const <String, EffectiveRate>{};
+  final base = ref.watch(baseCurrencyProvider);
+  final target = (q.currency ?? base).toUpperCase();
+  return flow.convertTo(
+      target,
+      (c) => InvestmentFlow.crossRate(
+          c, target, (x) => rateToBase(x, base, rates)));
+});
+
 /// 投資理財帳戶以「帳戶幣別」計的持股市值(帳戶列表顯示用,取代交易累計的
 /// 成本餘額)。帳戶有未平倉部位但任何一檔缺報價/缺匯率時不給值,讓列表
 /// 退回顯示原本的餘額,不顯示一個少算的市值。
@@ -451,6 +534,32 @@ class QuoteRefreshNotifier extends StateNotifier<QuoteRefreshState> {
     for (final k in missing) {
       _missingAttempts[k] = now;
     }
+    await refresh(force: true, extraKeys: missing);
+  }
+
+  /// 股票定期定額到期生成前(App 啟動時,見 ui_state_providers.dart)補抓啟用中
+  /// 定期定額標的的報價(2026-09-29)。還沒持有的代號(第一期還沒扣)不在
+  /// [refresh] 的持股清單裡,以前快取永遠沒有報價,每次啟動都被
+  /// quoteUnavailable 跳過。只抓快取缺價或超過 15 分鐘的;沒登入 Cloud 時
+  /// [refresh] 自己會直接結束(非 Cloud 使用者只能手動輸入價格)。
+  Future<void> refreshForStockDcaRules() async {
+    final repo = _ref.read(repositoryProvider);
+    final rules = await repo.getAllRulesForExport();
+    final keys = rules
+        .where((r) =>
+            r.enabled && r.kind == 'stock_dca' && r.market != null && r.symbol != null)
+        .map((r) => securityKey(r.market!, r.symbol!))
+        .toSet();
+    if (keys.isEmpty) return;
+    final now = DateTime.now();
+    final fresh = (await repo.getSecurityQuotes())
+        .where((q) =>
+            q.price != null &&
+            now.difference(q.fetchedAt) < const Duration(minutes: 15))
+        .map((q) => securityKey(q.market, q.symbol))
+        .toSet();
+    final missing = keys.difference(fresh).toList();
+    if (missing.isEmpty) return;
     await refresh(force: true, extraKeys: missing);
   }
 

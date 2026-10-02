@@ -478,6 +478,11 @@
   "appearanceColorSchemeOff": "紅色支出 · 綠色收入",
   "appearanceColorSchemeOnDesc": "紅色表示收入，綠色表示支出",
   "appearanceColorSchemeOffDesc": "紅色表示支出，綠色表示收入",
+  "appearanceStockColorScheme": "股票漲跌顏色",
+  "appearanceStockColorSchemeOn": "紅漲 · 綠跌",
+  "appearanceStockColorSchemeOff": "綠漲 · 紅跌",
+  "appearanceStockColorSchemeOnDesc": "台灣習慣：紅色代表上漲/賺，綠色代表下跌/虧",
+  "appearanceStockColorSchemeOffDesc": "國際習慣：綠色代表上漲/賺，紅色代表下跌/虧",
   "appearanceFirstDayOfWeek": "每週起始日",
   "appearanceThemeMode": "外觀模式",
   "appearanceThemeModeDark": "暗黑模式",
@@ -4066,7 +4071,7 @@
   "stockTradeTypeStockDividend": "配股",
   "stockTradeTypeCashDividend": "現金股利",
   "stockTradeTypeReinvest": "股利再投入",
-  "stockTradeTypeOpeningHint": "開始記帳前就持有的股票，不會產生金流。",
+  "stockTradeTypeOpeningHint": "開始記帳前就持有的股票，不會產生金流。每檔記一筆就好：股數填目前庫存，平均成本填券商顯示的成本均價。",
   "stockTradeTypeStockDividendHint": "配發的股票股利，不增加成本，平均成本會降低。",
   "stockMarket": "市場",
   "stockSymbol": "代號",
@@ -4197,5 +4202,171 @@
   "stockNetValue": "預估變現淨值",
   "stockEstSellFee": "預估賣出手續費",
   "stockEstSellTax": "預估交易稅",
-  "stockPnlAfterSellCostsNote": "已扣預估賣出費用"
+  "stockPnlAfterSellCostsNote": "已扣預估賣出費用",
+  "recurringStockSettlementCurrencyMismatch": "交割帳戶的幣別必須跟這檔證券相同(暫不支援跨幣別定期定額)",
+  "recurringStockGeneratedNow": "已儲存,已立即執行 {count} 期",
+  "recurringStockPlansTitle": "定期定額計畫",
+  "recurringStockAddButton": "定期定額",
+  "recurringStockNextRun": "下次 {date}",
+  "whatsNew370StockDcaTitle": "股票定期定額",
+  "whatsNew370StockDcaDesc": "可以替股票設定定期定額,手續費能跟單筆買進分開設定。到期時依當下報價自動買進,並從交割帳戶轉帳;台股跟券商一樣只買整數股(每期金額含手續費,零頭不扣款),美股可買碎股。入口:投資理財帳戶的持股頁「定期定額」,或「新增交易」→「定期定額」;計畫可在「我的 → 週期性收支」管理。",
+  "recurringStockWholeShareHint": "台股定期定額只買整數股:每期金額含手續費,能買幾股就買幾股,買不滿 1 股的零頭不扣款。",
+  "recurringStockFractionalHint": "這個市場允許碎股:每期金額全部買進(股數可有小數),手續費另外扣。",
+  "recurringStockPreviewWhole": "以目前價格 {price} 可買 {shares} 股,扣款 {total}(含手續費 {fee}),{left} 不扣款",
+  "@recurringStockPreviewWhole": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      },
+      "shares": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "fee": {
+        "type": "String"
+      },
+      "left": {
+        "type": "String"
+      }
+    }
+  },
+  "recurringStockPreviewFractional": "以目前價格 {price} 約可買 {shares} 股,扣款 {total}(含手續費 {fee})",
+  "@recurringStockPreviewFractional": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      },
+      "shares": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "fee": {
+        "type": "String"
+      }
+    }
+  },
+  "recurringStockPreviewTooSmall": "以目前價格 {price},每期金額連 1 股(含手續費)都買不起,到期時這期會略過",
+  "@recurringStockPreviewTooSmall": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "stockOpeningBatchEntry": "一次新增多檔期初持股",
+  "stockOpeningBatchTitle": "批次新增期初持股",
+  "stockOpeningBatchIntro": "照券商 App「庫存」頁輸入每一檔目前的股數跟平均成本就好，不用逐筆補記以前的每次買進：持股成本跟未實現損益會完全一樣，只是看不到記帳前的個別買進紀錄。券商顯示的成本均價通常已含手續費。",
+  "stockOpeningAsOfDate": "持股日期",
+  "stockOpeningCostMode": "成本",
+  "stockOpeningCostTotal": "總成本",
+  "stockOpeningAddRow": "新增一檔",
+  "stockOpeningPaste": "從剪貼簿貼上",
+  "stockOpeningPasteHint": "每行一檔：代號、股數、成本，用 Tab、空白或逗號分隔，可以直接從 Excel 或 Google 試算表複製，名稱可有可無。例如「0050 1000 120.5」。",
+  "stockOpeningPasteEmpty": "剪貼簿裡沒有可以解析的資料（每行需要代號、股數、成本）",
+  "stockOpeningPasted": "已貼上 {count} 檔，略過 {skipped} 行",
+  "@stockOpeningPasted": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "stockOpeningRowTotal": "總成本 {total}",
+  "@stockOpeningRowTotal": {
+    "placeholders": {
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "stockOpeningRowHeld": "已持有 {shares} 股，會再加上去",
+  "@stockOpeningRowHeld": {
+    "placeholders": {
+      "shares": {
+        "type": "String"
+      }
+    }
+  },
+  "stockOpeningRowInvalid": "第 {row} 檔的代號、股數或成本沒有填完整",
+  "@stockOpeningRowInvalid": {
+    "placeholders": {
+      "row": {
+        "type": "int"
+      }
+    }
+  },
+  "stockOpeningNothing": "請至少輸入一檔",
+  "stockOpeningSaved": "已新增 {count} 檔期初持股",
+  "@stockOpeningSaved": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "stockOpeningSummary": "共 {count} 檔 · 總成本 {total}",
+  "@stockOpeningSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "whatsNew370OpeningHoldingsTitle": "一次輸入目前持股",
+  "whatsNew370OpeningHoldingsDesc": "以前就買過很多次的股票不用逐筆補記：照券商「庫存」頁輸入每一檔的股數跟平均成本（或總成本）就好，也可以直接從 Excel／Google 試算表貼上。從投資理財帳戶 → 新增交易 → 期初持股 →「一次新增多檔期初持股」進入。輸入代號後也會自動帶入名稱。",
+  "accountSwipeActionStockBuy": "買進",
+  "accountSwipeActionStockSell": "賣出",
+  "accountSwipeActionStockDca": "新增定期定額",
+  "accountSwipeStockRightLabel": "投資帳戶 · 右滑操作",
+  "accountSwipeStockLeftLabel": "投資帳戶 · 左滑操作",
+  "whatsNew370StockSwipeTitle": "投資帳戶滑動買賣",
+  "whatsNew370StockSwipeDesc": "投資理財帳戶的餘額是持股成本的帳面數,不再提供「調整餘額」。帳戶列表向右滑直接買進、向左滑直接賣出,也可以改成新增定期定額。入口:帳戶頁滑動投資理財帳戶;要改動作到「我的 → 個性化設定」的滑動快捷操作。",
+  "whatsNew370RecurringEditAllTitle": "週期交易「連同未來」改動全欄位同步",
+  "whatsNew370RecurringEditAllDesc": "「修改連同未來週期」現在會把專案、標籤、商家、備註、手續費/折扣與信用卡回饋(含清空)一併套用到週期規則與之後的每一期,且與網頁端一致。入口:編輯週期性交易 → 選「修改連同未來週期」。",
+  "whatsNew370NotificationSyncTitle": "通知設定跟著帳號走",
+  "whatsNew370NotificationSyncDesc": "記帳提醒與信用卡提醒的設定現在會存到 BeeCount Cloud 帳號，換新裝置或重新安裝後會自動套用相同設定（通知權限仍需在各裝置上個別允許）。入口：我的 → 自動化 → 記帳提醒／信用卡提醒。",
+  "whatsNew370StockColorTitle": "股票漲跌顏色可單獨設定",
+  "whatsNew370StockColorDesc": "股票的賺賠顏色現在有獨立設定，不再跟收支顏色綁在一起（預設紅漲綠跌），並與網頁端同步。入口：我的 → 外觀設定 → 股票漲跌顏色。",
+  "stockTradeTypeSplit": "股票分割",
+  "stockTradeTypeSplitHint": "記錄股票分割或反向分割。輸入「1 股變成幾股」(1 拆 4 輸入 4;2 合 1 反向分割輸入 0.5)。股數會乘上比例、總成本不變,平均成本自動除以比例;不需要價格、手續費與交割帳戶。",
+  "stockSplitRatio": "1 股變成幾股",
+  "stockSplitRatioInvalid": "請輸入大於 0 的比例(例如 4;反向分割輸入 0.5)",
+  "stockSplitDetail": "分割 1→{ratio}",
+  "@stockSplitDetail": {"placeholders": {"ratio": {"type": "String"}}},
+  "stockRealizedReportTitle": "已實現損益",
+  "stockRealizedReportEntryDesc": "依年度、帳戶、標的查看賣出損益與累計股利",
+  "stockRealizedAllYears": "全部年度",
+  "stockRealizedAllAccounts": "全部帳戶",
+  "stockRealizedAllSymbols": "全部標的",
+  "stockRealizedProceeds": "賣出收入",
+  "stockRealizedCostBasis": "成本",
+  "stockRealizedSellCount": "{count} 筆賣出",
+  "@stockRealizedSellCount": {"placeholders": {"count": {"type": "int"}}},
+  "stockRealizedEmpty": "這個範圍內沒有賣出或股利紀錄",
+  "stockRealizedCurrencyNote": "各幣別分開統計,不換算也不跨幣別加總。",
+  "stockFlowNetInvested": "投資淨投入",
+  "stockFlowBuySell": "買進 {buy} · 賣出 {sell}",
+  "stockFlowNotCounted": "未計入收入與支出",
+  "stockFlowFees": "手續費與證交稅 {amount}（投資成本，不計入支出）",
+  "stockFlowDividends": "股利收入 {amount}（已計入收入）",
+  "stockNetWorthNoteExcluded": "不含投資理財帳戶。買進股票會讓淨資產減少（是轉帳，不是支出）。",
+  "stockNetWorthNoteWithValue": "不含投資理財帳戶 · 另有投資市值約 {value}（不含於淨資產）",
+  "stockNetWorthIncludedWarning": "有 {count} 個投資理財帳戶仍計入淨資產（以成本計），可能與投資市值重複計算。",
+  "stockNetWorthTrendNote": "走勢不含投資理財帳戶，買進股票當天會呈現下降。",
+  "stockTxTagBuy": "股票買進",
+  "stockTxTagSell": "股票賣出",
+  "stockTxTagReinvest": "股利再投入",
+  "exportCsvHeaderFee": "手續費",
+  "exportCsvHeaderDiscount": "折損與稅",
+  "exportCsvHeaderStockTrade": "股票交易"
 }

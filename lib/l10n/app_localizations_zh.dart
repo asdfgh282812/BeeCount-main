@@ -2413,6 +2413,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appearanceColorSchemeOffDesc => '红色表示支出，绿色表示收入';
 
   @override
+  String get appearanceStockColorScheme => 'Stock Gain/Loss Colors';
+
+  @override
+  String get appearanceStockColorSchemeOn => 'Red for gains · Green for losses';
+
+  @override
+  String get appearanceStockColorSchemeOff =>
+      'Green for gains · Red for losses';
+
+  @override
+  String get appearanceStockColorSchemeOnDesc =>
+      'Taiwan convention: red means price up, green means price down';
+
+  @override
+  String get appearanceStockColorSchemeOffDesc =>
+      'Western convention: green means price up, red means price down';
+
+  @override
   String get appearanceFirstDayOfWeek => 'Week Starts On';
 
   @override
@@ -10509,7 +10527,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get stockTradeTypeOpeningHint =>
-      'Shares you already held before using BeeCount. No money moves.';
+      'Shares you already held before using BeeCount. No money moves. One entry per stock is enough: your current shares and your broker\'s average cost.';
 
   @override
   String get stockTradeTypeStockDividendHint =>
@@ -10956,6 +10974,287 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get stockPnlAfterSellCostsNote => 'After estimated selling costs';
+
+  @override
+  String get recurringStockSettlementCurrencyMismatch =>
+      'The settlement account must use the same currency as the security (cross-currency plans are not supported yet)';
+
+  @override
+  String recurringStockGeneratedNow(int count) {
+    return 'Saved, bought $count period(s) now';
+  }
+
+  @override
+  String get recurringStockPlansTitle => 'Recurring buys';
+
+  @override
+  String get recurringStockAddButton => 'Recurring buy';
+
+  @override
+  String recurringStockNextRun(String date) {
+    return 'Next $date';
+  }
+
+  @override
+  String get whatsNew370StockDcaTitle => 'Recurring stock purchases';
+
+  @override
+  String get whatsNew370StockDcaDesc =>
+      'Set up a recurring buy (DCA) for a stock with its own fee rules. When due it buys at the current quote and transfers from the settlement account; Taiwan stocks buy whole shares only, like the broker does (the amount includes the fee and the leftover is not charged), while US stocks can buy fractional shares. Start it from the investment account page, or from \"Add trade\" → \"Recurring buy\"; manage plans under Mine → Recurring.';
+
+  @override
+  String get recurringStockWholeShareHint =>
+      'Taiwan stock plans buy whole shares only: the amount includes the fee, as many whole shares as fit are bought, and the leftover is not charged.';
+
+  @override
+  String get recurringStockFractionalHint =>
+      'This market allows fractional shares: the whole amount is invested and the fee is charged on top.';
+
+  @override
+  String recurringStockPreviewWhole(
+      String price, String shares, String total, String fee, String left) {
+    return 'At the current price $price: $shares shares, charged $total (incl. fee $fee), $left not charged';
+  }
+
+  @override
+  String recurringStockPreviewFractional(
+      String price, String shares, String total, String fee) {
+    return 'At the current price $price: about $shares shares, charged $total (incl. fee $fee)';
+  }
+
+  @override
+  String recurringStockPreviewTooSmall(String price) {
+    return 'At the current price $price the amount cannot buy even 1 share including the fee; that period will be skipped';
+  }
+
+  @override
+  String get stockOpeningBatchEntry => 'Add several opening positions';
+
+  @override
+  String get stockOpeningBatchTitle => 'Opening positions';
+
+  @override
+  String get stockOpeningBatchIntro =>
+      'Enter each stock\'s current shares and average cost from your broker\'s holdings screen — no need to re-enter every past purchase. Cost basis and unrealized P/L come out the same; you just won\'t see the individual buys from before you started. Brokers\' average cost usually already includes fees.';
+
+  @override
+  String get stockOpeningAsOfDate => 'As of';
+
+  @override
+  String get stockOpeningCostMode => 'Cost';
+
+  @override
+  String get stockOpeningCostTotal => 'Total cost';
+
+  @override
+  String get stockOpeningAddRow => 'Add a stock';
+
+  @override
+  String get stockOpeningPaste => 'Paste from clipboard';
+
+  @override
+  String get stockOpeningPasteHint =>
+      'One stock per line: symbol, shares, cost, separated by tabs, spaces or commas — you can copy straight from Excel or Google Sheets; a name column is optional. Example: \"VOO 3.5 412.3\".';
+
+  @override
+  String get stockOpeningPasteEmpty =>
+      'Nothing to import on the clipboard (each line needs a symbol, shares and cost)';
+
+  @override
+  String stockOpeningPasted(int count, int skipped) {
+    return 'Pasted $count stocks, skipped $skipped lines';
+  }
+
+  @override
+  String stockOpeningRowTotal(String total) {
+    return 'Total cost $total';
+  }
+
+  @override
+  String stockOpeningRowHeld(String shares) {
+    return 'Already holding $shares shares; these will be added';
+  }
+
+  @override
+  String stockOpeningRowInvalid(int row) {
+    return 'Stock #$row is missing a symbol, shares or cost';
+  }
+
+  @override
+  String get stockOpeningNothing => 'Enter at least one stock';
+
+  @override
+  String stockOpeningSaved(int count) {
+    return 'Added $count opening positions';
+  }
+
+  @override
+  String stockOpeningSummary(int count, String total) {
+    return '$count stocks · total cost $total';
+  }
+
+  @override
+  String get whatsNew370OpeningHoldingsTitle =>
+      'Enter your current holdings at once';
+
+  @override
+  String get whatsNew370OpeningHoldingsDesc =>
+      'No need to re-enter every past purchase: type each stock\'s shares and average (or total) cost from your broker\'s holdings screen, or paste straight from Excel / Google Sheets. Open an investment account → Add trade → Opening → \"Add several opening positions\". Stock names now fill in automatically once you enter a symbol.';
+
+  @override
+  String get accountSwipeActionStockBuy => 'Buy';
+
+  @override
+  String get accountSwipeActionStockSell => 'Sell';
+
+  @override
+  String get accountSwipeActionStockDca => 'Add recurring buy';
+
+  @override
+  String get accountSwipeStockRightLabel => 'Investment accounts · swipe right';
+
+  @override
+  String get accountSwipeStockLeftLabel => 'Investment accounts · swipe left';
+
+  @override
+  String get whatsNew370StockSwipeTitle => 'Swipe to buy or sell';
+
+  @override
+  String get whatsNew370StockSwipeDesc =>
+      'An investment account\'s balance is the book cost of its holdings, so \"Adjust balance\" is gone for these accounts. On the Accounts list, swipe right to buy and swipe left to sell (or switch to adding a recurring buy). Entry: swipe an investment account on the Accounts page; change the actions under Mine → Appearance settings → swipe actions.';
+
+  @override
+  String get whatsNew370RecurringEditAllTitle =>
+      'Recurring edits now apply to every field';
+
+  @override
+  String get whatsNew370RecurringEditAllDesc =>
+      '“Edit this and future periods” now carries every field — project, tags, merchant, note, fees/discounts and card rewards, including clearing them — to the recurring rule and all later periods, and it stays in sync with the web. Entry: edit a recurring transaction → choose “Edit this and future periods”.';
+
+  @override
+  String get whatsNew370NotificationSyncTitle =>
+      'Notification settings follow your account';
+
+  @override
+  String get whatsNew370NotificationSyncDesc =>
+      'Daily bookkeeping reminders and credit card reminders are now saved to your BeeCount Cloud account, so a new device or reinstall picks up the same settings. (Notification permission is still granted per device.) Entry: Mine → Automation → Bookkeeping reminder / Credit card reminders.';
+
+  @override
+  String get whatsNew370StockColorTitle => 'Separate stock gain/loss colors';
+
+  @override
+  String get whatsNew370StockColorDesc =>
+      'Stock gains and losses now have their own color setting, independent of the income/expense colors (default: red up, green down). It syncs with the web. Entry: Mine → Appearance → Stock Gain/Loss Colors.';
+
+  @override
+  String get stockTradeTypeSplit => 'Stock split';
+
+  @override
+  String get stockTradeTypeSplitHint =>
+      'Record a split or reverse split. Enter how many shares 1 share becomes (1-for-4 split: 4; 2-for-1 reverse split: 0.5). Share count is multiplied, total cost stays the same, so average cost is divided. No price, fee or settlement account.';
+
+  @override
+  String get stockSplitRatio => 'Shares 1 share becomes';
+
+  @override
+  String get stockSplitRatioInvalid =>
+      'Enter a ratio greater than 0 (e.g. 4, or 0.5 for a reverse split).';
+
+  @override
+  String stockSplitDetail(String ratio) {
+    return 'Split 1→$ratio';
+  }
+
+  @override
+  String get stockRealizedReportTitle => 'Realized P&L';
+
+  @override
+  String get stockRealizedReportEntryDesc =>
+      'Sales P&L and dividends by year, account and symbol';
+
+  @override
+  String get stockRealizedAllYears => 'All years';
+
+  @override
+  String get stockRealizedAllAccounts => 'All accounts';
+
+  @override
+  String get stockRealizedAllSymbols => 'All symbols';
+
+  @override
+  String get stockRealizedProceeds => 'Proceeds';
+
+  @override
+  String get stockRealizedCostBasis => 'Cost basis';
+
+  @override
+  String stockRealizedSellCount(int count) {
+    return '$count sales';
+  }
+
+  @override
+  String get stockRealizedEmpty => 'No sales or dividends in this range.';
+
+  @override
+  String get stockRealizedCurrencyNote =>
+      'Totals are per currency and are not converted or added together.';
+
+  @override
+  String get stockFlowNetInvested => 'Net invested in stocks';
+
+  @override
+  String stockFlowBuySell(String buy, String sell) {
+    return 'Bought $buy · Sold $sell';
+  }
+
+  @override
+  String get stockFlowNotCounted => 'not counted as income or expense';
+
+  @override
+  String stockFlowFees(String amount) {
+    return 'Fees & transaction tax $amount (investment cost, not counted as expense)';
+  }
+
+  @override
+  String stockFlowDividends(String amount) {
+    return 'Dividend income $amount (already included in income)';
+  }
+
+  @override
+  String get stockNetWorthNoteExcluded =>
+      'Investment accounts are excluded. Buying stocks lowers net worth (a transfer, not an expense).';
+
+  @override
+  String stockNetWorthNoteWithValue(String value) {
+    return 'Excludes investment accounts · Investment value about $value shown separately';
+  }
+
+  @override
+  String stockNetWorthIncludedWarning(int count) {
+    return '$count investment account(s) are still counted in net worth (at cost), which may double count with investment value.';
+  }
+
+  @override
+  String get stockNetWorthTrendNote =>
+      'The trend excludes investment accounts, so buying stocks shows up as a drop.';
+
+  @override
+  String get stockTxTagBuy => 'Stock buy';
+
+  @override
+  String get stockTxTagSell => 'Stock sell';
+
+  @override
+  String get stockTxTagReinvest => 'Dividend reinvest';
+
+  @override
+  String get exportCsvHeaderFee => 'Fee';
+
+  @override
+  String get exportCsvHeaderDiscount => 'Discount / tax';
+
+  @override
+  String get exportCsvHeaderStockTrade => 'Stock trade';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -13352,6 +13651,21 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get appearanceColorSchemeOffDesc => '紅色表示支出，綠色表示收入';
+
+  @override
+  String get appearanceStockColorScheme => '股票漲跌顏色';
+
+  @override
+  String get appearanceStockColorSchemeOn => '紅漲 · 綠跌';
+
+  @override
+  String get appearanceStockColorSchemeOff => '綠漲 · 紅跌';
+
+  @override
+  String get appearanceStockColorSchemeOnDesc => '台灣習慣：紅色代表上漲/賺，綠色代表下跌/虧';
+
+  @override
+  String get appearanceStockColorSchemeOffDesc => '國際習慣：綠色代表上漲/賺，紅色代表下跌/虧';
 
   @override
   String get appearanceFirstDayOfWeek => '每週起始日';
@@ -21347,7 +21661,8 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get stockTradeTypeReinvest => '股利再投入';
 
   @override
-  String get stockTradeTypeOpeningHint => '開始記帳前就持有的股票，不會產生金流。';
+  String get stockTradeTypeOpeningHint =>
+      '開始記帳前就持有的股票，不會產生金流。每檔記一筆就好：股數填目前庫存，平均成本填券商顯示的成本均價。';
 
   @override
   String get stockTradeTypeStockDividendHint => '配發的股票股利，不增加成本，平均成本會降低。';
@@ -21781,4 +22096,276 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get stockPnlAfterSellCostsNote => '已扣預估賣出費用';
+
+  @override
+  String get recurringStockSettlementCurrencyMismatch =>
+      '交割帳戶的幣別必須跟這檔證券相同(暫不支援跨幣別定期定額)';
+
+  @override
+  String recurringStockGeneratedNow(int count) {
+    return '已儲存,已立即執行 $count 期';
+  }
+
+  @override
+  String get recurringStockPlansTitle => '定期定額計畫';
+
+  @override
+  String get recurringStockAddButton => '定期定額';
+
+  @override
+  String recurringStockNextRun(String date) {
+    return '下次 $date';
+  }
+
+  @override
+  String get whatsNew370StockDcaTitle => '股票定期定額';
+
+  @override
+  String get whatsNew370StockDcaDesc =>
+      '可以替股票設定定期定額,手續費能跟單筆買進分開設定。到期時依當下報價自動買進,並從交割帳戶轉帳;台股跟券商一樣只買整數股(每期金額含手續費,零頭不扣款),美股可買碎股。入口:投資理財帳戶的持股頁「定期定額」,或「新增交易」→「定期定額」;計畫可在「我的 → 週期性收支」管理。';
+
+  @override
+  String get recurringStockWholeShareHint =>
+      '台股定期定額只買整數股:每期金額含手續費,能買幾股就買幾股,買不滿 1 股的零頭不扣款。';
+
+  @override
+  String get recurringStockFractionalHint =>
+      '這個市場允許碎股:每期金額全部買進(股數可有小數),手續費另外扣。';
+
+  @override
+  String recurringStockPreviewWhole(
+      String price, String shares, String total, String fee, String left) {
+    return '以目前價格 $price 可買 $shares 股,扣款 $total(含手續費 $fee),$left 不扣款';
+  }
+
+  @override
+  String recurringStockPreviewFractional(
+      String price, String shares, String total, String fee) {
+    return '以目前價格 $price 約可買 $shares 股,扣款 $total(含手續費 $fee)';
+  }
+
+  @override
+  String recurringStockPreviewTooSmall(String price) {
+    return '以目前價格 $price,每期金額連 1 股(含手續費)都買不起,到期時這期會略過';
+  }
+
+  @override
+  String get stockOpeningBatchEntry => '一次新增多檔期初持股';
+
+  @override
+  String get stockOpeningBatchTitle => '批次新增期初持股';
+
+  @override
+  String get stockOpeningBatchIntro =>
+      '照券商 App「庫存」頁輸入每一檔目前的股數跟平均成本就好，不用逐筆補記以前的每次買進：持股成本跟未實現損益會完全一樣，只是看不到記帳前的個別買進紀錄。券商顯示的成本均價通常已含手續費。';
+
+  @override
+  String get stockOpeningAsOfDate => '持股日期';
+
+  @override
+  String get stockOpeningCostMode => '成本';
+
+  @override
+  String get stockOpeningCostTotal => '總成本';
+
+  @override
+  String get stockOpeningAddRow => '新增一檔';
+
+  @override
+  String get stockOpeningPaste => '從剪貼簿貼上';
+
+  @override
+  String get stockOpeningPasteHint =>
+      '每行一檔：代號、股數、成本，用 Tab、空白或逗號分隔，可以直接從 Excel 或 Google 試算表複製，名稱可有可無。例如「0050 1000 120.5」。';
+
+  @override
+  String get stockOpeningPasteEmpty => '剪貼簿裡沒有可以解析的資料（每行需要代號、股數、成本）';
+
+  @override
+  String stockOpeningPasted(int count, int skipped) {
+    return '已貼上 $count 檔，略過 $skipped 行';
+  }
+
+  @override
+  String stockOpeningRowTotal(String total) {
+    return '總成本 $total';
+  }
+
+  @override
+  String stockOpeningRowHeld(String shares) {
+    return '已持有 $shares 股，會再加上去';
+  }
+
+  @override
+  String stockOpeningRowInvalid(int row) {
+    return '第 $row 檔的代號、股數或成本沒有填完整';
+  }
+
+  @override
+  String get stockOpeningNothing => '請至少輸入一檔';
+
+  @override
+  String stockOpeningSaved(int count) {
+    return '已新增 $count 檔期初持股';
+  }
+
+  @override
+  String stockOpeningSummary(int count, String total) {
+    return '共 $count 檔 · 總成本 $total';
+  }
+
+  @override
+  String get whatsNew370OpeningHoldingsTitle => '一次輸入目前持股';
+
+  @override
+  String get whatsNew370OpeningHoldingsDesc =>
+      '以前就買過很多次的股票不用逐筆補記：照券商「庫存」頁輸入每一檔的股數跟平均成本（或總成本）就好，也可以直接從 Excel／Google 試算表貼上。從投資理財帳戶 → 新增交易 → 期初持股 →「一次新增多檔期初持股」進入。輸入代號後也會自動帶入名稱。';
+
+  @override
+  String get accountSwipeActionStockBuy => '買進';
+
+  @override
+  String get accountSwipeActionStockSell => '賣出';
+
+  @override
+  String get accountSwipeActionStockDca => '新增定期定額';
+
+  @override
+  String get accountSwipeStockRightLabel => '投資帳戶 · 右滑操作';
+
+  @override
+  String get accountSwipeStockLeftLabel => '投資帳戶 · 左滑操作';
+
+  @override
+  String get whatsNew370StockSwipeTitle => '投資帳戶滑動買賣';
+
+  @override
+  String get whatsNew370StockSwipeDesc =>
+      '投資理財帳戶的餘額是持股成本的帳面數,不再提供「調整餘額」。帳戶列表向右滑直接買進、向左滑直接賣出,也可以改成新增定期定額。入口:帳戶頁滑動投資理財帳戶;要改動作到「我的 → 個性化設定」的滑動快捷操作。';
+
+  @override
+  String get whatsNew370RecurringEditAllTitle => '週期交易「連同未來」改動全欄位同步';
+
+  @override
+  String get whatsNew370RecurringEditAllDesc =>
+      '「修改連同未來週期」現在會把專案、標籤、商家、備註、手續費/折扣與信用卡回饋(含清空)一併套用到週期規則與之後的每一期,且與網頁端一致。入口:編輯週期性交易 → 選「修改連同未來週期」。';
+
+  @override
+  String get whatsNew370NotificationSyncTitle => '通知設定跟著帳號走';
+
+  @override
+  String get whatsNew370NotificationSyncDesc =>
+      '記帳提醒與信用卡提醒的設定現在會存到 BeeCount Cloud 帳號，換新裝置或重新安裝後會自動套用相同設定（通知權限仍需在各裝置上個別允許）。入口：我的 → 自動化 → 記帳提醒／信用卡提醒。';
+
+  @override
+  String get whatsNew370StockColorTitle => '股票漲跌顏色可單獨設定';
+
+  @override
+  String get whatsNew370StockColorDesc =>
+      '股票的賺賠顏色現在有獨立設定，不再跟收支顏色綁在一起（預設紅漲綠跌），並與網頁端同步。入口：我的 → 外觀設定 → 股票漲跌顏色。';
+
+  @override
+  String get stockTradeTypeSplit => '股票分割';
+
+  @override
+  String get stockTradeTypeSplitHint =>
+      '記錄股票分割或反向分割。輸入「1 股變成幾股」(1 拆 4 輸入 4;2 合 1 反向分割輸入 0.5)。股數會乘上比例、總成本不變,平均成本自動除以比例;不需要價格、手續費與交割帳戶。';
+
+  @override
+  String get stockSplitRatio => '1 股變成幾股';
+
+  @override
+  String get stockSplitRatioInvalid => '請輸入大於 0 的比例(例如 4;反向分割輸入 0.5)';
+
+  @override
+  String stockSplitDetail(String ratio) {
+    return '分割 1→$ratio';
+  }
+
+  @override
+  String get stockRealizedReportTitle => '已實現損益';
+
+  @override
+  String get stockRealizedReportEntryDesc => '依年度、帳戶、標的查看賣出損益與累計股利';
+
+  @override
+  String get stockRealizedAllYears => '全部年度';
+
+  @override
+  String get stockRealizedAllAccounts => '全部帳戶';
+
+  @override
+  String get stockRealizedAllSymbols => '全部標的';
+
+  @override
+  String get stockRealizedProceeds => '賣出收入';
+
+  @override
+  String get stockRealizedCostBasis => '成本';
+
+  @override
+  String stockRealizedSellCount(int count) {
+    return '$count 筆賣出';
+  }
+
+  @override
+  String get stockRealizedEmpty => '這個範圍內沒有賣出或股利紀錄';
+
+  @override
+  String get stockRealizedCurrencyNote => '各幣別分開統計,不換算也不跨幣別加總。';
+
+  @override
+  String get stockFlowNetInvested => '投資淨投入';
+
+  @override
+  String stockFlowBuySell(String buy, String sell) {
+    return '買進 $buy · 賣出 $sell';
+  }
+
+  @override
+  String get stockFlowNotCounted => '未計入收入與支出';
+
+  @override
+  String stockFlowFees(String amount) {
+    return '手續費與證交稅 $amount（投資成本，不計入支出）';
+  }
+
+  @override
+  String stockFlowDividends(String amount) {
+    return '股利收入 $amount（已計入收入）';
+  }
+
+  @override
+  String get stockNetWorthNoteExcluded => '不含投資理財帳戶。買進股票會讓淨資產減少（是轉帳，不是支出）。';
+
+  @override
+  String stockNetWorthNoteWithValue(String value) {
+    return '不含投資理財帳戶 · 另有投資市值約 $value（不含於淨資產）';
+  }
+
+  @override
+  String stockNetWorthIncludedWarning(int count) {
+    return '有 $count 個投資理財帳戶仍計入淨資產（以成本計），可能與投資市值重複計算。';
+  }
+
+  @override
+  String get stockNetWorthTrendNote => '走勢不含投資理財帳戶，買進股票當天會呈現下降。';
+
+  @override
+  String get stockTxTagBuy => '股票買進';
+
+  @override
+  String get stockTxTagSell => '股票賣出';
+
+  @override
+  String get stockTxTagReinvest => '股利再投入';
+
+  @override
+  String get exportCsvHeaderFee => '手續費';
+
+  @override
+  String get exportCsvHeaderDiscount => '折損與稅';
+
+  @override
+  String get exportCsvHeaderStockTrade => '股票交易';
 }

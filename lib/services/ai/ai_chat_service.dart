@@ -10,6 +10,7 @@ import '../billing/bill_creation_service.dart';
 import 'ai_bookkeeper.dart';
 import 'ai_chat_intent.dart' as intent;
 import 'free_chat_router.dart';
+import 'free_chat_stock_tools.dart' show StockPendingDividendsLoader;
 
 /// AI 对话服务
 ///
@@ -29,9 +30,14 @@ class AIChatService {
     required BaseRepository repo,
     required AiBookkeeper bookkeeper,
     FreeChatRouter? freeChatRouter,
+
+    /// 待確認股利(Cloud 專屬狀態)的讀取器,轉給預設的 [FreeChatRouter],
+    /// 讓聊天能回答「有沒有待確認的股利」。已自行傳入 [freeChatRouter] 時忽略。
+    StockPendingDividendsLoader? pendingDividends,
   })  : _repo = repo,
         _bookkeeper = bookkeeper,
-        _freeChatRouter = freeChatRouter ?? FreeChatRouter(repo: repo);
+        _freeChatRouter = freeChatRouter ??
+            FreeChatRouter(repo: repo, pendingDividends: pendingDividends);
 
   /// 验证 AI 配置是否存在(仅本地配置,不发网络请求)
   static Future<AIConfigValidationResult> validateApiKey() async {
@@ -63,6 +69,12 @@ class AIChatService {
   }) async {
     logger.info('AIChat', '收到消息: $userInput (forceChat: $forceChat)');
     try {
+      // 「買了 2330 十股」這類是要新增股票交易,不是支出記帳:不呼叫任何 LLM,
+      // 直接說明做法(forceChat 時照舊交給 router,routing prompt 有同樣的規則)。
+      if (!forceChat && intent.isStockTradeIntent(userInput)) {
+        logger.info('AIChat', '识别为股票买卖意图,回覆操作說明');
+        return AIResponse.text(stockTradeGuidance(languageCode));
+      }
       if (!forceChat && intent.isTransactionIntent(userInput)) {
         return await _handleTransaction(
           userInput,
@@ -85,6 +97,29 @@ class AIChatService {
       logger.error('AIChat', '处理失败', e, st);
       return AIResponse.error('抱歉,处理失败,请重试');
     }
+  }
+
+  /// 使用者說要買/賣股票時的操作說明(買賣股票 = 轉帳到投資理財帳戶 + 記股數,
+  /// 不是支出)。
+  static String stockTradeGuidance(String? languageCode) {
+    if (languageCode == 'en') {
+      return 'Buying or selling stock is not an expense — it is a transfer to '
+          'your investment account together with the number of shares.\n\n'
+          'To add it:\n'
+          '• Accounts tab → open your investment account → add stock trade '
+          '(buy / sell)\n'
+          '• Or add a "transfer" and pick the investment account on one side; '
+          'the app opens the buy/sell page for you\n'
+          '• For regular purchases, create a stock DCA plan\n\n'
+          'Once the trade is saved I can answer questions about your holdings '
+          'and profit.';
+    }
+    return '買賣股票不是支出記帳,而是「轉帳到投資理財帳戶」並記下股數。\n\n'
+        '請這樣新增:\n'
+        '• 到「帳戶」頁,點進你的投資理財帳戶 →「新增股票交易」(買進/賣出)\n'
+        '• 或新增一筆「轉帳」,其中一邊選投資理財帳戶,會自動帶你到買賣頁面\n'
+        '• 定期買入可以建「股票定期定額」\n\n'
+        '存好之後,我就能回答你持股、損益、股利等問題。';
   }
 
   /// 撤销记账(给 UI 卡片上的「撤销」按钮用)

@@ -15,7 +15,7 @@
 ///   規則本身。
 /// - transfer 自動扣繳(materializeDueTransferRules):餘額不足時跳過且不推
 ///   進 generatedUntilAt,餘額足夠時正常生成。
-import 'package:drift/drift.dart' show OrderingTerm;
+import 'package:drift/drift.dart' show OrderingTerm, Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -119,6 +119,71 @@ void main() {
     expect(janAfter!.amount, 100);
     expect(marAfter!.amount, 100);
     expect(janAfter.recurringOccurrenceOverridden, isFalse);
+  });
+
+  test('updateRuleAndFuture:專案/標籤/手續費/備註 套用到規則與未來各期,且可清除',
+      () async {
+    final lid = await seedLedgerAndAccount();
+    final tagId = await repo.createTag(name: 'T');
+    final tag = await (db.select(db.tags)..where((t) => t.id.equals(tagId)))
+        .getSingle();
+    final ruleId = await repo.createRule(
+      ledgerId: lid,
+      type: 'expense',
+      amount: 100,
+      note: 'n0',
+      frequency: 'monthly',
+      interval: 1,
+      nextRunAt: DateTime(2026, 1, 1),
+      endAt: DateTime(2026, 4, 1),
+    );
+    final rule = await repo.getRuleById(ruleId);
+    Future<List<Transaction>> occ() => (db.select(db.transactions)
+          ..where((t) => t.recurringRuleId.equals(rule!.syncId!))
+          ..orderBy([(t) => OrderingTerm(expression: t.happenedAt)]))
+        .get();
+    var list = await occ();
+
+    await repo.updateRuleAndFuture(
+      ruleId: ruleId,
+      anchorTransactionId: list[1].id,
+      projectSyncId: const Value<String?>('proj-1'),
+      feeAmount: const Value<double?>(5),
+      feeLabel: const Value<String?>('fee'),
+      tagSyncIds: [tag.syncId!],
+      clearNote: true,
+    );
+
+    final r1 = await repo.getRuleById(ruleId);
+    expect(r1!.projectSyncId, 'proj-1');
+    expect(r1.feeAmount, 5);
+    expect(r1.note, isNull);
+    expect(r1.tagSyncIds, [tag.syncId]);
+    list = await occ();
+    expect(list[0].projectSyncId, isNull, reason: 'anchor 之前不受影響');
+    expect(list[0].note, 'n0');
+    for (final t in list.skip(1)) {
+      expect(t.projectSyncId, 'proj-1');
+      expect(t.feeAmount, 5);
+      expect(t.note, isNull);
+    }
+    expect(list.length, 4);
+
+    // 清除專案與手續費
+    await repo.updateRuleAndFuture(
+      ruleId: ruleId,
+      anchorTransactionId: list[1].id,
+      projectSyncId: const Value<String?>(null),
+      feeAmount: const Value<double?>(null),
+      feeLabel: const Value<String?>(null),
+    );
+    final r2 = await repo.getRuleById(ruleId);
+    expect(r2!.projectSyncId, isNull);
+    list = await occ();
+    for (final t in list.skip(1)) {
+      expect(t.projectSyncId, isNull);
+      expect(t.feeAmount, isNull);
+    }
   });
 
   test('updateRuleAndFuture(连同未来周期):只影响 >= anchor 且未 overridden 的期',

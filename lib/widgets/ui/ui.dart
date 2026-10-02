@@ -16,3 +16,4 @@ export 'period_range_selector.dart';
 export 'whats_new_dialog.dart';
 export 'slide_up_page_route.dart';
 export 'bee_tab_drag_scope.dart';
+export 'bee_overlays.dart';

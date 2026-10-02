@@ -1,3 +1,5 @@
+import 'package:drift/drift.dart' as d;
+
 import '../db.dart';
 
 /// [RecurringRuleRepository.materializeDueTransferRules] 裡「因餘額不足被
@@ -24,7 +26,21 @@ class RecurringRuleTransferSkip {
 /// [RecurringRuleRepository.materializeDueStockRules] 裡「這期沒能生成」的
 /// 單筆記錄,同 [RecurringRuleTransferSkip] 但多一個 [reason]:交割帳戶餘額
 /// 不足,或報價快取沒有這檔標的的資料(還沒抓到/從沒抓過)。
-enum RecurringRuleStockSkipReason { insufficientBalance, quoteUnavailable }
+enum RecurringRuleStockSkipReason {
+  insufficientBalance,
+  quoteUnavailable,
+
+  /// 超過 `kStockDcaMaxCatchUp` 的過期期數被略過不補買([skippedCount] 期)。
+  staleSkipped,
+
+  /// 這條規則生成時出錯(例如帳戶設定不合法),[error] 帶錯誤訊息。其它規則
+  /// 照常處理,不會因為一條規則壞掉讓整批啟動生成中斷。
+  failed,
+
+  /// 整數股市場(台股)每期金額連 1 股(含手續費)都買不起,這期略過。
+  /// [requiredAmount] 帶當下股價。
+  amountTooSmall,
+}
 
 class RecurringRuleStockSkip {
   final int ruleId;
@@ -34,6 +50,8 @@ class RecurringRuleStockSkip {
   final RecurringRuleStockSkipReason reason;
   final double? requiredAmount;
   final double? currentBalance;
+  final int skippedCount;
+  final String? error;
 
   const RecurringRuleStockSkip({
     required this.ruleId,
@@ -43,6 +61,8 @@ class RecurringRuleStockSkip {
     required this.reason,
     this.requiredAmount,
     this.currentBalance,
+    this.skippedCount = 0,
+    this.error,
   });
 }
 
@@ -88,6 +108,13 @@ abstract class RecurringRuleRepository {
     String? securityName,
     double? stockFeeRate,
     double? stockFeeMin,
+    // v65:規則模板的專案/手續費/折扣,每期 occurrence 繼承。
+    String? projectSyncId,
+    double? baseAmount,
+    double? feeAmount,
+    String? feeLabel,
+    double? discountAmount,
+    String? discountLabel,
   });
 
   Future<RecurringTransaction?> getRuleById(int id);
@@ -181,6 +208,20 @@ abstract class RecurringRuleRepository {
     bool clearStockFeeRate = false,
     double? stockFeeMin,
     bool clearStockFeeMin = false,
+    // 「修改連同未來週期」要能把欄位「清掉」(例如移除專案、清空備註),所以:
+    // - [clearNote]/[clearMerchant] true = 規則與未來期數的備註/商家清為空;
+    // - [projectSyncId]/[baseAmount]/[feeAmount]/[feeLabel]/[discountAmount]/
+    //   [discountLabel] 為 tri-state:`d.Value.absent()` = 不動、
+    //   `d.Value(null)` = 清空、`d.Value(x)` = 套用(規則 + 未來期數)。
+    // - [tagSyncIds]/[rewardRuleSyncIds] 傳 `[]` = 清空,null = 不動。
+    bool clearNote = false,
+    bool clearMerchant = false,
+    d.Value<String?> projectSyncId = const d.Value.absent(),
+    d.Value<double?> baseAmount = const d.Value.absent(),
+    d.Value<double?> feeAmount = const d.Value.absent(),
+    d.Value<String?> feeLabel = const d.Value.absent(),
+    d.Value<double?> discountAmount = const d.Value.absent(),
+    d.Value<String?> discountLabel = const d.Value.absent(),
   });
 
   /// 「刪除連同未來週期」:刪除同規則、`happenedAt > now` 的所有 occurrence

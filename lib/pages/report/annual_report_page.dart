@@ -9,6 +9,7 @@ import '../../l10n/app_localizations.dart';
 import '../../providers.dart';
 import '../../utils/month_range.dart';
 import '../../widgets/ui/ui.dart';
+import '../../widgets/biz/investment_flow_note.dart';
 import '../../widgets/posters/annual_report_poster.dart';
 import '../../data/db.dart';
 import '../../services/export/share_poster_types.dart';
@@ -33,6 +34,10 @@ class AnnualReportData {
   final Category? firstRecordCategory;
   final int maxConsecutiveDays;
 
+  /// 年度區間 [start, end)(依帳本每月起始日),股票現金流補充資訊用。
+  final DateTime? periodStart;
+  final DateTime? periodEnd;
+
   const AnnualReportData({
     required this.year,
     required this.totalDays,
@@ -49,6 +54,8 @@ class AnnualReportData {
     this.largestIncomeCategory,
     this.firstRecordCategory,
     this.maxConsecutiveDays = 0,
+    this.periodStart,
+    this.periodEnd,
   });
 }
 
@@ -194,6 +201,8 @@ final annualReportDataProvider =
     largestIncomeCategory: largestIncomeCategory,
     firstRecordCategory: firstRecordCategory,
     maxConsecutiveDays: maxConsecutive,
+    periodStart: startDate,
+    periodEnd: endDate,
   );
 });
 
@@ -646,7 +655,61 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
             color: _balanceColor(data.netSavings),
             showSign: true,
           ),
+          // 股票報表一致性:收支不計轉帳,淨儲蓄不等於「剩下的現金」——買股票的錢
+          // 在這裡補一張卡(淨投入/手續費稅/股利)。沒有股票買賣/股利時不顯示。
+          _buildInvestmentCard(context, data),
         ],
+      ),
+    );
+  }
+
+  Widget _buildInvestmentCard(BuildContext context, AnnualReportData data) {
+    final start = data.periodStart;
+    final end = data.periodEnd;
+    if (start == null || end == null) return const SizedBox.shrink();
+    final ledger = ref.watch(currentLedgerProvider).valueOrNull;
+    final conv = ref.watch(investmentFlowProvider((
+      ledgerId: ref.watch(currentLedgerIdProvider),
+      start: start,
+      end: end,
+      currency: ledger?.currency,
+    )));
+    if (conv == null) return const SizedBox.shrink();
+    final lines = InvestmentFlowLines.build(
+        AppLocalizations.of(context), conv,
+        hide: ref.watch(hideAmountsProvider));
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (lines.title != null)
+              Text(
+                lines.title!,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600),
+              ),
+            for (final line in lines.details)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  line,
+                  style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 12),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

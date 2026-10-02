@@ -13,6 +13,7 @@ import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/account_avatar.dart';
 import '../../widgets/biz/amount_text.dart';
 import '../../widgets/biz/format_money.dart';
+import '../../widgets/biz/investment_flow_note.dart';
 import '../../widgets/biz/section_card.dart';
 import '../../data/db.dart' as db;
 import '../../l10n/app_localizations.dart';
@@ -34,6 +35,9 @@ import 'account_detail_page.dart';
 import 'account_overview_chart_page.dart';
 import 'pending_account_transactions_page.dart';
 import '../investment/investment_market_value_card.dart';
+import '../investment/recurring_stock_rule_editor_page.dart';
+import '../investment/stock_trade_editor_page.dart';
+import '../../services/investment/stock_trade_types.dart';
 
 /// 帳戶總覽頁「目前展開的是哪一列」——暫態 UI 狀態,不持久化。每個
 /// [_SwipeActionRow] 讀寫它,展開新列時自動收合舊的一列(帳戶總覽頁滑動
@@ -154,7 +158,11 @@ class _SwipeActionRowState extends ConsumerState<_SwipeActionRow>
   Widget build(BuildContext context) {
     if (widget.account.type == 'account_group') return widget.child;
 
-    final settings = ref.watch(accountSwipeSettingsProvider);
+    // 投資理財帳戶的餘額是持股成本的帳面數,不能手動調整,滑動快捷用自己
+    // 的一組設定(預設買進/賣出),跟一般帳戶分開。
+    final settings = widget.account.type == 'investment'
+        ? ref.watch(stockAccountSwipeSettingsProvider)
+        : ref.watch(accountSwipeSettingsProvider);
     if (settings.leftAction == AccountSwipeAction.none &&
         settings.rightAction == AccountSwipeAction.none) {
       return widget.child;
@@ -257,6 +265,15 @@ class _SwipeActionButton extends ConsumerWidget {
         color = BeeTokens.isDark(context)
             ? const Color(0xFF636366)
             : Colors.grey.shade500;
+      case AccountSwipeAction.stockBuy:
+        icon = Icons.add_shopping_cart;
+        color = BeeTokens.incomeColor(context, ref);
+      case AccountSwipeAction.stockSell:
+        icon = Icons.sell_outlined;
+        color = BeeTokens.expenseColor(context, ref);
+      case AccountSwipeAction.stockDca:
+        icon = Icons.repeat;
+        color = ref.watch(primaryColorProvider);
       case AccountSwipeAction.none:
         icon = Icons.block;
         color = Colors.transparent;
@@ -788,6 +805,9 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
             ),
             error: (_, __) => const SizedBox.shrink(),
           ),
+          // 股票報表一致性:淨資產不含投資理財帳戶(買進股票 = 轉帳,淨資產會減少),
+          // 這裡標明並帶出投資市值;沒記過股票交易時不顯示。
+          const StockNetWorthNote(centered: true),
           // 走势 / 构成 切换区:
           // - showComposition=true（单币种 或 折算态）：可在「净值走势」「资产构成」间切换，记住偏好；
           // - showComposition=false（多币种非折算，构成无法合并）：只展示走势（净值裸加）。
@@ -1880,6 +1900,11 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
           _viewAccountDetail(context, ref, account);
           return;
         }
+        // 投資理財帳戶餘額 = 持股成本帳面數,手動調整會讓金額跑掉。
+        if (account.type == 'investment') {
+          _viewAccountDetail(context, ref, account);
+          return;
+        }
         await showBalanceAdjustmentDialog(
             context, ref, account, AppLocalizations.of(context));
       case AccountSwipeAction.addTransaction:
@@ -1894,6 +1919,33 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
         );
       case AccountSwipeAction.editAccount:
         await _editAccount(context, ref, account, ledgerId);
+      case AccountSwipeAction.stockBuy:
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => StockTradeEditorPage(
+              account: account,
+              initialTradeType: kStockTradeBuy,
+            ),
+          ),
+        );
+      case AccountSwipeAction.stockSell:
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => StockTradeEditorPage(
+              account: account,
+              initialTradeType: kStockTradeSell,
+            ),
+          ),
+        );
+      case AccountSwipeAction.stockDca:
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => RecurringStockRuleEditorPage(account: account),
+          ),
+        );
     }
   }
 

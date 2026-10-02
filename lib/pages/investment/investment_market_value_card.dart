@@ -12,6 +12,7 @@ import 'holding_detail_page.dart';
 import 'holding_tile.dart';
 import 'investment_ui.dart';
 import 'pending_dividends_page.dart';
+import 'realized_pnl_page.dart';
 
 /// 帳戶頁淨資產卡下方的「投資市值(預估)」卡(使用者確認的需求:股票不算淨
 /// 資產,另外顯示)。折算成使用者主幣別,口徑同淨資產卡(缺匯率剔除並標示)。
@@ -216,6 +217,30 @@ class InvestmentsOverviewPage extends ConsumerWidget {
                     vertical: 8.0.scaled(context, ref)),
                 children: [
                   const InvestmentMarketValueCard(navigateOnTap: false),
+                  Padding(
+                    padding: EdgeInsets.only(top: 12.0.scaled(context, ref)),
+                    child: SectionCard(
+                      margin: EdgeInsets.zero,
+                      padding: EdgeInsets.zero,
+                      child: ListTile(
+                        leading: Icon(Icons.assessment_outlined,
+                            color: BeeTokens.iconSecondary(context)),
+                        title: Text(l10n.stockRealizedReportTitle,
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: BeeTokens.textPrimary(context))),
+                        subtitle: Text(l10n.stockRealizedReportEntryDesc,
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: BeeTokens.textSecondary(context))),
+                        trailing: Icon(Icons.chevron_right,
+                            size: 18, color: BeeTokens.iconTertiary(context)),
+                        onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => const RealizedPnlPage())),
+                      ),
+                    ),
+                  ),
                   for (final entry in grouped.entries) ...[
                     Padding(
                       padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),

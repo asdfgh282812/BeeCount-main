@@ -53,6 +53,7 @@ import '../../../models/investment_settings.dart';
 import '../../../services/investment/holdings_calculator.dart';
 import '../../../services/investment/markets.dart';
 import '../../../services/investment/stock_trade_tx_mapper.dart';
+import '../../../services/investment/stock_dca.dart';
 import '../../../services/investment/stock_trade_types.dart';
 
 /// LocalRepository 本地数据库实现
@@ -2992,6 +2993,13 @@ class LocalRepository extends BaseRepository {
       rewardRuleIds: rewardIds.isEmpty ? null : rewardIds,
       recurringRuleId: rule.syncId,
       needsAccountAssignment: rule.type != 'transfer' && accountId == null,
+      // v65:專案/手續費/折扣由規則模板繼承(轉帳不適用專案)。
+      projectSyncId: rule.type == 'transfer' ? null : rule.projectSyncId,
+      baseAmount: rule.baseAmount,
+      feeAmount: rule.feeAmount,
+      feeLabel: rule.feeLabel,
+      discountAmount: rule.discountAmount,
+      discountLabel: rule.discountLabel,
     );
     if (tagIds.isNotEmpty) {
       await addTagsToTransaction(transactionId: txId, tagIds: tagIds);
@@ -3035,6 +3043,12 @@ class LocalRepository extends BaseRepository {
     String? securityName,
     double? stockFeeRate,
     double? stockFeeMin,
+    String? projectSyncId,
+    double? baseAmount,
+    double? feeAmount,
+    String? feeLabel,
+    double? discountAmount,
+    String? discountLabel,
   }) async {
     if (kind == 'stock_dca' && type != 'transfer') {
       throw ArgumentError('stock_dca rules must have type == transfer');
@@ -3062,6 +3076,12 @@ class LocalRepository extends BaseRepository {
       securityName: securityName,
       stockFeeRate: stockFeeRate,
       stockFeeMin: stockFeeMin,
+      projectSyncId: projectSyncId,
+      baseAmount: baseAmount,
+      feeAmount: feeAmount,
+      feeLabel: feeLabel,
+      discountAmount: discountAmount,
+      discountLabel: discountLabel,
     );
     var rule = await _recurringRuleRepo.getRuleById(ruleId);
     if (rule == null) return ruleId;
@@ -3194,6 +3214,14 @@ class LocalRepository extends BaseRepository {
     bool clearStockFeeRate = false,
     double? stockFeeMin,
     bool clearStockFeeMin = false,
+    bool clearNote = false,
+    bool clearMerchant = false,
+    d.Value<String?> projectSyncId = const d.Value.absent(),
+    d.Value<double?> baseAmount = const d.Value.absent(),
+    d.Value<double?> feeAmount = const d.Value.absent(),
+    d.Value<String?> feeLabel = const d.Value.absent(),
+    d.Value<double?> discountAmount = const d.Value.absent(),
+    d.Value<String?> discountLabel = const d.Value.absent(),
   }) async {
     final rule = await _recurringRuleRepo.getRuleById(ruleId);
     if (rule == null) return;
@@ -3210,6 +3238,18 @@ class LocalRepository extends BaseRepository {
       startAt = anchorDate ?? DateTime.now();
     }
 
+    // 0. 「到期才逐筆生成」的規則(transfer 自動扣繳 / stock_dca)排程是從
+    // generatedUntilAt 往後推,nextRunAt 只在第一期之前有作用——以前第一期之後
+    // 改「下次執行時間」完全沒效果。新時間晚於已生成的最後一期 → 清掉
+    // generatedUntilAt、從新時間重新起算(同 Cloud
+    // write/recurring_rules.py::update_recurring_rule_ep);早於的話維持原進度
+    // (不然會重生成已經生成過的期數),編輯頁本身會限制不能選更早的日期。
+    final reanchor = rule.type == 'transfer' &&
+        rule.generatedUntilAt != null &&
+        nextRunAt != null &&
+        !nextRunAt.isAtSameMomentAs(rule.nextRunAt) &&
+        nextRunAt.isAfter(rule.generatedUntilAt!);
+
     // 1. 更新規則本身,供以後新生成的期數延用新值。frequency/interval 變更
     // 不回頭搬動已生成 occurrence 的 happenedAt——只影響規則本身 + 之後「還
     // 沒長出來」的期數,跟 Web 現況一致。
@@ -3223,7 +3263,9 @@ class LocalRepository extends BaseRepository {
       fromAccountId: fromAccountId,
       toAccountId: toAccountId,
       note: note,
+      clearNote: clearNote,
       merchant: merchant,
+      clearMerchant: clearMerchant,
       tagSyncIds: tagSyncIds,
       rewardRuleSyncIds: rewardRuleSyncIds,
       frequency: frequency,
@@ -3232,13 +3274,24 @@ class LocalRepository extends BaseRepository {
       nextRunAt: nextRunAt,
       endAt: endAt,
       clearEndAt: clearEndAt,
+      projectSyncId: projectSyncId,
+      baseAmount: baseAmount,
+      feeAmount: feeAmount,
+      feeLabel: feeLabel,
+      discountAmount: discountAmount,
+      discountLabel: discountLabel,
       stockFeeRate: stockFeeRate,
       clearStockFeeRate: clearStockFeeRate,
       stockFeeMin: stockFeeMin,
       clearStockFeeMin: clearStockFeeMin,
+      clearGeneratedUntilAt: reanchor,
     );
     final updatedRule = await _recurringRuleRepo.getRuleById(ruleId);
     if (updatedRule != null) await _recordRuleChange(updatedRule, 'update');
+
+    // 股票定期定額的每一期是 StockTrade 連帶建立的轉帳,不能在這裡直接改轉帳
+    // 金額/帳戶(會跟 StockTrade 明細對不上),已生成的期數一律不回頭動。
+    if (rule.kind == 'stock_dca') return;
 
     // 2. 結束時間收斂:新 endAt 若早於某些已生成、尚未發生、未被單獨編輯過
     // 的 occurrence,直接刪除這些超出新結束時間的期數(不然「結束時間」欄
@@ -3273,12 +3326,27 @@ class LocalRepository extends BaseRepository {
         type: type ?? t.type,
         amount: amount ?? t.amount,
         categoryId: categoryId ?? t.categoryId,
-        note: note ?? t.note,
-        merchant: merchant ?? t.merchant,
+        note: clearNote ? null : (note ?? t.note),
+        merchant: clearMerchant ? null : (merchant ?? t.merchant),
         accountId: accountId ?? t.accountId,
-        rewardRuleIds: rewardRuleSyncIds,
+        // updateTransaction 對 rewardRuleIds 是「null = 清空」語意,沒指定時
+        // 要沿用該期原值,否則別的欄位的批次更新會順手把回饋項目洗掉。
+        rewardRuleIds: rewardRuleSyncIds ?? t.rewardRuleIds,
         toAmount: toAmount,
+        baseAmount: baseAmount.present ? baseAmount : null,
+        feeAmount: feeAmount.present ? feeAmount : null,
+        feeLabel: feeLabel.present ? feeLabel : null,
+        discountAmount: discountAmount.present ? discountAmount : null,
+        discountLabel: discountLabel.present ? discountLabel : null,
       );
+      if (projectSyncId.present) {
+        await setTransactionProjectLink(
+          id: t.id,
+          projectSyncId: type == 'transfer' || t.type == 'transfer'
+              ? null
+              : projectSyncId.value,
+        );
+      }
       if (toAccountId != null) {
         await updateTransactionFields(id: t.id, toAccountId: toAccountId);
       }
@@ -3433,7 +3501,13 @@ class LocalRepository extends BaseRepository {
       })> materializeDueTransferRules() async {
     final now = DateTime.now();
     final rules = await (db.select(db.recurringTransactions)
-          ..where((r) => r.enabled.equals(true) & r.type.equals('transfer')))
+          // 股票定期定額也是 type='transfer',但要生成 StockTrade(看當下報價算
+          // 股數),交給 materializeDueStockRules;這裡沒排除的話會先被當成普通
+          // 自動扣繳生成一筆沒有持股明細的轉帳、並把進度推過去。
+          ..where((r) =>
+              r.enabled.equals(true) &
+              r.type.equals('transfer') &
+              r.kind.equals('stock_dca').not()))
         .get();
 
     var materialized = 0;
@@ -3552,40 +3626,98 @@ class LocalRepository extends BaseRepository {
           rule.toAccountId == null ||
           rule.market == null ||
           rule.symbol == null) continue;
-      if (await _anyLinkedAccountHidden(rule)) continue;
-      final investment = await getAccount(rule.toAccountId!);
-      if (investment == null) continue;
-      final advancedRule = _decodeAdvancedRule(rule.advancedRuleJson);
+      try {
+        final r = await _materializeStockRule(rule, now, quoteFor);
+        materialized += r.materialized;
+        skipped.addAll(r.skipped);
+        if (r.changed) ledgerIds.add(rule.ledgerId);
+      } catch (e) {
+        // 一條規則壞掉(例如交割帳戶被改成別的幣別、投資帳戶被改類型)不能讓整批
+        // 啟動生成中斷——以前例外會一路丟到 appSplashInitProvider,連前面
+        // refillWindows/自動扣繳已經寫入的後處理(UI 刷新、同步、通知)都跳過,
+        // 而且每次啟動都重演。
+        skipped.add(RecurringRuleStockSkip(
+          ruleId: rule.id,
+          note: rule.note,
+          symbol: rule.symbol!,
+          occurrenceAt: now,
+          reason: RecurringRuleStockSkipReason.failed,
+          error: '$e',
+        ));
+      }
+    }
+    return (materialized: materialized, skipped: skipped, ledgerIds: ledgerIds);
+  }
 
-      var currentRule = rule;
-      var ruleChanged = false;
-      while (true) {
-        DateTime? nextOccurrence;
-        final generatedUntil = currentRule.generatedUntilAt;
-        if (generatedUntil == null) {
-          nextOccurrence = currentRule.nextRunAt;
-        } else {
-          final following = recurring_schedule.enumerateOccurrences(
-            start: generatedUntil,
-            end: null,
-            frequency: currentRule.frequency,
-            interval: currentRule.interval,
-            advancedRule: advancedRule,
-            maxCount: 2,
-          );
-          nextOccurrence = following.length > 1 ? following[1] : null;
+  /// [materializeDueStockRules] 的單條規則處理,回傳這條規則生成了幾期、
+  /// 跳過原因、規則有沒有被更新(要重推 sync)。
+  Future<
+      ({
+        int materialized,
+        List<RecurringRuleStockSkip> skipped,
+        bool changed
+      })> _materializeStockRule(
+    RecurringTransaction rule,
+    DateTime now,
+    SecurityQuote? Function(String market, String symbol) quoteFor,
+  ) async {
+    var materialized = 0;
+    final skipped = <RecurringRuleStockSkip>[];
+    if (await _anyLinkedAccountHidden(rule)) {
+      return (materialized: 0, skipped: skipped, changed: false);
+    }
+    final investment = await getAccount(rule.toAccountId!);
+    if (investment == null) {
+      return (materialized: 0, skipped: skipped, changed: false);
+    }
+    final advancedRule = _decodeAdvancedRule(rule.advancedRuleJson);
+
+    var currentRule = rule;
+    var ruleChanged = false;
+    var staleCount = 0;
+    DateTime? firstStale;
+    while (true) {
+      DateTime? nextOccurrence;
+      final generatedUntil = currentRule.generatedUntilAt;
+      if (generatedUntil == null) {
+        nextOccurrence = currentRule.nextRunAt;
+      } else {
+        final following = recurring_schedule.enumerateOccurrences(
+          start: generatedUntil,
+          end: null,
+          frequency: currentRule.frequency,
+          interval: currentRule.interval,
+          advancedRule: advancedRule,
+          maxCount: 2,
+        );
+        nextOccurrence = following.length > 1 ? following[1] : null;
+      }
+      // 还没到期(或没有下一期),下次呼叫再看。
+      if (nextOccurrence == null || nextOccurrence.isAfter(now)) break;
+
+      if (currentRule.endAt != null &&
+          nextOccurrence.isAfter(currentRule.endAt!)) {
+        await _recurringRuleRepo.updateRuleFields(currentRule.id,
+            generatedUntilAt: currentRule.endAt, enabled: false);
+        ruleChanged = true;
+        break;
+      }
+
+      // 已經生成過的這一期(同一組固定 syncId,可能是 Cloud 生成後 pull 下來、
+      // 或上次生成後規則進度沒推成功):不重複買,只推進進度。
+      final ids = stockDcaOccurrenceIds(currentRule.syncId!, nextOccurrence);
+      final alreadyGenerated =
+          await _stockTradeRepo.getBySyncId(ids.tradeSyncId) != null;
+      final stale = nextOccurrence.isBefore(now.subtract(kStockDcaMaxCatchUp));
+      if (alreadyGenerated || stale) {
+        if (stale && !alreadyGenerated) {
+          staleCount++;
+          firstStale ??= nextOccurrence;
         }
-        // 还没到期(或没有下一期),下次呼叫再看。
-        if (nextOccurrence == null || nextOccurrence.isAfter(now)) break;
-
-        if (currentRule.endAt != null &&
-            nextOccurrence.isAfter(currentRule.endAt!)) {
-          await _recurringRuleRepo.updateRuleFields(currentRule.id,
-              generatedUntilAt: currentRule.endAt, enabled: false);
-          ruleChanged = true;
-          break;
-        }
-
+        await _recurringRuleRepo.updateRuleFields(currentRule.id,
+            generatedUntilAt: nextOccurrence);
+        ruleChanged = true;
+      } else {
         final quote = quoteFor(currentRule.market!, currentRule.symbol!);
         if (quote == null) {
           skipped.add(RecurringRuleStockSkip(
@@ -3609,12 +3741,46 @@ class LocalRepository extends BaseRepository {
           feeDiscount: baseSettings.feeDiscount,
           feeMin: currentRule.stockFeeMin ?? baseSettings.feeMin,
         );
-        final fee = feeSettings.suggestFee(currentRule.amount,
-            market: currentRule.market, currency: effCurrency);
-        final shares = currentRule.amount / quote.price!;
+        // 台股只買整數股(金額含手續費、零頭不扣),其它市場碎股,見
+        // stockDcaOrder。
+        final order = stockDcaOrder(
+          amount: currentRule.amount,
+          price: quote.price!,
+          market: currentRule.market!,
+          currency: effCurrency,
+          feeSettings: feeSettings,
+        );
+        if (order == null) {
+          // 每期金額連 1 股(含手續費)都買不起:券商這期不會扣款,這裡也略過
+          // 這一期(推進進度)——跟餘額不足不同,下次開 App 重試也不會變買得起,
+          // 不能卡住後面的期數。同 Cloud `amount_too_small`。
+          skipped.add(RecurringRuleStockSkip(
+            ruleId: currentRule.id,
+            note: currentRule.note,
+            symbol: currentRule.symbol!,
+            occurrenceAt: nextOccurrence,
+            reason: RecurringRuleStockSkipReason.amountTooSmall,
+            requiredAmount: quote.price,
+          ));
+          await _recurringRuleRepo.updateRuleFields(currentRule.id,
+              generatedUntilAt: nextOccurrence);
+          ruleChanged = true;
+          final refreshed = await _recurringRuleRepo.getRuleById(currentRule.id);
+          if (refreshed == null) break;
+          currentRule = refreshed;
+          if (currentRule.endAt != null &&
+              !currentRule.generatedUntilAt!.isBefore(currentRule.endAt!)) {
+            await _recurringRuleRepo.updateRuleFields(currentRule.id,
+                enabled: false);
+            break;
+          }
+          continue;
+        }
+        final fee = order.fee;
+        final shares = order.shares;
 
         final balance = await getAccountBalance(currentRule.fromAccountId!);
-        final required = currentRule.amount + fee;
+        final required = order.total;
         if (balance < required - 1e-9) {
           skipped.add(RecurringRuleStockSkip(
             ruleId: currentRule.id,
@@ -3644,29 +3810,50 @@ class LocalRepository extends BaseRepository {
           tradeDate: nextOccurrence,
           settlementAccountId: currentRule.fromAccountId,
           note: currentRule.note,
+          // 預設備註的股數不要帶一長串小數(30.785017957926115股)。
+          txNote: currentRule.note ??
+              '定期定額 ${currentRule.symbol} ${_formatDcaShares(shares)}股',
           recurringRuleId: currentRule.syncId,
+          syncId: ids.tradeSyncId,
+          txSyncId: ids.txSyncId,
         );
         materialized++;
         await _recurringRuleRepo.updateRuleFields(currentRule.id,
             generatedUntilAt: nextOccurrence);
         ruleChanged = true;
-        final refreshed = await _recurringRuleRepo.getRuleById(currentRule.id);
-        if (refreshed == null) break;
-        currentRule = refreshed;
-        if (currentRule.endAt != null &&
-            !currentRule.generatedUntilAt!.isBefore(currentRule.endAt!)) {
-          await _recurringRuleRepo.updateRuleFields(currentRule.id,
-              enabled: false);
-          break;
-        }
       }
-      if (ruleChanged) {
-        final updated = await _recurringRuleRepo.getRuleById(rule.id);
-        if (updated != null) await _recordRuleChange(updated, 'update');
-        ledgerIds.add(rule.ledgerId);
+      final refreshed = await _recurringRuleRepo.getRuleById(currentRule.id);
+      if (refreshed == null) break;
+      currentRule = refreshed;
+      if (currentRule.endAt != null &&
+          !currentRule.generatedUntilAt!.isBefore(currentRule.endAt!)) {
+        await _recurringRuleRepo.updateRuleFields(currentRule.id,
+            enabled: false);
+        break;
       }
     }
-    return (materialized: materialized, skipped: skipped, ledgerIds: ledgerIds);
+    if (staleCount > 0) {
+      skipped.add(RecurringRuleStockSkip(
+        ruleId: rule.id,
+        note: rule.note,
+        symbol: rule.symbol!,
+        occurrenceAt: firstStale!,
+        reason: RecurringRuleStockSkipReason.staleSkipped,
+        skippedCount: staleCount,
+      ));
+    }
+    if (ruleChanged) {
+      final updated = await _recurringRuleRepo.getRuleById(rule.id);
+      if (updated != null) await _recordRuleChange(updated, 'update');
+    }
+    return (materialized: materialized, skipped: skipped, changed: ruleChanged);
+  }
+
+  static String _formatDcaShares(double shares) {
+    final text = shares.toStringAsFixed(4);
+    return text.contains('.')
+        ? text.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '')
+        : text;
   }
 
   // ============================================
@@ -5389,6 +5576,7 @@ class LocalRepository extends BaseRepository {
   static String _defaultStockTxNote(String tradeType, String symbol, String? name, double shares) {
     // 跟 Cloud `_stock_trade_default_note` 同格式;UI 通常會傳在地化的 txNote。
     final label = switch (tradeType) {
+      kStockTradeSplit => '分割',
       kStockTradeSell => '賣出',
       kStockTradeCashDividend => '股利',
       kStockTradeReinvest => '股利再投入',
@@ -5517,6 +5705,8 @@ class LocalRepository extends BaseRepository {
     String? note,
     String? txNote,
     String? recurringRuleId,
+    String? syncId,
+    String? txSyncId,
   }) async {
     if (!kStockTradeTypes.contains(tradeType)) {
       throw ArgumentError('invalid trade type $tradeType');
@@ -5529,7 +5719,7 @@ class LocalRepository extends BaseRepository {
     var effFee = fee;
     var effTax = tax;
     if (tradeType == kStockTradeOpening) effTax = 0;
-    if (tradeType == kStockTradeStockDividend) {
+    if (tradeType == kStockTradeStockDividend || tradeType == kStockTradeSplit) {
       effFee = 0;
       effTax = 0;
     }
@@ -5543,6 +5733,7 @@ class LocalRepository extends BaseRepository {
       if (shares > held + 1e-6) throw StockTradeOversellException(shares, held);
     }
 
+    final txSyncIdOverride = txSyncId;
     return db.transaction(() async {
       String? txSyncId;
       if (kStockTradeCashTypes.contains(tradeType)) {
@@ -5559,12 +5750,15 @@ class LocalRepository extends BaseRepository {
           currency: effCurrency,
           settlementAmount: settlementAmount,
         );
-        final transferCategory = await getTransferCategory();
+        // 買賣綁定的轉帳不帶分類(categoryId 留 null):Cloud 排程執行定期定額、
+        // Web 手動買賣建立的綁定轉帳都沒有分類,App 若指向虛擬「轉帳」分類,
+        // 同一種交易在 Web 會一筆顯示「轉帳」、一筆顯示「—」。App 端顯示時
+        // 轉帳由 UI 層特判,pull 回來時也會自動補虛擬分類(sync_engine_apply)。
         final txId = await addTransaction(
           ledgerId: ledgerId,
           type: 'transfer',
           amount: plan.fields.amount,
-          categoryId: transferCategory.id,
+          categoryId: null,
           accountId: plan.fromAccountId,
           toAccountId: plan.toAccountId,
           happenedAt: tradeDate,
@@ -5575,6 +5769,7 @@ class LocalRepository extends BaseRepository {
           currencyCode: plan.currencyCode,
           nativeAmount: plan.nativeAmount,
           recurringRuleId: recurringRuleId,
+          syncId: txSyncIdOverride,
         );
         txSyncId = (await getTransactionById(txId))?.syncId;
       } else if (kStockTradeIncomeTypes.contains(tradeType)) {
@@ -5600,7 +5795,7 @@ class LocalRepository extends BaseRepository {
         txSyncId = (await getTransactionById(txId))?.syncId;
       }
       final id = await _stockTradeRepo.insert(StockTradesCompanion.insert(
-        syncId: d.Value(_uuid.v4()),
+        syncId: d.Value(syncId ?? _uuid.v4()),
         ledgerId: ledgerId,
         accountId: d.Value(accountId),
         market: mkt,
@@ -5608,7 +5803,8 @@ class LocalRepository extends BaseRepository {
         securityName: d.Value(securityName),
         tradeType: tradeType,
         shares: shares,
-        price: d.Value(effPrice),
+        // 分割沒有價格(shares 欄存分割比例),寫 null 對齊 Cloud 契約。
+        price: d.Value(tradeType == kStockTradeSplit ? null : effPrice),
         fee: d.Value(effFee),
         tax: d.Value(effTax),
         amount: d.Value(stockTradeAmount(
@@ -5646,7 +5842,7 @@ class LocalRepository extends BaseRepository {
     var effFee = fee;
     var effTax = tax;
     if (tradeType == kStockTradeOpening) effTax = 0;
-    if (tradeType == kStockTradeStockDividend) {
+    if (tradeType == kStockTradeStockDividend || tradeType == kStockTradeSplit) {
       effFee = 0;
       effTax = 0;
     }
@@ -5734,7 +5930,7 @@ class LocalRepository extends BaseRepository {
         id,
         StockTradesCompanion(
           shares: d.Value(shares),
-          price: d.Value(effPrice),
+          price: d.Value(tradeType == kStockTradeSplit ? null : effPrice),
           fee: d.Value(effFee),
           tax: d.Value(effTax),
           amount: d.Value(stockTradeAmount(

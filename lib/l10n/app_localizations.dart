@@ -4561,6 +4561,36 @@ abstract class AppLocalizations {
   /// **'Red represents expense, green represents income'**
   String get appearanceColorSchemeOffDesc;
 
+  /// No description provided for @appearanceStockColorScheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock Gain/Loss Colors'**
+  String get appearanceStockColorScheme;
+
+  /// No description provided for @appearanceStockColorSchemeOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Red for gains · Green for losses'**
+  String get appearanceStockColorSchemeOn;
+
+  /// No description provided for @appearanceStockColorSchemeOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Green for gains · Red for losses'**
+  String get appearanceStockColorSchemeOff;
+
+  /// No description provided for @appearanceStockColorSchemeOnDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Taiwan convention: red means price up, green means price down'**
+  String get appearanceStockColorSchemeOnDesc;
+
+  /// No description provided for @appearanceStockColorSchemeOffDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Western convention: green means price up, red means price down'**
+  String get appearanceStockColorSchemeOffDesc;
+
   /// No description provided for @appearanceFirstDayOfWeek.
   ///
   /// In en, this message translates to:
@@ -19458,7 +19488,7 @@ abstract class AppLocalizations {
   /// No description provided for @stockTradeTypeOpeningHint.
   ///
   /// In en, this message translates to:
-  /// **'Shares you already held before using BeeCount. No money moves.'**
+  /// **'Shares you already held before using BeeCount. No money moves. One entry per stock is enough: your current shares and your broker\'s average cost.'**
   String get stockTradeTypeOpeningHint;
 
   /// No description provided for @stockTradeTypeStockDividendHint.
@@ -20228,6 +20258,452 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'After estimated selling costs'**
   String get stockPnlAfterSellCostsNote;
+
+  /// No description provided for @recurringStockSettlementCurrencyMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'The settlement account must use the same currency as the security (cross-currency plans are not supported yet)'**
+  String get recurringStockSettlementCurrencyMismatch;
+
+  /// No description provided for @recurringStockGeneratedNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved, bought {count} period(s) now'**
+  String recurringStockGeneratedNow(int count);
+
+  /// No description provided for @recurringStockPlansTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recurring buys'**
+  String get recurringStockPlansTitle;
+
+  /// No description provided for @recurringStockAddButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Recurring buy'**
+  String get recurringStockAddButton;
+
+  /// No description provided for @recurringStockNextRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Next {date}'**
+  String recurringStockNextRun(String date);
+
+  /// No description provided for @whatsNew370StockDcaTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recurring stock purchases'**
+  String get whatsNew370StockDcaTitle;
+
+  /// No description provided for @whatsNew370StockDcaDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Set up a recurring buy (DCA) for a stock with its own fee rules. When due it buys at the current quote and transfers from the settlement account; Taiwan stocks buy whole shares only, like the broker does (the amount includes the fee and the leftover is not charged), while US stocks can buy fractional shares. Start it from the investment account page, or from \"Add trade\" → \"Recurring buy\"; manage plans under Mine → Recurring.'**
+  String get whatsNew370StockDcaDesc;
+
+  /// No description provided for @recurringStockWholeShareHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Taiwan stock plans buy whole shares only: the amount includes the fee, as many whole shares as fit are bought, and the leftover is not charged.'**
+  String get recurringStockWholeShareHint;
+
+  /// No description provided for @recurringStockFractionalHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This market allows fractional shares: the whole amount is invested and the fee is charged on top.'**
+  String get recurringStockFractionalHint;
+
+  /// No description provided for @recurringStockPreviewWhole.
+  ///
+  /// In en, this message translates to:
+  /// **'At the current price {price}: {shares} shares, charged {total} (incl. fee {fee}), {left} not charged'**
+  String recurringStockPreviewWhole(
+      String price, String shares, String total, String fee, String left);
+
+  /// No description provided for @recurringStockPreviewFractional.
+  ///
+  /// In en, this message translates to:
+  /// **'At the current price {price}: about {shares} shares, charged {total} (incl. fee {fee})'**
+  String recurringStockPreviewFractional(
+      String price, String shares, String total, String fee);
+
+  /// No description provided for @recurringStockPreviewTooSmall.
+  ///
+  /// In en, this message translates to:
+  /// **'At the current price {price} the amount cannot buy even 1 share including the fee; that period will be skipped'**
+  String recurringStockPreviewTooSmall(String price);
+
+  /// No description provided for @stockOpeningBatchEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Add several opening positions'**
+  String get stockOpeningBatchEntry;
+
+  /// No description provided for @stockOpeningBatchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening positions'**
+  String get stockOpeningBatchTitle;
+
+  /// No description provided for @stockOpeningBatchIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter each stock\'s current shares and average cost from your broker\'s holdings screen — no need to re-enter every past purchase. Cost basis and unrealized P/L come out the same; you just won\'t see the individual buys from before you started. Brokers\' average cost usually already includes fees.'**
+  String get stockOpeningBatchIntro;
+
+  /// No description provided for @stockOpeningAsOfDate.
+  ///
+  /// In en, this message translates to:
+  /// **'As of'**
+  String get stockOpeningAsOfDate;
+
+  /// No description provided for @stockOpeningCostMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Cost'**
+  String get stockOpeningCostMode;
+
+  /// No description provided for @stockOpeningCostTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Total cost'**
+  String get stockOpeningCostTotal;
+
+  /// No description provided for @stockOpeningAddRow.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a stock'**
+  String get stockOpeningAddRow;
+
+  /// No description provided for @stockOpeningPaste.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste from clipboard'**
+  String get stockOpeningPaste;
+
+  /// No description provided for @stockOpeningPasteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'One stock per line: symbol, shares, cost, separated by tabs, spaces or commas — you can copy straight from Excel or Google Sheets; a name column is optional. Example: \"VOO 3.5 412.3\".'**
+  String get stockOpeningPasteHint;
+
+  /// No description provided for @stockOpeningPasteEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to import on the clipboard (each line needs a symbol, shares and cost)'**
+  String get stockOpeningPasteEmpty;
+
+  /// No description provided for @stockOpeningPasted.
+  ///
+  /// In en, this message translates to:
+  /// **'Pasted {count} stocks, skipped {skipped} lines'**
+  String stockOpeningPasted(int count, int skipped);
+
+  /// No description provided for @stockOpeningRowTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Total cost {total}'**
+  String stockOpeningRowTotal(String total);
+
+  /// No description provided for @stockOpeningRowHeld.
+  ///
+  /// In en, this message translates to:
+  /// **'Already holding {shares} shares; these will be added'**
+  String stockOpeningRowHeld(String shares);
+
+  /// No description provided for @stockOpeningRowInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock #{row} is missing a symbol, shares or cost'**
+  String stockOpeningRowInvalid(int row);
+
+  /// No description provided for @stockOpeningNothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter at least one stock'**
+  String get stockOpeningNothing;
+
+  /// No description provided for @stockOpeningSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Added {count} opening positions'**
+  String stockOpeningSaved(int count);
+
+  /// No description provided for @stockOpeningSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} stocks · total cost {total}'**
+  String stockOpeningSummary(int count, String total);
+
+  /// No description provided for @whatsNew370OpeningHoldingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your current holdings at once'**
+  String get whatsNew370OpeningHoldingsTitle;
+
+  /// No description provided for @whatsNew370OpeningHoldingsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'No need to re-enter every past purchase: type each stock\'s shares and average (or total) cost from your broker\'s holdings screen, or paste straight from Excel / Google Sheets. Open an investment account → Add trade → Opening → \"Add several opening positions\". Stock names now fill in automatically once you enter a symbol.'**
+  String get whatsNew370OpeningHoldingsDesc;
+
+  /// No description provided for @accountSwipeActionStockBuy.
+  ///
+  /// In en, this message translates to:
+  /// **'Buy'**
+  String get accountSwipeActionStockBuy;
+
+  /// No description provided for @accountSwipeActionStockSell.
+  ///
+  /// In en, this message translates to:
+  /// **'Sell'**
+  String get accountSwipeActionStockSell;
+
+  /// No description provided for @accountSwipeActionStockDca.
+  ///
+  /// In en, this message translates to:
+  /// **'Add recurring buy'**
+  String get accountSwipeActionStockDca;
+
+  /// No description provided for @accountSwipeStockRightLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Investment accounts · swipe right'**
+  String get accountSwipeStockRightLabel;
+
+  /// No description provided for @accountSwipeStockLeftLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Investment accounts · swipe left'**
+  String get accountSwipeStockLeftLabel;
+
+  /// No description provided for @whatsNew370StockSwipeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe to buy or sell'**
+  String get whatsNew370StockSwipeTitle;
+
+  /// No description provided for @whatsNew370StockSwipeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'An investment account\'s balance is the book cost of its holdings, so \"Adjust balance\" is gone for these accounts. On the Accounts list, swipe right to buy and swipe left to sell (or switch to adding a recurring buy). Entry: swipe an investment account on the Accounts page; change the actions under Mine → Appearance settings → swipe actions.'**
+  String get whatsNew370StockSwipeDesc;
+
+  /// No description provided for @whatsNew370RecurringEditAllTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recurring edits now apply to every field'**
+  String get whatsNew370RecurringEditAllTitle;
+
+  /// No description provided for @whatsNew370RecurringEditAllDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'“Edit this and future periods” now carries every field — project, tags, merchant, note, fees/discounts and card rewards, including clearing them — to the recurring rule and all later periods, and it stays in sync with the web. Entry: edit a recurring transaction → choose “Edit this and future periods”.'**
+  String get whatsNew370RecurringEditAllDesc;
+
+  /// No description provided for @whatsNew370NotificationSyncTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notification settings follow your account'**
+  String get whatsNew370NotificationSyncTitle;
+
+  /// No description provided for @whatsNew370NotificationSyncDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily bookkeeping reminders and credit card reminders are now saved to your BeeCount Cloud account, so a new device or reinstall picks up the same settings. (Notification permission is still granted per device.) Entry: Mine → Automation → Bookkeeping reminder / Credit card reminders.'**
+  String get whatsNew370NotificationSyncDesc;
+
+  /// No description provided for @whatsNew370StockColorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Separate stock gain/loss colors'**
+  String get whatsNew370StockColorTitle;
+
+  /// No description provided for @whatsNew370StockColorDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock gains and losses now have their own color setting, independent of the income/expense colors (default: red up, green down). It syncs with the web. Entry: Mine → Appearance → Stock Gain/Loss Colors.'**
+  String get whatsNew370StockColorDesc;
+
+  /// No description provided for @stockTradeTypeSplit.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock split'**
+  String get stockTradeTypeSplit;
+
+  /// No description provided for @stockTradeTypeSplitHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Record a split or reverse split. Enter how many shares 1 share becomes (1-for-4 split: 4; 2-for-1 reverse split: 0.5). Share count is multiplied, total cost stays the same, so average cost is divided. No price, fee or settlement account.'**
+  String get stockTradeTypeSplitHint;
+
+  /// No description provided for @stockSplitRatio.
+  ///
+  /// In en, this message translates to:
+  /// **'Shares 1 share becomes'**
+  String get stockSplitRatio;
+
+  /// No description provided for @stockSplitRatioInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a ratio greater than 0 (e.g. 4, or 0.5 for a reverse split).'**
+  String get stockSplitRatioInvalid;
+
+  /// No description provided for @stockSplitDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Split 1→{ratio}'**
+  String stockSplitDetail(String ratio);
+
+  /// No description provided for @stockRealizedReportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Realized P&L'**
+  String get stockRealizedReportTitle;
+
+  /// No description provided for @stockRealizedReportEntryDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Sales P&L and dividends by year, account and symbol'**
+  String get stockRealizedReportEntryDesc;
+
+  /// No description provided for @stockRealizedAllYears.
+  ///
+  /// In en, this message translates to:
+  /// **'All years'**
+  String get stockRealizedAllYears;
+
+  /// No description provided for @stockRealizedAllAccounts.
+  ///
+  /// In en, this message translates to:
+  /// **'All accounts'**
+  String get stockRealizedAllAccounts;
+
+  /// No description provided for @stockRealizedAllSymbols.
+  ///
+  /// In en, this message translates to:
+  /// **'All symbols'**
+  String get stockRealizedAllSymbols;
+
+  /// No description provided for @stockRealizedProceeds.
+  ///
+  /// In en, this message translates to:
+  /// **'Proceeds'**
+  String get stockRealizedProceeds;
+
+  /// No description provided for @stockRealizedCostBasis.
+  ///
+  /// In en, this message translates to:
+  /// **'Cost basis'**
+  String get stockRealizedCostBasis;
+
+  /// No description provided for @stockRealizedSellCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} sales'**
+  String stockRealizedSellCount(int count);
+
+  /// No description provided for @stockRealizedEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No sales or dividends in this range.'**
+  String get stockRealizedEmpty;
+
+  /// No description provided for @stockRealizedCurrencyNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Totals are per currency and are not converted or added together.'**
+  String get stockRealizedCurrencyNote;
+
+  /// No description provided for @stockFlowNetInvested.
+  ///
+  /// In en, this message translates to:
+  /// **'Net invested in stocks'**
+  String get stockFlowNetInvested;
+
+  /// No description provided for @stockFlowBuySell.
+  ///
+  /// In en, this message translates to:
+  /// **'Bought {buy} · Sold {sell}'**
+  String stockFlowBuySell(String buy, String sell);
+
+  /// No description provided for @stockFlowNotCounted.
+  ///
+  /// In en, this message translates to:
+  /// **'not counted as income or expense'**
+  String get stockFlowNotCounted;
+
+  /// No description provided for @stockFlowFees.
+  ///
+  /// In en, this message translates to:
+  /// **'Fees & transaction tax {amount} (investment cost, not counted as expense)'**
+  String stockFlowFees(String amount);
+
+  /// No description provided for @stockFlowDividends.
+  ///
+  /// In en, this message translates to:
+  /// **'Dividend income {amount} (already included in income)'**
+  String stockFlowDividends(String amount);
+
+  /// No description provided for @stockNetWorthNoteExcluded.
+  ///
+  /// In en, this message translates to:
+  /// **'Investment accounts are excluded. Buying stocks lowers net worth (a transfer, not an expense).'**
+  String get stockNetWorthNoteExcluded;
+
+  /// No description provided for @stockNetWorthNoteWithValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Excludes investment accounts · Investment value about {value} shown separately'**
+  String stockNetWorthNoteWithValue(String value);
+
+  /// No description provided for @stockNetWorthIncludedWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} investment account(s) are still counted in net worth (at cost), which may double count with investment value.'**
+  String stockNetWorthIncludedWarning(int count);
+
+  /// No description provided for @stockNetWorthTrendNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The trend excludes investment accounts, so buying stocks shows up as a drop.'**
+  String get stockNetWorthTrendNote;
+
+  /// No description provided for @stockTxTagBuy.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock buy'**
+  String get stockTxTagBuy;
+
+  /// No description provided for @stockTxTagSell.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock sell'**
+  String get stockTxTagSell;
+
+  /// No description provided for @stockTxTagReinvest.
+  ///
+  /// In en, this message translates to:
+  /// **'Dividend reinvest'**
+  String get stockTxTagReinvest;
+
+  /// No description provided for @exportCsvHeaderFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee'**
+  String get exportCsvHeaderFee;
+
+  /// No description provided for @exportCsvHeaderDiscount.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount / tax'**
+  String get exportCsvHeaderDiscount;
+
+  /// No description provided for @exportCsvHeaderStockTrade.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock trade'**
+  String get exportCsvHeaderStockTrade;
 }
 
 class _AppLocalizationsDelegate

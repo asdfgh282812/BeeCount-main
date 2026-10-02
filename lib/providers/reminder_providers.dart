@@ -1,11 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/system/notification_settings_sync.dart';
 import '../utils/notification_factory.dart';
 
 /// 记账提醒设置
 class ReminderSettings {
   final bool isEnabled;
-  final int hour;  // 0-23
+  final int hour; // 0-23
   final int minute; // 0-59
 
   const ReminderSettings({
@@ -81,7 +82,7 @@ class ReminderSettingsNotifier extends StateNotifier<ReminderSettings> {
     }
   }
 
-  /// 保存设置
+  /// 保存设置(使用者改動才會走到這裡,故順帶通知帳號同步推送)
   Future<void> _saveSettings() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -90,6 +91,24 @@ class ReminderSettingsNotifier extends StateNotifier<ReminderSettings> {
       await prefs.setInt(_keyMinute, state.minute);
     } catch (e) {
       // 忽略保存错误
+    }
+    NotificationSettingsSync.notifyChanged();
+  }
+
+  /// 雲端下行新值後,重讀 prefs 並讓本機排程跟上。不寫 prefs、不回推。
+  Future<void> reload() async {
+    await _loadSettings();
+    final notificationUtil = NotificationFactory.getInstance();
+    if (state.isEnabled) {
+      await notificationUtil.scheduleDailyReminder(
+        id: 1001,
+        title: '記帳提醒',
+        body: '別忘了記錄今天的收支喔 💰',
+        hour: state.hour,
+        minute: state.minute,
+      );
+    } else {
+      await notificationUtil.cancelNotification(1001);
     }
   }
 
@@ -151,6 +170,7 @@ class ReminderSettingsNotifier extends StateNotifier<ReminderSettings> {
 }
 
 /// 记账提醒设置Provider
-final reminderSettingsProvider = StateNotifierProvider<ReminderSettingsNotifier, ReminderSettings>((ref) {
+final reminderSettingsProvider =
+    StateNotifierProvider<ReminderSettingsNotifier, ReminderSettings>((ref) {
   return ReminderSettingsNotifier();
 });

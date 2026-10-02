@@ -114,8 +114,18 @@ class _CardRewardRuleSelectorState
                   ),
                 ),
                 TextButton(
-                  onPressed: () =>
-                      Navigator.of(context).pop(_selected.toList()),
+                  onPressed: () {
+                    // 只回傳屬於這張卡的規則:傳進來的既有選擇可能殘留別張卡
+                    // 的規則(換帳戶前的舊資料),列表上看不到也取消不掉。
+                    final own = ref
+                        .read(cardRewardRulesForAccountProvider(
+                            widget.accountId))
+                        .valueOrNull;
+                    final ownIds = own?.map((r) => r.syncId).toSet();
+                    Navigator.of(context).pop(ownIds == null
+                        ? _selected.toList()
+                        : _selected.where(ownIds.contains).toList());
+                  },
                   child: Text(l10n.commonConfirm),
                 ),
               ],

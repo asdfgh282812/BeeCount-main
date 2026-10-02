@@ -785,6 +785,14 @@ class RecurringTransactionItem {
   final String nextRunAt; // ISO 8601 format
   final String? endAt;
   final bool enabled;
+  // 股票定期定額(v64,2026-09-29 補):以前沒匯出,匯入後變成普通轉帳規則,
+  // 會被當自動扣繳生成沒有持股明細的裸轉帳。kind='general' 不寫入檔案。
+  final String kind;
+  final String? market;
+  final String? symbol;
+  final String? securityName;
+  final double? stockFeeRate;
+  final double? stockFeeMin;
 
   const RecurringTransactionItem({
     required this.ledgerName,
@@ -801,6 +809,12 @@ class RecurringTransactionItem {
     required this.nextRunAt,
     this.endAt,
     required this.enabled,
+    this.kind = 'general',
+    this.market,
+    this.symbol,
+    this.securityName,
+    this.stockFeeRate,
+    this.stockFeeMin,
   });
 
   Map<String, dynamic> toMap() {
@@ -820,6 +834,12 @@ class RecurringTransactionItem {
     if (merchant != null && merchant!.isNotEmpty) map['merchant'] = merchant;
     if (advancedRuleJson != null) map['advanced_rule_json'] = advancedRuleJson;
     if (endAt != null) map['end_at'] = endAt;
+    if (kind != 'general') map['kind'] = kind;
+    if (market != null) map['market'] = market;
+    if (symbol != null) map['symbol'] = symbol;
+    if (securityName != null) map['security_name'] = securityName;
+    if (stockFeeRate != null) map['stock_fee_rate'] = stockFeeRate;
+    if (stockFeeMin != null) map['stock_fee_min'] = stockFeeMin;
     return map;
   }
 
@@ -840,6 +860,12 @@ class RecurringTransactionItem {
       nextRunAt: (map['next_run_at'] ?? map['start_date']) as String,
       endAt: (map['end_at'] ?? map['end_date']) as String?,
       enabled: map['enabled'] as bool,
+      kind: (map['kind'] as String?) ?? 'general',
+      market: map['market'] as String?,
+      symbol: map['symbol']?.toString(),
+      securityName: map['security_name'] as String?,
+      stockFeeRate: (map['stock_fee_rate'] as num?)?.toDouble(),
+      stockFeeMin: (map['stock_fee_min'] as num?)?.toDouble(),
     );
   }
 
@@ -856,7 +882,12 @@ class RecurringTransactionItem {
       amount: rt.amount,
       categoryName:
           rt.categoryId != null ? categoryIdToName[rt.categoryId] : null,
-      accountName: rt.accountId != null ? accountIdToName[rt.accountId] : null,
+      // 轉帳規則的來源帳戶在 fromAccountId(accountId 是 null);匯入端把
+      // account_name 對回 fromAccountId。以前這裡只讀 accountId,轉帳規則匯出後
+      // 來源帳戶整個遺失。
+      accountName: rt.type == 'transfer'
+          ? (rt.fromAccountId != null ? accountIdToName[rt.fromAccountId] : null)
+          : (rt.accountId != null ? accountIdToName[rt.accountId] : null),
       toAccountName:
           rt.toAccountId != null ? accountIdToName[rt.toAccountId] : null,
       note: rt.note,
@@ -867,6 +898,12 @@ class RecurringTransactionItem {
       nextRunAt: rt.nextRunAt.toIso8601String(),
       endAt: rt.endAt?.toIso8601String(),
       enabled: rt.enabled,
+      kind: rt.kind,
+      market: rt.market,
+      symbol: rt.symbol,
+      securityName: rt.securityName,
+      stockFeeRate: rt.stockFeeRate,
+      stockFeeMin: rt.stockFeeMin,
     );
   }
 }
@@ -2095,6 +2132,14 @@ class ConfigExportService {
           buffer.writeln('    - ledger_name: "${itemMap['ledger_name']}"');
           buffer.writeln('      type: "${itemMap['type']}"');
           buffer.writeln('      amount: ${itemMap['amount']}');
+          for (final key in const ['kind', 'market', 'symbol', 'security_name']) {
+            if (itemMap[key] != null) {
+              buffer.writeln('      $key: "${itemMap[key]}"');
+            }
+          }
+          for (final key in const ['stock_fee_rate', 'stock_fee_min']) {
+            if (itemMap[key] != null) buffer.writeln('      $key: ${itemMap[key]}');
+          }
 
           if (itemMap.containsKey('category_name') &&
               itemMap['category_name'] != null) {
@@ -2888,6 +2933,12 @@ class ConfigExportService {
             advancedRule: advancedRule,
             nextRunAt: DateTime.parse(item.nextRunAt),
             endAt: item.endAt != null ? DateTime.parse(item.endAt!) : null,
+            kind: item.kind,
+            market: item.market,
+            symbol: item.symbol,
+            securityName: item.securityName,
+            stockFeeRate: item.stockFeeRate,
+            stockFeeMin: item.stockFeeMin,
           );
           importedCount++;
         }

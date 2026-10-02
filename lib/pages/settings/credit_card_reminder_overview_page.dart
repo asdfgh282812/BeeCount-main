@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../providers.dart';
+import '../../services/system/notification_settings_sync.dart';
 import '../../styles/tokens.dart';
 import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/section_card.dart';
@@ -85,6 +86,7 @@ class _CreditCardReminderOverviewPageState
     await prefs.setBool('cc_billing_reminder_enabled', _billingEnabled);
     await prefs.setBool('cc_due_reminder_enabled', _dueEnabled);
     await prefs.setInt('cc_due_reminder_maxdays', _dueMaxDays);
+    NotificationSettingsSync.notifyChanged();
 
     final repo = ref.read(repositoryProvider);
     final cloudActive =

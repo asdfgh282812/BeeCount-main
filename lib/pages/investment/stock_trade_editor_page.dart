@@ -20,6 +20,8 @@ import '../../widgets/biz/account_card_picker.dart';
 import '../../widgets/biz/section_card.dart';
 import '../../widgets/ui/ui.dart';
 import 'investment_ui.dart';
+import 'opening_holdings_batch_page.dart';
+import 'recurring_stock_rule_editor_page.dart';
 import 'security_search_sheet.dart';
 
 /// 新增/編輯一筆股票交易(docs/changes/2026-09-28-stock-holdings.md)。
@@ -63,6 +65,7 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
     kStockTradeSell,
     kStockTradeOpening,
     kStockTradeStockDividend,
+    kStockTradeSplit,
     kStockTradeCashDividend,
     kStockTradeReinvest,
   ];
@@ -90,6 +93,9 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
   SecurityQuote? _prefilledQuote;
   bool _priceEdited = false;
   Timer? _symbolDebounce;
+  final _symbolFocus = FocusNode();
+  // 上一次自動帶入的名稱:代號改了、名稱還是舊的自動值才覆蓋(手打的名稱不動)。
+  String? _autoName;
   late final InvestmentSettings _settings =
       InvestmentSettings.parse(widget.account.investmentSettingsJson);
 
@@ -100,6 +106,12 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
       kStockTradeCashTypes.contains(_tradeType) ||
       _tradeType == kStockTradeCashDividend;
   bool get _isDividend => _tradeType == kStockTradeCashDividend;
+
+  /// 股票分割:shares 欄位存「分割比例」,沒有價格/手續費/交割帳戶。
+  bool get _isSplit => _tradeType == kStockTradeSplit;
+
+  /// 只有股數(或比例)欄位、沒有價格/費用/金額的類型。
+  bool get _sharesOnly => _tradeType == kStockTradeStockDividend || _isSplit;
 
   /// 交易日期一律存當地中午:換成 UTC 或其它市場時區都還是同一天(Cloud 判斷
   /// 除息日前持股時會換成市場當地日期比)。
@@ -147,6 +159,13 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
       if (_symbolCtrl.text.trim().isNotEmpty) {
         WidgetsBinding.instance.addPostFrameCallback((_) => _prefillPrice());
       }
+      // 離開代號欄時馬上查(不用等 0.7 秒 debounce)。
+      _symbolFocus.addListener(() {
+        if (!_symbolFocus.hasFocus) {
+          _symbolDebounce?.cancel();
+          _prefillPrice();
+        }
+      });
     }
   }
 
@@ -209,6 +228,7 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
   @override
   void dispose() {
     _symbolDebounce?.cancel();
+    _symbolFocus.dispose();
     for (final c in [
       _symbolCtrl,
       _nameCtrl,
@@ -238,27 +258,34 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
       _tradeType == kStockTradeSell ||
       _tradeType == kStockTradeReinvest;
 
-  /// 價格欄還空著(或還是上次自動帶入的值)時,帶入目前報價。
+  /// 代號打完(停頓 0.7 秒或離開輸入框)查報價:精準命中就帶入名稱(所有交易
+  /// 類型,含期初持股/股利);價格欄還空著(或還是上次自動帶入的值)且是買賣類
+  /// 才帶入現價。
   Future<void> _prefillPrice() async {
-    if (_isEditing || !_usesMarketPrice || _priceEdited) return;
+    if (_isEditing) return;
     final symbol = _symbolCtrl.text.trim().toUpperCase();
     if (symbol.isEmpty) return;
     final market = _market;
     final quote =
         await ref.read(quoteRefreshProvider.notifier).quoteFor(market, symbol);
     if (!mounted ||
-        quote?.price == null ||
-        _priceEdited ||
-        !_usesMarketPrice ||
         market != _market ||
         symbol != _symbolCtrl.text.trim().toUpperCase()) return;
+    final name = quote?.name?.trim() ?? '';
+    final currentName = _nameCtrl.text.trim();
+    final nameReplaceable = currentName.isEmpty || currentName == _autoName;
+    final fillPrice =
+        quote?.price != null && _usesMarketPrice && !_priceEdited;
+    if (!fillPrice && !nameReplaceable) return;
     setState(() {
-      _priceCtrl.text = _num(quote!.price!);
-      _prefilledQuote = quote;
-      if (_nameCtrl.text.trim().isEmpty &&
-          quote.name != null &&
-          quote.name!.isNotEmpty) {
-        _nameCtrl.text = quote.name!;
+      if (nameReplaceable) {
+        // 查不到代號時清掉上一檔自動帶入的名稱,免得名稱跟代號對不上。
+        _nameCtrl.text = name;
+        _autoName = name.isEmpty ? null : name;
+      }
+      if (fillPrice) {
+        _priceCtrl.text = _num(quote!.price!);
+        _prefilledQuote = quote;
       }
       _recomputeSuggestions();
     });
@@ -300,7 +327,7 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
 
   /// 成交金額變了就重算建議手續費/稅(使用者手動改過的欄位不動)。
   void _recomputeSuggestions() {
-    if (_tradeType == kStockTradeStockDividend) return;
+    if (_sharesOnly) return;
     if (_isDividend) {
       // 現金股利:手續費 = 股利手續費,稅 = 預扣稅 + 二代健保(同 Cloud 估算)。
       final est = estimateDividend(
@@ -315,9 +342,12 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
       return;
     }
     if (!_feeEdited) {
-      final fee = _settings.suggestFee(_gross,
-          market: _market, currency: _securityCurrency);
-      _feeCtrl.text = _gross > 0 ? _num(fee) : '';
+      // 期初持股填的是券商庫存的平均成本,通常已經含手續費,不再另外估。
+      final fee = _tradeType == kStockTradeOpening
+          ? 0.0
+          : _settings.suggestFee(_gross,
+              market: _market, currency: _securityCurrency);
+      _feeCtrl.text = _gross > 0 && fee > 0 ? _num(fee) : '';
     }
     if (!_taxEdited) {
       final tax = _tradeType == kStockTradeSell
@@ -373,8 +403,10 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
       _market = pick.market;
       _securityCurrency = pick.currency.toUpperCase();
       _symbolCtrl.text = pick.symbol;
-      if (pick.name != null && pick.name!.isNotEmpty)
+      if (pick.name != null && pick.name!.isNotEmpty) {
         _nameCtrl.text = pick.name!;
+        _autoName = pick.name;
+      }
       _clearPrefilledPriceIfSymbolChanged();
       _recomputeSuggestions();
     });
@@ -457,9 +489,12 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
     final repo = ref.read(repositoryProvider);
     final symbol = _symbolCtrl.text.trim().toUpperCase();
     if (symbol.isEmpty) return showToast(context, l10n.stockSymbolRequired);
-    if (_shares <= 0) return showToast(context, l10n.stockSharesRequired);
-    if (_tradeType != kStockTradeStockDividend &&
-        _priceCtrl.text.trim().isEmpty) {
+    if (_isSplit) {
+      if (_shares <= 0) return showToast(context, l10n.stockSplitRatioInvalid);
+    } else if (_shares <= 0) {
+      return showToast(context, l10n.stockSharesRequired);
+    }
+    if (!_sharesOnly && _priceCtrl.text.trim().isEmpty) {
       return showToast(context, l10n.stockPriceRequired);
     }
     double? settlementAmount;
@@ -501,6 +536,8 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
             l10n.stockDefaultTxNoteDividend(symbol, name, sharesText),
           kStockTradeReinvest =>
             l10n.stockDefaultTxNoteReinvest(symbol, name, sharesText),
+          // 分割不建交易,txNote 不會被用到。
+          kStockTradeSplit => '',
           _ => l10n.stockDefaultTxNoteBuy(symbol, name, sharesText),
         })
             .replaceAll(RegExp(r'\s+'), ' ')
@@ -514,7 +551,7 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
         await repo.updateStockTrade(
           widget.trade!.id,
           shares: _shares,
-          price: _price,
+          price: _isSplit ? null : _price,
           fee: _fee,
           tax: _tax,
           tradeDate: _tradeDate,
@@ -533,7 +570,7 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
           symbol: symbol,
           securityName: name.isEmpty ? null : name,
           shares: _shares,
-          price: _price,
+          price: _isSplit ? null : _price,
           fee: _fee,
           tax: _tax,
           currency: _securityCurrency,
@@ -629,6 +666,7 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
     final typeHint = switch (_tradeType) {
       kStockTradeOpening => l10n.stockTradeTypeOpeningHint,
       kStockTradeStockDividend => l10n.stockTradeTypeStockDividendHint,
+      kStockTradeSplit => l10n.stockTradeTypeSplitHint,
       kStockTradeCashDividend => l10n.stockTradeTypeCashDividendHint,
       kStockTradeReinvest => l10n.stockTradeTypeReinvestHint,
       _ => null,
@@ -696,7 +734,8 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
                                   ? null
                                   : (_) => setState(() {
                                         _tradeType = type;
-                                        if (type == kStockTradeStockDividend) {
+                                        if (type == kStockTradeStockDividend ||
+                                            type == kStockTradeSplit) {
                                           _feeCtrl.clear();
                                           _taxCtrl.clear();
                                         }
@@ -711,6 +750,35 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
                                         _prefillPrice();
                                       }),
                             ),
+                          // 2026-09-29:在股票交易裡也能直接開始定期定額(帶入已輸入的標的)。
+                          if (!_isEditing)
+                            ActionChip(
+                              avatar: Icon(Icons.repeat,
+                                  size: 16,
+                                  color: BeeTokens.iconSecondary(context)),
+                              label: Text(l10n.recurringStockAddButton),
+                              backgroundColor: BeeTokens.surfaceChip(context),
+                              labelStyle: TextStyle(
+                                  color: BeeTokens.textSecondary(context)),
+                              onPressed: () {
+                                final symbol =
+                                    _symbolCtrl.text.trim().toUpperCase();
+                                Navigator.of(context).pushReplacement(
+                                    MaterialPageRoute(
+                                        builder: (_) =>
+                                            RecurringStockRuleEditorPage(
+                                              account: widget.account,
+                                              initialMarket: _market,
+                                              initialSymbol:
+                                                  symbol.isEmpty ? null : symbol,
+                                              initialName: _nameCtrl.text
+                                                      .trim()
+                                                      .isEmpty
+                                                  ? null
+                                                  : _nameCtrl.text.trim(),
+                                            )));
+                              },
+                            ),
                         ],
                       ),
                       if (typeHint != null) ...[
@@ -722,6 +790,29 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
                               color: BeeTokens.textTertiary(context)),
                         ),
                       ],
+                      // 2026-09-30:期初持股一檔一筆就好(填平均成本),很多檔時
+                      // 改用批次頁一次輸入/貼上。
+                      if (!_isEditing && _tradeType == kStockTradeOpening)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                visualDensity: VisualDensity.compact),
+                            icon: Icon(Icons.playlist_add,
+                                size: 18,
+                                color: ref.watch(primaryColorProvider)),
+                            label: Text(l10n.stockOpeningBatchEntry,
+                                style: TextStyle(
+                                    color: ref.watch(primaryColorProvider))),
+                            onPressed: () => Navigator.of(context)
+                                .pushReplacement(MaterialPageRoute(
+                                    builder: (_) => OpeningHoldingsBatchPage(
+                                          account: widget.account,
+                                          initialMarket: _market,
+                                        ))),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -748,6 +839,7 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
                               label: l10n.stockSymbol,
                               enabled: !_isEditing,
                               textCapitalization: TextCapitalization.characters,
+                              focusNode: _symbolFocus,
                               onChanged: _isEditing ? null : _onSymbolChanged,
                             ),
                           ),
@@ -775,17 +867,19 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
                       _field(
                         context,
                         controller: _sharesCtrl,
-                        label: l10n.stockShares,
+                        label: _isSplit
+                            ? l10n.stockSplitRatio
+                            : l10n.stockShares,
                         numeric: true,
                         onChanged: (_) => setState(_recomputeSuggestions),
                       ),
-                      if (_tradeType != kStockTradeStockDividend) ...[
+                      if (!_sharesOnly) ...[
                         _divider(context),
                         _field(
                           context,
                           controller: _priceCtrl,
                           label:
-                              '${_isDividend ? l10n.stockDividendPerShare : l10n.stockPrice} ($_securityCurrency)',
+                              '${_isDividend ? l10n.stockDividendPerShare : _tradeType == kStockTradeOpening ? l10n.stockAvgCost : l10n.stockPrice} ($_securityCurrency)',
                           numeric: true,
                           onChanged: (_) => setState(() {
                             _priceEdited = true;
@@ -841,7 +935,7 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
                             ),
                           ),
                       ],
-                      if (_tradeType != kStockTradeStockDividend) ...[
+                      if (!_sharesOnly) ...[
                         const SizedBox(height: 6),
                         Align(
                           alignment: Alignment.centerLeft,
@@ -1018,9 +1112,11 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
     String? hint,
     TextCapitalization textCapitalization = TextCapitalization.none,
     ValueChanged<String>? onChanged,
+    FocusNode? focusNode,
   }) {
     return TextField(
       controller: controller,
+      focusNode: focusNode,
       enabled: enabled,
       onChanged: onChanged,
       textCapitalization: textCapitalization,

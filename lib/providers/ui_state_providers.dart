@@ -19,6 +19,8 @@ import '../services/system/logger_service.dart';
 import '../ai/providers/ai_constants.dart';
 import '../services/platform/app_link_service.dart';
 import '../data/repositories/recurring_rule_repository.dart';
+import '../services/investment/stock_dca.dart';
+import 'securities_providers.dart';
 import 'security_providers.dart';
 
 // 底部导航索引（0: 账户, 1: 专案, 2: 明细/记帐(中间动态按钮), 3: 洞察, 4: 我的）
@@ -233,6 +235,7 @@ final appSplashInitProvider = FutureProvider<void>((ref) async {
       ref.watch(featureHighlightInitProvider.future),
       ref.watch(showTransactionTimeInitProvider.future),
       ref.watch(weekStartsOnMondayInitProvider.future),
+      ref.watch(stockUpIsRedInitProvider.future),
       ref.watch(noteDisplayModeInitProvider.future),
       ref.watch(noteHistoryPreferencesInitProvider.future),
       ref.watch(smartBillingAutoTagsInitProvider.future),
@@ -370,6 +373,16 @@ final appSplashInitProvider = FutureProvider<void>((ref) async {
     try {
       final refillResult = await repo.refillWindows();
       final transferResult = await repo.materializeDueTransferRules();
+      // 股票定期定額要看當下報價算股數:先補抓到期標的的報價(最多等 8 秒,
+      // 網路慢/沒登入 Cloud 就用快取,抓不到的那期照舊 quoteUnavailable 跳過)。
+      try {
+        await ref
+            .read(quoteRefreshProvider.notifier)
+            .refreshForStockDcaRules()
+            .timeout(const Duration(seconds: 8));
+      } catch (e) {
+        logger.warning(tag, '股票定期定額報價補抓失敗: $e');
+      }
       final stockResult = await repo.materializeDueStockRules();
       final generatedLedgerIds = <int>{
         ...refillResult.ledgerIds,
@@ -419,7 +432,9 @@ final appSplashInitProvider = FutureProvider<void>((ref) async {
           final label = skip.note != null && skip.note!.isNotEmpty
               ? '${skip.note}(${skip.symbol})'
               : skip.symbol;
-          final title = '定期定額未執行：$label';
+          final title = skip.reason == RecurringRuleStockSkipReason.staleSkipped
+              ? '定期定額已略過過期的期數：$label'
+              : '定期定額未執行：$label';
           final body = switch (skip.reason) {
             RecurringRuleStockSkipReason.insufficientBalance =>
               '交割帳戶餘額不足(需要 ${skip.requiredAmount?.toStringAsFixed(2)},'
@@ -427,6 +442,14 @@ final appSplashInitProvider = FutureProvider<void>((ref) async {
                   '本次啟動時系統會持續嘗試。',
             RecurringRuleStockSkipReason.quoteUnavailable =>
               '目前沒有這檔標的的報價,本次啟動時系統會持續嘗試。',
+            RecurringRuleStockSkipReason.staleSkipped =>
+              '有 ${skip.skippedCount} 期超過 ${kStockDcaMaxCatchUp.inDays} 天未執行,'
+                  '無法取得當時的價格,已略過不補買;如有實際成交請到投資頁手動新增。',
+            RecurringRuleStockSkipReason.amountTooSmall =>
+              '每期金額不足以買進 1 股(目前股價 ${skip.requiredAmount},另需手續費),'
+                  '本期已略過;台股定期定額只能買整數股,請調高每期金額。',
+            RecurringRuleStockSkipReason.failed =>
+              '這個定期定額計畫設定有問題,請檢查交割帳戶/投資理財帳戶設定(${skip.error})。',
           };
           try {
             await notificationUtil.showNotification(

@@ -37,6 +37,8 @@ import 'keyboard_suggestion_bar.dart';
 import 'pull_to_submit_scroll_view.dart';
 import '../currency/currency_picker_sheet.dart';
 import '../currency/currency_flag.dart';
+import '../ui/bee_overlays.dart';
+import '../ui/bee_pressable.dart';
 import '../ui/toast.dart';
 import 'tag_chip.dart';
 import '../../pages/attachment/attachment_preview_page.dart';
@@ -1007,7 +1009,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
             : '');
 
     bool syncing = false;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showBeeDialog<bool>(
       context: context,
       builder: (dctx) => StatefulBuilder(
         builder: (dctx, setDialogState) {
@@ -1494,7 +1496,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   /// 長按某一筆明細圖示:換分類 / 移除(< 3 筆時不給移除選項)這兩個動作。
   Future<void> _showSplitLineActions(int index) async {
     final l10n = AppLocalizations.of(context);
-    final action = await showModalBottomSheet<String>(
+    final action = await showBeeBottomSheet<String>(
       context: context,
       builder: (ctx) => SafeArea(
         child: Column(
@@ -1526,7 +1528,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   /// 長按/點「多類別」彙總圖示:目前唯一動作是整組還原成單一分類。
   Future<void> _showSplitAggregateActions() async {
     final l10n = AppLocalizations.of(context);
-    final action = await showModalBottomSheet<String>(
+    final action = await showBeeBottomSheet<String>(
       context: context,
       builder: (ctx) => SafeArea(
         child: ListTile(
@@ -1563,9 +1565,19 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     _onCategoryChanged();
   }
 
-  void _pickDate() async {
+  /// 收起焦點,只在系統鍵盤實際開著時才等它收起(100ms)再開選擇器。
+  /// 必須在 unfocus 之前讀 viewInsets——unfocus 之後這個值會馬上改變。
+  /// 金額用的是 App 內建小算盤,不算系統鍵盤,點日期/時間時不用等。
+  Future<void> _unfocusBeforePicker() async {
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     FocusManager.instance.primaryFocus?.unfocus();
-    await Future.delayed(const Duration(milliseconds: 100));
+    if (keyboardOpen) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+  }
+
+  void _pickDate() async {
+    await _unfocusBeforePicker();
     if (!mounted) return;
 
     // 日期/時間拆成兩個獨立欄位各自喚起專屬選擇器(月曆網格/HH:mm wheel),
@@ -1579,8 +1591,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
   }
 
   void _pickTime() async {
-    FocusManager.instance.primaryFocus?.unfocus();
-    await Future.delayed(const Duration(milliseconds: 100));
+    await _unfocusBeforePicker();
     if (!mounted) return;
 
     final res = await showTransactionTimePicker(
@@ -1666,6 +1677,20 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
       return;
     }
 
+    // 回饋規則只留屬於目前所選帳戶的:換帳戶/舊資料殘留的別張卡規則在 UI 上
+    // 看不到(chip 與選單都只列所選卡的規則),但 `_selectedRewardRuleIds`
+    // 仍帶著,存檔會原封不動寫回交易,明細就多出不屬於這張卡的回饋項目。
+    // 共享帳本 synthetic 帳戶(id < 0)沒有本地規則表可比對,維持原樣。
+    var rewardRuleIdsForSubmit = _selectedRewardRuleIds;
+    if (_selectedRewardRuleIds.isNotEmpty && _selectedAccountId! >= 0) {
+      final accountRules = await ref
+          .read(cardRewardRulesForAccountProvider(_selectedAccountId!).future);
+      final validIds = accountRules.map((r) => r.syncId).toSet();
+      rewardRuleIdsForSubmit =
+          _selectedRewardRuleIds.where(validIds.contains).toList();
+      if (!mounted) return;
+    }
+
     // v51 支出/收入手續費/折扣:面板開啟時(拆帳模式下面板不會開啟,見
     // _buildFeeDiscountToggle 的 _splits.isEmpty 判斷)驗證兩個金額皆須 ≥0
     // (比照 Cloud `_normalize_fee_discount_amount`),通過後用
@@ -1733,7 +1758,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
         excludeFromBudget: _excludeFromBudget,
         currencyCode: txCurrency,
         nativeAmount: nativeAmount,
-        rewardRuleIds: _selectedRewardRuleIds,
+        rewardRuleIds: rewardRuleIdsForSubmit,
         recurringDraft:
             widget.editingTransactionId == null ? _recurringDraft : null,
         // 三態:目前拆帳中 → 整組明細;從未碰過拆帳 → null(維持原路徑);
@@ -1853,9 +1878,10 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
           // 誤叫出主金額的小算盤(使用者回報「點整個額外金額的區域就跳上面
           // 的數字小鍵盤」的原因)。面板改成這顆的手足節點(見下方),自己的
           // 金額文字另外用 _buildKeypadAmountCell 掛小算盤,不會再誤觸這裡。
-          GestureDetector(
+          BeePressable(
             key: const Key('amountDisplayTap'),
             behavior: HitTestBehavior.translucent,
+            pressedScale: 0.98,
             onTap: () {
               FocusScope.of(context).unfocus();
               setState(() {
@@ -2051,7 +2077,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   final rec = _recommendations[index];
-                  return GestureDetector(
+                  return BeePressable(
                     onTap: () => _onRecommendationTapped(rec),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -2296,7 +2322,8 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     return Row(
       children: [
         Expanded(
-          child: GestureDetector(
+          child: BeePressable(
+            pressedScale: 0.98,
             onTap: () => setState(() => _categoryGridExpanded = true),
             child: Row(
               children: [
@@ -2811,7 +2838,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     bool stats = _excludeFromStats;
     bool budget = _excludeFromBudget;
 
-    await showDialog<void>(
+    await showBeeDialog<void>(
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
@@ -3137,7 +3164,7 @@ class TransactionEntryFormState extends ConsumerState<TransactionEntryForm>
     final l10n = AppLocalizations.of(context);
     final service = ref.read(attachmentServiceProvider);
 
-    await showModalBottomSheet(
+    await showBeeBottomSheet(
       context: context,
       builder: (_) => SafeArea(
         child: Column(

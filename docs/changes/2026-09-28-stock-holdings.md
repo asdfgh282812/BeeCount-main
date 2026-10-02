@@ -37,7 +37,16 @@ Cloud 端設計文件:`BeeCount-Cloud/docs/STOCK_HOLDINGS_SD.md`。
   (見下方「轉帳不能單獨改」)。
 - Web:頭像下拉選單 →「投資」;或資產頁的「投資市值(預估)」卡。
 
-## 1. 資料模型(schema v62 → v63,`lib/data/db.dart`)
+## 1. 資料模型(schema v62 → v64,`lib/data/db.dart`)
+
+3.7.0 共兩個 migration 分支:
+- **v63**:股票持股(本節下面的 `StockTrades`/`SecurityQuotes`/`Accounts.investmentSettingsJson`)。
+- **v64**:股票定期定額,`recurring_transactions` 新增 `kind`(TEXT NOT NULL DEFAULT `'general'`)、
+  `market`/`symbol`/`security_name`(TEXT)、`stock_fee_rate`/`stock_fee_min`(REAL),
+  皆為 nullable/有預設值,不需回填。細節見
+  [2026-09-28-stock-dca-recurring.md](2026-09-28-stock-dca-recurring.md)。
+- 之後的 DCA 修正(`2026-09-29-stock-dca-fixes`、`2026-09-30-*`)與帳戶滑動操作
+  只動同步/UI/偏好設定,**沒有新增 schema 版本**。
 
 - **`StockTrades` 表(新,ledger-scoped,同 `Debts`)**:`syncId`/`ledgerId`/
   `accountId`(投資理財帳戶本地 id)/`market`/`symbol`/`securityName`/

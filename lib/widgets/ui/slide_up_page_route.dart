@@ -7,9 +7,11 @@ import '../../styles/tokens.dart';
 /// 支援「從哪來就從哪回」的下滑關閉手勢。
 ///
 /// 動畫組成:
-/// - 頁面:translateY 100% → 0%,[BeeMotion.standard](easeOutCubic)減速進場;
-///   關閉時同一條曲線反向播放 = 先慢後快的加速離場,手感像把卡片「推回」底部。
-///   進出場同為 [_duration],符合「以相同速度收回」。
+/// - 頁面:translateY 100% → 0%,[BeeMotion.standard](easeOutCubic)減速進場,
+///   [_enterDuration](280ms)。離場改用 `standard.flipped` 且縮短為
+///   [_exitDuration](210ms):若直接反向播放 easeOutCubic,前 30% 時間幾乎
+///   不位移(儲存後頁面「卡一下才走」),改成一按就立即起步、快速減速離場,
+///   跟 BeePageTransitionsBuilder 的 reverseCurve 同一套做法。
 /// - 遮罩:[barrierColor] 由 ModalRoute 內建的 barrier 自動隨 route 動畫
 ///   淡入/淡出,曲線由 [barrierCurve] 指定(同樣非線性)。下滑拖曳時遮罩也
 ///   跟著手指即時變淡。
@@ -41,7 +43,10 @@ class SlideUpPageRoute<T> extends PageRoute<T> {
 
   final WidgetBuilder builder;
 
-  static const _duration = Duration(milliseconds: 300);
+  static const _enterDuration = BeeMotion.medium;
+
+  /// 離場比進場短:使用者已經決定要離開,不該讓他等。
+  static const _exitDuration = Duration(milliseconds: 210);
 
   /// 放開時往下甩的速度門檻(logical px/s),超過就直接關閉。
   static const double _flingVelocity = 700;
@@ -50,10 +55,10 @@ class SlideUpPageRoute<T> extends PageRoute<T> {
   static const double _dismissFraction = 0.35;
 
   @override
-  Duration get transitionDuration => _duration;
+  Duration get transitionDuration => _enterDuration;
 
   @override
-  Duration get reverseTransitionDuration => _duration;
+  Duration get reverseTransitionDuration => _exitDuration;
 
   @override
   bool get opaque => true;
@@ -130,16 +135,18 @@ class SlideUpPageRoute<T> extends PageRoute<T> {
     // 表單可能在拖曳中途自己關掉了頁面(例如送出成功),這時不能再 pop 一次,
     // 否則會把底下的頁面也關掉。
     if (dismiss && isCurrent) {
-      // pop 觸發 didPop → controller.reverse();隨即以自訂曲線覆蓋,讓收尾
-      // 與進場同一條 easeOutCubic,時長依剩餘距離等比縮短。
+      // pop 觸發 didPop → controller.reverse();隨即以自訂曲線覆蓋。拖曳期間
+      // 位移是線性跟手,所以這裡的 easeOutCubic 本身就是「立即起步的減速」,
+      // 時長用離場時長並依剩餘距離等比縮短。
       nav.pop();
       if (ctrl.isAnimating) {
         ctrl.animateBack(0,
-            duration: _duration * ctrl.value, curve: BeeMotion.standard);
+            duration: _exitDuration * ctrl.value, curve: BeeMotion.standard);
       }
     } else if (!dismiss && ctrl.value < 1) {
       ctrl.animateTo(1,
-          duration: _duration * (1 - ctrl.value), curve: BeeMotion.standard);
+          duration: _enterDuration * (1 - ctrl.value),
+          curve: BeeMotion.standard);
     }
 
     void finish() {
@@ -188,9 +195,9 @@ class SlideUpPageRoute<T> extends PageRoute<T> {
           ? animation
           : CurvedAnimation(
               parent: animation,
-              // 進場減速;reverseCurve 留空 = 反向時沿用同一條曲線,
-              // 效果為先慢後快的加速離場(Material 的 exit 慣例)。
+              // 進場減速;離場用 flipped 讓一開始就明顯位移,避免起步停滯。
               curve: BeeMotion.standard,
+              reverseCurve: BeeMotion.standard.flipped,
             )),
       child: child,
     );

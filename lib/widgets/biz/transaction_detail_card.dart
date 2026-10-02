@@ -1214,9 +1214,13 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
   /// 入帳金額仍由 Server 端排程計算,這裡終究只是現場估算。
   Widget _buildRewardSection(
       BuildContext context, AppLocalizations l10n, _DetailBundle? bundle) {
-    final rules = bundle?.rewardRules ?? const <CardRewardRule>[];
-    if (rules.isEmpty) return const SizedBox.shrink();
     final tx = widget.transaction;
+    // 只顯示屬於這筆交易所在帳戶的規則:換過帳戶的舊資料可能殘留別張卡的規則
+    // id,不該算進這張卡的回饋明細(帳戶未知時不過濾)。
+    final rules = (bundle?.rewardRules ?? const <CardRewardRule>[])
+        .where((r) => tx.accountId == null || r.accountId == tx.accountId)
+        .toList();
+    if (rules.isEmpty) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
