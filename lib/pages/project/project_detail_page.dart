@@ -896,6 +896,7 @@ class _ProjectCategoryTransactionsPage extends ConsumerWidget {
                             accountName: transferAccountInfo,
                             happenedAt: t.happenedAt,
                             hasSplits: t.hasSplits,
+                            txSyncId: t.syncId,
                             showFullDate: true,
                             onTap: () => showTransactionDetailCard(
                                 context, ref, t, category),

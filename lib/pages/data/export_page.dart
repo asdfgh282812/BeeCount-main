@@ -117,7 +117,29 @@ class _ExportPageState extends ConsumerState<ExportPage> {
         l10n.exportCsvHeaderTime,
         l10n.exportCsvHeaderTags,
         l10n.exportCsvHeaderAttachments, // 附件文件名（逗号分隔）
+        // 股票報表一致性(2026-10-03):轉帳的手續費/折損(股票買賣的手續費、證交稅
+        // 就落在這兩欄)與股票交易標示。放在最後,匯入端依表頭名稱比對,不認得的欄
+        // 位會被忽略,不影響回匯。
+        l10n.exportCsvHeaderFee,
+        l10n.exportCsvHeaderDiscount,
+        l10n.exportCsvHeaderStockTrade,
       ]);
+
+      // 股票明細(交易 syncId → 描述),給手續費欄旁的「股票交易」欄用。
+      final stockTrades = await repo.getAllStockTrades();
+      String stockTradeTypeLabel(String type) => switch (type) {
+            'buy' => l10n.stockTradeTypeBuy,
+            'sell' => l10n.stockTradeTypeSell,
+            'cash_dividend' => l10n.stockTradeTypeCashDividend,
+            'reinvest' => l10n.stockTradeTypeReinvest,
+            _ => type,
+          };
+      final stockDescByTxSyncId = <String, String>{
+        for (final st in stockTrades)
+          if (st.txSyncId != null && st.txSyncId!.isNotEmpty)
+            st.txSyncId!:
+                '${stockTradeTypeLabel(st.tradeType)} ${st.symbol} ${st.shares == st.shares.roundToDouble() ? st.shares.toInt() : st.shares}',
+      };
 
       // 批量获取所有交易的标签
       final transactionIds = transactionsWithCategory.map((tx) => tx.t.id).toList();
@@ -233,6 +255,11 @@ class _ExportPageState extends ConsumerState<ExportPage> {
           timeStr,
           tagsStr,
           attachmentsStr,
+          (t.feeAmount ?? 0) == 0 ? '' : t.feeAmount!.toStringAsFixed(2),
+          (t.discountAmount ?? 0) == 0
+              ? ''
+              : t.discountAmount!.toStringAsFixed(2),
+          (t.syncId == null ? null : stockDescByTxSyncId[t.syncId!]) ?? '',
         ]);
         if (i % 50 == 0) {
           setState(() => progress = (i + 1) / (total == 0 ? 1 : total));

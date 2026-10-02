@@ -6,6 +6,7 @@ import '../../../services/report/report_aggregator.dart';
 import '../../../styles/tokens.dart';
 import '../../../widgets/analytics/category_rank_row.dart';
 import '../../../widgets/biz/biz.dart';
+import '../../../widgets/biz/investment_flow_note.dart';
 import '../../../widgets/charts/category_pie_chart.dart'
     show kCategoryChartColors;
 import '../../../widgets/statistics/report_colors.dart';
@@ -30,6 +31,15 @@ class ReportOverviewTab extends ConsumerWidget {
       padding: EdgeInsets.fromLTRB(16, 12, 16, reportBottomPadding(context)),
       children: [
         _SummaryCard(summary: s),
+        // 股票報表一致性:收支不計轉帳,買股票的錢不在這裡——補一行「投資淨投入/
+        // 手續費稅/股利」。套了篩選時不顯示(篩選範圍跟股票明細對不上,會互相矛盾)。
+        if (!view.filtered)
+          InvestmentFlowNote(
+            start: view.query.start,
+            end: view.query.end,
+            ledgerId: view.query.ledgerId,
+            padding: const EdgeInsets.only(top: 8),
+          ),
         if (s.txCount == 0)
           Padding(
             padding: const EdgeInsets.only(top: 40),

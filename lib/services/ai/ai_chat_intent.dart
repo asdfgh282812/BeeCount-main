@@ -23,7 +23,7 @@ library;
 /// 一律用更長的片語(查詢 / 查一下 / 哪些)。
 const List<String> kQueryVetoKeywords = [
   // 數量/金額詢問
-  '多少', '幾多', '几多', '幾筆', '几笔', '幾次', '几次', '幾張', '几张',
+  '多少', '幾多', '几多', '幾筆', '几笔', '幾次', '几次', '幾張', '几张', '幾股', '几股',
   // 查詢動作
   '查詢', '查询', '查一下', '查查', '查看', '查帳', '查账', '看一下',
   '列出', '告訴我', '告诉我', '幫我看', '帮我看', '明細', '明细', '清單', '清单',
@@ -130,10 +130,90 @@ bool hasBookkeepingVerb(String input) {
   return false;
 }
 
+// ---------------------------------------------------------------------------
+// 股票(2026-10-03)
+// ---------------------------------------------------------------------------
+
+/// 含「股」字但不是股票的詞,比對股票標記前先剔除。
+const List<String> _nonStockWords = [
+  '股東', '股东', '股份', '股市', '股價', '股价', '股神', '一股腦', '一股脑', '股長', '股长',
+];
+
+/// 買賣動詞(股票買賣意圖用,刻意比 [kBookkeepingVerbs] 窄:只有買進/賣出語意)。
+const List<String> _stockTradeVerbs = [
+  '買', '买', '賣', '卖', '加碼', '加码', '減碼', '减码', '認購', '申購', '申购',
+];
+
+const List<String> _stockTradeVerbsEnglish = ['buy', 'bought', 'sell', 'sold'];
+
+final RegExp _enShares = RegExp(r'\d+\s*shares?\b', caseSensitive: false);
+
+/// 句子裡是否出現股票標記:「股」(剔除股東/股份/股市…)、股票、ETF、零股、
+/// 英文 shares / stock。刻意**不收**「張」(買了3張電影票),「N 張」的買賣由
+/// routing 模型依 prompt 規則判斷。
+bool hasStockMarker(String input) {
+  var cleaned = input;
+  for (final w in _nonStockWords) {
+    cleaned = cleaned.replaceAll(w, '');
+  }
+  if (cleaned.contains('股')) return true;
+  final lower = input.toLowerCase();
+  return lower.contains('etf') ||
+      lower.contains('stock') ||
+      _enShares.hasMatch(lower);
+}
+
+/// 「買了 2330 十股」「賣出 0050 100 股」這類是要**新增股票交易**的句子。
+///
+/// 買股票是「轉帳到投資理財帳戶 + 記股數」,不是支出記帳,走記帳快路徑會被
+/// 記成一筆莫名其妙的支出,所以這種句子不進記帳、改回覆做法。查詢句
+/// (「我買了幾股」「賣股賺多少」)先被 [isQueryIntent] 擋掉,走查詢工具。
+bool isStockTradeIntent(String input) {
+  if (isQueryIntent(input)) return false;
+  if (!hasStockMarker(input)) return false;
+  final lower = input.toLowerCase();
+  for (final v in _stockTradeVerbs) {
+    if (input.contains(v)) return true;
+  }
+  for (final v in _stockTradeVerbsEnglish) {
+    if (RegExp('\\b$v\\b').hasMatch(lower)) return true;
+  }
+  return false;
+}
+
+const List<String> _adviceWords = [
+  '建議', '建议', '該不該', '该不该', '要不要', '值不值得', '適合', '适合', '風險', '风险',
+  '集中', '分散', '配置', '調整', '调整', '買還是賣', '买还是卖', '賣還是買', '该买', '該買',
+  '該賣', '该卖', '加碼', '加码', '減碼', '减码', '停損', '停损', '停利', '看好', '推薦', '推荐',
+  '怎麼辦', '怎么办',
+];
+
+const List<String> _adviceWordsEnglish = [
+  'advice', 'advise', 'should i', 'recommend', 'risk', 'diversif', 'allocation',
+  'rebalanc', 'worth buying', 'worth selling',
+];
+
+const List<String> _investTerms = [
+  '投資', '投资', '持股', '股票', '基金', 'portfolio', 'holdings', 'invest',
+];
+
+/// 使用者是不是在問投資建議/風險類問題(要附免責聲明)。要求「股票/投資詞」與
+/// 「建議/風險詞」同時出現,避免一般記帳問答被誤加。
+bool isStockAdviceQuestion(String input) {
+  final lower = input.toLowerCase();
+  final stockish = hasStockMarker(input) ||
+      _investTerms.any((t) => input.contains(t) || lower.contains(t));
+  if (!stockish) return false;
+  return _adviceWords.any(input.contains) ||
+      _adviceWordsEnglish.any(lower.contains);
+}
+
 /// 三層閘門的最終結果:true = 走本地記帳快路徑,false = 交給 [FreeChatRouter]。
 bool isTransactionIntent(String input) {
   // Layer 0:查詢否決優先於一切。
   if (isQueryIntent(input)) return false;
+  // 買賣股票不是支出記帳(是轉帳到投資理財帳戶),不進記帳快路徑。
+  if (isStockTradeIntent(input)) return false;
   // Layer 1:必須同時有金額與記帳動詞(舊版是 OR,這是本次修正的核心)。
   return hasAmountToken(input) && hasBookkeepingVerb(input);
 }

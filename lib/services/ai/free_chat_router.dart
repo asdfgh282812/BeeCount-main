@@ -4,7 +4,9 @@ import '../../ai/providers/ai_provider_factory.dart';
 import '../../data/db.dart' show Message;
 import '../../data/repositories/base_repository.dart';
 import '../system/logger_service.dart';
+import 'ai_chat_intent.dart' as intent;
 import 'free_chat_context.dart';
+import 'free_chat_stock_tools.dart' show StockPendingDividendsLoader;
 import 'free_chat_tools.dart';
 
 const String _tag = 'FreeChatRouter';
@@ -59,15 +61,25 @@ class FreeChatRouter {
   final FreeChatToolExecutor _executor;
   final DateTime Function() _now;
 
+  /// 待確認股利(只存在 Cloud,App 端有快取)的讀取器,給 `stock_dividends`
+  /// 用;null = 讀不到,工具會回 available=false。
+  final StockPendingDividendsLoader? _pendingDividends;
+
+  /// 工具結果序列化後的字元上限。各工具已自行限制筆數,這是最後一道保險,
+  /// 避免多個工具同時回大結果把 answer prompt 撐爆。
+  static const maxPayloadChars = 24000;
+
   FreeChatRouter({
     required BaseRepository repo,
     ChatFn? chatFn,
     FreeChatToolExecutor executor = const FreeChatToolExecutor(),
     DateTime Function()? now,
+    StockPendingDividendsLoader? pendingDividends,
   })  : _repo = repo,
         _chatFn = chatFn ?? _defaultChatFn,
         _executor = executor,
-        _now = now ?? DateTime.now;
+        _now = now ?? DateTime.now,
+        _pendingDividends = pendingDividends;
 
   static Future<String> _defaultChatFn(String prompt, {String? systemPrompt}) {
     return AIProviderFactory.chat(prompt,
@@ -105,7 +117,11 @@ class FreeChatRouter {
 
     switch (decision['type']) {
       case 'answer':
-        return FreeChatAnswer((decision['text'] as String?) ?? rawResponse);
+        return FreeChatAnswer(_withStockDisclaimer(
+          (decision['text'] as String?) ?? rawResponse,
+          userInput,
+          languageCode,
+        ));
 
       case 'record_transaction':
         final text = (decision['text'] as String?)?.trim();
@@ -144,6 +160,8 @@ class FreeChatRouter {
           c.params,
           repo: _repo,
           ledgerId: ledgerId,
+          now: _now,
+          pendingDividends: _pendingDividends,
         );
         return {'tool': c.tool, 'data': data};
       } on FreeChatToolException catch (e) {
@@ -159,9 +177,18 @@ class FreeChatRouter {
     }
 
     final payload = results.length == 1 ? results.first : results;
-    final answerSystemPrompt = _buildAnswerSystemPrompt(languageCode);
+    final usedStockTool = calls.any((c) => c.tool.startsWith('stock_'));
+    final answerSystemPrompt = _buildAnswerSystemPrompt(
+      languageCode,
+      includeStockRules: usedStockTool,
+    );
+    var encoded = jsonEncode(payload);
+    if (encoded.length > maxPayloadChars) {
+      logger.warning(_tag, '工具結果過長(${encoded.length} 字元),截斷到 $maxPayloadChars');
+      encoded = '${encoded.substring(0, maxPayloadChars)}…(資料過長,以上為前段,已截斷)';
+    }
     final answerPrompt = '使用者問題：$userInput\n\n'
-        '查到的資料：${jsonEncode(payload)}\n\n'
+        '查到的資料：$encoded\n\n'
         '請用自然語言回答,不要提到 JSON 或工具。';
 
     logger.debug(_tag, '[Answer] system prompt:\n$answerSystemPrompt');
@@ -170,7 +197,41 @@ class FreeChatRouter {
         await _chatFn(answerPrompt, systemPrompt: answerSystemPrompt);
     logger.debug(_tag, '[Answer] AI 回應:\n$answerText');
 
-    return FreeChatAnswer(answerText);
+    // 持股分析工具、或使用者在問投資建議/風險時,結尾一定要有免責聲明 ——
+    // 不只靠 prompt 要求,模型漏寫時這裡補上。
+    final analysisUsed =
+        calls.any((c) => c.tool == 'stock_portfolio_analysis');
+    return FreeChatAnswer(_withStockDisclaimer(
+      answerText,
+      userInput,
+      languageCode,
+      force: analysisUsed,
+    ));
+  }
+
+  /// 股票免責聲明。回答已含聲明就不重複加。
+  static const stockDisclaimerZh = '以上內容僅供參考,非投資建議,不構成任何買賣推薦。';
+  static const stockDisclaimerEn =
+      'For reference only. This is not investment advice and not a recommendation to buy or sell any security.';
+
+  String _withStockDisclaimer(
+    String text,
+    String userInput,
+    String? languageCode, {
+    bool force = false,
+  }) {
+    if (!force && !intent.isStockAdviceQuestion(userInput)) return text;
+    final lower = text.toLowerCase();
+    if (text.contains('非投資建議') ||
+        text.contains('不構成') ||
+        text.contains('不构成') ||
+        lower.contains('not investment advice') ||
+        lower.contains('not financial advice')) {
+      return text;
+    }
+    final disclaimer =
+        languageCode == 'en' ? stockDisclaimerEn : stockDisclaimerZh;
+    return '${text.trimRight()}\n\n$disclaimer';
   }
 
   /// 同時支援新的 `tools` 陣列與舊的單一 `tool` 欄位(向後相容)。
@@ -334,13 +395,79 @@ class FreeChatRouter {
             '{"type":"record_transaction","text":"星巴克 150",'
             '"fallbackText":"我看不出金額,可以再說一次嗎?"}';
 
+    final stockRules = isEn
+        ? 'Stock rules:\n'
+            '- BeeCount tracks stock holdings (investment accounts + stock trades). '
+            'For anything about holdings / stocks / ETFs / dividends / DCA plans / '
+            'realized or unrealized profit / fee settings, use the stock_* tools. '
+            'NEVER use query_transactions for them — buying stock is a transfer '
+            'into an investment account, not an expense.\n'
+            '- Tool choice: current holdings, market value, unrealized P/L → '
+            'stock_holdings; trade history, fee/tax totals, latest trade → '
+            'stock_trades; profit from selling → stock_realized_pnl; dividends → '
+            'stock_dividends; fee/tax settings → stock_settings; DCA plans → '
+            'stock_dca_plans; "am I making money" / total return / ranking / '
+            'yield → stock_performance (add stock_holdings if needed); '
+            'portfolio analysis / risk / concentration / advice → '
+            'stock_portfolio_analysis.\n'
+            '- Fill symbol / account from the stock and investment-account lists '
+            'above when the user names them; omit otherwise. "this year" → year.\n'
+            '- For "analyze my portfolio", "any advice", "should I buy/sell X": '
+            'call stock_portfolio_analysis; never answer with a direct buy/sell '
+            'recommendation.\n'
+            '- If the user says they bought/sold shares (e.g. "bought 10 shares of '
+            'AAPL") they want to ADD a stock trade, which is not an expense: do '
+            'NOT use record_transaction. Reply with type=answer explaining: '
+            'Accounts tab → open the investment account → add stock trade (or add a '
+            '"transfer" and pick the investment account, which opens the trade page).'
+        : '股票相關規則:\n'
+            '- 蜜蜂記帳支援股票持股(投資理財帳戶 + 股票交易明細)。使用者問「持股/股票/ETF/'
+            '股利/配息/定期定額/已實現/未實現/賺賠/手續費設定」等,一律用 stock_* 工具查,'
+            '**不要用 query_transactions**(買賣股票是「轉帳到投資理財帳戶」,不是支出)。\n'
+            '- 工具選用:現有持股、市值、未實現損益→stock_holdings;買賣紀錄、手續費/交易稅'
+            '總額、最近一筆→stock_trades;賣出賺賠→stock_realized_pnl;股利→stock_dividends;'
+            '費用/稅率設定→stock_settings;定期定額→stock_dca_plans;'
+            '整體賺不賺錢/總報酬/每檔排名/殖利率→stock_performance(需要時再加 stock_holdings);'
+            '持股分析/風險/集中度/理財建議→stock_portfolio_analysis。\n'
+            '- 使用者提到的股票名稱/代號、投資帳戶,照上面的清單填 symbol / account;'
+            '沒提就省略。「今年」→ year 填今年。\n'
+            '- 「幫我分析持股/有什麼建議/該不該買賣某檔」→ 呼叫 stock_portfolio_analysis,'
+            '**不要直接回答買進或賣出的建議**。\n'
+            '- 使用者說「買了/賣了某股票 N 股(張)」是要**新增股票交易**,不是支出記帳:'
+            '**不要用 record_transaction**,改用 type=answer 說明做法:到「帳戶」頁→點進'
+            '投資理財帳戶→「新增股票交易」(或新增一筆「轉帳」並選投資理財帳戶,會自動導到'
+            '買賣頁面);要定期買入可建「股票定期定額」。如果是在「問」買賣紀錄才用 stock_trades。';
+
+    final stockExamples = isEn
+        ? 'Stock examples:\n'
+            '使用者：am I making money on my stocks → '
+            '{"type":"tool_call","tools":[{"tool":"stock_performance","params":{}},'
+            '{"tool":"stock_holdings","params":{}}]}\n'
+            '使用者：bought 10 shares of AAPL → '
+            '{"type":"answer","text":"Buying stock is not an expense. Open the Accounts tab, tap your investment account and choose add stock trade."}'
+        : '股票範例:\n'
+            '使用者：我現在股票賺還是賠 → '
+            '{"type":"tool_call","tools":[{"tool":"stock_performance","params":{}},'
+            '{"tool":"stock_holdings","params":{}}]}\n'
+            '使用者：今年賣股賺多少 → '
+            '{"type":"tool_call","tool":"stock_realized_pnl","params":{"year":${_now().year}}}\n'
+            '使用者：台積電最近一筆買賣(清單裡有 2330 台積電)→ '
+            '{"type":"tool_call","tool":"stock_trades","params":{"symbol":"2330","limit":1}}\n'
+            '使用者：幫我看看我的持股有什麼風險 → '
+            '{"type":"tool_call","tool":"stock_portfolio_analysis","params":{}}\n'
+            '使用者：昨天買了 0050 十股 → '
+            '{"type":"answer","text":"買股票不是支出記帳,請到「帳戶」頁點進投資理財帳戶,選「新增股票交易」填股數與價格。"}';
+
     return '$persona\n$langInstruction\n$dateLine\n'
         '$categoryBlock\n'
         '可用工具：\n${buildFreeChatToolsPromptSection()}\n\n'
-        '$dateRules\n\n$formatInstruction\n\n$examples';
+        '$dateRules\n\n$stockRules\n\n$formatInstruction\n\n$examples\n\n$stockExamples';
   }
 
-  String _buildAnswerSystemPrompt(String? languageCode) {
+  String _buildAnswerSystemPrompt(
+    String? languageCode, {
+    bool includeStockRules = false,
+  }) {
     final isEn = languageCode == 'en';
     final persona = isEn
         ? "You are BeeCount's AI assistant, mainly helping users with bookkeeping."
@@ -368,7 +495,46 @@ class FreeChatRouter {
         : '可以使用簡單的 Markdown(粗體、清單、表格)讓回覆更好讀,'
             '但不要過度排版 —— 一句話就能說完的答案不需要標題。';
 
-    return '$persona\n$langInstruction\n\n$guards\n\n$markdown';
+    final stock = includeStockRules ? '\n\n${_buildStockAnswerRules(isEn)}' : '';
+    return '$persona\n$langInstruction\n\n$guards\n\n$markdown$stock';
+  }
+
+  /// answer 階段的股票回答規則(只有這一輪呼叫過 stock_* 工具才帶,省 token)。
+  String _buildStockAnswerRules(bool isEn) {
+    return isEn
+        ? 'Stock answer rules:\n'
+            '- Report each currency separately (TWD, USD, …). NEVER add amounts of '
+            'different currencies together or convert them yourself.\n'
+            '- Only quote numbers present in the data. If there are no holdings / '
+            'trades / dividends (holdingCount or matchedCount is 0, or a warning '
+            'field says nothing matched), say so plainly. Never invent figures.\n'
+            '- When citing market value or unrealized P/L, state the quote time '
+            '(quote.quoteTime / fetchedAt) and warn if stale=true. If a quote is '
+            'missing (quote.available=false or unpricedCount>0) say that position '
+            'is not valued.\n'
+            '- pnlBasis=afterEstimatedSellCosts means unrealized P/L is net of '
+            'estimated sell fees and securities transaction tax; mention it when '
+            'relevant.\n'
+            '- Aggregates (byCurrency / totalsByCurrency / matchedCount) cover ALL '
+            'data; lists marked truncated are only part of it — say so.\n'
+            '- Advice / analysis questions: describe the structure and risks '
+            'objectively from the data (concentration, losing positions, cost '
+            'ratio…). Never say "buy X" / "sell X", never promise returns. END the '
+            'answer with exactly this disclaimer: "$stockDisclaimerEn"'
+        : '股票回答規則:\n'
+            '- 各幣別分開陳述(TWD、USD…),**絕對不要把不同幣別的金額相加或自行換算**。\n'
+            '- 只引用資料裡有的數字。沒有持股/交易/股利(holdingCount 或 matchedCount 為 0,'
+            '或 warning 欄位說沒比對到)就直接說沒有,**不要編造數字**。\n'
+            '- 提到市值或未實現損益時,要說明報價時間(quote.quoteTime / fetchedAt),'
+            'stale=true 要提醒報價可能不是最新;報價缺失(quote.available=false 或 '
+            'unpricedCount>0)就說明該檔沒有報價、未計入市值。\n'
+            '- pnlBasis=afterEstimatedSellCosts 代表未實現損益已扣預估賣出手續費與證交稅,'
+            '相關時要提一下口徑。\n'
+            '- byCurrency / totalsByCurrency / matchedCount 這類彙總已涵蓋全部資料;'
+            '標示 truncated 的清單只是其中一部分,要說明。\n'
+            '- 分析/理財建議類問題:只能依資料客觀描述結構與風險(集中度、虧損標的、成本佔比…),'
+            '可以指出需要留意的地方,但**不要說「建議買進/賣出某檔」、不要保證報酬或漲跌**。'
+            '回答結尾必須附上這句免責聲明:「$stockDisclaimerZh」';
   }
 
   /// 解析 routing 回應為 `{"type": ..., ...}`。回傳 null 代表沒解析出合法的

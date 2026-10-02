@@ -20536,6 +20536,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Totals are per currency and are not converted or added together.'**
   String get stockRealizedCurrencyNote;
+
+  /// No description provided for @stockFlowNetInvested.
+  ///
+  /// In en, this message translates to:
+  /// **'Net invested in stocks'**
+  String get stockFlowNetInvested;
+
+  /// No description provided for @stockFlowBuySell.
+  ///
+  /// In en, this message translates to:
+  /// **'Bought {buy} · Sold {sell}'**
+  String stockFlowBuySell(String buy, String sell);
+
+  /// No description provided for @stockFlowNotCounted.
+  ///
+  /// In en, this message translates to:
+  /// **'not counted as income or expense'**
+  String get stockFlowNotCounted;
+
+  /// No description provided for @stockFlowFees.
+  ///
+  /// In en, this message translates to:
+  /// **'Fees & transaction tax {amount} (investment cost, not counted as expense)'**
+  String stockFlowFees(String amount);
+
+  /// No description provided for @stockFlowDividends.
+  ///
+  /// In en, this message translates to:
+  /// **'Dividend income {amount} (already included in income)'**
+  String stockFlowDividends(String amount);
+
+  /// No description provided for @stockNetWorthNoteExcluded.
+  ///
+  /// In en, this message translates to:
+  /// **'Investment accounts are excluded. Buying stocks lowers net worth (a transfer, not an expense).'**
+  String get stockNetWorthNoteExcluded;
+
+  /// No description provided for @stockNetWorthNoteWithValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Excludes investment accounts · Investment value about {value} shown separately'**
+  String stockNetWorthNoteWithValue(String value);
+
+  /// No description provided for @stockNetWorthIncludedWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} investment account(s) are still counted in net worth (at cost), which may double count with investment value.'**
+  String stockNetWorthIncludedWarning(int count);
+
+  /// No description provided for @stockNetWorthTrendNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The trend excludes investment accounts, so buying stocks shows up as a drop.'**
+  String get stockNetWorthTrendNote;
+
+  /// No description provided for @stockTxTagBuy.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock buy'**
+  String get stockTxTagBuy;
+
+  /// No description provided for @stockTxTagSell.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock sell'**
+  String get stockTxTagSell;
+
+  /// No description provided for @stockTxTagReinvest.
+  ///
+  /// In en, this message translates to:
+  /// **'Dividend reinvest'**
+  String get stockTxTagReinvest;
+
+  /// No description provided for @exportCsvHeaderFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee'**
+  String get exportCsvHeaderFee;
+
+  /// No description provided for @exportCsvHeaderDiscount.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount / tax'**
+  String get exportCsvHeaderDiscount;
+
+  /// No description provided for @exportCsvHeaderStockTrade.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock trade'**
+  String get exportCsvHeaderStockTrade;
 }
 
 class _AppLocalizationsDelegate

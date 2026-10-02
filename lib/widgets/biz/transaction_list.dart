@@ -647,6 +647,7 @@ class TransactionListState extends ConsumerState<TransactionList> {
                         excludeFromStats: it.t.excludeFromStats,
                         excludeFromBudget: it.t.excludeFromBudget,
                         hasSplits: it.t.hasSplits,
+                        txSyncId: it.t.syncId,
                         onAttachmentTap: attachmentCount > 0
                             ? () async {
                                 switchToStreamMode(); // 用户交互，切换到 Stream 模式

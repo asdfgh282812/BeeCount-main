@@ -11151,6 +11151,63 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get stockRealizedCurrencyNote =>
       'Totals are per currency and are not converted or added together.';
+
+  @override
+  String get stockFlowNetInvested => 'Net invested in stocks';
+
+  @override
+  String stockFlowBuySell(String buy, String sell) {
+    return 'Bought $buy · Sold $sell';
+  }
+
+  @override
+  String get stockFlowNotCounted => 'not counted as income or expense';
+
+  @override
+  String stockFlowFees(String amount) {
+    return 'Fees & transaction tax $amount (investment cost, not counted as expense)';
+  }
+
+  @override
+  String stockFlowDividends(String amount) {
+    return 'Dividend income $amount (already included in income)';
+  }
+
+  @override
+  String get stockNetWorthNoteExcluded =>
+      'Investment accounts are excluded. Buying stocks lowers net worth (a transfer, not an expense).';
+
+  @override
+  String stockNetWorthNoteWithValue(String value) {
+    return 'Excludes investment accounts · Investment value about $value shown separately';
+  }
+
+  @override
+  String stockNetWorthIncludedWarning(int count) {
+    return '$count investment account(s) are still counted in net worth (at cost), which may double count with investment value.';
+  }
+
+  @override
+  String get stockNetWorthTrendNote =>
+      'The trend excludes investment accounts, so buying stocks shows up as a drop.';
+
+  @override
+  String get stockTxTagBuy => 'Stock buy';
+
+  @override
+  String get stockTxTagSell => 'Stock sell';
+
+  @override
+  String get stockTxTagReinvest => 'Dividend reinvest';
+
+  @override
+  String get exportCsvHeaderFee => 'Fee';
+
+  @override
+  String get exportCsvHeaderDiscount => 'Discount / tax';
+
+  @override
+  String get exportCsvHeaderStockTrade => 'Stock trade';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -22166,4 +22223,59 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get stockRealizedCurrencyNote => '各幣別分開統計,不換算也不跨幣別加總。';
+
+  @override
+  String get stockFlowNetInvested => '投資淨投入';
+
+  @override
+  String stockFlowBuySell(String buy, String sell) {
+    return '買進 $buy · 賣出 $sell';
+  }
+
+  @override
+  String get stockFlowNotCounted => '未計入收入與支出';
+
+  @override
+  String stockFlowFees(String amount) {
+    return '手續費與證交稅 $amount（投資成本，不計入支出）';
+  }
+
+  @override
+  String stockFlowDividends(String amount) {
+    return '股利收入 $amount（已計入收入）';
+  }
+
+  @override
+  String get stockNetWorthNoteExcluded => '不含投資理財帳戶。買進股票會讓淨資產減少（是轉帳，不是支出）。';
+
+  @override
+  String stockNetWorthNoteWithValue(String value) {
+    return '不含投資理財帳戶 · 另有投資市值約 $value（不含於淨資產）';
+  }
+
+  @override
+  String stockNetWorthIncludedWarning(int count) {
+    return '有 $count 個投資理財帳戶仍計入淨資產（以成本計），可能與投資市值重複計算。';
+  }
+
+  @override
+  String get stockNetWorthTrendNote => '走勢不含投資理財帳戶，買進股票當天會呈現下降。';
+
+  @override
+  String get stockTxTagBuy => '股票買進';
+
+  @override
+  String get stockTxTagSell => '股票賣出';
+
+  @override
+  String get stockTxTagReinvest => '股利再投入';
+
+  @override
+  String get exportCsvHeaderFee => '手續費';
+
+  @override
+  String get exportCsvHeaderDiscount => '折損與稅';
+
+  @override
+  String get exportCsvHeaderStockTrade => '股票交易';
 }

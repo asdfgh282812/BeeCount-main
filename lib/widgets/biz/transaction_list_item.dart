@@ -7,6 +7,8 @@ import '../../widgets/ui/ui.dart';
 import '../../widgets/category_icon.dart';
 import '../../providers/database_providers.dart';
 import '../../providers/theme_providers.dart';
+import '../../providers/securities_providers.dart';
+import '../../services/investment/investment_flow.dart' show kStockTxLabelTypes;
 import '../../utils/category_utils.dart';
 import 'amount_text.dart';
 import 'tag_chip.dart';
@@ -61,6 +63,10 @@ class TransactionListItem extends ConsumerWidget {
   /// 分類可顯示)。
   final bool hasSplits;
 
+  /// 這筆交易的 syncId:用來查它是不是股票交易(買進/賣出轉帳、股利再投入)產生的,
+  /// 是的話第二行顯示「股票買進/賣出」標籤(2026-10-03 股票報表一致性)。
+  final String? txSyncId;
+
   const TransactionListItem({
     super.key,
     required this.icon,
@@ -92,7 +98,16 @@ class TransactionListItem extends ConsumerWidget {
     this.excludeFromStats = false,
     this.excludeFromBudget = false,
     this.hasSplits = false,
+    this.txSyncId,
   });
+
+  /// 綁定的股票明細類型(buy/sell/reinvest);不是股票交易回 null。
+  String? _stockTradeType(WidgetRef ref) {
+    final id = txSyncId;
+    if (id == null || id.isEmpty) return null;
+    final type = ref.watch(stockTradeTypeByTxSyncIdProvider)[id];
+    return (type != null && kStockTxLabelTypes.contains(type)) ? type : null;
+  }
 
   /// 检查是否有次要信息需要显示（时间、账户或附件）
   bool _hasSecondaryInfo(WidgetRef ref) {
@@ -107,6 +122,7 @@ class TransactionListItem extends ConsumerWidget {
             happenedAt!.second != 0);
 
     return showTime ||
+        _stockTradeType(ref) != null ||
         accountName != null ||
         attachmentCount > 0 ||
         excludeFromStats ||
@@ -228,7 +244,17 @@ class TransactionListItem extends ConsumerWidget {
 
     // 「不计收支 / 不计预算」标签:第二行末尾的次要标签，改为与标签 chip 一致的
     // 中性 pill 样式（de-emphasis，沿用 TagChip 的中性灰底 + pill 圆角）
+    final stockType = _stockTradeType(ref);
+    final l10nTag = AppLocalizations.of(context);
     final flagTags = <Widget>[
+      if (stockType != null)
+        _flagChip(
+            context,
+            switch (stockType) {
+              'buy' => l10nTag.stockTxTagBuy,
+              'sell' => l10nTag.stockTxTagSell,
+              _ => l10nTag.stockTxTagReinvest,
+            }),
       if (excludeFromStats)
         _flagChip(context, AppLocalizations.of(context).txFlagExcludedTag),
       if (excludeFromBudget)

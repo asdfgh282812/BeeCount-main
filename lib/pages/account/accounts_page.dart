@@ -13,6 +13,7 @@ import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/account_avatar.dart';
 import '../../widgets/biz/amount_text.dart';
 import '../../widgets/biz/format_money.dart';
+import '../../widgets/biz/investment_flow_note.dart';
 import '../../widgets/biz/section_card.dart';
 import '../../data/db.dart' as db;
 import '../../l10n/app_localizations.dart';
@@ -804,6 +805,9 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
             ),
             error: (_, __) => const SizedBox.shrink(),
           ),
+          // 股票報表一致性:淨資產不含投資理財帳戶(買進股票 = 轉帳,淨資產會減少),
+          // 這裡標明並帶出投資市值;沒記過股票交易時不顯示。
+          const StockNetWorthNote(centered: true),
           // 走势 / 构成 切换区:
           // - showComposition=true（单币种 或 折算态）：可在「净值走势」「资产构成」间切换，记住偏好；
           // - showComposition=false（多币种非折算，构成无法合并）：只展示走势（净值裸加）。

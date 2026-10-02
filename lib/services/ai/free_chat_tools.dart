@@ -2,6 +2,10 @@ import '../../data/db.dart' show Account, Category, Transaction;
 import '../../data/repositories/base_repository.dart';
 import '../../data/repositories/budget_repository.dart' show BudgetUsage;
 import '../../utils/zh_variants.dart';
+import 'free_chat_stock_tools.dart';
+import 'free_chat_tool_spec.dart';
+
+export 'free_chat_tool_spec.dart';
 
 /// 自由對話唯讀查詢工具:metadata + executor。
 ///
@@ -18,34 +22,6 @@ import '../../utils/zh_variants.dart';
 /// 子分類不會被分類過濾命中;共享帳本裡 `categoryId` 為 null、分類放在
 /// `categorySyncIdOverride` 的交易同樣查不到分類。
 
-/// 單一工具參數的說明,純資料,用來拼進 routing systemPrompt。
-class FreeChatToolParam {
-  final String name;
-  final String type; // 'date' | 'bool' | 'string' | 'int' | 'string|array'
-  final bool required;
-  final String description;
-
-  const FreeChatToolParam({
-    required this.name,
-    required this.type,
-    this.required = false,
-    required this.description,
-  });
-}
-
-/// 單一工具的 metadata。
-class FreeChatToolSpec {
-  final String name;
-  final String description;
-  final List<FreeChatToolParam> params;
-
-  const FreeChatToolSpec({
-    required this.name,
-    required this.description,
-    this.params = const [],
-  });
-}
-
 /// 日期參數的共用說明 —— 省略即該側無界。
 ///
 /// 刻意**不用哨兵值**(`"all"` / `"1970-01-01"`):模型會發明 `"ALL"` `"*"`
@@ -58,7 +34,8 @@ const _endDateDesc = '區間結束日期(含當天),格式 YYYY-MM-DD。'
     '省略代表到今天為止';
 const _allTimeDesc = 'true 代表查詢全部期間,會忽略 startDate/endDate';
 
-/// 目前支援的 4 個唯讀查詢工具。
+/// 目前支援的唯讀查詢工具:4 個記帳工具 + 8 個股票工具(見
+/// free_chat_stock_tools.dart)。
 const List<FreeChatToolSpec> freeChatTools = [
   FreeChatToolSpec(
     name: 'get_spending_summary',
@@ -135,8 +112,10 @@ const List<FreeChatToolSpec> freeChatTools = [
   ),
   FreeChatToolSpec(
     name: 'get_recurring_transactions',
-    description: '目前帳本啟用中的週期性交易/訂閱清單',
+    description: '目前帳本啟用中的週期性交易/訂閱清單。'
+        '注意:股票定期定額計畫請改用 stock_dca_plans',
   ),
+  ...freeChatStockToolSpecs,
 ];
 
 /// 拼進 routing systemPrompt 的工具說明區塊。
@@ -153,22 +132,6 @@ String buildFreeChatToolsPromptSection() {
   return buffer.toString().trimRight();
 }
 
-/// `YYYY-MM-DD` 格式化,與 [PromptBuilder] 的 `{{CURRENT_DATE}}` 做法一致。
-String formatIsoDate(DateTime date) {
-  String pad(int n) => n.toString().padLeft(2, '0');
-  return '${date.year}-${pad(date.month)}-${pad(date.day)}';
-}
-
-/// 工具名不存在 / 參數格式錯誤時拋出,供 [FreeChatRouter] 捕捉並降級成固定文案,
-/// 不是靜默回空結果。
-class FreeChatToolException implements Exception {
-  final String message;
-  FreeChatToolException(this.message);
-
-  @override
-  String toString() => 'FreeChatToolException: $message';
-}
-
 /// 執行單一工具呼叫,回傳可直接 `jsonEncode` 進 prompt 的結果。
 class FreeChatToolExecutor {
   const FreeChatToolExecutor();
@@ -178,7 +141,21 @@ class FreeChatToolExecutor {
     Map<String, dynamic> params, {
     required BaseRepository repo,
     required int ledgerId,
+
+    /// 股票工具用:「現在」的時間(測試可注入)與待確認股利讀取器(待確認
+    /// 股利只存在 Cloud,見 [StockPendingDividendsLoader])。記帳類工具不使用。
+    DateTime Function()? now,
+    StockPendingDividendsLoader? pendingDividends,
   }) async {
+    if (isFreeChatStockTool(toolName)) {
+      return executeFreeChatStockTool(
+        toolName,
+        params,
+        repo: repo,
+        now: (now ?? DateTime.now)(),
+        pendingDividends: pendingDividends,
+      );
+    }
     switch (toolName) {
       case 'get_spending_summary':
         return _getSpendingSummary(params, repo, ledgerId);

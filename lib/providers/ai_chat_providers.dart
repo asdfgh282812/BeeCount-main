@@ -86,12 +86,37 @@ Future<String?> _recommendRewardRuleName(
   }
 }
 
+String _isoDate(DateTime d) =>
+    '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-'
+    '${d.day.toString().padLeft(2, '0')}';
+
 /// AI 对话服务 Provider
 final aiChatServiceProvider = Provider<AIChatService>((ref) {
   final repo = ref.watch(repositoryProvider);
   return AIChatService(
     repo: repo,
     bookkeeper: ref.watch(aiBookkeeperProvider),
+    // 待確認股利只存在 Cloud;聊天只讀 App 已載入的快取(不在聊天中打網路)。
+    // 用 read 不 watch:每次提問時才取當下的值,不讓 service 因股利更新重建。
+    pendingDividends: () => [
+      for (final p in ref.read(pendingDividendsProvider).items)
+        {
+          'accountName': p.accountName,
+          'market': p.market,
+          'symbol': p.symbol,
+          'securityName': p.securityName,
+          'currency': p.currency,
+          'exDate': _isoDate(p.exDate),
+          'payDate': p.payDate == null ? null : _isoDate(p.payDate!),
+          'cashPerShare': p.cashPerShare,
+          'stockPerShare': p.stockPerShare,
+          'shares': p.shares,
+          'estGross': p.estGross,
+          'estNet': p.estNet,
+          'estStockShares': p.estStockShares,
+          'status': p.status,
+        },
+    ],
   );
 });
 

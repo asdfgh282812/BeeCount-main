@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/section_card.dart';
+import '../../widgets/biz/investment_flow_note.dart';
 import '../../widgets/biz/transaction_list_item.dart';
 import '../../widgets/category_icon.dart';
 import '../../styles/tokens.dart';
@@ -234,6 +235,15 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
                     ),
                   ),
                 ),
+              ),
+              // 股票報表一致性:日曆格只算收入/支出,買股票是轉帳不在裡面——這裡補
+              // 一行當月「投資淨投入」(沒有股票買賣/股利時不佔空間)。
+              InvestmentFlowNote(
+                start: DateTime(_focusedMonth.year, _focusedMonth.month, 1),
+                end: DateTime(_focusedMonth.year, _focusedMonth.month + 1, 1),
+                ledgerId: ledgerId,
+                compact: true,
+                padding: const EdgeInsets.only(top: 6),
               ),
             ],
           ),
@@ -477,6 +487,12 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
     final (income, expense) = totals ?? (0.0, 0.0);
     final hasTransaction = income > 0 || expense > 0;
     final netAmount = income - expense;
+    // 股票買賣是轉帳,日曆格的收入/支出淨額不含它——當天只有股票買賣時格子會是空
+    // 的,補一個小圖示讓使用者知道那天有紀錄(點進去在列表看得到)。
+    final hasStockOnly = !hasTransaction &&
+        !isOutside &&
+        ref.watch(stockCashTradeDayKeysProvider(
+            ref.watch(currentLedgerIdProvider))).contains(dateKey);
 
     // 文字颜色
     Color textColor;
@@ -523,6 +539,14 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
               ),
             ),
           ),
+          if (hasStockOnly) ...[
+            const SizedBox(height: 1),
+            Icon(Icons.candlestick_chart_outlined,
+                size: 10,
+                color: isSelected
+                    ? BeeTokens.textSecondary(context)
+                    : BeeTokens.textTertiary(context)),
+          ],
           // 净额（收入-支出），只占一行，不再分两行显示收入/支出
           if (!isOutside && hasTransaction) ...[
             const SizedBox(height: 1),
@@ -632,6 +656,7 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
                 isTransfer: isTransfer,
                 happenedAt: item.t.happenedAt,
                 hasSplits: item.t.hasSplits,
+                txSyncId: item.t.syncId,
                 accountName:
                     isTransfer ? transferAccountInfo : item.account?.name,
                 tags: tagsList.isNotEmpty ? tagsList : null,

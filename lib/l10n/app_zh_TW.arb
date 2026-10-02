@@ -4340,5 +4340,20 @@
   "stockRealizedSellCount": "{count} 筆賣出",
   "@stockRealizedSellCount": {"placeholders": {"count": {"type": "int"}}},
   "stockRealizedEmpty": "這個範圍內沒有賣出或股利紀錄",
-  "stockRealizedCurrencyNote": "各幣別分開統計,不換算也不跨幣別加總。"
+  "stockRealizedCurrencyNote": "各幣別分開統計,不換算也不跨幣別加總。",
+  "stockFlowNetInvested": "投資淨投入",
+  "stockFlowBuySell": "買進 {buy} · 賣出 {sell}",
+  "stockFlowNotCounted": "未計入收入與支出",
+  "stockFlowFees": "手續費與證交稅 {amount}（投資成本，不計入支出）",
+  "stockFlowDividends": "股利收入 {amount}（已計入收入）",
+  "stockNetWorthNoteExcluded": "不含投資理財帳戶。買進股票會讓淨資產減少（是轉帳，不是支出）。",
+  "stockNetWorthNoteWithValue": "不含投資理財帳戶 · 另有投資市值約 {value}（不含於淨資產）",
+  "stockNetWorthIncludedWarning": "有 {count} 個投資理財帳戶仍計入淨資產（以成本計），可能與投資市值重複計算。",
+  "stockNetWorthTrendNote": "走勢不含投資理財帳戶，買進股票當天會呈現下降。",
+  "stockTxTagBuy": "股票買進",
+  "stockTxTagSell": "股票賣出",
+  "stockTxTagReinvest": "股利再投入",
+  "exportCsvHeaderFee": "手續費",
+  "exportCsvHeaderDiscount": "折損與稅",
+  "exportCsvHeaderStockTrade": "股票交易"
 }

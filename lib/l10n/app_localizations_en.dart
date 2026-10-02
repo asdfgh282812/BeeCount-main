@@ -11470,4 +11470,61 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get stockRealizedCurrencyNote =>
       'Totals are per currency and are not converted or added together.';
+
+  @override
+  String get stockFlowNetInvested => 'Net invested in stocks';
+
+  @override
+  String stockFlowBuySell(String buy, String sell) {
+    return 'Bought $buy · Sold $sell';
+  }
+
+  @override
+  String get stockFlowNotCounted => 'not counted as income or expense';
+
+  @override
+  String stockFlowFees(String amount) {
+    return 'Fees & transaction tax $amount (investment cost, not counted as expense)';
+  }
+
+  @override
+  String stockFlowDividends(String amount) {
+    return 'Dividend income $amount (already included in income)';
+  }
+
+  @override
+  String get stockNetWorthNoteExcluded =>
+      'Investment accounts are excluded. Buying stocks lowers net worth (a transfer, not an expense).';
+
+  @override
+  String stockNetWorthNoteWithValue(String value) {
+    return 'Excludes investment accounts · Investment value about $value shown separately';
+  }
+
+  @override
+  String stockNetWorthIncludedWarning(int count) {
+    return '$count investment account(s) are still counted in net worth (at cost), which may double count with investment value.';
+  }
+
+  @override
+  String get stockNetWorthTrendNote =>
+      'The trend excludes investment accounts, so buying stocks shows up as a drop.';
+
+  @override
+  String get stockTxTagBuy => 'Stock buy';
+
+  @override
+  String get stockTxTagSell => 'Stock sell';
+
+  @override
+  String get stockTxTagReinvest => 'Dividend reinvest';
+
+  @override
+  String get exportCsvHeaderFee => 'Fee';
+
+  @override
+  String get exportCsvHeaderDiscount => 'Discount / tax';
+
+  @override
+  String get exportCsvHeaderStockTrade => 'Stock trade';
 }
