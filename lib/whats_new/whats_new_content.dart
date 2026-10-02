@@ -167,5 +167,10 @@ final Map<String, List<WhatsNewItem>> kWhatsNewContent = {
       title: (l10n) => l10n.whatsNew370RecurringEditAllTitle,
       description: (l10n) => l10n.whatsNew370RecurringEditAllDesc,
     ),
+    // 通知設定綁帳號(docs/changes/2026-10-02-notification-settings-account-sync.md)。
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew370NotificationSyncTitle,
+      description: (l10n) => l10n.whatsNew370NotificationSyncDesc,
+    ),
   ],
 };

@@ -4324,6 +4324,8 @@
   "whatsNew370StockSwipeDesc": "投資理財帳戶的餘額是持股成本的帳面數,不再提供「調整餘額」。帳戶列表向右滑直接買進、向左滑直接賣出,也可以改成新增定期定額。入口:帳戶頁滑動投資理財帳戶;要改動作到「我的 → 個性化設定」的滑動快捷操作。",
   "whatsNew370RecurringEditAllTitle": "週期交易「連同未來」改動全欄位同步",
   "whatsNew370RecurringEditAllDesc": "「修改連同未來週期」現在會把專案、標籤、商家、備註、手續費/折扣與信用卡回饋(含清空)一併套用到週期規則與之後的每一期,且與網頁端一致。入口:編輯週期性交易 → 選「修改連同未來週期」。",
+  "whatsNew370NotificationSyncTitle": "通知設定跟著帳號走",
+  "whatsNew370NotificationSyncDesc": "記帳提醒與信用卡提醒的設定現在會存到 BeeCount Cloud 帳號，換新裝置或重新安裝後會自動套用相同設定（通知權限仍需在各裝置上個別允許）。入口：我的 → 自動化 → 記帳提醒／信用卡提醒。",
   "stockTradeTypeSplit": "股票分割",
   "stockTradeTypeSplitHint": "記錄股票分割或反向分割。輸入「1 股變成幾股」(1 拆 4 輸入 4;2 合 1 反向分割輸入 0.5)。股數會乘上比例、總成本不變,平均成本自動除以比例;不需要價格、手續費與交割帳戶。",
   "stockSplitRatio": "1 股變成幾股",

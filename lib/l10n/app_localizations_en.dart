@@ -11419,6 +11419,14 @@ class AppLocalizationsEn extends AppLocalizations {
       '“Edit this and future periods” now carries every field — project, tags, merchant, note, fees/discounts and card rewards, including clearing them — to the recurring rule and all later periods, and it stays in sync with the web. Entry: edit a recurring transaction → choose “Edit this and future periods”.';
 
   @override
+  String get whatsNew370NotificationSyncTitle =>
+      'Notification settings follow your account';
+
+  @override
+  String get whatsNew370NotificationSyncDesc =>
+      'Daily bookkeeping reminders and credit card reminders are now saved to your BeeCount Cloud account, so a new device or reinstall picks up the same settings. (Notification permission is still granted per device.) Entry: Mine → Automation → Bookkeeping reminder / Credit card reminders.';
+
+  @override
   String get stockTradeTypeSplit => 'Stock split';
 
   @override

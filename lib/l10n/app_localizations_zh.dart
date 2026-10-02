@@ -11100,6 +11100,14 @@ class AppLocalizationsZh extends AppLocalizations {
       '“Edit this and future periods” now carries every field — project, tags, merchant, note, fees/discounts and card rewards, including clearing them — to the recurring rule and all later periods, and it stays in sync with the web. Entry: edit a recurring transaction → choose “Edit this and future periods”.';
 
   @override
+  String get whatsNew370NotificationSyncTitle =>
+      'Notification settings follow your account';
+
+  @override
+  String get whatsNew370NotificationSyncDesc =>
+      'Daily bookkeeping reminders and credit card reminders are now saved to your BeeCount Cloud account, so a new device or reinstall picks up the same settings. (Notification permission is still granted per device.) Entry: Mine → Automation → Bookkeeping reminder / Credit card reminders.';
+
+  @override
   String get stockTradeTypeSplit => 'Stock split';
 
   @override
@@ -22173,6 +22181,13 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   @override
   String get whatsNew370RecurringEditAllDesc =>
       '「修改連同未來週期」現在會把專案、標籤、商家、備註、手續費/折扣與信用卡回饋(含清空)一併套用到週期規則與之後的每一期,且與網頁端一致。入口:編輯週期性交易 → 選「修改連同未來週期」。';
+
+  @override
+  String get whatsNew370NotificationSyncTitle => '通知設定跟著帳號走';
+
+  @override
+  String get whatsNew370NotificationSyncDesc =>
+      '記帳提醒與信用卡提醒的設定現在會存到 BeeCount Cloud 帳號，換新裝置或重新安裝後會自動套用相同設定（通知權限仍需在各裝置上個別允許）。入口：我的 → 自動化 → 記帳提醒／信用卡提醒。';
 
   @override
   String get stockTradeTypeSplit => '股票分割';

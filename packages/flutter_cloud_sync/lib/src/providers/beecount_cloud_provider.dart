@@ -390,6 +390,19 @@ class BeeCountCloudProvider implements CloudProvider {
     return storage.updateMyProfileAiConfig(aiConfig: aiConfig);
   }
 
+  /// 更新通知設定(記帳提醒 / 信用卡提醒),綁帳號跨裝置同步。整包替換。
+  Future<BeeCountCloudProfile> updateMyProfileNotificationSettings({
+    required Map<String, dynamic> notificationSettings,
+  }) async {
+    final storage = _storage;
+    if (storage == null) {
+      throw CloudConfigurationException(
+          'BeeCount Cloud storage is not initialized.');
+    }
+    return storage.updateMyProfileNotificationSettings(
+        notificationSettings: notificationSettings);
+  }
+
   /// 下载自己的头像字节流。服务端路径是 `/profile/avatar/{user_id}?v=<v>`，
   /// 跟 `/attachments/{fileId}` 不是一回事 —— 头像存储独立于 attachment，
   /// 之前 sync_engine 用 downloadAttachment + 正则解析 `attachments/(.+)`
@@ -2772,6 +2785,14 @@ class BeeCountCloudStorageService implements CloudStorageService {
     return _patchMyProfile(body: {'ai_config': aiConfig});
   }
 
+  /// 推送通知設定到 server(`notification_settings`)。整包替換,空 dict 視為清空。
+  Future<BeeCountCloudProfile> updateMyProfileNotificationSettings({
+    required Map<String, dynamic> notificationSettings,
+  }) async {
+    return _patchMyProfile(
+        body: {'notification_settings': notificationSettings});
+  }
+
   /// PATCH /profile/me 通用封装，body 里写哪些字段就更新哪些；server 端会
   /// 忽略 None 值，只 merge 显式给出的键。返回 server 上新的 profile。
   Future<BeeCountCloudProfile> _patchMyProfile({
@@ -4922,6 +4943,7 @@ class BeeCountCloudProfile {
     this.themePrimaryColor,
     this.appearance,
     this.aiConfig,
+    this.notificationSettings,
     this.primaryCurrency,
   });
 
@@ -4943,9 +4965,13 @@ class BeeCountCloudProfile {
   /// AI 配置(providers / binding / custom_prompt / strategy …)的 dict。
   final Map<String, dynamic>? aiConfig;
 
+  /// 通知設定(記帳提醒 / 信用卡提醒)的 dict,綁帳號跨裝置同步。
+  final Map<String, dynamic>? notificationSettings;
+
   factory BeeCountCloudProfile.fromJson(Map<String, dynamic> json) {
     final appearanceRaw = json['appearance'];
     final aiConfigRaw = json['ai_config'];
+    final notificationSettingsRaw = json['notification_settings'];
     return BeeCountCloudProfile(
       userId: json['user_id'] as String? ?? '',
       email: _trimOrNull(json['email'] as String?),
@@ -4959,6 +4985,9 @@ class BeeCountCloudProfile {
           : null,
       aiConfig: aiConfigRaw is Map<String, dynamic>
           ? Map<String, dynamic>.from(aiConfigRaw)
+          : null,
+      notificationSettings: notificationSettingsRaw is Map<String, dynamic>
+          ? Map<String, dynamic>.from(notificationSettingsRaw)
           : null,
       primaryCurrency: _trimOrNull(json['primary_currency'] as String?),
     );
