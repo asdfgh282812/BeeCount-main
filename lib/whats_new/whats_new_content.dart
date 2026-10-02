@@ -100,7 +100,26 @@ final Map<String, List<WhatsNewItem>> kWhatsNewContent = {
       description: (l10n) => l10n.whatsNew357ProjectFixesDesc,
     ),
   ],
-  '3.6.0': [
+  // 3.6.1 公告同時帶上 3.6.0 的精簡版:彈窗只查「目前版本」這一個 key,
+  // 從 3.5.x 直接升到 3.6.1 的使用者看不到 '3.6.0' 的內容,所以併進來。
+  // 3.6.0 的條目標題帶「(3.6.0)」後綴。
+  '3.6.1': [
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew361ApkUpdateTitle,
+      description: (l10n) => l10n.whatsNew361ApkUpdateDesc,
+    ),
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew361AiAccountQueryTitle,
+      description: (l10n) => l10n.whatsNew361AiAccountQueryDesc,
+    ),
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew361SyncSafetyTitle,
+      description: (l10n) => l10n.whatsNew361SyncSafetyDesc,
+    ),
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew361FixesTitle,
+      description: (l10n) => l10n.whatsNew361FixesDesc,
+    ),
     WhatsNewItem(
       title: (l10n) => l10n.whatsNew360StatisticsReportTitle,
       description: (l10n) => l10n.whatsNew360StatisticsReportDesc,
@@ -116,14 +135,6 @@ final Map<String, List<WhatsNewItem>> kWhatsNewContent = {
     WhatsNewItem(
       title: (l10n) => l10n.whatsNew360AccountGroupTitle,
       description: (l10n) => l10n.whatsNew360AccountGroupDesc,
-    ),
-    WhatsNewItem(
-      title: (l10n) => l10n.whatsNew360AccountSwitcherTitle,
-      description: (l10n) => l10n.whatsNew360AccountSwitcherDesc,
-    ),
-    WhatsNewItem(
-      title: (l10n) => l10n.whatsNew360NavMotionTitle,
-      description: (l10n) => l10n.whatsNew360NavMotionDesc,
     ),
     WhatsNewItem(
       title: (l10n) => l10n.whatsNew360LicenseKeyTitle,

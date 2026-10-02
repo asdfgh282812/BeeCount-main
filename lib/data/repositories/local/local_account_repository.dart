@@ -474,6 +474,11 @@ class LocalAccountRepository implements AccountRepository {
     return t.nativeAmount ?? t.amount;
   }
 
+  /// 逐筆 double 加減會留下浮點殘差(例如 -1.1e-13),UI 用 `< 0` 判斷欠款、
+  /// 格式化後又只剩 0,就會出現紅色的「-0」。只抹掉遠小於任何幣別最小單位
+  /// 的殘差,真實的小額餘額不受影響。
+  double _dropFloatNoise(double v) => v.abs() < 1e-6 ? 0.0 : v;
+
   @override
   Future<double> getAccountBalance(int accountId, {DateTime? asOf}) async {
     // 获取账户初始资金
@@ -529,7 +534,7 @@ class LocalAccountRepository implements AccountRepository {
       balance += _transferInEffect(t);
     }
 
-    return balance;
+    return _dropFloatNoise(balance);
   }
 
   @override
@@ -571,7 +576,7 @@ class LocalAccountRepository implements AccountRepository {
       }
     }
 
-    return balance;
+    return _dropFloatNoise(balance);
   }
 
   @override
@@ -608,7 +613,7 @@ class LocalAccountRepository implements AccountRepository {
       }
     }
 
-    return balance;
+    return _dropFloatNoise(balance);
   }
 
   @override

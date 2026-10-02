@@ -29,13 +29,16 @@ String formatMoneyCompact(double v,
     }
   }
 
+  // 符号依「四舍五入到 maxDecimals 之后」的值判断:-0.001 这类值显示成
+  // 0,不能再带负号变成「-0」。
+  final negative = v < 0 && double.parse(v.toStringAsFixed(maxDecimals)) != 0;
   if (signed) {
     // 使用显式符号时，分别处理符号和数值
-    final sign = v < 0 ? '-' : '+';
+    final sign = negative ? '-' : '+';
     return '$sign${formatWithThousandSeparator(v)}';
   } else {
     // 不使用显式符号时，保留数值的自然符号
-    final sign = v < 0 ? '-' : '';
+    final sign = negative ? '-' : '';
     return '$sign${formatWithThousandSeparator(v)}';
   }
 }
