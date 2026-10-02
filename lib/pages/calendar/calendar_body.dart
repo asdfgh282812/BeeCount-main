@@ -310,10 +310,12 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
             } else {
               // 展开回整月时恢复「日恒为 1」的月份不变量,维持
               // _onPageChanged/jumpToMonth/_showMonthJumpPicker 的共同前置假设。
-              _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
+              _focusedMonth =
+                  DateTime(_focusedMonth.year, _focusedMonth.month, 1);
             }
           });
-          ref.read(calendarSelectedMonthProvider.notifier).state = _focusedMonth;
+          ref.read(calendarSelectedMonthProvider.notifier).state =
+              _focusedMonth;
           ref.read(selectedMonthProvider.notifier).state = _focusedMonth;
         }
       },
@@ -608,11 +610,10 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
                   .toList();
 
               // 转账账户信息(同 transaction_list.dart 的处理:转出 → 转入)
-              final transferAccountInfo = (isTransfer &&
-                      item.account != null &&
-                      item.toAccount != null)
-                  ? '${item.account!.name} → ${item.toAccount!.name}'
-                  : null;
+              final transferAccountInfo =
+                  (isTransfer && item.account != null && item.toAccount != null)
+                      ? '${item.account!.name} → ${item.toAccount!.name}'
+                      : null;
 
               return TransactionListItem(
                 icon: getCategoryIconData(
@@ -656,7 +657,39 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
       ),
     );
 
-    return card;
+    // 切換日期時:內容淡入淡出 + 高度平滑伸縮,避免明細生硬跳換
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+      alignment: Alignment.topCenter,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 220),
+        switchInCurve: Curves.easeOut,
+        switchOutCurve: Curves.easeIn,
+        layoutBuilder: (current, previous) => Stack(
+          alignment: Alignment.topCenter,
+          children: [
+            ...previous
+                .map((w) => Positioned(top: 0, left: 0, right: 0, child: w)),
+            if (current != null) current,
+          ],
+        ),
+        transitionBuilder: (child, animation) => FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.03),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
+        ),
+        child: KeyedSubtree(
+          key: ValueKey(_formatDate(date)),
+          child: card,
+        ),
+      ),
+    );
   }
 
   String _formatDate(DateTime date) {
