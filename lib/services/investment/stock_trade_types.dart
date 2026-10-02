@@ -7,6 +7,10 @@ const String kStockTradeCashDividend = 'cash_dividend';
 const String kStockTradeStockDividend = 'stock_dividend';
 const String kStockTradeReinvest = 'reinvest';
 
+/// 股票分割:`shares` 存「分割比例」(每 1 股變成幾股,1 拆 4 → 4;2 合 1 反向分割 → 0.5),
+/// price 為 null、fee/tax/amount 皆 0、不建任何轉帳/income 交易。
+const String kStockTradeSplit = 'split';
+
 const Set<String> kStockTradeTypes = {
   kStockTradeBuy,
   kStockTradeSell,
@@ -14,6 +18,7 @@ const Set<String> kStockTradeTypes = {
   kStockTradeCashDividend,
   kStockTradeStockDividend,
   kStockTradeReinvest,
+  kStockTradeSplit,
 };
 
 /// 會連帶建立轉帳交易(交割帳戶 ⇄ 投資理財帳戶)的類型。

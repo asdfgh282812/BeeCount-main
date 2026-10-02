@@ -20446,6 +20446,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'“Edit this and future periods” now carries every field — project, tags, merchant, note, fees/discounts and card rewards, including clearing them — to the recurring rule and all later periods, and it stays in sync with the web. Entry: edit a recurring transaction → choose “Edit this and future periods”.'**
   String get whatsNew370RecurringEditAllDesc;
+
+  /// No description provided for @stockTradeTypeSplit.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock split'**
+  String get stockTradeTypeSplit;
+
+  /// No description provided for @stockTradeTypeSplitHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Record a split or reverse split. Enter how many shares 1 share becomes (1-for-4 split: 4; 2-for-1 reverse split: 0.5). Share count is multiplied, total cost stays the same, so average cost is divided. No price, fee or settlement account.'**
+  String get stockTradeTypeSplitHint;
+
+  /// No description provided for @stockSplitRatio.
+  ///
+  /// In en, this message translates to:
+  /// **'Shares 1 share becomes'**
+  String get stockSplitRatio;
+
+  /// No description provided for @stockSplitRatioInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a ratio greater than 0 (e.g. 4, or 0.5 for a reverse split).'**
+  String get stockSplitRatioInvalid;
+
+  /// No description provided for @stockSplitDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Split 1→{ratio}'**
+  String stockSplitDetail(String ratio);
+
+  /// No description provided for @stockRealizedReportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Realized P&L'**
+  String get stockRealizedReportTitle;
+
+  /// No description provided for @stockRealizedReportEntryDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Sales P&L and dividends by year, account and symbol'**
+  String get stockRealizedReportEntryDesc;
+
+  /// No description provided for @stockRealizedAllYears.
+  ///
+  /// In en, this message translates to:
+  /// **'All years'**
+  String get stockRealizedAllYears;
+
+  /// No description provided for @stockRealizedAllAccounts.
+  ///
+  /// In en, this message translates to:
+  /// **'All accounts'**
+  String get stockRealizedAllAccounts;
+
+  /// No description provided for @stockRealizedAllSymbols.
+  ///
+  /// In en, this message translates to:
+  /// **'All symbols'**
+  String get stockRealizedAllSymbols;
+
+  /// No description provided for @stockRealizedProceeds.
+  ///
+  /// In en, this message translates to:
+  /// **'Proceeds'**
+  String get stockRealizedProceeds;
+
+  /// No description provided for @stockRealizedCostBasis.
+  ///
+  /// In en, this message translates to:
+  /// **'Cost basis'**
+  String get stockRealizedCostBasis;
+
+  /// No description provided for @stockRealizedSellCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} sales'**
+  String stockRealizedSellCount(int count);
+
+  /// No description provided for @stockRealizedEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No sales or dividends in this range.'**
+  String get stockRealizedEmpty;
+
+  /// No description provided for @stockRealizedCurrencyNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Totals are per currency and are not converted or added together.'**
+  String get stockRealizedCurrencyNote;
 }
 
 class _AppLocalizationsDelegate

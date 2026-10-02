@@ -45,6 +45,8 @@ String stockTradeTypeLabel(AppLocalizations l10n, String type) {
       return l10n.stockTradeTypeOpening;
     case kStockTradeStockDividend:
       return l10n.stockTradeTypeStockDividend;
+    case kStockTradeSplit:
+      return l10n.stockTradeTypeSplit;
     case kStockTradeCashDividend:
       return l10n.stockTradeTypeCashDividend;
     case kStockTradeReinvest:

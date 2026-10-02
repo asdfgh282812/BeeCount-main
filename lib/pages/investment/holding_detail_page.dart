@@ -287,15 +287,21 @@ class _TradeRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final detail = trade.tradeType == kStockTradeStockDividend ||
-            trade.price == null
-        ? l10n.stockSharesCount(formatShares(trade.shares))
-        : '${l10n.stockSharesCount(formatShares(trade.shares))} @ ${formatPrice(trade.price!)}';
+    final isSplit = trade.tradeType == kStockTradeSplit;
+    final detail = isSplit
+        ? l10n.stockSplitDetail(formatShares(trade.shares))
+        : trade.tradeType == kStockTradeStockDividend || trade.price == null
+            ? l10n.stockSharesCount(formatShares(trade.shares))
+            : '${l10n.stockSharesCount(formatShares(trade.shares))} @ ${formatPrice(trade.price!)}';
     return ListTile(
       onTap: onTap,
       dense: true,
       title: Text(
-        '${stockTradeTypeLabel(l10n, trade.tradeType)} · $detail',
+        // 分割:「分割 1→4」,類型名稱已經在 detail 裡,不重複。
+        // 分割:「分割 1→4」,類型名稱已經在 detail 裡,不重複。
+        isSplit
+            ? detail
+            : '${stockTradeTypeLabel(l10n, trade.tradeType)} · $detail',
         style: TextStyle(color: BeeTokens.textPrimary(context)),
       ),
       subtitle: Text(

@@ -65,6 +65,7 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
     kStockTradeSell,
     kStockTradeOpening,
     kStockTradeStockDividend,
+    kStockTradeSplit,
     kStockTradeCashDividend,
     kStockTradeReinvest,
   ];
@@ -105,6 +106,12 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
       kStockTradeCashTypes.contains(_tradeType) ||
       _tradeType == kStockTradeCashDividend;
   bool get _isDividend => _tradeType == kStockTradeCashDividend;
+
+  /// 股票分割:shares 欄位存「分割比例」,沒有價格/手續費/交割帳戶。
+  bool get _isSplit => _tradeType == kStockTradeSplit;
+
+  /// 只有股數(或比例)欄位、沒有價格/費用/金額的類型。
+  bool get _sharesOnly => _tradeType == kStockTradeStockDividend || _isSplit;
 
   /// 交易日期一律存當地中午:換成 UTC 或其它市場時區都還是同一天(Cloud 判斷
   /// 除息日前持股時會換成市場當地日期比)。
@@ -320,7 +327,7 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
 
   /// 成交金額變了就重算建議手續費/稅(使用者手動改過的欄位不動)。
   void _recomputeSuggestions() {
-    if (_tradeType == kStockTradeStockDividend) return;
+    if (_sharesOnly) return;
     if (_isDividend) {
       // 現金股利:手續費 = 股利手續費,稅 = 預扣稅 + 二代健保(同 Cloud 估算)。
       final est = estimateDividend(
@@ -482,9 +489,12 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
     final repo = ref.read(repositoryProvider);
     final symbol = _symbolCtrl.text.trim().toUpperCase();
     if (symbol.isEmpty) return showToast(context, l10n.stockSymbolRequired);
-    if (_shares <= 0) return showToast(context, l10n.stockSharesRequired);
-    if (_tradeType != kStockTradeStockDividend &&
-        _priceCtrl.text.trim().isEmpty) {
+    if (_isSplit) {
+      if (_shares <= 0) return showToast(context, l10n.stockSplitRatioInvalid);
+    } else if (_shares <= 0) {
+      return showToast(context, l10n.stockSharesRequired);
+    }
+    if (!_sharesOnly && _priceCtrl.text.trim().isEmpty) {
       return showToast(context, l10n.stockPriceRequired);
     }
     double? settlementAmount;
@@ -526,6 +536,8 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
             l10n.stockDefaultTxNoteDividend(symbol, name, sharesText),
           kStockTradeReinvest =>
             l10n.stockDefaultTxNoteReinvest(symbol, name, sharesText),
+          // 分割不建交易,txNote 不會被用到。
+          kStockTradeSplit => '',
           _ => l10n.stockDefaultTxNoteBuy(symbol, name, sharesText),
         })
             .replaceAll(RegExp(r'\s+'), ' ')
@@ -539,7 +551,7 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
         await repo.updateStockTrade(
           widget.trade!.id,
           shares: _shares,
-          price: _price,
+          price: _isSplit ? null : _price,
           fee: _fee,
           tax: _tax,
           tradeDate: _tradeDate,
@@ -558,7 +570,7 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
           symbol: symbol,
           securityName: name.isEmpty ? null : name,
           shares: _shares,
-          price: _price,
+          price: _isSplit ? null : _price,
           fee: _fee,
           tax: _tax,
           currency: _securityCurrency,
@@ -654,6 +666,7 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
     final typeHint = switch (_tradeType) {
       kStockTradeOpening => l10n.stockTradeTypeOpeningHint,
       kStockTradeStockDividend => l10n.stockTradeTypeStockDividendHint,
+      kStockTradeSplit => l10n.stockTradeTypeSplitHint,
       kStockTradeCashDividend => l10n.stockTradeTypeCashDividendHint,
       kStockTradeReinvest => l10n.stockTradeTypeReinvestHint,
       _ => null,
@@ -721,7 +734,8 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
                                   ? null
                                   : (_) => setState(() {
                                         _tradeType = type;
-                                        if (type == kStockTradeStockDividend) {
+                                        if (type == kStockTradeStockDividend ||
+                                            type == kStockTradeSplit) {
                                           _feeCtrl.clear();
                                           _taxCtrl.clear();
                                         }
@@ -853,11 +867,13 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
                       _field(
                         context,
                         controller: _sharesCtrl,
-                        label: l10n.stockShares,
+                        label: _isSplit
+                            ? l10n.stockSplitRatio
+                            : l10n.stockShares,
                         numeric: true,
                         onChanged: (_) => setState(_recomputeSuggestions),
                       ),
-                      if (_tradeType != kStockTradeStockDividend) ...[
+                      if (!_sharesOnly) ...[
                         _divider(context),
                         _field(
                           context,
@@ -919,7 +935,7 @@ class _StockTradeEditorPageState extends ConsumerState<StockTradeEditorPage> {
                             ),
                           ),
                       ],
-                      if (_tradeType != kStockTradeStockDividend) ...[
+                      if (!_sharesOnly) ...[
                         const SizedBox(height: 6),
                         Align(
                           alignment: Alignment.centerLeft,

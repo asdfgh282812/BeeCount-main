@@ -4838,5 +4838,22 @@
   "whatsNew370StockSwipeTitle": "Swipe to buy or sell",
   "whatsNew370StockSwipeDesc": "An investment account's balance is the book cost of its holdings, so \"Adjust balance\" is gone for these accounts. On the Accounts list, swipe right to buy and swipe left to sell (or switch to adding a recurring buy). Entry: swipe an investment account on the Accounts page; change the actions under Mine → Appearance settings → swipe actions.",
   "whatsNew370RecurringEditAllTitle": "Recurring edits now apply to every field",
-  "whatsNew370RecurringEditAllDesc": "“Edit this and future periods” now carries every field — project, tags, merchant, note, fees/discounts and card rewards, including clearing them — to the recurring rule and all later periods, and it stays in sync with the web. Entry: edit a recurring transaction → choose “Edit this and future periods”."
+  "whatsNew370RecurringEditAllDesc": "“Edit this and future periods” now carries every field — project, tags, merchant, note, fees/discounts and card rewards, including clearing them — to the recurring rule and all later periods, and it stays in sync with the web. Entry: edit a recurring transaction → choose “Edit this and future periods”.",
+  "stockTradeTypeSplit": "Stock split",
+  "stockTradeTypeSplitHint": "Record a split or reverse split. Enter how many shares 1 share becomes (1-for-4 split: 4; 2-for-1 reverse split: 0.5). Share count is multiplied, total cost stays the same, so average cost is divided. No price, fee or settlement account.",
+  "stockSplitRatio": "Shares 1 share becomes",
+  "stockSplitRatioInvalid": "Enter a ratio greater than 0 (e.g. 4, or 0.5 for a reverse split).",
+  "stockSplitDetail": "Split 1→{ratio}",
+  "@stockSplitDetail": {"placeholders": {"ratio": {"type": "String"}}},
+  "stockRealizedReportTitle": "Realized P&L",
+  "stockRealizedReportEntryDesc": "Sales P&L and dividends by year, account and symbol",
+  "stockRealizedAllYears": "All years",
+  "stockRealizedAllAccounts": "All accounts",
+  "stockRealizedAllSymbols": "All symbols",
+  "stockRealizedProceeds": "Proceeds",
+  "stockRealizedCostBasis": "Cost basis",
+  "stockRealizedSellCount": "{count} sales",
+  "@stockRealizedSellCount": {"placeholders": {"count": {"type": "int"}}},
+  "stockRealizedEmpty": "No sales or dividends in this range.",
+  "stockRealizedCurrencyNote": "Totals are per currency and are not converted or added together."
 }

@@ -11098,6 +11098,59 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get whatsNew370RecurringEditAllDesc =>
       '“Edit this and future periods” now carries every field — project, tags, merchant, note, fees/discounts and card rewards, including clearing them — to the recurring rule and all later periods, and it stays in sync with the web. Entry: edit a recurring transaction → choose “Edit this and future periods”.';
+
+  @override
+  String get stockTradeTypeSplit => 'Stock split';
+
+  @override
+  String get stockTradeTypeSplitHint =>
+      'Record a split or reverse split. Enter how many shares 1 share becomes (1-for-4 split: 4; 2-for-1 reverse split: 0.5). Share count is multiplied, total cost stays the same, so average cost is divided. No price, fee or settlement account.';
+
+  @override
+  String get stockSplitRatio => 'Shares 1 share becomes';
+
+  @override
+  String get stockSplitRatioInvalid =>
+      'Enter a ratio greater than 0 (e.g. 4, or 0.5 for a reverse split).';
+
+  @override
+  String stockSplitDetail(String ratio) {
+    return 'Split 1→$ratio';
+  }
+
+  @override
+  String get stockRealizedReportTitle => 'Realized P&L';
+
+  @override
+  String get stockRealizedReportEntryDesc =>
+      'Sales P&L and dividends by year, account and symbol';
+
+  @override
+  String get stockRealizedAllYears => 'All years';
+
+  @override
+  String get stockRealizedAllAccounts => 'All accounts';
+
+  @override
+  String get stockRealizedAllSymbols => 'All symbols';
+
+  @override
+  String get stockRealizedProceeds => 'Proceeds';
+
+  @override
+  String get stockRealizedCostBasis => 'Cost basis';
+
+  @override
+  String stockRealizedSellCount(int count) {
+    return '$count sales';
+  }
+
+  @override
+  String get stockRealizedEmpty => 'No sales or dividends in this range.';
+
+  @override
+  String get stockRealizedCurrencyNote =>
+      'Totals are per currency and are not converted or added together.';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -22063,4 +22116,54 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   @override
   String get whatsNew370RecurringEditAllDesc =>
       '「修改連同未來週期」現在會把專案、標籤、商家、備註、手續費/折扣與信用卡回饋(含清空)一併套用到週期規則與之後的每一期,且與網頁端一致。入口:編輯週期性交易 → 選「修改連同未來週期」。';
+
+  @override
+  String get stockTradeTypeSplit => '股票分割';
+
+  @override
+  String get stockTradeTypeSplitHint =>
+      '記錄股票分割或反向分割。輸入「1 股變成幾股」(1 拆 4 輸入 4;2 合 1 反向分割輸入 0.5)。股數會乘上比例、總成本不變,平均成本自動除以比例;不需要價格、手續費與交割帳戶。';
+
+  @override
+  String get stockSplitRatio => '1 股變成幾股';
+
+  @override
+  String get stockSplitRatioInvalid => '請輸入大於 0 的比例(例如 4;反向分割輸入 0.5)';
+
+  @override
+  String stockSplitDetail(String ratio) {
+    return '分割 1→$ratio';
+  }
+
+  @override
+  String get stockRealizedReportTitle => '已實現損益';
+
+  @override
+  String get stockRealizedReportEntryDesc => '依年度、帳戶、標的查看賣出損益與累計股利';
+
+  @override
+  String get stockRealizedAllYears => '全部年度';
+
+  @override
+  String get stockRealizedAllAccounts => '全部帳戶';
+
+  @override
+  String get stockRealizedAllSymbols => '全部標的';
+
+  @override
+  String get stockRealizedProceeds => '賣出收入';
+
+  @override
+  String get stockRealizedCostBasis => '成本';
+
+  @override
+  String stockRealizedSellCount(int count) {
+    return '$count 筆賣出';
+  }
+
+  @override
+  String get stockRealizedEmpty => '這個範圍內沒有賣出或股利紀錄';
+
+  @override
+  String get stockRealizedCurrencyNote => '各幣別分開統計,不換算也不跨幣別加總。';
 }

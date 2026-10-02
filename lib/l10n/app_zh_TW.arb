@@ -4323,5 +4323,22 @@
   "whatsNew370StockSwipeTitle": "投資帳戶滑動買賣",
   "whatsNew370StockSwipeDesc": "投資理財帳戶的餘額是持股成本的帳面數,不再提供「調整餘額」。帳戶列表向右滑直接買進、向左滑直接賣出,也可以改成新增定期定額。入口:帳戶頁滑動投資理財帳戶;要改動作到「我的 → 個性化設定」的滑動快捷操作。",
   "whatsNew370RecurringEditAllTitle": "週期交易「連同未來」改動全欄位同步",
-  "whatsNew370RecurringEditAllDesc": "「修改連同未來週期」現在會把專案、標籤、商家、備註、手續費/折扣與信用卡回饋(含清空)一併套用到週期規則與之後的每一期,且與網頁端一致。入口:編輯週期性交易 → 選「修改連同未來週期」。"
+  "whatsNew370RecurringEditAllDesc": "「修改連同未來週期」現在會把專案、標籤、商家、備註、手續費/折扣與信用卡回饋(含清空)一併套用到週期規則與之後的每一期,且與網頁端一致。入口:編輯週期性交易 → 選「修改連同未來週期」。",
+  "stockTradeTypeSplit": "股票分割",
+  "stockTradeTypeSplitHint": "記錄股票分割或反向分割。輸入「1 股變成幾股」(1 拆 4 輸入 4;2 合 1 反向分割輸入 0.5)。股數會乘上比例、總成本不變,平均成本自動除以比例;不需要價格、手續費與交割帳戶。",
+  "stockSplitRatio": "1 股變成幾股",
+  "stockSplitRatioInvalid": "請輸入大於 0 的比例(例如 4;反向分割輸入 0.5)",
+  "stockSplitDetail": "分割 1→{ratio}",
+  "@stockSplitDetail": {"placeholders": {"ratio": {"type": "String"}}},
+  "stockRealizedReportTitle": "已實現損益",
+  "stockRealizedReportEntryDesc": "依年度、帳戶、標的查看賣出損益與累計股利",
+  "stockRealizedAllYears": "全部年度",
+  "stockRealizedAllAccounts": "全部帳戶",
+  "stockRealizedAllSymbols": "全部標的",
+  "stockRealizedProceeds": "賣出收入",
+  "stockRealizedCostBasis": "成本",
+  "stockRealizedSellCount": "{count} 筆賣出",
+  "@stockRealizedSellCount": {"placeholders": {"count": {"type": "int"}}},
+  "stockRealizedEmpty": "這個範圍內沒有賣出或股利紀錄",
+  "stockRealizedCurrencyNote": "各幣別分開統計,不換算也不跨幣別加總。"
 }

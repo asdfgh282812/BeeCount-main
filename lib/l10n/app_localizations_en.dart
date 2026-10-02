@@ -11417,4 +11417,57 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get whatsNew370RecurringEditAllDesc =>
       '“Edit this and future periods” now carries every field — project, tags, merchant, note, fees/discounts and card rewards, including clearing them — to the recurring rule and all later periods, and it stays in sync with the web. Entry: edit a recurring transaction → choose “Edit this and future periods”.';
+
+  @override
+  String get stockTradeTypeSplit => 'Stock split';
+
+  @override
+  String get stockTradeTypeSplitHint =>
+      'Record a split or reverse split. Enter how many shares 1 share becomes (1-for-4 split: 4; 2-for-1 reverse split: 0.5). Share count is multiplied, total cost stays the same, so average cost is divided. No price, fee or settlement account.';
+
+  @override
+  String get stockSplitRatio => 'Shares 1 share becomes';
+
+  @override
+  String get stockSplitRatioInvalid =>
+      'Enter a ratio greater than 0 (e.g. 4, or 0.5 for a reverse split).';
+
+  @override
+  String stockSplitDetail(String ratio) {
+    return 'Split 1→$ratio';
+  }
+
+  @override
+  String get stockRealizedReportTitle => 'Realized P&L';
+
+  @override
+  String get stockRealizedReportEntryDesc =>
+      'Sales P&L and dividends by year, account and symbol';
+
+  @override
+  String get stockRealizedAllYears => 'All years';
+
+  @override
+  String get stockRealizedAllAccounts => 'All accounts';
+
+  @override
+  String get stockRealizedAllSymbols => 'All symbols';
+
+  @override
+  String get stockRealizedProceeds => 'Proceeds';
+
+  @override
+  String get stockRealizedCostBasis => 'Cost basis';
+
+  @override
+  String stockRealizedSellCount(int count) {
+    return '$count sales';
+  }
+
+  @override
+  String get stockRealizedEmpty => 'No sales or dividends in this range.';
+
+  @override
+  String get stockRealizedCurrencyNote =>
+      'Totals are per currency and are not converted or added together.';
 }

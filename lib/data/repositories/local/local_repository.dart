@@ -5599,6 +5599,7 @@ class LocalRepository extends BaseRepository {
   static String _defaultStockTxNote(String tradeType, String symbol, String? name, double shares) {
     // 跟 Cloud `_stock_trade_default_note` 同格式;UI 通常會傳在地化的 txNote。
     final label = switch (tradeType) {
+      kStockTradeSplit => '分割',
       kStockTradeSell => '賣出',
       kStockTradeCashDividend => '股利',
       kStockTradeReinvest => '股利再投入',
@@ -5741,7 +5742,7 @@ class LocalRepository extends BaseRepository {
     var effFee = fee;
     var effTax = tax;
     if (tradeType == kStockTradeOpening) effTax = 0;
-    if (tradeType == kStockTradeStockDividend) {
+    if (tradeType == kStockTradeStockDividend || tradeType == kStockTradeSplit) {
       effFee = 0;
       effTax = 0;
     }
@@ -5825,7 +5826,8 @@ class LocalRepository extends BaseRepository {
         securityName: d.Value(securityName),
         tradeType: tradeType,
         shares: shares,
-        price: d.Value(effPrice),
+        // 分割沒有價格(shares 欄存分割比例),寫 null 對齊 Cloud 契約。
+        price: d.Value(tradeType == kStockTradeSplit ? null : effPrice),
         fee: d.Value(effFee),
         tax: d.Value(effTax),
         amount: d.Value(stockTradeAmount(
@@ -5863,7 +5865,7 @@ class LocalRepository extends BaseRepository {
     var effFee = fee;
     var effTax = tax;
     if (tradeType == kStockTradeOpening) effTax = 0;
-    if (tradeType == kStockTradeStockDividend) {
+    if (tradeType == kStockTradeStockDividend || tradeType == kStockTradeSplit) {
       effFee = 0;
       effTax = 0;
     }
@@ -5951,7 +5953,7 @@ class LocalRepository extends BaseRepository {
         id,
         StockTradesCompanion(
           shares: d.Value(shares),
-          price: d.Value(effPrice),
+          price: d.Value(tradeType == kStockTradeSplit ? null : effPrice),
           fee: d.Value(effFee),
           tax: d.Value(effTax),
           amount: d.Value(stockTradeAmount(

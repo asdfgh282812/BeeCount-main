@@ -9,10 +9,11 @@ import 'stock_trade_types.dart';
 ///
 /// 規則:
 /// - 排序:tradeDate(取日期)升冪 → 同一天依類型(opening, buy, reinvest,
-///   stock_dividend, cash_dividend, sell)→ syncId。
+///   stock_dividend, split, cash_dividend, sell)→ syncId。
 /// - opening/buy:股數 += s,成本 += amount(amount ≤ 0 時退回 s×price+fee)。
 /// - reinvest:股數 += s,成本 += amount,同時計入累計股利。
 /// - stock_dividend(配股):股數 += s,成本不變。
+/// - split(股票分割):`shares` 是比例,股數 *= 比例,總成本不變。
 /// - cash_dividend:只計入累計股利。
 /// - sell:依賣出當下平均成本扣除成本,已實現損益 += amount − 扣除成本;
 ///   賣超時只扣掉持有的部分,股數歸零。
@@ -84,6 +85,53 @@ class HoldingTrade {
   }
 }
 
+/// 已實現損益事件:每筆 sell 一筆。Cloud 端 Python 同形狀(camelCase 同名)。
+/// costBasis = 賣出當下平均成本 × 實際賣出股數(賣超時只算持有部分),
+/// proceeds = 該筆 sell 的 amount(淨收入),pnl = proceeds − costBasis。
+class RealizedPnlEvent {
+  final String tradeSyncId;
+  final String? accountKey;
+  final String market;
+  final String symbol;
+  final String? securityName;
+  final String? currency;
+
+  /// yyyy-MM-dd
+  final String date;
+  final double shares;
+  final double proceeds;
+  final double costBasis;
+  final double pnl;
+
+  const RealizedPnlEvent({
+    required this.tradeSyncId,
+    required this.accountKey,
+    required this.market,
+    required this.symbol,
+    required this.securityName,
+    required this.currency,
+    required this.date,
+    required this.shares,
+    required this.proceeds,
+    required this.costBasis,
+    required this.pnl,
+  });
+
+  Map<String, dynamic> toWire() => {
+        'tradeSyncId': tradeSyncId,
+        'accountId': accountKey,
+        'market': market,
+        'symbol': symbol,
+        'securityName': securityName,
+        'currency': currency,
+        'date': date,
+        'shares': shares,
+        'proceeds': proceeds,
+        'costBasis': costBasis,
+        'pnl': pnl,
+      };
+}
+
 class Holding {
   final String? accountKey;
   final String market;
@@ -115,8 +163,9 @@ class HoldingsCalculator {
     kStockTradeBuy: 1,
     kStockTradeReinvest: 2,
     kStockTradeStockDividend: 3,
-    kStockTradeCashDividend: 4,
-    kStockTradeSell: 5,
+    kStockTradeSplit: 4,
+    kStockTradeCashDividend: 5,
+    kStockTradeSell: 6,
   };
 
   static List<HoldingTrade> sortTrades(Iterable<HoldingTrade> trades) {
@@ -133,9 +182,10 @@ class HoldingsCalculator {
   }
 
   /// 回傳每個 (account, market, symbol) 的持股,依 (account, market, symbol)
-  /// 排序。`includeClosed=false` 時濾掉股數為 0 的部位。
+  /// 排序。`includeClosed=false` 時濾掉股數為 0 的部位。傳入 [realized] 時,
+  /// 每筆 sell 會依處理順序(日期升冪)附加一筆已實現損益事件。
   static List<Holding> compute(Iterable<HoldingTrade> trades,
-      {bool includeClosed = false}) {
+      {bool includeClosed = false, List<RealizedPnlEvent>? realized}) {
     final book = <String, Holding>{};
     for (final t in sortTrades(trades)) {
       final key = '${t.accountKey ?? ''}\u0000${t.market}\u0000${t.symbol}';
@@ -171,6 +221,10 @@ class HoldingsCalculator {
         case kStockTradeStockDividend:
           h.shares += s;
           break;
+        case kStockTradeSplit:
+          // 比例 <= 0 視為無效,忽略(避免把持股歸零)。
+          if (s > 0) h.shares *= s;
+          break;
         case kStockTradeCashDividend:
           h.dividends += t.amount;
           break;
@@ -178,6 +232,21 @@ class HoldingsCalculator {
           final sold = s < h.shares ? s : h.shares;
           final costOut = h.avgCost * sold;
           h.realizedPnl += t.amount - costOut;
+          realized?.add(RealizedPnlEvent(
+            tradeSyncId: t.syncId,
+            accountKey: t.accountKey,
+            market: t.market,
+            symbol: t.symbol,
+            securityName: h.securityName,
+            currency: h.currency,
+            date: t.tradeDateKey.length >= 10
+                ? t.tradeDateKey.substring(0, 10)
+                : t.tradeDateKey,
+            shares: sold,
+            proceeds: t.amount,
+            costBasis: costOut,
+            pnl: t.amount - costOut,
+          ));
           h.shares -= sold;
           h.totalCost -= costOut;
           if (h.shares <= eps) {
@@ -195,6 +264,13 @@ class HoldingsCalculator {
       if (m != 0) return m;
       return a.symbol.compareTo(b.symbol);
     });
+    return out;
+  }
+
+  /// 只取已實現損益事件(每筆 sell 一筆,日期升冪)。
+  static List<RealizedPnlEvent> realizedEvents(Iterable<HoldingTrade> trades) {
+    final out = <RealizedPnlEvent>[];
+    compute(trades, includeClosed: true, realized: out);
     return out;
   }
 
