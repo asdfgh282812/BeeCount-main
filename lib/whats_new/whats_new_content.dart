@@ -193,5 +193,10 @@ final Map<String, List<WhatsNewItem>> kWhatsNewContent = {
       title: (l10n) => l10n.whatsNew370OddLotFeeTitle,
       description: (l10n) => l10n.whatsNew370OddLotFeeDesc,
     ),
+    // AI 對話改版 + 連續記憶(docs/changes/2026-10-03-ai-chat-redesign-memory.md)。
+    WhatsNewItem(
+      title: (l10n) => l10n.whatsNew370AiChatMemoryTitle,
+      description: (l10n) => l10n.whatsNew370AiChatMemoryDesc,
+    ),
   ],
 };

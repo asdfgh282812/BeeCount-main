@@ -10,6 +10,9 @@ class AIConstants {
   static const String keyAiStrategy = 'ai_strategy';
   static const String keyAiBillExtractionEnabled = 'ai_bill_extraction_enabled';
   static const String keyAiUseVision = 'ai_use_vision';
+
+  /// AI 對話「連續記憶」開關(本機設定,預設關閉,不同步)
+  static const String keyAiChatMemoryEnabled = 'ai_chat_memory_enabled';
   static const String keyAiCustomPrompt = 'ai_custom_prompt';
 
   /// 自动检测模式下「停顿多久判定说完」的毫秒阈值（多设备同步，见 AIProviderManager）

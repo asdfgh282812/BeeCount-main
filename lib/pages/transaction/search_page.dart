@@ -1208,6 +1208,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                                 title: subtitle,
                                 categoryName: categoryName,
                                 amount: item.t.amount,
+                                transferFee: item.t.type == 'transfer'
+                                    ? (item.t.feeAmount ?? 0)
+                                    : 0,
                                 currencyCode: item.t.currencyCode,
                                 nativeAmount: item.t.nativeAmount,
                                 isExpense: isExpense,

@@ -20,6 +20,9 @@ class TransactionListItem extends ConsumerWidget {
   final String title;
   final double amount;
 
+  /// 轉帳轉出端多扣的手續費(`feeAmount`);轉帳列表金額顯示 amount + 手續費。
+  final double transferFee;
+
   /// v30 多币种:交易原币种(null/等于账本本位币 → 维持无符号纯数字;
   /// 外币 → 金额前显示其币种符号,如 JP¥/US$,一眼区分原币)。
   final String? currencyCode;
@@ -73,6 +76,7 @@ class TransactionListItem extends ConsumerWidget {
     this.category,
     required this.title,
     required this.amount,
+    this.transferFee = 0,
     this.currencyCode,
     this.nativeAmount,
     required this.isExpense,
@@ -507,7 +511,7 @@ class TransactionListItem extends ConsumerWidget {
                                 ? amount // adjustment 直接显示原始值（含正负）
                                 : isExpense
                                     ? -amount
-                                    : amount,
+                                    : amount + transferFee,
                             hide: hide,
                             signed: !isTransfer, // 转账不显示正负号
                             showCurrency: false,

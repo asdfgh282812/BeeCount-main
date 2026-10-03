@@ -2474,7 +2474,9 @@ class TransactionTile extends ConsumerWidget {
                           ? -transaction.amount
                           : transaction.type == 'transfer'
                               ? (isTransferOut
-                                  ? -transaction.amount
+                                  // 轉出端實際扣款 = 金額 + 手續費
+                                  ? -(transaction.amount +
+                                      (transaction.feeAmount ?? 0))
                                   : transaction.amount)
                               : transaction.amount,
                       signed: true,

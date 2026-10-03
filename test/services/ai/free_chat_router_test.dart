@@ -358,6 +358,40 @@ void main() {
     expect(capturedPrompt, contains('這個月餐飲花多少'));
     expect(capturedPrompt, contains('您這個月餐飲支出 100 元'));
   });
+
+  test('useMemory=false 時不帶歷史紀錄', () async {
+    final conversationId =
+        await repo.createConversation(const ConversationsCompanion());
+    await repo.createMessage(MessagesCompanion.insert(
+      conversationId: conversationId,
+      role: 'user',
+      content: '這個月餐飲花多少',
+      messageType: 'text',
+      createdAt: Value(DateTime(2026, 9, 8, 10, 0, 0)),
+    ));
+    await repo.createMessage(MessagesCompanion.insert(
+      conversationId: conversationId,
+      role: 'user',
+      content: '那預算呢',
+      messageType: 'text',
+      createdAt: Value(DateTime(2026, 9, 8, 10, 0, 2)),
+    ));
+
+    String? capturedPrompt;
+    final router = FreeChatRouter(
+      repo: repo,
+      chatFn: (prompt, {systemPrompt}) async {
+        capturedPrompt = prompt;
+        return '{"type":"answer","text":"ok"}';
+      },
+      now: () => DateTime(2026, 9, 8),
+    );
+
+    await router.route('那預算呢',
+        ledgerId: ledgerId, conversationId: conversationId, useMemory: false);
+
+    expect(capturedPrompt, '使用者：那預算呢');
+  });
 }
 
 /// 既有測試大多只關心最終文字。route() 現在回 FreeChatOutcome,這裡統一解包。

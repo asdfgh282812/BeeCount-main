@@ -995,7 +995,10 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
                     ? tx.amount
                     : isExpense
                         ? -tx.amount
-                        : tx.amount;
+                        // 轉帳轉出端實際扣款 = 金額 + 手續費
+                        : (isTransfer
+                            ? tx.amount + (tx.feeAmount ?? 0)
+                            : tx.amount);
                 final amountStyle = BeeTextTokens.title(context).copyWith(
                   color: isAdjustment
                       ? (tx.amount >= 0
@@ -1042,7 +1045,8 @@ class _TransactionDetailCardState extends ConsumerState<TransactionDetailCard> {
                   ],
                 );
               }),
-              if (!isTransfer && !isAdjustment)
+              // 轉帳只在有手續費時顯示(股票買進等會在轉出端多扣手續費)
+              if (!isAdjustment && (!isTransfer || (tx.feeAmount ?? 0) > 0))
                 _buildFeeDiscountSubtitle(context, l10n),
             ],
           ),
@@ -1493,7 +1497,9 @@ Widget buildFeeDiscountSubtitle(
     segments.add(amountText(amount));
   }
 
-  final baseAmount = tx.baseAmount;
+  // 轉帳沒有 baseAmount(手續費另存 feeAmount),用 amount 當「原始金額」。
+  final baseAmount =
+      tx.baseAmount ?? (tx.type == 'transfer' ? tx.amount : null);
   if (baseAmount != null) {
     segments.add(
         Text('${l10n.txDetailOriginalAmountLabel} ', style: subtitleStyle));

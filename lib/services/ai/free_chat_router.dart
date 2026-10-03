@@ -91,11 +91,15 @@ class FreeChatRouter {
     required int ledgerId,
     int? conversationId,
     String? languageCode,
+
+    /// 連續記憶:true 才把最近幾則對話帶進 prompt;false 時每句話獨立處理,
+    /// 省 token(免費額度小的服務商長對話容易爆)。預設 true 保持既有行為,
+    /// 由 [AIChatService] 依使用者設定明確傳入。
+    bool useMemory = true,
   }) async {
-    final history = await _loadHistoryExcludingCurrentTurn(
-      conversationId,
-      userInput,
-    );
+    final history = useMemory
+        ? await _loadHistoryExcludingCurrentTurn(conversationId, userInput)
+        : const <Message>[];
     final historyText = _buildHistoryText(history);
     final routingPrompt =
         historyText.isEmpty ? '使用者：$userInput' : '$historyText\n使用者：$userInput';

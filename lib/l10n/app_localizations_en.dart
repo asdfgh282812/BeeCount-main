@@ -5781,6 +5781,45 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiChatThinking => 'Thinking...';
 
   @override
+  String get aiChatMemoryLabel => 'Memory';
+
+  @override
+  String get aiChatMemoryTooltipOn =>
+      'Continuous memory is on — tap to turn off';
+
+  @override
+  String get aiChatMemoryTooltipOff =>
+      'Continuous memory is off — tap to turn on';
+
+  @override
+  String get aiChatMemoryWarnTitle => 'Turn on continuous memory?';
+
+  @override
+  String get aiChatMemoryWarnBody =>
+      'When on, every message also sends your recent conversation to the AI so it can follow the context.\n\n• Token usage grows with each turn\n• Free-tier APIs (e.g. Gemini) have small quotas and may hit rate limits or fail in long chats\n• Your recent messages are sent to the AI provider you configured\n\nTip: use \"Clear History\" now and then to keep the context short.';
+
+  @override
+  String get aiChatMemoryWarnConfirm => 'Turn on';
+
+  @override
+  String get aiChatMemoryOnToast => 'Continuous memory on';
+
+  @override
+  String get aiChatMemoryOffToast =>
+      'Continuous memory off — each message is handled on its own';
+
+  @override
+  String get aiChatEmptyTitle => 'Hi, I\'m your bookkeeping assistant';
+
+  @override
+  String get aiChatEmptySubtitle =>
+      'Tell me what you spent, or ask about your finances';
+
+  @override
+  String get aiChatMemoryActiveHint =>
+      'Memory on · recent messages are sent along';
+
+  @override
   String get aiChatHistoryCleared => 'Conversation history cleared';
 
   @override
@@ -11588,6 +11627,14 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get whatsNew370OddLotFeeDesc =>
       'Estimated selling commissions for Taiwan odd lots now use a separate odd-lot minimum (default NT\$1; board lots stay at NT\$20), so estimated P&L matches your broker app. Also fixed quotes that sometimes stayed on the previous trading day. Where: Assets → investment account → Fee settings → Minimum commission: odd lots.';
+
+  @override
+  String get whatsNew370AiChatMemoryTitle =>
+      'New AI chat look & optional memory';
+
+  @override
+  String get whatsNew370AiChatMemoryDesc =>
+      'The AI chat page has a fresh, techier design. You can now turn on continuous memory so the AI follows your recent conversation — it is off by default because it uses more tokens and free APIs (e.g. Gemini) may hit limits. Where: Mine → AI Assistant → memory icon at the top right.';
 
   @override
   String get annualStockOverviewTitle => 'Your Stock Year';

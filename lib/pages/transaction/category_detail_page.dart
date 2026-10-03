@@ -479,6 +479,9 @@ class _CategoryDetailPageState extends ConsumerState<CategoryDetailPage> {
                   category?.name ?? widget.categoryName, context),
               ledgerName: ledgerNames[transaction.ledgerId],
               amount: transaction.amount,
+              transferFee: transaction.type == 'transfer'
+                  ? (transaction.feeAmount ?? 0)
+                  : 0,
               currencyCode: transaction.currencyCode,
               nativeAmount: transaction.nativeAmount,
               isExpense: transaction.type == 'expense',
@@ -575,6 +578,9 @@ class _CategoryDetailPageState extends ConsumerState<CategoryDetailPage> {
                     category?.name ?? widget.categoryName, context),
                 ledgerName: ledgerNames[transaction.ledgerId],
                 amount: transaction.amount,
+                transferFee: transaction.type == 'transfer'
+                    ? (transaction.feeAmount ?? 0)
+                    : 0,
                 currencyCode: transaction.currencyCode,
                 nativeAmount: transaction.nativeAmount,
                 isExpense: transaction.type == 'expense',

@@ -640,6 +640,8 @@ class CalendarBodyState extends ConsumerState<CalendarBody> {
                     ? null
                     : (subtitle.isNotEmpty ? categoryName : null),
                 amount: item.t.amount,
+                transferFee:
+                    item.t.type == 'transfer' ? (item.t.feeAmount ?? 0) : 0,
                 currencyCode: item.t.currencyCode,
                 nativeAmount: item.t.nativeAmount,
                 isExpense: isExpense,

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -14,6 +15,8 @@ import '../../widgets/ai/markdown_text.dart';
 import '../../widgets/ai/typewriter_text.dart';
 import '../../widgets/ai/bill_card_widget.dart';
 import '../../widgets/ai/ai_quick_commands_bar.dart';
+import '../../widgets/ai/ai_typing_indicator.dart';
+import '../../providers/ai_config_providers.dart';
 import '../../styles/tokens.dart';
 import '../../utils/ui_scale_extensions.dart';
 import '../../services/billing/post_processor.dart';
@@ -44,6 +47,7 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
     with WidgetsBindingObserver {
   final TextEditingController _inputController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _inputFocus = FocusNode();
   int? _conversationId;
   bool _isLoading = false;
   int? _animatingMessageId; // 正在播放动画的消息ID
@@ -63,6 +67,9 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
       _validateApiConfig();
     });
     _scrollController.addListener(_handleScroll);
+    _inputFocus.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   /// 处理滚动事件
@@ -149,189 +156,351 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
     }
 
     final messagesAsync = ref.watch(messagesProvider(_conversationId!));
+    final primary = ref.watch(primaryColorProvider);
+    final memoryOn = ref.watch(aiChatMemoryProvider);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       backgroundColor: BeeTokens.scaffoldBackground(context),
-      body: Column(
-        children: [
-          // Header
-          PrimaryHeader(
-            title: AppLocalizations.of(context).aiChatTitle,
-            showBack: true,
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.delete_outline),
-                tooltip: AppLocalizations.of(context).aiChatClearHistory,
-                onPressed: _showClearHistoryDialog,
-              ),
+      body: DecoratedBox(
+        // 科技感背景:頂部帶主題色的柔光,往下漸層淡出
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              primary.withOpacity(0.10),
+              BeeTokens.scaffoldBackground(context),
+              BeeTokens.scaffoldBackground(context),
             ],
+            stops: const [0.0, 0.35, 1.0],
           ),
-
-          // API配置警告横幅
-          if (_apiValidation != null && !_apiValidation!.isValid)
-            Container(
-              margin: EdgeInsets.symmetric(
-                horizontal: 12.0.scaled(context, ref),
-                vertical: 8.0.scaled(context, ref),
-              ),
-              padding: EdgeInsets.all(12.0.scaled(context, ref)),
-              decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8.0.scaled(context, ref)),
-                border: Border.all(
-                  color: Colors.red.withOpacity(0.3),
-                  width: 1,
+        ),
+        child: Column(
+          children: [
+            // Header
+            PrimaryHeader(
+              title: l10n.aiChatTitle,
+              showBack: true,
+              actions: [
+                IconButton(
+                  icon: Icon(
+                    memoryOn ? Icons.memory : Icons.memory_outlined,
+                    color: memoryOn ? BeeTokens.success(context) : null,
+                  ),
+                  tooltip: memoryOn
+                      ? l10n.aiChatMemoryTooltipOn
+                      : l10n.aiChatMemoryTooltipOff,
+                  onPressed: _toggleMemory,
                 ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.warning_amber_rounded,
-                    color: Colors.red[700],
-                    size: 20.0.scaled(context, ref),
-                  ),
-                  SizedBox(width: 8.0.scaled(context, ref)),
-                  Expanded(
-                    child: Text(
-                      AppLocalizations.of(context).aiChatConfigWarning,
-                      style: TextStyle(
-                        color: Colors.red[700],
-                        fontSize: 13.0.scaled(context, ref),
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () async {
-                      await Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const AISettingsPage(),
-                        ),
-                      );
-                      // 返回后重新验证
-                      if (mounted) {
-                        await _validateApiConfig();
-                      }
-                    },
-                    child: Text(
-                      AppLocalizations.of(context).aiChatGoToSettings,
-                      style: TextStyle(
-                        color: ref.watch(primaryColorProvider),
-                        fontSize: 13.0.scaled(context, ref),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  tooltip: AppLocalizations.of(context).aiChatClearHistory,
+                  onPressed: _showClearHistoryDialog,
+                ),
+              ],
             ),
 
-          // 消息列表
-          Expanded(
-            child: Stack(
-              children: [
-                messagesAsync.when(
-                  data: (messages) {
-                    // 首次加载完成且有消息时，自动滚动到底部
-                    if (_isFirstLoad && messages.isNotEmpty) {
-                      _isFirstLoad = false;
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        _scrollToBottom();
-                      });
-                    }
-
-                    if (messages.isEmpty) {
-                      return const Center(child: Text('沒有訊息記錄'));
-                    }
-
-                    return ListView.builder(
-                      controller: _scrollController,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 12.0.scaled(context, ref),
-                        vertical: 8.0.scaled(context, ref),
-                      ),
-                      itemCount: messages.length,
-                      itemBuilder: (context, index) {
-                        return _buildMessageBubble(messages[index]);
-                      },
-                    );
-                  },
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (e, st) => Center(child: Text('加载失败: $e')),
+            // API配置警告横幅
+            if (_apiValidation != null && !_apiValidation!.isValid)
+              Container(
+                margin: EdgeInsets.symmetric(
+                  horizontal: 12.0.scaled(context, ref),
+                  vertical: 8.0.scaled(context, ref),
                 ),
+                padding: EdgeInsets.all(12.0.scaled(context, ref)),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8.0.scaled(context, ref)),
+                  border: Border.all(
+                    color: Colors.red.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.red[700],
+                      size: 20.0.scaled(context, ref),
+                    ),
+                    SizedBox(width: 8.0.scaled(context, ref)),
+                    Expanded(
+                      child: Text(
+                        AppLocalizations.of(context).aiChatConfigWarning,
+                        style: TextStyle(
+                          color: Colors.red[700],
+                          fontSize: 13.0.scaled(context, ref),
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const AISettingsPage(),
+                          ),
+                        );
+                        // 返回后重新验证
+                        if (mounted) {
+                          await _validateApiConfig();
+                        }
+                      },
+                      child: Text(
+                        AppLocalizations.of(context).aiChatGoToSettings,
+                        style: TextStyle(
+                          color: ref.watch(primaryColorProvider),
+                          fontSize: 13.0.scaled(context, ref),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
-                // 回到底部按钮
-                if (_showScrollToBottom)
-                  Positioned(
-                    right: 16.0.scaled(context, ref),
-                    bottom: 16.0.scaled(context, ref),
-                    child: Material(
-                      color: ref.watch(primaryColorProvider),
-                      borderRadius:
-                          BorderRadius.circular(24.0.scaled(context, ref)),
-                      elevation: 8,
-                      shadowColor: Colors.black.withOpacity(0.4),
-                      child: InkWell(
-                        onTap: _scrollToBottomWithAnimation,
-                        borderRadius:
-                            BorderRadius.circular(24.0.scaled(context, ref)),
-                        child: Container(
-                          width: 48.0.scaled(context, ref),
-                          height: 48.0.scaled(context, ref),
-                          alignment: Alignment.center,
-                          child: Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            color: Colors.white,
-                            size: 30.0.scaled(context, ref),
+            // 消息列表
+            Expanded(
+              child: Stack(
+                children: [
+                  messagesAsync.when(
+                    data: (messages) {
+                      // 首次加载完成且有消息时，自动滚动到底部
+                      if (_isFirstLoad && messages.isNotEmpty) {
+                        _isFirstLoad = false;
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          _scrollToBottom();
+                        });
+                      }
+
+                      if (messages.isEmpty) {
+                        return _buildEmptyState();
+                      }
+
+                      return ListView.builder(
+                        controller: _scrollController,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 12.0.scaled(context, ref),
+                          vertical: 8.0.scaled(context, ref),
+                        ),
+                        itemCount: messages.length,
+                        itemBuilder: (context, index) {
+                          return _buildMessageBubble(messages[index]);
+                        },
+                      );
+                    },
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (e, st) => Center(child: Text('加载失败: $e')),
+                  ),
+
+                  // 回到底部按钮
+                  if (_showScrollToBottom)
+                    Positioned(
+                      right: 16.0.scaled(context, ref),
+                      bottom: 16.0.scaled(context, ref),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _scrollToBottomWithAnimation,
+                          customBorder: const CircleBorder(),
+                          child: Container(
+                            width: 40.0.scaled(context, ref),
+                            height: 40.0.scaled(context, ref),
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: _primaryGradient(primary),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: primary.withOpacity(0.45),
+                                  blurRadius: 14,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: BeeTokens.textOnPrimary(context),
+                              size: 26.0.scaled(context, ref),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-              ],
-            ),
-          ),
-
-          // 加载指示器
-          if (_isLoading)
-            Container(
-              padding: EdgeInsets.symmetric(
-                vertical: 8.0.scaled(context, ref),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 16.0.scaled(context, ref),
-                    height: 16.0.scaled(context, ref),
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        ref.watch(primaryColorProvider),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 8.0.scaled(context, ref)),
-                  Text(
-                    AppLocalizations.of(context).aiChatThinking,
-                    style: TextStyle(
-                      color: BeeTokens.textSecondary(context),
-                      fontSize: 13.0.scaled(context, ref),
-                    ),
-                  ),
                 ],
               ),
             ),
 
-          // 快捷指令横条
-          AIQuickCommandsBar(
-            onCommandTap: _handleQuickCommand,
-          ),
+            // 思考中:AI 頭像 + 三點脈動氣泡
+            if (_isLoading)
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  12.0.scaled(context, ref),
+                  4.0.scaled(context, ref),
+                  12.0.scaled(context, ref),
+                  8.0.scaled(context, ref),
+                ),
+                child: Row(
+                  children: [
+                    _buildAIAvatar(),
+                    SizedBox(width: 8.0.scaled(context, ref)),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 14.0.scaled(context, ref),
+                        vertical: 12.0.scaled(context, ref),
+                      ),
+                      decoration: _aiBubbleDecoration(primary),
+                      child: AiTypingIndicator(
+                        color: primary,
+                        dotSize: 6.0.scaled(context, ref),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
-          // 输入区域
-          _buildInputArea(),
+            // 快捷指令横条
+            AIQuickCommandsBar(
+              onCommandTap: _handleQuickCommand,
+            ),
+
+            // 输入区域
+            _buildInputArea(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // 視覺樣式
+  // ============================================================
+
+  LinearGradient _primaryGradient(Color primary) {
+    final hsl = HSLColor.fromColor(primary);
+    final shifted = hsl
+        .withHue((hsl.hue + 28) % 360)
+        .withLightness((hsl.lightness * 0.92).clamp(0.0, 1.0))
+        .toColor();
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [primary, shifted],
+    );
+  }
+
+  /// AI 氣泡:半透明玻璃質感 + 主題色細邊框,左上角收小做出「說話」方向感。
+  BoxDecoration _aiBubbleDecoration(Color primary) {
+    final r = 16.0.scaled(context, ref);
+    return BoxDecoration(
+      color: BeeTokens.surface(context).withOpacity(0.92),
+      borderRadius: BorderRadius.only(
+        topLeft: Radius.circular(4.0.scaled(context, ref)),
+        topRight: Radius.circular(r),
+        bottomLeft: Radius.circular(r),
+        bottomRight: Radius.circular(r),
+      ),
+      border: Border.all(color: primary.withOpacity(0.22)),
+      boxShadow: [
+        BoxShadow(
+          color: primary.withOpacity(0.08),
+          blurRadius: 12,
+          offset: const Offset(0, 3),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState() {
+    final primary = ref.watch(primaryColorProvider);
+    final l10n = AppLocalizations.of(context);
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 32.0.scaled(context, ref)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 76.0.scaled(context, ref),
+              height: 76.0.scaled(context, ref),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: _primaryGradient(primary),
+                boxShadow: [
+                  BoxShadow(
+                    color: primary.withOpacity(0.45),
+                    blurRadius: 32,
+                    spreadRadius: 4,
+                  ),
+                ],
+              ),
+              child: Center(
+                child: BeeIcon(
+                  color: BeeTokens.textOnPrimary(context),
+                  size: 38.0.scaled(context, ref),
+                ),
+              ),
+            ),
+            SizedBox(height: 20.0.scaled(context, ref)),
+            Text(
+              l10n.aiChatEmptyTitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: BeeTokens.textPrimary(context),
+                fontSize: 18.0.scaled(context, ref),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            SizedBox(height: 8.0.scaled(context, ref)),
+            Text(
+              l10n.aiChatEmptySubtitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: BeeTokens.textSecondary(context),
+                fontSize: 13.0.scaled(context, ref),
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 切換連續記憶。開啟時**每次**都先跳警告確認;關閉不需確認。
+  Future<void> _toggleMemory() async {
+    final l10n = AppLocalizations.of(context);
+    final notifier = ref.read(aiChatMemoryProvider.notifier);
+    final current = ref.read(aiChatMemoryProvider);
+
+    if (current) {
+      await notifier.setEnabled(false);
+      if (mounted) showToast(context, l10n.aiChatMemoryOffToast);
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: Icon(Icons.warning_amber_rounded,
+            color: BeeTokens.warning(ctx), size: 32),
+        title: Text(l10n.aiChatMemoryWarnTitle),
+        content: SingleChildScrollView(child: Text(l10n.aiChatMemoryWarnBody)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.commonCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.aiChatMemoryWarnConfirm),
+          ),
         ],
       ),
     );
+    if (confirmed != true) return;
+    await notifier.setEnabled(true);
+    if (mounted) showToast(context, l10n.aiChatMemoryOnToast);
   }
 
   Widget _buildMessageBubble(Message message) {
@@ -398,25 +567,16 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
               ),
               child: Container(
                 margin: EdgeInsets.only(
-                  left: isUser ? 60.0.scaled(context, ref) : 0,
-                  right: isUser ? 0 : 60.0.scaled(context, ref),
+                  left: isUser ? 56.0.scaled(context, ref) : 0,
+                  right: isUser ? 0 : 56.0.scaled(context, ref),
                 ),
                 padding: EdgeInsets.symmetric(
-                  horizontal: 12.0.scaled(context, ref),
+                  horizontal: 14.0.scaled(context, ref),
                   vertical: 10.0.scaled(context, ref),
                 ),
-                decoration: BoxDecoration(
-                  color: isUser
-                      ? ref.watch(primaryColorProvider).withOpacity(0.1)
-                      : BeeTokens.surface(context),
-                  borderRadius:
-                      BorderRadius.circular(12.0.scaled(context, ref)),
-                  border: Border.all(
-                    color: isUser
-                        ? ref.watch(primaryColorProvider).withOpacity(0.3)
-                        : BeeTokens.border(context),
-                  ),
-                ),
+                decoration: isUser
+                    ? _userBubbleDecoration(ref.watch(primaryColorProvider))
+                    : _aiBubbleDecoration(ref.watch(primaryColorProvider)),
                 child: _buildMessageText(message, isUser, shouldAnimate),
               ),
             ),
@@ -431,6 +591,27 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
     );
   }
 
+  /// 使用者氣泡:主題色漸層實心,右上角收小。
+  BoxDecoration _userBubbleDecoration(Color primary) {
+    final r = 16.0.scaled(context, ref);
+    return BoxDecoration(
+      gradient: _primaryGradient(primary),
+      borderRadius: BorderRadius.only(
+        topLeft: Radius.circular(r),
+        topRight: Radius.circular(4.0.scaled(context, ref)),
+        bottomLeft: Radius.circular(r),
+        bottomRight: Radius.circular(r),
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: primary.withOpacity(0.30),
+          blurRadius: 12,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    );
+  }
+
   /// 文字訊息的內容。
   ///
   /// AI 訊息在打字機動畫**播完之後**才切換成 Markdown 渲染 —— 逐字動畫期間餵進去
@@ -439,7 +620,9 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
   /// 使用者自己打的字一律原樣呈現,不做 Markdown 解析。
   Widget _buildMessageText(Message message, bool isUser, bool shouldAnimate) {
     final style = TextStyle(
-      color: BeeTokens.textPrimary(context),
+      color: isUser
+          ? BeeTokens.textOnPrimary(context)
+          : BeeTokens.textPrimary(context),
       fontSize: 14.0.scaled(context, ref),
       height: 1.5,
     );
@@ -471,23 +654,27 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
     );
   }
 
-  // 构建AI头像
+  // 构建AI头像:漸層圓形 + 外發光
   Widget _buildAIAvatar() {
+    final primary = ref.watch(primaryColorProvider);
     return Container(
-      width: 32.0.scaled(context, ref),
-      height: 32.0.scaled(context, ref),
+      width: 34.0.scaled(context, ref),
+      height: 34.0.scaled(context, ref),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(
-          color: ref.watch(primaryColorProvider).withOpacity(0.3),
-          width: 1.5,
-        ),
-        color: ref.watch(primaryColorProvider).withOpacity(0.1),
+        gradient: _primaryGradient(primary),
+        boxShadow: [
+          BoxShadow(
+            color: primary.withOpacity(0.40),
+            blurRadius: 12,
+            spreadRadius: 0.5,
+          ),
+        ],
       ),
       child: Center(
         child: BeeIcon(
-          color: ref.watch(primaryColorProvider),
-          size: 18.0.scaled(context, ref),
+          color: BeeTokens.textOnPrimary(context),
+          size: 19.0.scaled(context, ref),
         ),
       ),
     );
@@ -519,57 +706,132 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
   }
 
   Widget _buildInputArea() {
-    return Container(
-      padding: EdgeInsets.all(16.0.scaled(context, ref)),
-      decoration: BoxDecoration(
-        color: BeeTokens.surface(context),
-        border: Border(
-          top: BorderSide(
-            color: BeeTokens.divider(context),
+    final primary = ref.watch(primaryColorProvider);
+    final memoryOn = ref.watch(aiChatMemoryProvider);
+    final l10n = AppLocalizations.of(context);
+    final focused = _inputFocus.hasFocus;
+    final radius = 24.0.scaled(context, ref);
+
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          padding: EdgeInsets.fromLTRB(
+            12.0.scaled(context, ref),
+            8.0.scaled(context, ref),
+            12.0.scaled(context, ref),
+            8.0.scaled(context, ref),
           ),
-        ),
-      ),
-      child: SafeArea(
-        top: false, // 不保护顶部，避免额外空白
-        child: Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _inputController,
-                decoration: InputDecoration(
-                  hintText: AppLocalizations.of(context).aiChatInputHint,
-                  hintStyle: TextStyle(
-                    color: BeeTokens.textTertiary(context),
+          decoration: BoxDecoration(
+            color: BeeTokens.surface(context).withOpacity(0.85),
+            border: Border(top: BorderSide(color: BeeTokens.divider(context))),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (memoryOn)
+                  Padding(
+                    padding: EdgeInsets.only(bottom: 6.0.scaled(context, ref)),
+                    child: Row(
+                      children: [
+                        Icon(Icons.memory,
+                            size: 13.0.scaled(context, ref),
+                            color: BeeTokens.success(context)),
+                        SizedBox(width: 4.0.scaled(context, ref)),
+                        Text(
+                          l10n.aiChatMemoryActiveHint,
+                          style: TextStyle(
+                            color: BeeTokens.success(context),
+                            fontSize: 11.0.scaled(context, ref),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  border: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(20.0.scaled(context, ref)),
-                    borderSide: BorderSide.none,
-                  ),
-                  filled: true,
-                  fillColor: BeeTokens.scaffoldBackground(context),
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 16.0.scaled(context, ref),
-                    vertical: 10.0.scaled(context, ref),
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        decoration: BoxDecoration(
+                          color: BeeTokens.scaffoldBackground(context),
+                          borderRadius: BorderRadius.circular(radius),
+                          border: Border.all(
+                            color: focused
+                                ? primary.withOpacity(0.7)
+                                : BeeTokens.border(context),
+                          ),
+                          boxShadow: focused
+                              ? [
+                                  BoxShadow(
+                                    color: primary.withOpacity(0.22),
+                                    blurRadius: 14,
+                                  ),
+                                ]
+                              : const [],
+                        ),
+                        child: TextField(
+                          controller: _inputController,
+                          focusNode: _inputFocus,
+                          decoration: InputDecoration(
+                            hintText: l10n.aiChatInputHint,
+                            hintStyle: TextStyle(
+                              color: BeeTokens.textTertiary(context),
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 18.0.scaled(context, ref),
+                              vertical: 11.0.scaled(context, ref),
+                            ),
+                          ),
+                          minLines: 1,
+                          maxLines: 5,
+                          textInputAction: TextInputAction.send,
+                          onSubmitted: (_) => _sendMessage(),
+                          enabled: !_isLoading,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 8.0.scaled(context, ref)),
+                    GestureDetector(
+                      onTap: _isLoading ? null : _sendMessage,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        width: 44.0.scaled(context, ref),
+                        height: 44.0.scaled(context, ref),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient:
+                              _isLoading ? null : _primaryGradient(primary),
+                          color: _isLoading
+                              ? BeeTokens.surfaceDisabled(context)
+                              : null,
+                          boxShadow: _isLoading
+                              ? const []
+                              : [
+                                  BoxShadow(
+                                    color: primary.withOpacity(0.45),
+                                    blurRadius: 14,
+                                  ),
+                                ],
+                        ),
+                        child: Icon(
+                          Icons.arrow_upward_rounded,
+                          color: _isLoading
+                              ? BeeTokens.textDisabled(context)
+                              : BeeTokens.textOnPrimary(context),
+                          size: 22.0.scaled(context, ref),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                maxLines: null,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => _sendMessage(),
-                enabled: !_isLoading,
-              ),
+              ],
             ),
-            SizedBox(width: 8.0.scaled(context, ref)),
-            IconButton(
-              icon: Icon(
-                Icons.send,
-                color: _isLoading
-                    ? BeeTokens.textTertiary(context)
-                    : ref.watch(primaryColorProvider),
-              ),
-              onPressed: _isLoading ? null : _sendMessage,
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -679,6 +941,7 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
         languageCode: currentLocale.languageCode,
         forceChat: forceChat, // 快捷指令强制为自由对话
         conversationId: _conversationId,
+        useMemory: ref.read(aiChatMemoryProvider),
         l10n: l10n,
         resolveMissingAccount: (bill) async {
           if (!mounted) return null;
@@ -1240,6 +1503,7 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _inputController.dispose();
+    _inputFocus.dispose();
     _scrollController.dispose();
     super.dispose();
   }

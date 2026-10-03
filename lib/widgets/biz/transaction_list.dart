@@ -632,6 +632,8 @@ class TransactionListState extends ConsumerState<TransactionList> {
                         categoryName:
                             (isTransfer || isAdjustment) ? null : categoryName,
                         amount: it.t.amount,
+                        transferFee:
+                            it.t.type == 'transfer' ? (it.t.feeAmount ?? 0) : 0,
                         currencyCode: it.t.currencyCode,
                         nativeAmount: it.t.nativeAmount,
                         isExpense: isExpense,

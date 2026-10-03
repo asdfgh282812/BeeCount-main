@@ -63,6 +63,9 @@ class AIChatService {
     String? languageCode,
     bool forceChat = false,
     int? conversationId,
+
+    /// 是否啟用連續記憶(帶入最近對話歷史)。預設關閉。
+    bool useMemory = false,
     AppLocalizations? l10n,
     ResolveMissingAccount? resolveMissingAccount,
     ResolveMissingProject? resolveMissingProject,
@@ -89,6 +92,7 @@ class AIChatService {
         ledgerId: ledgerId,
         languageCode: languageCode,
         conversationId: conversationId,
+        useMemory: useMemory,
         l10n: l10n,
         resolveMissingAccount: resolveMissingAccount,
         resolveMissingProject: resolveMissingProject,
@@ -205,6 +209,7 @@ class AIChatService {
     required int ledgerId,
     String? languageCode,
     int? conversationId,
+    bool useMemory = false,
     AppLocalizations? l10n,
     ResolveMissingAccount? resolveMissingAccount,
     ResolveMissingProject? resolveMissingProject,
@@ -216,6 +221,7 @@ class AIChatService {
         ledgerId: ledgerId,
         conversationId: conversationId,
         languageCode: languageCode,
+        useMemory: useMemory,
       );
 
       // router 判斷這句其實是要記帳(接住本地閘門漏掉的句型:沒有動詞的

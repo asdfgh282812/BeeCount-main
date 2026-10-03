@@ -10444,6 +10444,72 @@ abstract class AppLocalizations {
   /// **'Thinking...'**
   String get aiChatThinking;
 
+  /// No description provided for @aiChatMemoryLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Memory'**
+  String get aiChatMemoryLabel;
+
+  /// No description provided for @aiChatMemoryTooltipOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Continuous memory is on — tap to turn off'**
+  String get aiChatMemoryTooltipOn;
+
+  /// No description provided for @aiChatMemoryTooltipOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Continuous memory is off — tap to turn on'**
+  String get aiChatMemoryTooltipOff;
+
+  /// No description provided for @aiChatMemoryWarnTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on continuous memory?'**
+  String get aiChatMemoryWarnTitle;
+
+  /// No description provided for @aiChatMemoryWarnBody.
+  ///
+  /// In en, this message translates to:
+  /// **'When on, every message also sends your recent conversation to the AI so it can follow the context.\n\n• Token usage grows with each turn\n• Free-tier APIs (e.g. Gemini) have small quotas and may hit rate limits or fail in long chats\n• Your recent messages are sent to the AI provider you configured\n\nTip: use \"Clear History\" now and then to keep the context short.'**
+  String get aiChatMemoryWarnBody;
+
+  /// No description provided for @aiChatMemoryWarnConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on'**
+  String get aiChatMemoryWarnConfirm;
+
+  /// No description provided for @aiChatMemoryOnToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Continuous memory on'**
+  String get aiChatMemoryOnToast;
+
+  /// No description provided for @aiChatMemoryOffToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Continuous memory off — each message is handled on its own'**
+  String get aiChatMemoryOffToast;
+
+  /// No description provided for @aiChatEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hi, I\'m your bookkeeping assistant'**
+  String get aiChatEmptyTitle;
+
+  /// No description provided for @aiChatEmptySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tell me what you spent, or ask about your finances'**
+  String get aiChatEmptySubtitle;
+
+  /// No description provided for @aiChatMemoryActiveHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Memory on · recent messages are sent along'**
+  String get aiChatMemoryActiveHint;
+
   /// No description provided for @aiChatHistoryCleared.
   ///
   /// In en, this message translates to:
@@ -20728,6 +20794,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Estimated selling commissions for Taiwan odd lots now use a separate odd-lot minimum (default NT\$1; board lots stay at NT\$20), so estimated P&L matches your broker app. Also fixed quotes that sometimes stayed on the previous trading day. Where: Assets → investment account → Fee settings → Minimum commission: odd lots.'**
   String get whatsNew370OddLotFeeDesc;
+
+  /// No description provided for @whatsNew370AiChatMemoryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New AI chat look & optional memory'**
+  String get whatsNew370AiChatMemoryTitle;
+
+  /// No description provided for @whatsNew370AiChatMemoryDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI chat page has a fresh, techier design. You can now turn on continuous memory so the AI follows your recent conversation — it is off by default because it uses more tokens and free APIs (e.g. Gemini) may hit limits. Where: Mine → AI Assistant → memory icon at the top right.'**
+  String get whatsNew370AiChatMemoryDesc;
 
   /// No description provided for @annualStockOverviewTitle.
   ///

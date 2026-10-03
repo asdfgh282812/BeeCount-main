@@ -889,6 +889,8 @@ class _ProjectCategoryTransactionsPage extends ConsumerWidget {
                             title: t.note ?? '',
                             categoryName: categoryName,
                             amount: t.amount,
+                            transferFee:
+                                t.type == 'transfer' ? (t.feeAmount ?? 0) : 0,
                             currencyCode: t.currencyCode,
                             nativeAmount: t.nativeAmount,
                             isExpense: t.type == 'expense',

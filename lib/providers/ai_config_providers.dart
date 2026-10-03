@@ -196,3 +196,31 @@ final aiProviderListForCapabilityProvider = FutureProvider<List<AIServiceProvide
   ref.watch(aiProviderListForCapabilityRefreshProvider);
   return AIProviderManager.getProviders();
 });
+
+/// AI 對話「連續記憶」開關 Notifier。
+///
+/// 開啟後每次提問會把最近幾則對話一併送給模型,讓它能接續上下文;代價是
+/// token 用量明顯增加,免費額度小的服務商(例如 Gemini 免費 API)容易被
+/// 長對話撐爆。所以預設關閉,由使用者自行決定,且為本機設定、不跨裝置同步。
+class AIChatMemoryNotifier extends StateNotifier<bool> {
+  AIChatMemoryNotifier() : super(false) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    state = prefs.getBool(AIConstants.keyAiChatMemoryEnabled) ?? false;
+  }
+
+  Future<void> setEnabled(bool value) async {
+    state = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(AIConstants.keyAiChatMemoryEnabled, value);
+  }
+}
+
+final aiChatMemoryProvider =
+    StateNotifierProvider<AIChatMemoryNotifier, bool>((ref) {
+  return AIChatMemoryNotifier();
+});

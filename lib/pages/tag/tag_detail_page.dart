@@ -356,6 +356,9 @@ class _TagDetailPageState extends ConsumerState<TagDetailPage> {
                 categoryName: categoryName,
                 ledgerName: ledgerNames[transaction.ledgerId],
                 amount: transaction.amount,
+                transferFee: transaction.type == 'transfer'
+                    ? (transaction.feeAmount ?? 0)
+                    : 0,
                 currencyCode: transaction.currencyCode,
                 nativeAmount: transaction.nativeAmount,
                 isExpense: transaction.type == 'expense',

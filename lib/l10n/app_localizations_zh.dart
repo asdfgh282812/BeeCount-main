@@ -5543,6 +5543,45 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiChatThinking => '思考中...';
 
   @override
+  String get aiChatMemoryLabel => 'Memory';
+
+  @override
+  String get aiChatMemoryTooltipOn =>
+      'Continuous memory is on — tap to turn off';
+
+  @override
+  String get aiChatMemoryTooltipOff =>
+      'Continuous memory is off — tap to turn on';
+
+  @override
+  String get aiChatMemoryWarnTitle => 'Turn on continuous memory?';
+
+  @override
+  String get aiChatMemoryWarnBody =>
+      'When on, every message also sends your recent conversation to the AI so it can follow the context.\n\n• Token usage grows with each turn\n• Free-tier APIs (e.g. Gemini) have small quotas and may hit rate limits or fail in long chats\n• Your recent messages are sent to the AI provider you configured\n\nTip: use \"Clear History\" now and then to keep the context short.';
+
+  @override
+  String get aiChatMemoryWarnConfirm => 'Turn on';
+
+  @override
+  String get aiChatMemoryOnToast => 'Continuous memory on';
+
+  @override
+  String get aiChatMemoryOffToast =>
+      'Continuous memory off — each message is handled on its own';
+
+  @override
+  String get aiChatEmptyTitle => 'Hi, I\'m your bookkeeping assistant';
+
+  @override
+  String get aiChatEmptySubtitle =>
+      'Tell me what you spent, or ask about your finances';
+
+  @override
+  String get aiChatMemoryActiveHint =>
+      'Memory on · recent messages are sent along';
+
+  @override
   String get aiChatHistoryCleared => '对话历史已清空';
 
   @override
@@ -11269,6 +11308,14 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get whatsNew370OddLotFeeDesc =>
       'Estimated selling commissions for Taiwan odd lots now use a separate odd-lot minimum (default NT\$1; board lots stay at NT\$20), so estimated P&L matches your broker app. Also fixed quotes that sometimes stayed on the previous trading day. Where: Assets → investment account → Fee settings → Minimum commission: odd lots.';
+
+  @override
+  String get whatsNew370AiChatMemoryTitle =>
+      'New AI chat look & optional memory';
+
+  @override
+  String get whatsNew370AiChatMemoryDesc =>
+      'The AI chat page has a fresh, techier design. You can now turn on continuous memory so the AI follows your recent conversation — it is off by default because it uses more tokens and free APIs (e.g. Gemini) may hit limits. Where: Mine → AI Assistant → memory icon at the top right.';
 
   @override
   String get annualStockOverviewTitle => '股票年度总览';
@@ -17127,6 +17174,40 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get aiChatThinking => '思考中...';
 
   @override
+  String get aiChatMemoryLabel => '連續記憶';
+
+  @override
+  String get aiChatMemoryTooltipOn => '連續記憶已開啟，點擊關閉';
+
+  @override
+  String get aiChatMemoryTooltipOff => '連續記憶已關閉，點擊開啟';
+
+  @override
+  String get aiChatMemoryWarnTitle => '開啟連續記憶？';
+
+  @override
+  String get aiChatMemoryWarnBody =>
+      '開啟後，每次提問都會把最近的對話一併送給 AI，讓它能接續上下文。\n\n• Token 用量會隨對話變長而增加\n• 免費 API（例如 Gemini）額度較小，長對話容易觸發限流或失敗\n• 你最近的對話內容會送到你設定的 AI 服務商\n\n建議：定期使用「清除記錄」保持上下文簡短。';
+
+  @override
+  String get aiChatMemoryWarnConfirm => '開啟';
+
+  @override
+  String get aiChatMemoryOnToast => '已開啟連續記憶';
+
+  @override
+  String get aiChatMemoryOffToast => '已關閉連續記憶，每句話將獨立處理';
+
+  @override
+  String get aiChatEmptyTitle => '嗨，我是你的記帳助理';
+
+  @override
+  String get aiChatEmptySubtitle => '告訴我你花了什麼，或問問你的財務狀況';
+
+  @override
+  String get aiChatMemoryActiveHint => '記憶已開啟 · 會附帶最近對話';
+
+  @override
   String get aiChatHistoryCleared => '對話歷史已清空';
 
   @override
@@ -22734,6 +22815,13 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   @override
   String get whatsNew370OddLotFeeDesc =>
       '台股零股的預估賣出手續費改用零股最低手續費（預設 1 元，整股仍是 20 元），預估損益和券商 App 一致。另外修正報價有時停在前一個交易日的問題。入口：資產 → 投資理財帳戶 → 費用設定 →「零股最低手續費」。';
+
+  @override
+  String get whatsNew370AiChatMemoryTitle => 'AI 對話全新介面與連續記憶';
+
+  @override
+  String get whatsNew370AiChatMemoryDesc =>
+      'AI 對話頁面換上更有科技感的新設計，並新增可自行開啟的「連續記憶」，讓 AI 接續你最近的對話。預設關閉，因為會多耗 token，免費 API（如 Gemini）可能撞到額度。入口：AI 助手頁面右上角的記憶圖示。';
 
   @override
   String get annualStockOverviewTitle => '股票年度總覽';
