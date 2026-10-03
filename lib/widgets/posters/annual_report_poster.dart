@@ -8,6 +8,8 @@ import 'dart:math' as math;
 
 import '../../pages/report/annual_report_page.dart';
 import '../../services/data/category_service.dart';
+import '../../pages/investment/investment_ui.dart' show formatStockMoney;
+import '../../pages/report/annual_report_labels.dart';
 import '../../l10n/app_localizations.dart';
 
 /// 年度账单长图海报
@@ -20,12 +22,17 @@ class AnnualReportPoster extends StatelessWidget {
   /// 收支顏色設定(incomeExpenseColorSchemeProvider):true = 收入紅、支出綠。
   final bool incomeIsRed;
 
+  /// 股票漲跌顏色設定(stockUpIsRedProvider):true = 漲紅跌綠(台股慣例)。
+  /// 跟收支配色獨立;只影響股票區塊(沒有股票資料時不畫)。
+  final bool stockUpIsRed;
+
   const AnnualReportPoster({
     super.key,
     required this.data,
     required this.primaryColor,
     this.hideIncome = false,
     this.incomeIsRed = true,
+    this.stockUpIsRed = true,
   });
 
   static const _kGreen = Color(0xFF4CAF50);
@@ -62,6 +69,7 @@ class AnnualReportPoster extends StatelessWidget {
               _buildCategoriesSection(context, l10n),
               _buildMonthlyTrendSection(context, l10n),
               _buildSpecialMomentsSection(context, l10n),
+              _buildStockSection(context, l10n),
               _buildAchievementsSection(context, l10n),
               _buildFooter(context, l10n),
             ],
@@ -1542,6 +1550,151 @@ class AnnualReportPoster extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 股票區塊:只在年度有股票交易時出現(沒有資料時整段不佔空間,海報維持原樣)。
+  /// 取活躍度最高的幣別當代表;隱藏收入時損益與股利一併遮罩。
+  Widget _buildStockSection(BuildContext context, AppLocalizations l10n) {
+    final c = data.stock?.primary;
+    if (c == null) return const SizedBox.shrink();
+
+    final upColor = stockUpIsRed ? _kRed : _kGreen;
+    final downColor = stockUpIsRed ? _kGreen : _kRed;
+    final pnlColor = c.realizedPnl.abs() < 1e-9
+        ? Colors.grey[600]!
+        : (c.realizedPnl > 0 ? upColor : downColor);
+    String money(double v, {bool signed = false}) =>
+        hideIncome ? '****' : formatStockMoney(v, c.currency, signed: signed);
+
+    final cells = <({String label, String value, Color color})>[
+      if (c.hasSells)
+        (
+          label: l10n.annualStockRealizedPnl,
+          value: money(c.realizedPnl, signed: true),
+          color: pnlColor,
+        ),
+      if (c.dividendCount > 0)
+        (
+          label: l10n.annualStockDividendIncome,
+          value: money(c.dividends),
+          color: Colors.grey[800]!,
+        ),
+      if (c.decidedCount > 0)
+        (
+          label: l10n.annualStockWinRate,
+          value: '${(c.winRate * 100).round()}%',
+          color: Colors.grey[800]!,
+        ),
+      if (c.tradeCount > 0 && c.decidedCount == 0)
+        (
+          label: l10n.annualStockTrades,
+          value: '${c.tradeCount}',
+          color: Colors.grey[800]!,
+        ),
+    ];
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(40, 30, 40, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionTitle(
+            icon: Icons.candlestick_chart_rounded,
+            title: l10n.annualStockOverviewTitle,
+            subtitle: l10n.annualStockOverviewSubtitle,
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (cells.isNotEmpty)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final cell in cells)
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                cell.label,
+                                style: TextStyle(
+                                    color: Colors.grey[600], fontSize: 13),
+                              ),
+                              const SizedBox(height: 6),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  cell.value,
+                                  style: TextStyle(
+                                    color: cell.color,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                if (cells.isNotEmpty) const SizedBox(height: 16),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(stockStyleIcon(c.styleTag),
+                          color: primaryColor, size: 26),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              stockStyleLabel(l10n, c.styleTag),
+                              style: TextStyle(
+                                color: primaryColor,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              stockStyleDesc(l10n, c.styleTag),
+                              style: TextStyle(
+                                  color: Colors.grey[600], fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),

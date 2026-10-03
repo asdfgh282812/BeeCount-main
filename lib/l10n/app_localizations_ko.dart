@@ -11361,4 +11361,351 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String get whatsNew370OddLotFeeDesc =>
       'Estimated selling commissions for Taiwan odd lots now use a separate odd-lot minimum (default NT\$1; board lots stay at NT\$20), so estimated P&L matches your broker app. Also fixed quotes that sometimes stayed on the previous trading day. Where: Assets → investment account → Fee settings → Minimum commission: odd lots.';
+
+  @override
+  String get annualStockOverviewTitle => '올해의 주식 요약';
+
+  @override
+  String get annualStockOverviewSubtitle => '올해 당신의 주식 계좌는 조용히 바빴어요';
+
+  @override
+  String get annualStockRealizedPnl => '올해 실현손익';
+
+  @override
+  String get annualStockCheerUp => '확정한 수익, 건배할 만해요!';
+
+  @override
+  String get annualStockCheerDown => '수업료라고 생각해요. 내년엔 더 단단하게!';
+
+  @override
+  String get annualStockCheerFlat => '본전도 실력이에요.';
+
+  @override
+  String get annualStockNoSell => '아직 매도하지 않았어요. 수익은 보유 종목 안에서 자라는 중!';
+
+  @override
+  String get annualStockFirstBuy => '올해는 첫 주식을 산 해예요.';
+
+  @override
+  String get annualStockTrades => '거래 횟수';
+
+  @override
+  String annualStockBuySellCount(int b, int s) {
+    return '매수 $b · 매도 $s';
+  }
+
+  @override
+  String get annualStockBuyAmount => '매수 금액';
+
+  @override
+  String get annualStockSellAmount => '매도 금액';
+
+  @override
+  String get annualStockDividendIncome => '배당 수입';
+
+  @override
+  String annualStockDividendCount(int n) {
+    return '$n건 입금';
+  }
+
+  @override
+  String get annualStockFeesTax => '수수료·세금';
+
+  @override
+  String annualStockSymbolCount(int n) {
+    return '$n개 종목 거래';
+  }
+
+  @override
+  String get annualStockFootnote =>
+      '실현손익은 이동평균 원가 기준이며, 매매 금액은 수입·지출에 포함되지 않아요.';
+
+  @override
+  String get annualStockHighlightsTitle => '주식 하이라이트';
+
+  @override
+  String get annualStockHighlightsSubtitle => '기억할 만한 순간들';
+
+  @override
+  String get annualStockStyleLabel => '나의 투자 스타일';
+
+  @override
+  String get annualStockStyleActiveTrader => '적극 트레이더';
+
+  @override
+  String get annualStockStyleActiveTraderDesc =>
+      '일 년 내내 시장을 지켜봤어요. 수수료도 챙겨 주세요.';
+
+  @override
+  String get annualStockStyleDividendHunter => '배당 사냥꾼';
+
+  @override
+  String get annualStockStyleDividendHunterDesc =>
+      '배당이 매매 차익보다 빛났어요. 꾸준한 현금 흐름이 강점!';
+
+  @override
+  String get annualStockStyleLongTermHolder => '장기 보유자';
+
+  @override
+  String get annualStockStyleLongTermHolderDesc => '사서 묻어 두고, 시간이 일하게 해요.';
+
+  @override
+  String get annualStockStyleSwingTrader => '스윙 트레이더';
+
+  @override
+  String get annualStockStyleSwingTraderDesc => '들어갈 때와 나올 때를 아는 스윙 플레이어예요.';
+
+  @override
+  String get annualStockStyleBeginner => '투자 새내기';
+
+  @override
+  String get annualStockStyleBeginnerDesc => '모든 여정은 첫걸음부터. 내년이 기대돼요!';
+
+  @override
+  String get annualStockBestSell => '최고의 매도';
+
+  @override
+  String get annualStockWorstSell => '가장 아쉬운 매도';
+
+  @override
+  String annualStockReturnRate(String rate) {
+    return '수익률 $rate';
+  }
+
+  @override
+  String get annualStockWinRate => '승률';
+
+  @override
+  String annualStockWinLoss(int w, int l) {
+    return '$w승 $l패';
+  }
+
+  @override
+  String get annualStockDividendKing => '배당왕';
+
+  @override
+  String get annualStockMostTraded => '가장 많이 거래';
+
+  @override
+  String annualStockTimes(int n) {
+    return '$n회';
+  }
+
+  @override
+  String get annualStockMonthlyPnl => '월별 실현손익';
+
+  @override
+  String get annualStockAchFirstBuy => '첫 주식';
+
+  @override
+  String get annualStockAchFirstBuyDesc => '올해 첫 주식을 샀어요';
+
+  @override
+  String get annualStockAchProfit => '수익 실현';
+
+  @override
+  String get annualStockAchProfitDesc => '올해 주식 매도로 수익을 냈어요';
+
+  @override
+  String get annualStockAchWinRate => '명사수';
+
+  @override
+  String get annualStockAchWinRateDesc => '매도 5건 이상, 승률 60% 이상';
+
+  @override
+  String get annualStockAchDividend => '배당 마니아';
+
+  @override
+  String get annualStockAchDividendDesc => '배당을 3회 이상 받았어요';
+
+  @override
+  String get annualStockAchActive => '적극 트레이더';
+
+  @override
+  String get annualStockAchActiveDesc => '1년에 40건 이상 거래';
+
+  @override
+  String get annualPersonaTitle => '올해의 나를 부르는 이름';
+
+  @override
+  String get annualPersonaSubtitle => '올해의 기록과 투자를 바탕으로 이름을 붙여 봤어요';
+
+  @override
+  String get annualPersonaStockTrader => '시장 승부사';
+
+  @override
+  String get annualPersonaDividendCollector => '배당 수집가';
+
+  @override
+  String get annualPersonaSuperSaver => '저축 달인';
+
+  @override
+  String get annualPersonaConsistentRecorder => '기록 모범생';
+
+  @override
+  String get annualPersonaWeekendSpender => '주말 힐링파';
+
+  @override
+  String get annualPersonaFocusedSpender => '한 우물 소비파';
+
+  @override
+  String get annualPersonaAdventurer => '자유로운 모험가';
+
+  @override
+  String get annualPersonaSteady => '안정 균형파';
+
+  @override
+  String get annualPersonaStockTraderDesc =>
+      '차트와 호가, 매수와 매도. 올해 시장은 제2의 집이었어요.';
+
+  @override
+  String get annualPersonaDividendCollectorDesc => '돈이 일하게 하고, 당신은 배당만 받았어요.';
+
+  @override
+  String get annualPersonaSuperSaverDesc =>
+      '번 돈의 상당 부분을 지켜냈어요. 미래의 당신이 고마워할 거예요.';
+
+  @override
+  String get annualPersonaConsistentRecorderDesc =>
+      '매일 꾸준히 기록했어요. 꾸준함이 당신의 초능력!';
+
+  @override
+  String get annualPersonaWeekendSpenderDesc => '평일엔 열심히, 주말엔 나를 위한 보상!';
+
+  @override
+  String get annualPersonaFocusedSpenderDesc =>
+      '지출 대부분이 한 곳에 모였어요. 좋아하는 게 분명하네요.';
+
+  @override
+  String get annualPersonaAdventurerDesc =>
+      '올해는 번 것보다 더 썼어요. 즐기되, 내년엔 계획도 세워 봐요.';
+
+  @override
+  String get annualPersonaSteadyDesc => '수입과 지출의 균형이 좋아요. 차분하고 안정적이에요.';
+
+  @override
+  String annualPersonaReasonSavingsRate(String pct) {
+    return '저축률 $pct%';
+  }
+
+  @override
+  String annualPersonaReasonStreak(int days) {
+    return '$days일 연속 기록';
+  }
+
+  @override
+  String annualPersonaReasonWeekendHigh(String x) {
+    return '주말 하루 지출이 평일의 $x배';
+  }
+
+  @override
+  String annualPersonaReasonWeekdayHigh(String x) {
+    return '평일 하루 지출이 주말의 $x배';
+  }
+
+  @override
+  String annualPersonaReasonTopCategory(String name, String pct) {
+    return '$name이(가) 지출의 $pct%';
+  }
+
+  @override
+  String annualPersonaReasonStockStyle(String style) {
+    return '투자 스타일: $style';
+  }
+
+  @override
+  String annualPersonaReasonStockPnl(String amount) {
+    return '주식 실현손익 $amount';
+  }
+
+  @override
+  String annualPersonaReasonRecords(int count) {
+    return '총 $count건 기록';
+  }
+
+  @override
+  String get annualYoYTitle => '작년과 비교';
+
+  @override
+  String annualYoYSubtitle(String prev) {
+    return '$prev년과 비교하면 어떨까요?';
+  }
+
+  @override
+  String annualYoYExpenseDown(String pct) {
+    return '작년보다 $pct% 덜 썼어요. 지갑이 고마워해요.';
+  }
+
+  @override
+  String annualYoYExpenseUp(String pct) {
+    return '작년보다 $pct% 더 썼어요.';
+  }
+
+  @override
+  String get annualYoYExpenseFlat => '지출이 작년과 비슷해요. 꾸준하네요.';
+
+  @override
+  String annualYoYIncomeUp(String pct) {
+    return '수입이 $pct% 늘었어요. 노력이 결실을 맺었네요!';
+  }
+
+  @override
+  String get annualHabitsTitle => '소비 습관';
+
+  @override
+  String get annualHabitsSubtitle => '언제, 어떻게 쓰는지';
+
+  @override
+  String get annualHabitsHoursTitle => '시간대별';
+
+  @override
+  String get annualHabitsNight => '새벽';
+
+  @override
+  String get annualHabitsMorning => '아침';
+
+  @override
+  String get annualHabitsNoon => '점심';
+
+  @override
+  String get annualHabitsAfternoon => '오후';
+
+  @override
+  String get annualHabitsEvening => '저녁';
+
+  @override
+  String annualHabitsPeak(String label) {
+    return '가장 많이 쓰는 시간대는 「$label」';
+  }
+
+  @override
+  String get annualHabitsWeekTitle => '평일 vs 주말';
+
+  @override
+  String get annualHabitsWeekday => '평일';
+
+  @override
+  String get annualHabitsWeekend => '주말';
+
+  @override
+  String annualHabitsDailyAvg(String amount) {
+    return '하루 평균 $amount';
+  }
+
+  @override
+  String get annualHabitsWeekendHigh => '주말이 지출 피크예요';
+
+  @override
+  String get annualHabitsWeekdayHigh => '평일에 더 많이 써요';
+
+  @override
+  String get annualHabitsBalanced => '평일과 주말 지출이 비슷해요';
+
+  @override
+  String get annualHabitsStreak => '최장 연속 기록';
+
+  @override
+  String annualHabitsStreakDays(int n) {
+    return '$n일';
+  }
 }

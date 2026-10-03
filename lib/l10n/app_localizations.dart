@@ -20728,6 +20728,600 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Estimated selling commissions for Taiwan odd lots now use a separate odd-lot minimum (default NT\$1; board lots stay at NT\$20), so estimated P&L matches your broker app. Also fixed quotes that sometimes stayed on the previous trading day. Where: Assets → investment account → Fee settings → Minimum commission: odd lots.'**
   String get whatsNew370OddLotFeeDesc;
+
+  /// No description provided for @annualStockOverviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Stock Year'**
+  String get annualStockOverviewTitle;
+
+  /// No description provided for @annualStockOverviewSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This year, your stock account was quietly busy'**
+  String get annualStockOverviewSubtitle;
+
+  /// No description provided for @annualStockRealizedPnl.
+  ///
+  /// In en, this message translates to:
+  /// **'Realized P/L this year'**
+  String get annualStockRealizedPnl;
+
+  /// No description provided for @annualStockCheerUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Profits locked in. Worth a toast!'**
+  String get annualStockCheerUp;
+
+  /// No description provided for @annualStockCheerDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Call it tuition. Next year, steadier.'**
+  String get annualStockCheerDown;
+
+  /// No description provided for @annualStockCheerFlat.
+  ///
+  /// In en, this message translates to:
+  /// **'Breaking even is a skill too.'**
+  String get annualStockCheerFlat;
+
+  /// No description provided for @annualStockNoSell.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing sold yet. Your gains are still growing inside your holdings.'**
+  String get annualStockNoSell;
+
+  /// No description provided for @annualStockFirstBuy.
+  ///
+  /// In en, this message translates to:
+  /// **'This is the year you bought your very first stock.'**
+  String get annualStockFirstBuy;
+
+  /// No description provided for @annualStockTrades.
+  ///
+  /// In en, this message translates to:
+  /// **'Trades'**
+  String get annualStockTrades;
+
+  /// No description provided for @annualStockBuySellCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Buy {b} · Sell {s}'**
+  String annualStockBuySellCount(int b, int s);
+
+  /// No description provided for @annualStockBuyAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Bought'**
+  String get annualStockBuyAmount;
+
+  /// No description provided for @annualStockSellAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Sold'**
+  String get annualStockSellAmount;
+
+  /// No description provided for @annualStockDividendIncome.
+  ///
+  /// In en, this message translates to:
+  /// **'Dividend income'**
+  String get annualStockDividendIncome;
+
+  /// No description provided for @annualStockDividendCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} payouts'**
+  String annualStockDividendCount(int n);
+
+  /// No description provided for @annualStockFeesTax.
+  ///
+  /// In en, this message translates to:
+  /// **'Fees & taxes'**
+  String get annualStockFeesTax;
+
+  /// No description provided for @annualStockSymbolCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Traded {n} symbols'**
+  String annualStockSymbolCount(int n);
+
+  /// No description provided for @annualStockFootnote.
+  ///
+  /// In en, this message translates to:
+  /// **'Realized P/L uses moving-average cost. Buy and sell amounts are not counted in income or expense.'**
+  String get annualStockFootnote;
+
+  /// No description provided for @annualStockHighlightsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock Highlights'**
+  String get annualStockHighlightsTitle;
+
+  /// No description provided for @annualStockHighlightsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The moments worth remembering'**
+  String get annualStockHighlightsSubtitle;
+
+  /// No description provided for @annualStockStyleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Your investing style'**
+  String get annualStockStyleLabel;
+
+  /// No description provided for @annualStockStyleActiveTrader.
+  ///
+  /// In en, this message translates to:
+  /// **'Active Trader'**
+  String get annualStockStyleActiveTrader;
+
+  /// No description provided for @annualStockStyleActiveTraderDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'You were in the market all year. Quick eyes, quick hands. Just keep an eye on fees.'**
+  String get annualStockStyleActiveTraderDesc;
+
+  /// No description provided for @annualStockStyleDividendHunter.
+  ///
+  /// In en, this message translates to:
+  /// **'Dividend Hunter'**
+  String get annualStockStyleDividendHunter;
+
+  /// No description provided for @annualStockStyleDividendHunterDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Dividends outshone trading gains. Steady cash flow is your thing.'**
+  String get annualStockStyleDividendHunterDesc;
+
+  /// No description provided for @annualStockStyleLongTermHolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Long-term Holder'**
+  String get annualStockStyleLongTermHolder;
+
+  /// No description provided for @annualStockStyleLongTermHolderDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'You buy, then hold, and let time do the work.'**
+  String get annualStockStyleLongTermHolderDesc;
+
+  /// No description provided for @annualStockStyleSwingTrader.
+  ///
+  /// In en, this message translates to:
+  /// **'Swing Trader'**
+  String get annualStockStyleSwingTrader;
+
+  /// No description provided for @annualStockStyleSwingTraderDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'You know when to get in and when to take profit.'**
+  String get annualStockStyleSwingTraderDesc;
+
+  /// No description provided for @annualStockStyleBeginner.
+  ///
+  /// In en, this message translates to:
+  /// **'Rookie Investor'**
+  String get annualStockStyleBeginner;
+
+  /// No description provided for @annualStockStyleBeginnerDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Every journey starts with a first step. See you next year!'**
+  String get annualStockStyleBeginnerDesc;
+
+  /// No description provided for @annualStockBestSell.
+  ///
+  /// In en, this message translates to:
+  /// **'Best sell'**
+  String get annualStockBestSell;
+
+  /// No description provided for @annualStockWorstSell.
+  ///
+  /// In en, this message translates to:
+  /// **'Toughest sell'**
+  String get annualStockWorstSell;
+
+  /// No description provided for @annualStockReturnRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Return {rate}'**
+  String annualStockReturnRate(String rate);
+
+  /// No description provided for @annualStockWinRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Win rate'**
+  String get annualStockWinRate;
+
+  /// No description provided for @annualStockWinLoss.
+  ///
+  /// In en, this message translates to:
+  /// **'{w} wins · {l} losses'**
+  String annualStockWinLoss(int w, int l);
+
+  /// No description provided for @annualStockDividendKing.
+  ///
+  /// In en, this message translates to:
+  /// **'Dividend king'**
+  String get annualStockDividendKing;
+
+  /// No description provided for @annualStockMostTraded.
+  ///
+  /// In en, this message translates to:
+  /// **'Most traded'**
+  String get annualStockMostTraded;
+
+  /// No description provided for @annualStockTimes.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} trades'**
+  String annualStockTimes(int n);
+
+  /// No description provided for @annualStockMonthlyPnl.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly realized P/L'**
+  String get annualStockMonthlyPnl;
+
+  /// No description provided for @annualStockAchFirstBuy.
+  ///
+  /// In en, this message translates to:
+  /// **'First Share'**
+  String get annualStockAchFirstBuy;
+
+  /// No description provided for @annualStockAchFirstBuyDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Bought your first stock this year'**
+  String get annualStockAchFirstBuyDesc;
+
+  /// No description provided for @annualStockAchProfit.
+  ///
+  /// In en, this message translates to:
+  /// **'Profit Taker'**
+  String get annualStockAchProfit;
+
+  /// No description provided for @annualStockAchProfitDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Realized a profit from stock sales this year'**
+  String get annualStockAchProfitDesc;
+
+  /// No description provided for @annualStockAchWinRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharpshooter'**
+  String get annualStockAchWinRate;
+
+  /// No description provided for @annualStockAchWinRateDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'60%+ win rate across 5 or more sells'**
+  String get annualStockAchWinRateDesc;
+
+  /// No description provided for @annualStockAchDividend.
+  ///
+  /// In en, this message translates to:
+  /// **'Dividend Fan'**
+  String get annualStockAchDividend;
+
+  /// No description provided for @annualStockAchDividendDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Collected dividends 3 or more times'**
+  String get annualStockAchDividendDesc;
+
+  /// No description provided for @annualStockAchActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active Trader'**
+  String get annualStockAchActive;
+
+  /// No description provided for @annualStockAchActiveDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'40 or more buys and sells in a year'**
+  String get annualStockAchActiveDesc;
+
+  /// No description provided for @annualPersonaTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Year in a Title'**
+  String get annualPersonaTitle;
+
+  /// No description provided for @annualPersonaSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Based on how you tracked and invested this year'**
+  String get annualPersonaSubtitle;
+
+  /// No description provided for @annualPersonaStockTrader.
+  ///
+  /// In en, this message translates to:
+  /// **'Market Maverick'**
+  String get annualPersonaStockTrader;
+
+  /// No description provided for @annualPersonaDividendCollector.
+  ///
+  /// In en, this message translates to:
+  /// **'Dividend Collector'**
+  String get annualPersonaDividendCollector;
+
+  /// No description provided for @annualPersonaSuperSaver.
+  ///
+  /// In en, this message translates to:
+  /// **'Super Saver'**
+  String get annualPersonaSuperSaver;
+
+  /// No description provided for @annualPersonaConsistentRecorder.
+  ///
+  /// In en, this message translates to:
+  /// **'Tracking Champion'**
+  String get annualPersonaConsistentRecorder;
+
+  /// No description provided for @annualPersonaWeekendSpender.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekend Treat-lover'**
+  String get annualPersonaWeekendSpender;
+
+  /// No description provided for @annualPersonaFocusedSpender.
+  ///
+  /// In en, this message translates to:
+  /// **'Focused Spender'**
+  String get annualPersonaFocusedSpender;
+
+  /// No description provided for @annualPersonaAdventurer.
+  ///
+  /// In en, this message translates to:
+  /// **'Free-spirited Adventurer'**
+  String get annualPersonaAdventurer;
+
+  /// No description provided for @annualPersonaSteady.
+  ///
+  /// In en, this message translates to:
+  /// **'Steady Balancer'**
+  String get annualPersonaSteady;
+
+  /// No description provided for @annualPersonaStockTraderDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Charts, quotes, buys and sells. The market was your second home this year.'**
+  String get annualPersonaStockTraderDesc;
+
+  /// No description provided for @annualPersonaDividendCollectorDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'You let your money go to work, and you simply collect the payouts.'**
+  String get annualPersonaDividendCollectorDesc;
+
+  /// No description provided for @annualPersonaSuperSaverDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'You kept a big slice of what you earned. Future you says thanks.'**
+  String get annualPersonaSuperSaverDesc;
+
+  /// No description provided for @annualPersonaConsistentRecorderDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Day after day, you kept showing up. Consistency is your superpower.'**
+  String get annualPersonaConsistentRecorderDesc;
+
+  /// No description provided for @annualPersonaWeekendSpenderDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekdays are for working, weekends are for treating yourself.'**
+  String get annualPersonaWeekendSpenderDesc;
+
+  /// No description provided for @annualPersonaFocusedSpenderDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Most of your spending goes to one thing. You know what you love.'**
+  String get annualPersonaFocusedSpenderDesc;
+
+  /// No description provided for @annualPersonaAdventurerDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'You spent more than you earned this year. Live boldly, then plan the next lap.'**
+  String get annualPersonaAdventurerDesc;
+
+  /// No description provided for @annualPersonaSteadyDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Income and spending in good balance. Calm, steady, in control.'**
+  String get annualPersonaSteadyDesc;
+
+  /// No description provided for @annualPersonaReasonSavingsRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Savings rate {pct}%'**
+  String annualPersonaReasonSavingsRate(String pct);
+
+  /// No description provided for @annualPersonaReasonStreak.
+  ///
+  /// In en, this message translates to:
+  /// **'{days}-day tracking streak'**
+  String annualPersonaReasonStreak(int days);
+
+  /// No description provided for @annualPersonaReasonWeekendHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekend daily spend is {x}x weekdays'**
+  String annualPersonaReasonWeekendHigh(String x);
+
+  /// No description provided for @annualPersonaReasonWeekdayHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekday daily spend is {x}x weekends'**
+  String annualPersonaReasonWeekdayHigh(String x);
+
+  /// No description provided for @annualPersonaReasonTopCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} took {pct}% of spending'**
+  String annualPersonaReasonTopCategory(String name, String pct);
+
+  /// No description provided for @annualPersonaReasonStockStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Investing style: {style}'**
+  String annualPersonaReasonStockStyle(String style);
+
+  /// No description provided for @annualPersonaReasonStockPnl.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock realized P/L {amount}'**
+  String annualPersonaReasonStockPnl(String amount);
+
+  /// No description provided for @annualPersonaReasonRecords.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} records tracked'**
+  String annualPersonaReasonRecords(int count);
+
+  /// No description provided for @annualYoYTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Vs. Last Year'**
+  String get annualYoYTitle;
+
+  /// No description provided for @annualYoYSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'How {prev} compares with this year'**
+  String annualYoYSubtitle(String prev);
+
+  /// No description provided for @annualYoYExpenseDown.
+  ///
+  /// In en, this message translates to:
+  /// **'You spent {pct}% less than last year. Your wallet says thanks.'**
+  String annualYoYExpenseDown(String pct);
+
+  /// No description provided for @annualYoYExpenseUp.
+  ///
+  /// In en, this message translates to:
+  /// **'You spent {pct}% more than last year.'**
+  String annualYoYExpenseUp(String pct);
+
+  /// No description provided for @annualYoYExpenseFlat.
+  ///
+  /// In en, this message translates to:
+  /// **'Spending was about the same as last year. Very steady.'**
+  String get annualYoYExpenseFlat;
+
+  /// No description provided for @annualYoYIncomeUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Income grew {pct}%. The hard work paid off!'**
+  String annualYoYIncomeUp(String pct);
+
+  /// No description provided for @annualHabitsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Spending Habits'**
+  String get annualHabitsTitle;
+
+  /// No description provided for @annualHabitsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'When and how you spend'**
+  String get annualHabitsSubtitle;
+
+  /// No description provided for @annualHabitsHoursTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Time of day'**
+  String get annualHabitsHoursTitle;
+
+  /// No description provided for @annualHabitsNight.
+  ///
+  /// In en, this message translates to:
+  /// **'Late night'**
+  String get annualHabitsNight;
+
+  /// No description provided for @annualHabitsMorning.
+  ///
+  /// In en, this message translates to:
+  /// **'Morning'**
+  String get annualHabitsMorning;
+
+  /// No description provided for @annualHabitsNoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Midday'**
+  String get annualHabitsNoon;
+
+  /// No description provided for @annualHabitsAfternoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Afternoon'**
+  String get annualHabitsAfternoon;
+
+  /// No description provided for @annualHabitsEvening.
+  ///
+  /// In en, this message translates to:
+  /// **'Evening'**
+  String get annualHabitsEvening;
+
+  /// No description provided for @annualHabitsPeak.
+  ///
+  /// In en, this message translates to:
+  /// **'You spend most in the {label}'**
+  String annualHabitsPeak(String label);
+
+  /// No description provided for @annualHabitsWeekTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekdays vs weekends'**
+  String get annualHabitsWeekTitle;
+
+  /// No description provided for @annualHabitsWeekday.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekday'**
+  String get annualHabitsWeekday;
+
+  /// No description provided for @annualHabitsWeekend.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekend'**
+  String get annualHabitsWeekend;
+
+  /// No description provided for @annualHabitsDailyAvg.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} / day'**
+  String annualHabitsDailyAvg(String amount);
+
+  /// No description provided for @annualHabitsWeekendHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekends are your spending peak'**
+  String get annualHabitsWeekendHigh;
+
+  /// No description provided for @annualHabitsWeekdayHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'You spend more on weekdays'**
+  String get annualHabitsWeekdayHigh;
+
+  /// No description provided for @annualHabitsBalanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekdays and weekends are about even'**
+  String get annualHabitsBalanced;
+
+  /// No description provided for @annualHabitsStreak.
+  ///
+  /// In en, this message translates to:
+  /// **'Longest streak'**
+  String get annualHabitsStreak;
+
+  /// No description provided for @annualHabitsStreakDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} days'**
+  String annualHabitsStreakDays(int n);
 }
 
 class _AppLocalizationsDelegate

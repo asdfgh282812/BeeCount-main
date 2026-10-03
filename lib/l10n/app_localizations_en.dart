@@ -11588,4 +11588,365 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get whatsNew370OddLotFeeDesc =>
       'Estimated selling commissions for Taiwan odd lots now use a separate odd-lot minimum (default NT\$1; board lots stay at NT\$20), so estimated P&L matches your broker app. Also fixed quotes that sometimes stayed on the previous trading day. Where: Assets → investment account → Fee settings → Minimum commission: odd lots.';
+
+  @override
+  String get annualStockOverviewTitle => 'Your Stock Year';
+
+  @override
+  String get annualStockOverviewSubtitle =>
+      'This year, your stock account was quietly busy';
+
+  @override
+  String get annualStockRealizedPnl => 'Realized P/L this year';
+
+  @override
+  String get annualStockCheerUp => 'Profits locked in. Worth a toast!';
+
+  @override
+  String get annualStockCheerDown => 'Call it tuition. Next year, steadier.';
+
+  @override
+  String get annualStockCheerFlat => 'Breaking even is a skill too.';
+
+  @override
+  String get annualStockNoSell =>
+      'Nothing sold yet. Your gains are still growing inside your holdings.';
+
+  @override
+  String get annualStockFirstBuy =>
+      'This is the year you bought your very first stock.';
+
+  @override
+  String get annualStockTrades => 'Trades';
+
+  @override
+  String annualStockBuySellCount(int b, int s) {
+    return 'Buy $b · Sell $s';
+  }
+
+  @override
+  String get annualStockBuyAmount => 'Bought';
+
+  @override
+  String get annualStockSellAmount => 'Sold';
+
+  @override
+  String get annualStockDividendIncome => 'Dividend income';
+
+  @override
+  String annualStockDividendCount(int n) {
+    return '$n payouts';
+  }
+
+  @override
+  String get annualStockFeesTax => 'Fees & taxes';
+
+  @override
+  String annualStockSymbolCount(int n) {
+    return 'Traded $n symbols';
+  }
+
+  @override
+  String get annualStockFootnote =>
+      'Realized P/L uses moving-average cost. Buy and sell amounts are not counted in income or expense.';
+
+  @override
+  String get annualStockHighlightsTitle => 'Stock Highlights';
+
+  @override
+  String get annualStockHighlightsSubtitle => 'The moments worth remembering';
+
+  @override
+  String get annualStockStyleLabel => 'Your investing style';
+
+  @override
+  String get annualStockStyleActiveTrader => 'Active Trader';
+
+  @override
+  String get annualStockStyleActiveTraderDesc =>
+      'You were in the market all year. Quick eyes, quick hands. Just keep an eye on fees.';
+
+  @override
+  String get annualStockStyleDividendHunter => 'Dividend Hunter';
+
+  @override
+  String get annualStockStyleDividendHunterDesc =>
+      'Dividends outshone trading gains. Steady cash flow is your thing.';
+
+  @override
+  String get annualStockStyleLongTermHolder => 'Long-term Holder';
+
+  @override
+  String get annualStockStyleLongTermHolderDesc =>
+      'You buy, then hold, and let time do the work.';
+
+  @override
+  String get annualStockStyleSwingTrader => 'Swing Trader';
+
+  @override
+  String get annualStockStyleSwingTraderDesc =>
+      'You know when to get in and when to take profit.';
+
+  @override
+  String get annualStockStyleBeginner => 'Rookie Investor';
+
+  @override
+  String get annualStockStyleBeginnerDesc =>
+      'Every journey starts with a first step. See you next year!';
+
+  @override
+  String get annualStockBestSell => 'Best sell';
+
+  @override
+  String get annualStockWorstSell => 'Toughest sell';
+
+  @override
+  String annualStockReturnRate(String rate) {
+    return 'Return $rate';
+  }
+
+  @override
+  String get annualStockWinRate => 'Win rate';
+
+  @override
+  String annualStockWinLoss(int w, int l) {
+    return '$w wins · $l losses';
+  }
+
+  @override
+  String get annualStockDividendKing => 'Dividend king';
+
+  @override
+  String get annualStockMostTraded => 'Most traded';
+
+  @override
+  String annualStockTimes(int n) {
+    return '$n trades';
+  }
+
+  @override
+  String get annualStockMonthlyPnl => 'Monthly realized P/L';
+
+  @override
+  String get annualStockAchFirstBuy => 'First Share';
+
+  @override
+  String get annualStockAchFirstBuyDesc => 'Bought your first stock this year';
+
+  @override
+  String get annualStockAchProfit => 'Profit Taker';
+
+  @override
+  String get annualStockAchProfitDesc =>
+      'Realized a profit from stock sales this year';
+
+  @override
+  String get annualStockAchWinRate => 'Sharpshooter';
+
+  @override
+  String get annualStockAchWinRateDesc =>
+      '60%+ win rate across 5 or more sells';
+
+  @override
+  String get annualStockAchDividend => 'Dividend Fan';
+
+  @override
+  String get annualStockAchDividendDesc =>
+      'Collected dividends 3 or more times';
+
+  @override
+  String get annualStockAchActive => 'Active Trader';
+
+  @override
+  String get annualStockAchActiveDesc => '40 or more buys and sells in a year';
+
+  @override
+  String get annualPersonaTitle => 'Your Year in a Title';
+
+  @override
+  String get annualPersonaSubtitle =>
+      'Based on how you tracked and invested this year';
+
+  @override
+  String get annualPersonaStockTrader => 'Market Maverick';
+
+  @override
+  String get annualPersonaDividendCollector => 'Dividend Collector';
+
+  @override
+  String get annualPersonaSuperSaver => 'Super Saver';
+
+  @override
+  String get annualPersonaConsistentRecorder => 'Tracking Champion';
+
+  @override
+  String get annualPersonaWeekendSpender => 'Weekend Treat-lover';
+
+  @override
+  String get annualPersonaFocusedSpender => 'Focused Spender';
+
+  @override
+  String get annualPersonaAdventurer => 'Free-spirited Adventurer';
+
+  @override
+  String get annualPersonaSteady => 'Steady Balancer';
+
+  @override
+  String get annualPersonaStockTraderDesc =>
+      'Charts, quotes, buys and sells. The market was your second home this year.';
+
+  @override
+  String get annualPersonaDividendCollectorDesc =>
+      'You let your money go to work, and you simply collect the payouts.';
+
+  @override
+  String get annualPersonaSuperSaverDesc =>
+      'You kept a big slice of what you earned. Future you says thanks.';
+
+  @override
+  String get annualPersonaConsistentRecorderDesc =>
+      'Day after day, you kept showing up. Consistency is your superpower.';
+
+  @override
+  String get annualPersonaWeekendSpenderDesc =>
+      'Weekdays are for working, weekends are for treating yourself.';
+
+  @override
+  String get annualPersonaFocusedSpenderDesc =>
+      'Most of your spending goes to one thing. You know what you love.';
+
+  @override
+  String get annualPersonaAdventurerDesc =>
+      'You spent more than you earned this year. Live boldly, then plan the next lap.';
+
+  @override
+  String get annualPersonaSteadyDesc =>
+      'Income and spending in good balance. Calm, steady, in control.';
+
+  @override
+  String annualPersonaReasonSavingsRate(String pct) {
+    return 'Savings rate $pct%';
+  }
+
+  @override
+  String annualPersonaReasonStreak(int days) {
+    return '$days-day tracking streak';
+  }
+
+  @override
+  String annualPersonaReasonWeekendHigh(String x) {
+    return 'Weekend daily spend is ${x}x weekdays';
+  }
+
+  @override
+  String annualPersonaReasonWeekdayHigh(String x) {
+    return 'Weekday daily spend is ${x}x weekends';
+  }
+
+  @override
+  String annualPersonaReasonTopCategory(String name, String pct) {
+    return '$name took $pct% of spending';
+  }
+
+  @override
+  String annualPersonaReasonStockStyle(String style) {
+    return 'Investing style: $style';
+  }
+
+  @override
+  String annualPersonaReasonStockPnl(String amount) {
+    return 'Stock realized P/L $amount';
+  }
+
+  @override
+  String annualPersonaReasonRecords(int count) {
+    return '$count records tracked';
+  }
+
+  @override
+  String get annualYoYTitle => 'Vs. Last Year';
+
+  @override
+  String annualYoYSubtitle(String prev) {
+    return 'How $prev compares with this year';
+  }
+
+  @override
+  String annualYoYExpenseDown(String pct) {
+    return 'You spent $pct% less than last year. Your wallet says thanks.';
+  }
+
+  @override
+  String annualYoYExpenseUp(String pct) {
+    return 'You spent $pct% more than last year.';
+  }
+
+  @override
+  String get annualYoYExpenseFlat =>
+      'Spending was about the same as last year. Very steady.';
+
+  @override
+  String annualYoYIncomeUp(String pct) {
+    return 'Income grew $pct%. The hard work paid off!';
+  }
+
+  @override
+  String get annualHabitsTitle => 'Spending Habits';
+
+  @override
+  String get annualHabitsSubtitle => 'When and how you spend';
+
+  @override
+  String get annualHabitsHoursTitle => 'Time of day';
+
+  @override
+  String get annualHabitsNight => 'Late night';
+
+  @override
+  String get annualHabitsMorning => 'Morning';
+
+  @override
+  String get annualHabitsNoon => 'Midday';
+
+  @override
+  String get annualHabitsAfternoon => 'Afternoon';
+
+  @override
+  String get annualHabitsEvening => 'Evening';
+
+  @override
+  String annualHabitsPeak(String label) {
+    return 'You spend most in the $label';
+  }
+
+  @override
+  String get annualHabitsWeekTitle => 'Weekdays vs weekends';
+
+  @override
+  String get annualHabitsWeekday => 'Weekday';
+
+  @override
+  String get annualHabitsWeekend => 'Weekend';
+
+  @override
+  String annualHabitsDailyAvg(String amount) {
+    return '$amount / day';
+  }
+
+  @override
+  String get annualHabitsWeekendHigh => 'Weekends are your spending peak';
+
+  @override
+  String get annualHabitsWeekdayHigh => 'You spend more on weekdays';
+
+  @override
+  String get annualHabitsBalanced => 'Weekdays and weekends are about even';
+
+  @override
+  String get annualHabitsStreak => 'Longest streak';
+
+  @override
+  String annualHabitsStreakDays(int n) {
+    return '$n days';
+  }
 }

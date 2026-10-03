@@ -11269,6 +11269,345 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get whatsNew370OddLotFeeDesc =>
       'Estimated selling commissions for Taiwan odd lots now use a separate odd-lot minimum (default NT\$1; board lots stay at NT\$20), so estimated P&L matches your broker app. Also fixed quotes that sometimes stayed on the previous trading day. Where: Assets → investment account → Fee settings → Minimum commission: odd lots.';
+
+  @override
+  String get annualStockOverviewTitle => '股票年度总览';
+
+  @override
+  String get annualStockOverviewSubtitle => '这一年,你的股票账户默默做了不少事';
+
+  @override
+  String get annualStockRealizedPnl => '年度已实现损益';
+
+  @override
+  String get annualStockCheerUp => '落袋为安的收益,值得好好庆祝一下';
+
+  @override
+  String get annualStockCheerDown => '这是学费,看懂了就是资产,明年更稳';
+
+  @override
+  String get annualStockCheerFlat => '不赚不赔,保本也是一种本事';
+
+  @override
+  String get annualStockNoSell => '今年还没卖出,收益都还留在持仓里慢慢长大';
+
+  @override
+  String get annualStockFirstBuy => '今年,是你买入人生第一只股票的一年';
+
+  @override
+  String get annualStockTrades => '交易笔数';
+
+  @override
+  String annualStockBuySellCount(int b, int s) {
+    return '买 $b 笔 · 卖 $s 笔';
+  }
+
+  @override
+  String get annualStockBuyAmount => '买入金额';
+
+  @override
+  String get annualStockSellAmount => '卖出金额';
+
+  @override
+  String get annualStockDividendIncome => '股利收入';
+
+  @override
+  String annualStockDividendCount(int n) {
+    return '共 $n 笔入账';
+  }
+
+  @override
+  String get annualStockFeesTax => '手续费与证交税';
+
+  @override
+  String annualStockSymbolCount(int n) {
+    return '交易了 $n 只标的';
+  }
+
+  @override
+  String get annualStockFootnote => '已实现损益按移动平均成本计算;买卖金额不计入收入与支出。';
+
+  @override
+  String get annualStockHighlightsTitle => '股票亮点';
+
+  @override
+  String get annualStockHighlightsSubtitle => '这一年最值得回味的几个时刻';
+
+  @override
+  String get annualStockStyleLabel => '你的投资风格';
+
+  @override
+  String get annualStockStyleActiveTrader => '积极交易者';
+
+  @override
+  String get annualStockStyleActiveTraderDesc => '一整年都在盘面上盯着,眼明手快,记得也要照顾手续费哦';
+
+  @override
+  String get annualStockStyleDividendHunter => '领息猎人';
+
+  @override
+  String get annualStockStyleDividendHunterDesc => '股利比差价更抢眼,你靠的是稳稳入账的现金流';
+
+  @override
+  String get annualStockStyleLongTermHolder => '长期持有者';
+
+  @override
+  String get annualStockStyleLongTermHolderDesc => '买了就抱着,让时间帮你工作';
+
+  @override
+  String get annualStockStyleSwingTrader => '波段操作者';
+
+  @override
+  String get annualStockStyleSwingTraderDesc => '懂得进出,见好就收,抓准时机的波段玩家';
+
+  @override
+  String get annualStockStyleBeginner => '新手上路';
+
+  @override
+  String get annualStockStyleBeginnerDesc => '每段投资路都从第一步开始,期待明年的你';
+
+  @override
+  String get annualStockBestSell => '最赚的一笔';
+
+  @override
+  String get annualStockWorstSell => '最赔的一笔';
+
+  @override
+  String annualStockReturnRate(String rate) {
+    return '收益率 $rate';
+  }
+
+  @override
+  String get annualStockWinRate => '胜率';
+
+  @override
+  String annualStockWinLoss(int w, int l) {
+    return '$w 胜 $l 负';
+  }
+
+  @override
+  String get annualStockDividendKing => '领息王';
+
+  @override
+  String get annualStockMostTraded => '最常交易';
+
+  @override
+  String annualStockTimes(int n) {
+    return '$n 次';
+  }
+
+  @override
+  String get annualStockMonthlyPnl => '每月已实现损益';
+
+  @override
+  String get annualStockAchFirstBuy => '初次买股';
+
+  @override
+  String get annualStockAchFirstBuyDesc => '今年买入了人生第一只股票';
+
+  @override
+  String get annualStockAchProfit => '获利入袋';
+
+  @override
+  String get annualStockAchProfitDesc => '今年的股票卖出有实现盈利';
+
+  @override
+  String get annualStockAchWinRate => '神准操盘';
+
+  @override
+  String get annualStockAchWinRateDesc => '卖出 5 笔以上且胜率 60% 以上';
+
+  @override
+  String get annualStockAchDividend => '领息达人';
+
+  @override
+  String get annualStockAchDividendDesc => '一年内领息达 3 笔以上';
+
+  @override
+  String get annualStockAchActive => '积极交易者';
+
+  @override
+  String get annualStockAchActiveDesc => '一年买卖 40 笔以上';
+
+  @override
+  String get annualPersonaTitle => '你的年度称号';
+
+  @override
+  String get annualPersonaSubtitle => '根据这一年的记账与投资,我们帮你取了个名字';
+
+  @override
+  String get annualPersonaStockTrader => '盘面操盘手';
+
+  @override
+  String get annualPersonaDividendCollector => '领息达人';
+
+  @override
+  String get annualPersonaSuperSaver => '储蓄达人';
+
+  @override
+  String get annualPersonaConsistentRecorder => '记账模范生';
+
+  @override
+  String get annualPersonaWeekendSpender => '周末享乐派';
+
+  @override
+  String get annualPersonaFocusedSpender => '专一消费派';
+
+  @override
+  String get annualPersonaAdventurer => '自由冒险家';
+
+  @override
+  String get annualPersonaSteady => '稳健平衡派';
+
+  @override
+  String get annualPersonaStockTraderDesc => 'K 线、报价、买入卖出,今年盘面是你的第二个家';
+
+  @override
+  String get annualPersonaDividendCollectorDesc => '让钱去上班,你只负责按时收股利';
+
+  @override
+  String get annualPersonaSuperSaverDesc => '赚的钱你留住了一大块,未来的你会感谢现在的你';
+
+  @override
+  String get annualPersonaConsistentRecorderDesc => '日复一日从不缺席,持之以恒就是你的超能力';
+
+  @override
+  String get annualPersonaWeekendSpenderDesc => '平日努力工作,周末好好犒赏自己';
+
+  @override
+  String get annualPersonaFocusedSpenderDesc => '你的钱大多花在同一件事上,很清楚自己爱什么';
+
+  @override
+  String get annualPersonaAdventurerDesc => '今年花得比赚得多,尽情体验之余,明年也来规划一下吧';
+
+  @override
+  String get annualPersonaSteadyDesc => '收入与支出拿捏得宜,步调稳稳的';
+
+  @override
+  String annualPersonaReasonSavingsRate(String pct) {
+    return '储蓄率 $pct%';
+  }
+
+  @override
+  String annualPersonaReasonStreak(int days) {
+    return '连续记账 $days 天';
+  }
+
+  @override
+  String annualPersonaReasonWeekendHigh(String x) {
+    return '周末日均花费是平日的 $x 倍';
+  }
+
+  @override
+  String annualPersonaReasonWeekdayHigh(String x) {
+    return '平日日均花费是周末的 $x 倍';
+  }
+
+  @override
+  String annualPersonaReasonTopCategory(String name, String pct) {
+    return '$name 占了支出 $pct%';
+  }
+
+  @override
+  String annualPersonaReasonStockStyle(String style) {
+    return '投资风格:$style';
+  }
+
+  @override
+  String annualPersonaReasonStockPnl(String amount) {
+    return '股票已实现损益 $amount';
+  }
+
+  @override
+  String annualPersonaReasonRecords(int count) {
+    return '共记了 $count 笔账';
+  }
+
+  @override
+  String get annualYoYTitle => '跟去年比';
+
+  @override
+  String annualYoYSubtitle(String prev) {
+    return '和 $prev 年比,有什么不一样?';
+  }
+
+  @override
+  String annualYoYExpenseDown(String pct) {
+    return '比去年少花了 $pct%,钱包默默感谢你';
+  }
+
+  @override
+  String annualYoYExpenseUp(String pct) {
+    return '比去年多花了 $pct%,生活也跟着升级了吗?';
+  }
+
+  @override
+  String get annualYoYExpenseFlat => '花费跟去年差不多,节奏很稳';
+
+  @override
+  String annualYoYIncomeUp(String pct) {
+    return '收入增长了 $pct%,辛苦有回报';
+  }
+
+  @override
+  String get annualHabitsTitle => '消费习惯';
+
+  @override
+  String get annualHabitsSubtitle => '你都在什么时候、怎么花钱';
+
+  @override
+  String get annualHabitsHoursTitle => '时段分布';
+
+  @override
+  String get annualHabitsNight => '凌晨';
+
+  @override
+  String get annualHabitsMorning => '早晨';
+
+  @override
+  String get annualHabitsNoon => '午间';
+
+  @override
+  String get annualHabitsAfternoon => '下午';
+
+  @override
+  String get annualHabitsEvening => '晚上';
+
+  @override
+  String annualHabitsPeak(String label) {
+    return '你最常在「$label」花钱';
+  }
+
+  @override
+  String get annualHabitsWeekTitle => '平日 vs 周末';
+
+  @override
+  String get annualHabitsWeekday => '平日';
+
+  @override
+  String get annualHabitsWeekend => '周末';
+
+  @override
+  String annualHabitsDailyAvg(String amount) {
+    return '日均 $amount';
+  }
+
+  @override
+  String get annualHabitsWeekendHigh => '周末是你的花钱高峰';
+
+  @override
+  String get annualHabitsWeekdayHigh => '你平日花得比周末多';
+
+  @override
+  String get annualHabitsBalanced => '平日与周末的花费差不多';
+
+  @override
+  String get annualHabitsStreak => '最长连续记账';
+
+  @override
+  String annualHabitsStreakDays(int n) {
+    return '$n 天';
+  }
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -22395,4 +22734,343 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   @override
   String get whatsNew370OddLotFeeDesc =>
       '台股零股的預估賣出手續費改用零股最低手續費（預設 1 元，整股仍是 20 元），預估損益和券商 App 一致。另外修正報價有時停在前一個交易日的問題。入口：資產 → 投資理財帳戶 → 費用設定 →「零股最低手續費」。';
+
+  @override
+  String get annualStockOverviewTitle => '股票年度總覽';
+
+  @override
+  String get annualStockOverviewSubtitle => '這一年,你的股票帳戶默默做了不少事';
+
+  @override
+  String get annualStockRealizedPnl => '年度已實現損益';
+
+  @override
+  String get annualStockCheerUp => '落袋為安的獲利,值得好好慶祝一下';
+
+  @override
+  String get annualStockCheerDown => '這是學費,看懂了就是資產,明年更穩';
+
+  @override
+  String get annualStockCheerFlat => '不賺不賠,保本也是一種本事';
+
+  @override
+  String get annualStockNoSell => '今年還沒賣出,獲利都還留在持股裡慢慢長大';
+
+  @override
+  String get annualStockFirstBuy => '今年,是你買進人生第一檔股票的一年';
+
+  @override
+  String get annualStockTrades => '交易筆數';
+
+  @override
+  String annualStockBuySellCount(int b, int s) {
+    return '買 $b 筆 · 賣 $s 筆';
+  }
+
+  @override
+  String get annualStockBuyAmount => '買進金額';
+
+  @override
+  String get annualStockSellAmount => '賣出金額';
+
+  @override
+  String get annualStockDividendIncome => '股利收入';
+
+  @override
+  String annualStockDividendCount(int n) {
+    return '共 $n 筆入帳';
+  }
+
+  @override
+  String get annualStockFeesTax => '手續費與證交稅';
+
+  @override
+  String annualStockSymbolCount(int n) {
+    return '交易了 $n 檔標的';
+  }
+
+  @override
+  String get annualStockFootnote => '已實現損益依移動平均成本計算;買賣金額不計入收入與支出。';
+
+  @override
+  String get annualStockHighlightsTitle => '股票亮點';
+
+  @override
+  String get annualStockHighlightsSubtitle => '這一年最值得回味的幾個時刻';
+
+  @override
+  String get annualStockStyleLabel => '你的投資風格';
+
+  @override
+  String get annualStockStyleActiveTrader => '積極交易者';
+
+  @override
+  String get annualStockStyleActiveTraderDesc => '一整年都在盤面上盯著,眼明手快,記得也要照顧手續費喔';
+
+  @override
+  String get annualStockStyleDividendHunter => '領息獵人';
+
+  @override
+  String get annualStockStyleDividendHunterDesc => '股利比價差更搶眼,你靠的是穩穩入帳的現金流';
+
+  @override
+  String get annualStockStyleLongTermHolder => '長期持有者';
+
+  @override
+  String get annualStockStyleLongTermHolderDesc => '買了就抱著,讓時間幫你工作';
+
+  @override
+  String get annualStockStyleSwingTrader => '波段操作者';
+
+  @override
+  String get annualStockStyleSwingTraderDesc => '懂得進出,見好就收,抓準時機的波段玩家';
+
+  @override
+  String get annualStockStyleBeginner => '新手上路';
+
+  @override
+  String get annualStockStyleBeginnerDesc => '每段投資路都從第一步開始,期待明年的你';
+
+  @override
+  String get annualStockBestSell => '最賺的一筆';
+
+  @override
+  String get annualStockWorstSell => '最賠的一筆';
+
+  @override
+  String annualStockReturnRate(String rate) {
+    return '報酬率 $rate';
+  }
+
+  @override
+  String get annualStockWinRate => '勝率';
+
+  @override
+  String annualStockWinLoss(int w, int l) {
+    return '$w 勝 $l 敗';
+  }
+
+  @override
+  String get annualStockDividendKing => '領息王';
+
+  @override
+  String get annualStockMostTraded => '最常交易';
+
+  @override
+  String annualStockTimes(int n) {
+    return '$n 次';
+  }
+
+  @override
+  String get annualStockMonthlyPnl => '每月已實現損益';
+
+  @override
+  String get annualStockAchFirstBuy => '初次買股';
+
+  @override
+  String get annualStockAchFirstBuyDesc => '今年買進了人生第一檔股票';
+
+  @override
+  String get annualStockAchProfit => '獲利入袋';
+
+  @override
+  String get annualStockAchProfitDesc => '今年的股票賣出有實現獲利';
+
+  @override
+  String get annualStockAchWinRate => '神準操盤';
+
+  @override
+  String get annualStockAchWinRateDesc => '賣出 5 筆以上且勝率 60% 以上';
+
+  @override
+  String get annualStockAchDividend => '領息達人';
+
+  @override
+  String get annualStockAchDividendDesc => '一年內領息達 3 筆以上';
+
+  @override
+  String get annualStockAchActive => '積極交易者';
+
+  @override
+  String get annualStockAchActiveDesc => '一年買賣 40 筆以上';
+
+  @override
+  String get annualPersonaTitle => '你的年度稱號';
+
+  @override
+  String get annualPersonaSubtitle => '根據這一年的記帳與投資,我們幫你取了個名字';
+
+  @override
+  String get annualPersonaStockTrader => '盤面操盤手';
+
+  @override
+  String get annualPersonaDividendCollector => '領息達人';
+
+  @override
+  String get annualPersonaSuperSaver => '儲蓄達人';
+
+  @override
+  String get annualPersonaConsistentRecorder => '記帳模範生';
+
+  @override
+  String get annualPersonaWeekendSpender => '週末享樂派';
+
+  @override
+  String get annualPersonaFocusedSpender => '專一消費派';
+
+  @override
+  String get annualPersonaAdventurer => '自由冒險家';
+
+  @override
+  String get annualPersonaSteady => '穩健平衡派';
+
+  @override
+  String get annualPersonaStockTraderDesc => 'K 線、報價、買進賣出,今年盤面是你的第二個家';
+
+  @override
+  String get annualPersonaDividendCollectorDesc => '讓錢去上班,你只負責按時收股利';
+
+  @override
+  String get annualPersonaSuperSaverDesc => '賺的錢你留住了一大塊,未來的你會感謝現在的你';
+
+  @override
+  String get annualPersonaConsistentRecorderDesc => '日復一日從不缺席,持之以恆就是你的超能力';
+
+  @override
+  String get annualPersonaWeekendSpenderDesc => '平日努力工作,週末好好犒賞自己';
+
+  @override
+  String get annualPersonaFocusedSpenderDesc => '你的錢大多花在同一件事上,很清楚自己愛什麼';
+
+  @override
+  String get annualPersonaAdventurerDesc => '今年花得比賺得多,盡情體驗之餘,明年也來規劃一下吧';
+
+  @override
+  String get annualPersonaSteadyDesc => '收入與支出拿捏得宜,步調穩穩的';
+
+  @override
+  String annualPersonaReasonSavingsRate(String pct) {
+    return '儲蓄率 $pct%';
+  }
+
+  @override
+  String annualPersonaReasonStreak(int days) {
+    return '連續記帳 $days 天';
+  }
+
+  @override
+  String annualPersonaReasonWeekendHigh(String x) {
+    return '週末日均花費是平日的 $x 倍';
+  }
+
+  @override
+  String annualPersonaReasonWeekdayHigh(String x) {
+    return '平日日均花費是週末的 $x 倍';
+  }
+
+  @override
+  String annualPersonaReasonTopCategory(String name, String pct) {
+    return '$name 占了支出 $pct%';
+  }
+
+  @override
+  String annualPersonaReasonStockStyle(String style) {
+    return '投資風格:$style';
+  }
+
+  @override
+  String annualPersonaReasonStockPnl(String amount) {
+    return '股票已實現損益 $amount';
+  }
+
+  @override
+  String annualPersonaReasonRecords(int count) {
+    return '共記了 $count 筆帳';
+  }
+
+  @override
+  String get annualYoYTitle => '跟去年比';
+
+  @override
+  String annualYoYSubtitle(String prev) {
+    return '和 $prev 年比,有什麼不一樣?';
+  }
+
+  @override
+  String annualYoYExpenseDown(String pct) {
+    return '比去年少花了 $pct%,荷包默默感謝你';
+  }
+
+  @override
+  String annualYoYExpenseUp(String pct) {
+    return '比去年多花了 $pct%,生活也跟著升級了嗎?';
+  }
+
+  @override
+  String get annualYoYExpenseFlat => '花費跟去年差不多,節奏很穩';
+
+  @override
+  String annualYoYIncomeUp(String pct) {
+    return '收入成長了 $pct%,辛苦有回報';
+  }
+
+  @override
+  String get annualHabitsTitle => '消費習慣';
+
+  @override
+  String get annualHabitsSubtitle => '你都在什麼時候、怎麼花錢';
+
+  @override
+  String get annualHabitsHoursTitle => '時段分布';
+
+  @override
+  String get annualHabitsNight => '凌晨';
+
+  @override
+  String get annualHabitsMorning => '早晨';
+
+  @override
+  String get annualHabitsNoon => '午間';
+
+  @override
+  String get annualHabitsAfternoon => '下午';
+
+  @override
+  String get annualHabitsEvening => '晚上';
+
+  @override
+  String annualHabitsPeak(String label) {
+    return '你最常在「$label」花錢';
+  }
+
+  @override
+  String get annualHabitsWeekTitle => '平日 vs 週末';
+
+  @override
+  String get annualHabitsWeekday => '平日';
+
+  @override
+  String get annualHabitsWeekend => '週末';
+
+  @override
+  String annualHabitsDailyAvg(String amount) {
+    return '日均 $amount';
+  }
+
+  @override
+  String get annualHabitsWeekendHigh => '週末是你的花錢高峰';
+
+  @override
+  String get annualHabitsWeekdayHigh => '你平日花得比週末多';
+
+  @override
+  String get annualHabitsBalanced => '平日與週末的花費差不多';
+
+  @override
+  String get annualHabitsStreak => '最長連續記帳';
+
+  @override
+  String annualHabitsStreakDays(int n) {
+    return '$n 天';
+  }
 }

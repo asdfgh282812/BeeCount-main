@@ -4892,5 +4892,260 @@
   "stockFeeMinBoardLot": "Minimum commission: board lots",
   "stockOddLotFeeMin": "Minimum commission: odd lots",
   "whatsNew370OddLotFeeTitle": "Odd-lot commissions match your broker",
-  "whatsNew370OddLotFeeDesc": "Estimated selling commissions for Taiwan odd lots now use a separate odd-lot minimum (default NT$1; board lots stay at NT$20), so estimated P&L matches your broker app. Also fixed quotes that sometimes stayed on the previous trading day. Where: Assets → investment account → Fee settings → Minimum commission: odd lots."
+  "whatsNew370OddLotFeeDesc": "Estimated selling commissions for Taiwan odd lots now use a separate odd-lot minimum (default NT$1; board lots stay at NT$20), so estimated P&L matches your broker app. Also fixed quotes that sometimes stayed on the previous trading day. Where: Assets → investment account → Fee settings → Minimum commission: odd lots.",
+  "annualStockOverviewTitle": "Your Stock Year",
+  "annualStockOverviewSubtitle": "This year, your stock account was quietly busy",
+  "annualStockRealizedPnl": "Realized P/L this year",
+  "annualStockCheerUp": "Profits locked in. Worth a toast!",
+  "annualStockCheerDown": "Call it tuition. Next year, steadier.",
+  "annualStockCheerFlat": "Breaking even is a skill too.",
+  "annualStockNoSell": "Nothing sold yet. Your gains are still growing inside your holdings.",
+  "annualStockFirstBuy": "This is the year you bought your very first stock.",
+  "annualStockTrades": "Trades",
+  "annualStockBuySellCount": "Buy {b} · Sell {s}",
+  "@annualStockBuySellCount": {
+    "placeholders": {
+      "b": {
+        "type": "int"
+      },
+      "s": {
+        "type": "int"
+      }
+    }
+  },
+  "annualStockBuyAmount": "Bought",
+  "annualStockSellAmount": "Sold",
+  "annualStockDividendIncome": "Dividend income",
+  "annualStockDividendCount": "{n} payouts",
+  "@annualStockDividendCount": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "annualStockFeesTax": "Fees & taxes",
+  "annualStockSymbolCount": "Traded {n} symbols",
+  "@annualStockSymbolCount": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "annualStockFootnote": "Realized P/L uses moving-average cost. Buy and sell amounts are not counted in income or expense.",
+  "annualStockHighlightsTitle": "Stock Highlights",
+  "annualStockHighlightsSubtitle": "The moments worth remembering",
+  "annualStockStyleLabel": "Your investing style",
+  "annualStockStyleActiveTrader": "Active Trader",
+  "annualStockStyleActiveTraderDesc": "You were in the market all year. Quick eyes, quick hands. Just keep an eye on fees.",
+  "annualStockStyleDividendHunter": "Dividend Hunter",
+  "annualStockStyleDividendHunterDesc": "Dividends outshone trading gains. Steady cash flow is your thing.",
+  "annualStockStyleLongTermHolder": "Long-term Holder",
+  "annualStockStyleLongTermHolderDesc": "You buy, then hold, and let time do the work.",
+  "annualStockStyleSwingTrader": "Swing Trader",
+  "annualStockStyleSwingTraderDesc": "You know when to get in and when to take profit.",
+  "annualStockStyleBeginner": "Rookie Investor",
+  "annualStockStyleBeginnerDesc": "Every journey starts with a first step. See you next year!",
+  "annualStockBestSell": "Best sell",
+  "annualStockWorstSell": "Toughest sell",
+  "annualStockReturnRate": "Return {rate}",
+  "@annualStockReturnRate": {
+    "placeholders": {
+      "rate": {
+        "type": "String"
+      }
+    }
+  },
+  "annualStockWinRate": "Win rate",
+  "annualStockWinLoss": "{w} wins · {l} losses",
+  "@annualStockWinLoss": {
+    "placeholders": {
+      "w": {
+        "type": "int"
+      },
+      "l": {
+        "type": "int"
+      }
+    }
+  },
+  "annualStockDividendKing": "Dividend king",
+  "annualStockMostTraded": "Most traded",
+  "annualStockTimes": "{n} trades",
+  "@annualStockTimes": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "annualStockMonthlyPnl": "Monthly realized P/L",
+  "annualStockAchFirstBuy": "First Share",
+  "annualStockAchFirstBuyDesc": "Bought your first stock this year",
+  "annualStockAchProfit": "Profit Taker",
+  "annualStockAchProfitDesc": "Realized a profit from stock sales this year",
+  "annualStockAchWinRate": "Sharpshooter",
+  "annualStockAchWinRateDesc": "60%+ win rate across 5 or more sells",
+  "annualStockAchDividend": "Dividend Fan",
+  "annualStockAchDividendDesc": "Collected dividends 3 or more times",
+  "annualStockAchActive": "Active Trader",
+  "annualStockAchActiveDesc": "40 or more buys and sells in a year",
+  "annualPersonaTitle": "Your Year in a Title",
+  "annualPersonaSubtitle": "Based on how you tracked and invested this year",
+  "annualPersonaStockTrader": "Market Maverick",
+  "annualPersonaDividendCollector": "Dividend Collector",
+  "annualPersonaSuperSaver": "Super Saver",
+  "annualPersonaConsistentRecorder": "Tracking Champion",
+  "annualPersonaWeekendSpender": "Weekend Treat-lover",
+  "annualPersonaFocusedSpender": "Focused Spender",
+  "annualPersonaAdventurer": "Free-spirited Adventurer",
+  "annualPersonaSteady": "Steady Balancer",
+  "annualPersonaStockTraderDesc": "Charts, quotes, buys and sells. The market was your second home this year.",
+  "annualPersonaDividendCollectorDesc": "You let your money go to work, and you simply collect the payouts.",
+  "annualPersonaSuperSaverDesc": "You kept a big slice of what you earned. Future you says thanks.",
+  "annualPersonaConsistentRecorderDesc": "Day after day, you kept showing up. Consistency is your superpower.",
+  "annualPersonaWeekendSpenderDesc": "Weekdays are for working, weekends are for treating yourself.",
+  "annualPersonaFocusedSpenderDesc": "Most of your spending goes to one thing. You know what you love.",
+  "annualPersonaAdventurerDesc": "You spent more than you earned this year. Live boldly, then plan the next lap.",
+  "annualPersonaSteadyDesc": "Income and spending in good balance. Calm, steady, in control.",
+  "annualPersonaReasonSavingsRate": "Savings rate {pct}%",
+  "@annualPersonaReasonSavingsRate": {
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "annualPersonaReasonStreak": "{days}-day tracking streak",
+  "@annualPersonaReasonStreak": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "annualPersonaReasonWeekendHigh": "Weekend daily spend is {x}x weekdays",
+  "@annualPersonaReasonWeekendHigh": {
+    "placeholders": {
+      "x": {
+        "type": "String"
+      }
+    }
+  },
+  "annualPersonaReasonWeekdayHigh": "Weekday daily spend is {x}x weekends",
+  "@annualPersonaReasonWeekdayHigh": {
+    "placeholders": {
+      "x": {
+        "type": "String"
+      }
+    }
+  },
+  "annualPersonaReasonTopCategory": "{name} took {pct}% of spending",
+  "@annualPersonaReasonTopCategory": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "annualPersonaReasonStockStyle": "Investing style: {style}",
+  "@annualPersonaReasonStockStyle": {
+    "placeholders": {
+      "style": {
+        "type": "String"
+      }
+    }
+  },
+  "annualPersonaReasonStockPnl": "Stock realized P/L {amount}",
+  "@annualPersonaReasonStockPnl": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "annualPersonaReasonRecords": "{count} records tracked",
+  "@annualPersonaReasonRecords": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "annualYoYTitle": "Vs. Last Year",
+  "annualYoYSubtitle": "How {prev} compares with this year",
+  "@annualYoYSubtitle": {
+    "placeholders": {
+      "prev": {
+        "type": "String"
+      }
+    }
+  },
+  "annualYoYExpenseDown": "You spent {pct}% less than last year. Your wallet says thanks.",
+  "@annualYoYExpenseDown": {
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "annualYoYExpenseUp": "You spent {pct}% more than last year.",
+  "@annualYoYExpenseUp": {
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "annualYoYExpenseFlat": "Spending was about the same as last year. Very steady.",
+  "annualYoYIncomeUp": "Income grew {pct}%. The hard work paid off!",
+  "@annualYoYIncomeUp": {
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "annualHabitsTitle": "Spending Habits",
+  "annualHabitsSubtitle": "When and how you spend",
+  "annualHabitsHoursTitle": "Time of day",
+  "annualHabitsNight": "Late night",
+  "annualHabitsMorning": "Morning",
+  "annualHabitsNoon": "Midday",
+  "annualHabitsAfternoon": "Afternoon",
+  "annualHabitsEvening": "Evening",
+  "annualHabitsPeak": "You spend most in the {label}",
+  "@annualHabitsPeak": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "annualHabitsWeekTitle": "Weekdays vs weekends",
+  "annualHabitsWeekday": "Weekday",
+  "annualHabitsWeekend": "Weekend",
+  "annualHabitsDailyAvg": "{amount} / day",
+  "@annualHabitsDailyAvg": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "annualHabitsWeekendHigh": "Weekends are your spending peak",
+  "annualHabitsWeekdayHigh": "You spend more on weekdays",
+  "annualHabitsBalanced": "Weekdays and weekends are about even",
+  "annualHabitsStreak": "Longest streak",
+  "annualHabitsStreakDays": "{n} days",
+  "@annualHabitsStreakDays": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  }
 }

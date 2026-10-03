@@ -15,6 +15,10 @@ import '../../data/db.dart';
 import '../../services/export/share_poster_types.dart';
 import '../../services/export/share_poster_service.dart';
 import '../../services/data/category_service.dart';
+import '../../services/investment/stock_annual_report.dart';
+import '../../services/report/annual_persona.dart';
+import '../../services/system/logger_service.dart';
+import 'annual_report_extra_pages.dart';
 
 /// 年度账单数据
 class AnnualReportData {
@@ -38,6 +42,23 @@ class AnnualReportData {
   final DateTime? periodStart;
   final DateTime? periodEnd;
 
+  /// 去年的收入 / 支出;去年沒有任何收支時為 null(不顯示「跟去年比」頁)。
+  final double? previousYearIncome;
+  final double? previousYearExpense;
+
+  /// 支出筆數的時段分布(長度 5):凌晨 0–5、早晨 5–11、午間 11–14、
+  /// 下午 14–18、晚上 18–24。
+  final List<int> expenseHourBuckets;
+
+  /// 平日(週一~五)/ 週末(六日)的支出合計與年度內的天數(算日均用)。
+  final double weekdayExpense;
+  final double weekendExpense;
+  final int weekdayDays;
+  final int weekendDays;
+
+  /// 年度股票摘要(各幣別分開);該年度沒有股票交易或載入失敗時為 null。
+  final StockAnnualBundle? stock;
+
   const AnnualReportData({
     required this.year,
     required this.totalDays,
@@ -56,7 +77,52 @@ class AnnualReportData {
     this.maxConsecutiveDays = 0,
     this.periodStart,
     this.periodEnd,
+    this.previousYearIncome,
+    this.previousYearExpense,
+    this.expenseHourBuckets = const [0, 0, 0, 0, 0],
+    this.weekdayExpense = 0,
+    this.weekendExpense = 0,
+    this.weekdayDays = 0,
+    this.weekendDays = 0,
+    this.stock,
   });
+
+  bool get hasPreviousYear =>
+      previousYearIncome != null && previousYearExpense != null;
+
+  int get expenseRecordCount => expenseHourBuckets.fold(0, (a, b) => a + b);
+
+  /// 週末日均支出 / 平日日均支出;任一邊沒有資料時為 null。
+  double? get weekendWeekdayRatio {
+    if (weekdayDays <= 0 || weekendDays <= 0) return null;
+    final wd = weekdayExpense / weekdayDays;
+    final we = weekendExpense / weekendDays;
+    if (wd <= 0 || we <= 0) return null;
+    return we / wd;
+  }
+
+  /// 有足夠的時段 / 週末資料才顯示「記帳習慣」頁。
+  bool get hasHabits => expenseRecordCount >= 5;
+
+  /// 年度稱號(純函式規則,見 [AnnualPersona.decide])。
+  AnnualPersona get persona => AnnualPersona.decide(
+        totalRecords: totalRecords,
+        totalDays: totalDays,
+        totalIncome: totalIncome,
+        totalExpense: totalExpense,
+        maxConsecutiveDays: maxConsecutiveDays,
+        weekendWeekdayRatio: weekendWeekdayRatio,
+        topCategoryName: topExpenseCategories.isEmpty
+            ? null
+            : topExpenseCategories.first.name,
+        topCategoryShare: topExpenseCategories.isEmpty
+            ? null
+            : topExpenseCategories.first.percentage,
+        stock: stock?.primary,
+      );
+
+  /// 稱號資料足夠才顯示(記帳太少的年份不硬湊稱號)。
+  bool get hasPersona => totalRecords >= 10;
 }
 
 /// 年度账单数据 Provider
@@ -185,6 +251,73 @@ final annualReportDataProvider =
   }
   if (sortedDays.length == 1) maxConsecutive = 1;
 
+  // 去年收支(跟去年比);去年沒資料就 null。
+  double? prevIncome;
+  double? prevExpense;
+  try {
+    final (pi, pe) =
+        await repo.yearlyTotals(ledgerId: ledgerId, year: year - 1);
+    if (pi != 0 || pe != 0) {
+      prevIncome = pi;
+      prevExpense = pe;
+    }
+  } catch (e) {
+    logger.warning('AnnualReport', '去年收支讀取失敗: $e');
+  }
+
+  // 消費習慣:時段分布 + 平日/週末(支出,折算值同「最大單筆」口徑)。
+  final hourBuckets = List<int>.filled(5, 0);
+  double weekdayExpense = 0;
+  double weekendExpense = 0;
+  for (final tx in transactions) {
+    if (tx.type != 'expense') continue;
+    final h = tx.happenedAt.hour;
+    final bucket = h < 5 ? 0 : (h < 11 ? 1 : (h < 14 ? 2 : (h < 18 ? 3 : 4)));
+    hourBuckets[bucket]++;
+    if (tx.happenedAt.weekday >= DateTime.saturday) {
+      weekendExpense += conv(tx);
+    } else {
+      weekdayExpense += conv(tx);
+    }
+  }
+  // 年度內的平日/週末天數(今年只算到今天,否則日均會被未來的天數稀釋)。
+  var weekdayDays = 0;
+  var weekendDays = 0;
+  final today = DateTime.now();
+  final lastDay =
+      DateTime(today.year, today.month, today.day).add(const Duration(days: 1));
+  final limit = endDate.isBefore(lastDay) ? endDate : lastDay;
+  for (var d = DateTime(startDate.year, startDate.month, startDate.day);
+      d.isBefore(limit);
+      d = DateTime(d.year, d.month, d.day + 1)) {
+    if (d.weekday >= DateTime.saturday) {
+      weekendDays++;
+    } else {
+      weekdayDays++;
+    }
+  }
+
+  // 股票年度摘要:任何失敗都視為「沒有股票頁」,不可拖垮整份報告。
+  StockAnnualBundle? stock;
+  try {
+    final stockTrades = await ref.watch(stockTradesProvider.future);
+    final accounts = await ref.watch(allAccountsStreamProvider.future);
+    final accountCurrency = <String, String>{
+      for (final a in accounts) a.id.toString(): a.currency,
+    };
+    final bundle = StockAnnualReport.build(
+      [
+        for (final t in stockTrades)
+          if (t.ledgerId == ledgerId) holdingTradeOf(t),
+      ],
+      year: year,
+      accountCurrency: accountCurrency,
+    );
+    if (!bundle.isEmpty) stock = bundle;
+  } catch (e) {
+    logger.warning('AnnualReport', '股票年度摘要計算失敗: $e');
+  }
+
   return AnnualReportData(
     year: year,
     totalDays: totalDays,
@@ -203,6 +336,14 @@ final annualReportDataProvider =
     maxConsecutiveDays: maxConsecutive,
     periodStart: startDate,
     periodEnd: endDate,
+    previousYearIncome: prevIncome,
+    previousYearExpense: prevExpense,
+    expenseHourBuckets: hourBuckets,
+    weekdayExpense: weekdayExpense,
+    weekendExpense: weekendExpense,
+    weekdayDays: weekdayDays,
+    weekendDays: weekendDays,
+    stock: stock,
   );
 });
 
@@ -228,6 +369,9 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
 
   late PageController _pageController;
   int _currentPage = 0;
+
+  /// 股票兩頁(總覽 / 亮點)共用的幣別 chip 選擇,切一頁就兩頁同步。
+  final ValueNotifier<int> _stockCurrency = ValueNotifier<int>(0);
   late int _selectedYear;
 
   @override
@@ -240,6 +384,7 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
 
   @override
   void dispose() {
+    _stockCurrency.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -375,6 +520,7 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
         }).toList(),
         onChanged: (year) {
           if (year != null) {
+            _stockCurrency.value = 0;
             setState(() => _selectedYear = year);
           }
         },
@@ -385,6 +531,27 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
   Widget _buildContent(BuildContext context, AnnualReportData data) {
     final l10n = AppLocalizations.of(context);
 
+    // 依資料條件組出頁面:沒有的內容就不出現。
+    final stock = data.stock;
+    final pages = <Widget>[
+      _buildPage1Overview(context, data),
+      _buildPageInsights(context, data), // 年度洞察
+      _buildPageIncomeVsExpense(context, data), // 收支对比
+      _buildPage2Categories(context, data),
+      _buildPage3MonthlyTrend(context, data),
+      if (data.hasPreviousYear) AnnualYoYPage(data: data), // 跟去年比
+      if (data.hasHabits) AnnualHabitsPage(data: data), // 消費習慣
+      _buildPage4SpecialMoments(context, data),
+      if (stock != null) ...[
+        AnnualStockOverviewPage(stock: stock, selected: _stockCurrency),
+        AnnualStockHighlightsPage(stock: stock, selected: _stockCurrency),
+      ],
+      if (data.hasPersona) AnnualPersonaPage(data: data), // 年度稱號
+      _buildPage5Achievements(context, data),
+    ];
+    // 年份切換後頁數可能變少,避免指示點停在不存在的頁。
+    final current = _currentPage.clamp(0, pages.length - 1);
+
     return SafeArea(
       child: Column(
         children: [
@@ -393,18 +560,10 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
             child: PageView(
               controller: _pageController,
               onPageChanged: (page) => setState(() => _currentPage = page),
-              children: [
-                _buildPage1Overview(context, data),
-                _buildPageInsights(context, data), // 年度洞察
-                _buildPageIncomeVsExpense(context, data), // 收支对比
-                _buildPage2Categories(context, data),
-                _buildPage3MonthlyTrend(context, data),
-                _buildPage4SpecialMoments(context, data),
-                _buildPage5Achievements(context, data),
-              ],
+              children: pages,
             ),
           ),
-          _buildPageIndicator(7), // 7页
+          _buildPageIndicator(pages.length, current),
           const SizedBox(height: 16),
           _buildBottomActions(l10n),
           const SizedBox(height: 16),
@@ -413,15 +572,15 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
     );
   }
 
-  Widget _buildPageIndicator(int pageCount) {
+  Widget _buildPageIndicator(int pageCount, int currentPage) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(pageCount, (index) {
-        final isActive = index == _currentPage;
+        final isActive = index == currentPage;
         return AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           margin: const EdgeInsets.symmetric(horizontal: 4),
-          width: isActive ? 24 : 8,
+          width: isActive ? 24 : (pageCount > 10 ? 6 : 8),
           height: 8,
           decoration: BoxDecoration(
             color:
@@ -520,6 +679,7 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
           data: data,
           primaryColor: primaryColor,
           incomeIsRed: ref.read(incomeExpenseColorSchemeProvider),
+          stockUpIsRed: ref.read(stockUpIsRedProvider),
         ),
       );
 
@@ -538,6 +698,7 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
           data: data,
           primaryColor: primaryColor,
           incomeIsRed: ref.read(incomeExpenseColorSchemeProvider),
+          stockUpIsRed: ref.read(stockUpIsRedProvider),
         ),
       );
     } catch (e) {
@@ -678,6 +839,17 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
     final lines = InvestmentFlowLines.build(
         AppLocalizations.of(context), conv,
         hide: ref.watch(hideAmountsProvider));
+    // 年度有股票頁時,手續費/股利/買賣明細都在股票頁(依證券幣別)看得到;這張卡
+    // 只保留「淨投入未計入收支」那段(解釋淨儲蓄為什麼不等於剩下的現金)與缺匯率
+    // 警示,避免兩邊重複。
+    final hasStockPages = data.stock != null;
+    if (hasStockPages && lines.title == null) return const SizedBox.shrink();
+    final detailLines = hasStockPages
+        ? <String>[
+            if (lines.details.isNotEmpty) lines.details.first,
+            if (lines.warningIndex != null) lines.details[lines.warningIndex!],
+          ]
+        : lines.details;
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Container(
@@ -698,7 +870,7 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
                     fontSize: 15,
                     fontWeight: FontWeight.w600),
               ),
-            for (final line in lines.details)
+            for (final line in detailLines)
               Padding(
                 padding: const EdgeInsets.only(top: 2),
                 child: Text(
@@ -1714,6 +1886,39 @@ class _AnnualReportPageState extends ConsumerState<AnnualReportPage> {
         icon: Icons.auto_awesome_rounded,
         unlocked: data.totalRecords >= 100,
       ),
+      // 股票成就:只有該年度有股票交易時才出現(沒買過股票的人不會看到一排鎖住的項目)。
+      if (data.stock != null) ...[
+        (
+          title: l10n.annualStockAchFirstBuy,
+          desc: l10n.annualStockAchFirstBuyDesc,
+          icon: Icons.flag_circle_rounded,
+          unlocked: data.stock!.firstBuyThisYear,
+        ),
+        (
+          title: l10n.annualStockAchProfit,
+          desc: l10n.annualStockAchProfitDesc,
+          icon: Icons.trending_up_rounded,
+          unlocked: data.stock!.hasRealizedProfit,
+        ),
+        (
+          title: l10n.annualStockAchWinRate,
+          desc: l10n.annualStockAchWinRateDesc,
+          icon: Icons.gps_fixed_rounded,
+          unlocked: data.stock!.hasHighWinRate,
+        ),
+        (
+          title: l10n.annualStockAchDividend,
+          desc: l10n.annualStockAchDividendDesc,
+          icon: Icons.paid_rounded,
+          unlocked: data.stock!.isDividendCollector,
+        ),
+        (
+          title: l10n.annualStockAchActive,
+          desc: l10n.annualStockAchActiveDesc,
+          icon: Icons.bolt_rounded,
+          unlocked: data.stock!.isActiveTrader,
+        ),
+      ],
     ];
 
     return SingleChildScrollView(
@@ -1833,12 +2038,14 @@ class _AnnualReportPosterPreview extends StatefulWidget {
   final AnnualReportData data;
   final Color primaryColor;
   final bool incomeIsRed;
+  final bool stockUpIsRed;
 
   const _AnnualReportPosterPreview({
     required this.initialImageBytes,
     required this.data,
     required this.primaryColor,
     required this.incomeIsRed,
+    required this.stockUpIsRed,
   });
 
   @override
@@ -1874,6 +2081,7 @@ class _AnnualReportPosterPreviewState
           primaryColor: widget.primaryColor,
           hideIncome: _hideIncome,
           incomeIsRed: widget.incomeIsRed,
+          stockUpIsRed: widget.stockUpIsRed,
         ),
       );
 
